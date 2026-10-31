@@ -2166,6 +2166,7 @@
             <button class="btn" onclick="resetCols('tBeans')" title="끌어서 바꾼 칸 넓이를 처음으로">칸 넓이 초기화</button>
             <button class="btn primary" onclick="seedBeanMaster()">원두 마스터 다시 넣기</button>
             <button class="btn" onclick="autoProductsMissing()" title="완제품이 없는 원두에 1kg·500g·200g(하바나는 100g)을 자동으로 만듭니다">완제품 자동 추가</button>
+            <button class="btn" onclick="autoMergeProducts({manual:true})" title="이름이 같거나(띄어쓰기·괄호·'원두' 무시) 원두·규격·분쇄도가 같은 품목이 두 줄이면 하나로 합칩니다 — 기록·재고는 대표 줄로">중복 품목 정리</button>
             <button class="btn" onclick="openPaste('mmscode')">엑셀로 MMS코드 넣기</button>
             <button class="btn" onclick="openPaste('beanmaster')">엑셀로 원두 마스터 넣기</button>
             <button class="btn" onclick="applyBeanRules()" title="머신 종류 칸(S35_하바나 싱글 · S70_시그니처 블렌드 …)대로 로스터기 가능 칸과 1배치 kg(하바나 싱글 10 · 싱글 20)을 채웁니다">머신 종류대로 세팅</button>
@@ -3635,7 +3636,7 @@ const sortBatches = list => [...list].sort((a,b)=>
 const autoSpecsFor = b => /하바나|havana/i.test(String(b?.machine||"") + " " + String(b?.name||"")) ? [1000,500,100] : [1000,500,200];
 function autoProductsPlan(b){
   if (!b || !String(b.name||"").trim()) return [];
-  return autoSpecsFor(b).filter(g=>!DB.products.some(p=>p.bean===b.name && Number(p.spec_g)===g));
+  return autoSpecsFor(b).filter(g=>!findProductLike({ bean:b.name, spec:g, grind:"홀빈", name:`원두 ${b.name} ${specLabel(g)}` }));
 }
 async function autoProductsFor(beans, opt={}){
   const plan = beans.map(b=>({ b, specs:autoProductsPlan(b) })).filter(x=>x.specs.length);
@@ -3873,6 +3874,7 @@ async function initDB(){
   renderAll();
   /* 같은 라벨·봉투가 여러 줄이면 (관리자 계정일 때) 조용히 하나로 */
   setTimeout(()=>{ try { autoMergeMaterials().catch(e=>console.warn(e)); } catch(e){} }, 1200);
+  setTimeout(()=>{ try { autoMergeProducts().catch(e=>console.warn(e)); } catch(e){} }, 1600);
 }
 
 
@@ -6696,6 +6698,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "같은 품목 알아보기 · 중복 품목 자동 통합", "이름이 같은 품목(띄어쓰기·괄호[분쇄안함]·앞의 \"원두\"·대소문자·1kg=1000g 무시)이나 원두·규격·분쇄도·채널이 같은 품목은 같은 줄로 봄 — 품목 일괄 입력·엑셀 CFE코드 넣기·원두 등록 자동 완제품·표에서 고치기 모두 새 줄을 만들지 않고 기존 줄로 · 원두 일괄 입력도 띄어쓰기만 다른 원두는 막음 · 이미 두 줄로 들어간 품목은 관리자가 열 때 자동으로 하나로 (기록 많은 줄이 대표 · CFE 재고 더함 · 생산실적·지시·계획·수불·BOM 전부 대표로 · 변경이력에 남김) · 기준정보 › 품목 [중복 품목 정리] 버튼 · 서버 058_merge_product.sql 필요"],
   ["2026-11-01", "기준정보 › 검색", "품목·원두·부자재 표 위에 🔍 찾기 칸 — 이름·코드·원두·규격으로 바로 좁힘 · 띄어쓰기로 여러 말(예: \"쇼콜라 200\") · 초성(ㅅㅋㄹ)도 됨 · 사용중/중지 탭·구분 버튼과 같이 씀"],
   ["2026-10-31", "원두 등록 → 완제품(CFE) 자동 추가", "원두 일괄 입력으로 원두를 넣으면 바로 완제품을 자동으로 만들지 물음 — 하바나는 1kg·500g·100g, 싱글·블렌드는 1kg·500g·200g · 이름 \"원두 {원두명} {규격}\" · 홀빈 · CFE 코드 자동 · 이미 있는 규격은 건너뜀 · 기준정보 › 원두에 [완제품 자동 추가] 버튼 — 완제품이 빠진 원두를 한 번에"],
   ["2026-10-31", "일괄 입력 › 엑셀 줄 붙여넣기", "원두·품목·부자재·기계 일괄 입력 표에 엑셀에서 복사한 줄을 붙여넣으면 커서 칸부터 오른쪽·아래로 채움 (전에는 한 칸에 통째로 들어가 인식 못 함) · 칸 안 줄바꿈(품목보고번호 2010014↵7027129)은 한 칸으로 · 날짜 2026/10/27 → 2026-10-27"],
@@ -12892,6 +12895,12 @@ document.addEventListener("change", e=>{
     if (full && full !== el.value) { el.value = full; toast(`${full} 로 맞췄습니다`); }
   }
   const was = row[k];
+  /* ★ 2026-11-01 — 품목도 같은 줄이 이미 있으면 그쪽으로 바꾸지 못하게 (오마·온기 두 줄 방지) */
+  if (t === "products" && ["name","bean","spec_g","grind","channel"].includes(k)) {
+    const nv0 = el.type === "number" ? Number(el.value)||0 : el.value;
+    const d = findProductLike({ ...row, [k]: nv0 }, row.id);
+    if (d) { el.value = was; toast(`이미 있는 품목입니다 — ${d.code||""} ${d.name} · 새로 만들지 말고 그 줄을 쓰세요`); return; }
+  }
   /* ★ 041 — 같은 자재(이름·구분·묶음)가 이미 있으면 그 줄로 바꾸지 못하게 */
   if (t === "materials" && ["name","kind","pack_qty"].includes(k)) {
     const d = matDupOf({ ...row, [k]: el.type === "checkbox" ? el.checked : el.value }, row.id);
@@ -14268,6 +14277,7 @@ async function reloadDB(opt = {}){
     DB.materials = DB.materials.filter(matActive);
     if (opt.silent) liveRender(); else { renderAll(); toast("모든 화면을 최신 데이터로 갱신했습니다"); }
     setTimeout(()=>{ autoMergeMaterials().catch(e=>console.warn(e)); }, 800);
+    setTimeout(()=>{ autoMergeProducts().catch(e=>console.warn(e)); }, 1200);
   } catch(e){ console.warn(e); if (!opt.silent) toast("불러오기 실패 — 연결을 확인하세요"); }
 }
 
@@ -14492,7 +14502,103 @@ function matchProduct(nameRaw){
 /* 붙여넣은 품목명 한 줄에서 원두·규격·분쇄도를 뽑아냄 — 목록에 없는 품목을 새로 만들 때 사용 */
 const SPEC_RE = /(\d+(?:[.,]\d+)?)\s*(kg|킬로|키로|g|그램)\b/i;
 const findExactProduct = (bean, spec, grind) => DB.products.find(p =>
-  p.bean===bean && Number(p.spec_g)===Number(spec) && (p.grind||"홀빈")===(grind||"홀빈"));
+  beanNrm(p.bean)===beanNrm(bean) && Number(p.spec_g)===Number(spec) && (p.grind||"홀빈")===(grind||"홀빈"));
+
+/* ★ 2026-11-01 — 같은 품목 알아보기 (Lee "오마·온기 이름이 같은 게 있으면 알아서 인식하게 — 계속 품목이 추가가 돼")
+   두 줄이 같은 품목이면 : 분쇄도·채널이 같고
+     ① 이름이 같다 — 띄어쓰기 · 괄호[분쇄안함] · 앞의 "원두" · 대소문자 · 1kg=1000g 는 무시   또는
+     ② 원두(띄어쓰기 무시) · 규격이 같다
+   새로 넣을 때(일괄 입력 · 엑셀 CFE코드 · 원두 등록 자동 완제품 · 표에서 고치기)는 이미 있는 줄로 보내고,
+   이미 두 줄로 들어가 있던 것은 열 때 자동으로 하나로 합친다 (autoMergeProducts) */
+const prodChan = p => p?.channel || "일반";
+function prodSameAs(a, b){
+  if (!a || !b || a === b) return false;
+  if ((a.grind||"홀빈") !== (b.grind||"홀빈") || prodChan(a) !== prodChan(b)) return false;
+  const na = normName(a.name), nb = normName(b.name);
+  if (na && nb && na === nb) return true;
+  const ba = beanNrm(a.bean), bb = beanNrm(b.bean);
+  return !!(ba && bb && ba === bb && Number(a.spec_g) > 0 && Number(a.spec_g) === Number(b.spec_g));
+}
+/* q = { name, bean, spec(또는 spec_g), grind, channel } — 같은 품목이 이미 있으면 그 줄 */
+function findProductLike(q, excludeId){
+  const probe = { name:q.name||"", bean:q.bean||"", spec_g:Number(q.spec ?? q.spec_g)||0,
+                  grind:q.grind || grindInName(q.name) || "홀빈", channel:q.channel||"일반" };
+  let hit = DB.products.find(p=>p.id !== excludeId && prodSameAs(probe, p));
+  if (!hit && probe.name && !probe.bean) {                     // 이름만 있을 때 — 이름에서 원두·규격을 읽어 다시
+    const d = parseProduct(probe.name);
+    if (d.bean && d.spec) hit = DB.products.find(p=>p.id !== excludeId && prodSameAs({ ...probe, bean:d.bean, spec_g:d.spec, grind:probe.grind }, p));
+  }
+  return hit || null;
+}
+/* 품목에 달린 기록 수 — 대표를 고를 때 (많은 쪽이 대표) */
+const prodHistN = p => DB.logs.filter(l=>l.product_id===p.id).length*3 + DB.orders.filter(o=>o.product_id===p.id).length*2
+  + DB.stock_moves.filter(m=>m.product_id===p.id).length + DB.bom.filter(b=>b.product_id===p.id).length + DB.tallies.filter(t=>t.product_id===p.id).length;
+function prodDupGroups(){
+  const groups = []; const used = new Set();
+  DB.products.forEach(p=>{
+    if (used.has(p.id)) return;
+    const g = [p]; used.add(p.id);
+    let grew = true;
+    while (grew) { grew = false;
+      DB.products.forEach(x=>{ if (!used.has(x.id) && g.some(y=>prodSameAs(y, x))) { g.push(x); used.add(x.id); grew = true; } }); }
+    if (g.length > 1) groups.push(g);
+  });
+  return groups;
+}
+async function mesMergeProduct(a){
+  return rpc("merge_product", { p_keep:a.keep, p_drop:a.drop, p_user_name:CURRENT_USER }, () => {
+    const k = prodById(a.keep), d = prodById(a.drop); if (!k || !d) return MES_ERR("no_product", "품목을 찾을 수 없습니다");
+    ["logs","orders","stock_moves","tallies","pqc","shipments","rework_in","rework","consumptions","material_tasks","plan_lines"].forEach(t=>
+      (DB[t]||[]).forEach(r=>{ if (r.product_id===d.id) { r.product_id = k.id; if ("product_name" in r) r.product_name = k.name; if ("product_code" in r) r.product_code = k.code; } }));
+    DB.bom = DB.bom.filter(b=>!(b.product_id===d.id && DB.bom.some(x=>x.product_id===k.id && x.material_id===b.material_id)));
+    DB.bom.forEach(b=>{ if (b.product_id===d.id) b.product_id = k.id; });
+    k.cfe = Number(k.cfe||0) + Number(d.cfe||0); k.safety = Math.max(Number(k.safety||0), Number(d.safety||0));
+    if (!k.code && d.code) k.code = d.code; if (!k.bean && d.bean) k.bean = d.bean; if (!k.label_id && d.label_id) k.label_id = d.label_id;
+    k.off = !!k.off && !!d.off;
+    save("products", k); DB.products = DB.products.filter(x=>x.id!==d.id); delMany("products", [d.id]);
+    return { ok:true, cfe:k.cfe };
+  });
+}
+/* 서버가 합친 뒤 — 화면 데이터도 같게 (서버 모드에서는 rpc 가 로컬 엔진을 타지 않으므로 여기서) */
+function prodMergeLocal(keep, drop){
+  if (!sb) return;
+  ["logs","orders","stock_moves","tallies","pqc","shipments","rework_in","rework","consumptions","material_tasks","plan_lines"].forEach(t=>
+    (DB[t]||[]).forEach(r=>{ if (r.product_id===drop.id) { r.product_id = keep.id; if ("product_name" in r) r.product_name = keep.name; if ("product_code" in r) r.product_code = keep.code; } }));
+  DB.bom = DB.bom.filter(b=>!(b.product_id===drop.id && DB.bom.some(x=>x.product_id===keep.id && x.material_id===b.material_id)));
+  DB.bom.forEach(b=>{ if (b.product_id===drop.id) b.product_id = keep.id; });
+  keep.cfe = Number(keep.cfe||0) + Number(drop.cfe||0); keep.safety = Math.max(Number(keep.safety||0), Number(drop.safety||0));
+  if (!keep.code && drop.code) keep.code = drop.code; if (!keep.bean && drop.bean) keep.bean = drop.bean; if (!keep.label_id && drop.label_id) keep.label_id = drop.label_id;
+  keep.off = !!keep.off && !!drop.off;
+  DB.products = DB.products.filter(x=>x.id!==drop.id);
+}
+let PROD_AUTO_BUSY = false;
+async function autoMergeProducts(opt={}){
+  if (PROD_AUTO_BUSY || !can("base")) return 0;
+  const groups = prodDupGroups(); if (!groups.length) { if (opt.manual) toast("겹치는 품목이 없습니다"); return 0; }
+  PROD_AUTO_BUSY = true;
+  let done = 0; const fails = [];
+  try {
+    if (opt.manual && !(await ask(`같은 품목이 두 줄 이상인 것 ${groups.length}건을 하나로 합칩니다 (기록이 많은 줄이 대표 · CFE 재고는 더함):\n\n` +
+        groups.slice(0,10).map(g=>`· ${g.map(p=>`${p.code||"-"} ${p.name}`).join("  =  ")}`).join("\n") + (groups.length>10?`\n… 외 ${groups.length-10}건`:""),
+        { title:"중복 품목 정리", yes:"합치기" }))) return 0;
+    for (const g of groups) {
+      /* 대표 = 기록 많은 줄 › 원두가 적힌 줄 › CFE 번호(CFE0001 식)가 붙은 줄 › 코드 있는 줄 › 재고 많은 줄 */
+      const cfeNo = p => /^cfe\s*-?\d+/i.test(String(p.code||"")) ? 1 : 0;
+      const list = [...g].sort((a,b)=>prodHistN(b)-prodHistN(a) || (beanNrm(b.bean)?1:0)-(beanNrm(a.bean)?1:0) || cfeNo(b)-cfeNo(a) || (b.code?1:0)-(a.code?1:0) || Number(b.cfe||0)-Number(a.cfe||0) || String(a.name).length-String(b.name).length);
+      const keep = list[0];
+      for (const d of list.slice(1)) {
+        const r = await mesMergeProduct({ keep:keep.id, drop:d.id });
+        if (!r || r.ok === false) { fails.push(`${d.name} — ${r?.message||"실패"}`); console.warn("품목 자동 통합 실패", d.name, r?.message); continue; }
+        prodMergeLocal(keep, d);
+        logAudit("품목 중복 자동 통합", keep.name, `${d.name} (${d.code||"-"} · CFE ${fmt(d.cfe||0)}) → 대표 ${keep.code||"-"} ${keep.name}`);
+        done++;
+      }
+    }
+    if (done) { renderAll(); toast(`같은 품목 ${done}줄을 하나로 합쳤습니다 — 변경이력에 남김`); }
+    if (fails.length && opt.manual) await ask(`${done}줄 합침 · ${fails.length}줄 실패\n\n${fails.slice(0,8).join("\n")}\n\n서버에 058_merge_product.sql 이 들어가 있는지 확인하세요.`, { title:"중복 품목 정리", yes:"확인", only:true });
+  } finally { PROD_AUTO_BUSY = false; }
+  return done;
+}
 /* 편집거리 기반 유사도 — 사진 인식이 '므쵸베리'를 '므죠베리'로 읽어도 같은 원두로 본다 */
 function simRatio(a, b){
   a = String(a).replace(/\s+/g,""); b = String(b).replace(/\s+/g,"");
@@ -14939,7 +15045,7 @@ function preview(){
       }
       if (mode==="mmscode") { const bean = matchBean(nameRaw); pRows.push({ nameRaw, code, qty, bean, isNew:!bean }); }
       else {
-        let p = matchProduct(nameRaw), mk = null;
+        let p = matchProduct(nameRaw) || findProductLike({ name:nameRaw }), mk = null;
         if (!p) {                                   // 목록에 없는 품목 → 이름에서 해석해 새로 만들 준비
           const d = parseProduct(nameRaw);
           if (d.spec && d.bean) p = findExactProduct(d.bean, d.spec, d.grind);
@@ -17686,9 +17792,14 @@ const BULK_DEFS = {
       const ck = codeKey(v.code);
       if (ck && DB.products.some(p=>codeKey(p.code)===ck)) return `코드 ${v.code} 이미 있음`;
       if (ck && all.some((o,j)=>j<i && codeKey(o.code)===ck)) return `코드 ${v.code} 가 위 줄과 중복`;
-      if (DB.products.some(p=>String(p.name).trim()===v.name.trim())) return "같은 제품명이 이미 있음";
-      if (all.some((o,j)=>j<i && String(o.name).trim()===v.name.trim())) return "제품명이 위 줄과 중복";
-      if (v.bean && !DB.beans.some(b=>b.name===v.bean)) return `원두 "${v.bean}" 가 원두 표에 없음`;
+      if (v.bean && !DB.beans.some(b=>b.name===v.bean)) {                 // 띄어쓰기만 다른 원두는 등록된 이름으로 맞춘다
+        const nb = DB.beans.find(b=>beanNrm(b.name)===beanNrm(v.bean)) || (matchBean(v.bean) ? DB.beans.find(b=>b.name===matchBean(v.bean)) : null);
+        if (nb) v.bean = nb.name; else return `원두 "${v.bean}" 가 원두 표에 없음`;
+      }
+      { const d = findProductLike({ name:v.name, bean:v.bean, spec:v.spec_g, grind:v.grind||"홀빈", channel:v.channel||"일반" });
+        if (d) return `이미 있는 품목 — ${d.code||""} ${d.name}${normName(d.name)!==normName(v.name)?" (원두·규격이 같음)":""}`; }
+      if (all.some((o,j)=>j<i && prodSameAs({ name:v.name, bean:v.bean, spec_g:Number(v.spec_g), grind:v.grind||"홀빈", channel:v.channel||"일반" },
+                                             { name:o.name, bean:o.bean, spec_g:Number(o.spec_g), grind:o.grind||"홀빈", channel:o.channel||"일반" }))) return "위 줄과 같은 품목";
       return ""; },
     async save(v){
       const p = P(v.bean||"", Number(v.spec_g)||0, Number(v.cfe)||0, Number(v.safety)||0,
@@ -17702,8 +17813,8 @@ const BULK_DEFS = {
            { k:"compose", l:"원산지", w:220, ph:"커피원두 100% (콜롬비아산)" }, { k:"note", l:"적요", w:120 }, { k:"launch", l:"출시일", w:110, ph:"2026-10-01" } ],
     validate(v, i, all){
       if (!v.name) return "원두명 없음";
-      if (DB.beans.some(b=>b.name===v.name.trim())) return "같은 원두명이 이미 있음";
-      if (all.some((o,j)=>j<i && o.name.trim()===v.name.trim())) return "원두명이 위 줄과 중복";
+      { const d = DB.beans.find(b=>beanNrm(b.name)===beanNrm(v.name)); if (d) return d.name===v.name.trim() ? "같은 원두명이 이미 있음" : `같은 원두가 이미 있음 — "${d.name}" (띄어쓰기만 다름)`; }
+      if (all.some((o,j)=>j<i && beanNrm(o.name)===beanNrm(v.name))) return "원두명이 위 줄과 중복";
       const ck = codeKey(v.mms_code);
       if (ck && DB.beans.some(b=>codeKey(b.mms_code)===ck)) return `MMS 코드 ${v.mms_code} 이미 있음`;
       if (ck && all.some((o,j)=>j<i && codeKey(o.mms_code)===ck)) return `MMS 코드 ${v.mms_code} 가 위 줄과 중복`;
