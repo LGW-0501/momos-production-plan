@@ -6698,7 +6698,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
-  ["2026-11-01", "로스팅 계획 삭제 — 받은 배치가 있을 때", "전에는 \"이미 입고한 배치줄이 있는 계획\" 이라고만 하고 막혔음 · 이제 어느 배치(현장번호·kg)인지 보여 주고, 아직 안 쓴 배치면 받기를 되돌리고 계획까지 한 번에 지움 (배치가 이미 지워진 줄은 받기 전으로 표시만) · 생산에 쓴 배치가 있으면 재고 화면에서 보류·폐기로 정리하라고 안내"],
+  ["2026-11-01", "로스팅 계획 삭제 — 받은 배치가 있을 때", "전에는 \"이미 입고한 배치줄이 있는 계획\" 이라고만 하고 막혔음 · 이제 어느 배치(현장번호·kg)인지 보여 주고, 아직 안 쓴 배치면 받기를 되돌리고 계획까지 한 번에 지움 (배치가 이미 지워진 줄은 받기 전으로 봄 — 서버 059 필요) · 생산에 쓴 배치가 있으면 재고 화면에서 보류·폐기로 정리하라고 안내"],
   ["2026-11-01", "재고 › MMS 배치 재고 현황 — [받기 되돌리기] · [삭제] 버튼", "아직 안 쓴 배치(로스팅에서 받은 것)는 줄마다 [받기 되돌리기] — 오늘 받은 것만이 아니라 전부 · 그 밖의 배치는 [삭제] (기준정보 권한) — 잘못 넣은 배치를 그 자리에서 지움 · 생산에 쓴 배치는 기준정보 › MMS 선택 삭제와 같은 보호 (생산에 쓴 배치는 관리자만 · 사유 남김) · 사용 중단 원두의 배치 표에도"],
   ["2026-11-01", "같은 품목 알아보기 · 중복 품목 자동 통합", "재고표의 짧은 이름(\"에티오피아 오마\" · \"가을 온기\")도 등록된 긴 이름(\"에티오피아 게샤빌리지 오마 게샤 1931 …\")의 원두로 알아봄 — 적은 말이 전부 그 이름 안에 있으면 같은 원두 (나라·가공 같은 흔한 말만으로는 안 잡음) · 이름이 같은 품목(띄어쓰기·괄호[분쇄안함]·앞의 \"원두\"·대소문자·1kg=1000g 무시)이나 원두·규격·분쇄도·채널이 같은 품목은 같은 줄로 봄 — 품목 일괄 입력·엑셀 CFE코드 넣기·원두 등록 자동 완제품·표에서 고치기 모두 새 줄을 만들지 않고 기존 줄로 · 원두 일괄 입력도 띄어쓰기만 다른 원두는 막음 · 이미 두 줄로 들어간 품목은 관리자가 열 때 자동으로 하나로 (기록 많은 줄이 대표 · CFE 재고 더함 · 생산실적·지시·계획·수불·BOM 전부 대표로 · 변경이력에 남김) · 기준정보 › 품목 [중복 품목 정리] 버튼 · 서버 058_merge_product.sql 필요"],
   ["2026-11-01", "기준정보 › 검색", "품목·원두·부자재 표 위에 🔍 찾기 칸 — 이름·코드·원두·규격으로 바로 좁힘 · 띄어쓰기로 여러 말(예: \"쇼콜라 200\") · 초성(ㅅㅋㄹ)도 됨 · 사용중/중지 탭·구분 버튼과 같이 씀"],
@@ -10507,13 +10507,14 @@ async function roastPlanUnblock(planId){
   }
   if (!(await ask(`${r0?.bean||""} ${r0?.plan_date||""} 계획은 이미 받은 배치가 있습니다.\n\n${info.map(line).join("\n")}\n\n` +
       (freeL.length ? `아직 안 쓴 배치 ${freeL.length}개는 받기를 되돌려 재고에서 빼고 (입고 수불도 없어짐), ` : "") +
-      (goneL.length ? `이미 지워진 배치 ${goneL.length}줄은 받기 전으로 표시만 바꾸고, ` : "") + `계획을 지웁니다.`,
+      (goneL.length ? `이미 지워진 배치 ${goneL.length}줄은 받기 전으로 보고, ` : "") + `계획을 지웁니다.`,
       { title:"받은 배치 되돌리고 계획 삭제", yes:"되돌리고 삭제", danger:true }))) return false;
   for (const x of freeL) {
     const ok = await unreceiveBatch(x.m.id, { quiet:true });
     if (!ok) { await ask(`배치 ${batchShort(x.m)} 받기를 되돌리지 못했습니다 — 서버에 057_unreceive_batch.sql 이 들어가 있는지 확인하세요.`, { title:"삭제 중단", yes:"확인", only:true }); if (sb) await reloadDB({ silent:true }); renderAll(); return false; }
   }
-  for (const x of goneL) { x.l.done = false; x.l.mms_id = null; x.l.received_by = null; x.l.received_at = null; save("roast_lines", x.l); }
+  /* 배치가 이미 지워진 줄 — 서버(059)가 계획 삭제 때 받기 전으로 보고 같이 지운다 · 화면에서는 표시만 (roast_lines 는 화면에서 직접 못 씀) */
+  for (const x of goneL) { x.l.done = false; x.l.mms_id = null; x.l.received_by = null; x.l.received_at = null; if (!sb) save("roast_lines", x.l); }
   if (sb) await reloadDB({ silent:true });
   if (r0) { r0.done = false; r0.received_kg = 0; }
   return true;
@@ -13165,10 +13166,12 @@ async function delRow(t,id){
       const m = r?.message || "";
       return ask(/admin_delete_row|schema cache/i.test(m)
         ? "서버에 삭제 기능이 아직 없습니다.\n\nSupabase SQL Editor 에서 029_admin_delete.sql 을 한 번 실행한 뒤 다시 누르세요."
+        : t === "roasting" && /입고한 배치줄/.test(m) ? `지우지 못했습니다 — ${m}\n\n받은 배치가 이미 지워졌는데도 이 말이 나오면 서버에 059_delete_plan_with_gone_batch.sql 을 넣어 주세요.`
         : `지우지 못했습니다 — ${m || "알 수 없는 오류"}`, { title:"삭제 실패", yes:"확인" });
     }
     DB[t] = DB[t].filter(r=>r.id!==id);
     if (t === "roasting") DB.roast_lines = (DB.roast_lines||[]).filter(l=>l.plan_id!==id);
+    if (t === "mms") (DB.roast_lines||[]).forEach(l=>{ if (l.mms_id===id) { l.mms_id = null; l.done = false; } });
     if (t === "mms" && row) logAudit("MMS 배치 삭제", batchLabel(row), row.__delNote || mmsSnap(row, mmsUses(row)));
     renderAll(); return toast("삭제했습니다");
   }
@@ -13372,6 +13375,7 @@ async function delSelectedRows(t, rows){
   else if (!sb && t !== "orders") gone.forEach(id=>del(t, id));
   DB[t] = DB[t].filter(r=>!gone.has(r.id));
   if (t === "roasting") DB.roast_lines = (DB.roast_lines||[]).filter(l=>!gone.has(l.plan_id));
+  if (t === "mms") (DB.roast_lines||[]).forEach(l=>{ if (gone.has(l.mms_id)) { l.mms_id = null; l.done = false; } });
   if (t === "mms") ok.forEach(x=>logAudit("MMS 배치 삭제", batchLabel(x.r), mmsNotes.get(x.r.id)));
   else if (t !== "orders" && ok.length) logAudit("선택 삭제", `${ok.length}개`, `${t} · ${ok.slice(0,5).map(x=>nm(x.r)).join(", ")}${ok.length>5?" 외":""}`);
   SEL[t].clear(); SEL_LAST[t] = null;
