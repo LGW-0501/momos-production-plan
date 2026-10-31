@@ -6698,6 +6698,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "로스팅 › 부족 현황 — 필요(kg) 내역", "필요(kg) 숫자를 누르면 어느 품목 몇 EA 때문인지, 그 수량이 주문 집계인지 · 안전재고 부족분인지 · 요일별 여유분인지 보여 줌 · 생산계획이 없는데 잡힌 것은 \"계획 없음 — 안전재고 기준\" 표시 (안전재고보다 CFE 재고가 적으면 자동으로 필요로 잡힘)"],
   ["2026-11-01", "로스팅 계획 삭제 — 받은 배치가 있을 때", "전에는 \"이미 입고한 배치줄이 있는 계획\" 이라고만 하고 막혔음 · 이제 어느 배치(현장번호·kg)인지 보여 주고, 아직 안 쓴 배치면 받기를 되돌리고 계획까지 한 번에 지움 (배치가 이미 지워진 줄은 받기 전으로 봄 — 서버 059 필요) · 생산에 쓴 배치가 있으면 재고 화면에서 보류·폐기로 정리하라고 안내"],
   ["2026-11-01", "재고 › MMS 배치 재고 현황 — [받기 되돌리기] · [삭제] 버튼", "아직 안 쓴 배치(로스팅에서 받은 것)는 줄마다 [받기 되돌리기] — 오늘 받은 것만이 아니라 전부 · 그 밖의 배치는 [삭제] (기준정보 권한) — 잘못 넣은 배치를 그 자리에서 지움 · 생산에 쓴 배치는 기준정보 › MMS 선택 삭제와 같은 보호 (생산에 쓴 배치는 관리자만 · 사유 남김) · 사용 중단 원두의 배치 표에도"],
   ["2026-11-01", "같은 품목 알아보기 · 중복 품목 자동 통합", "재고표의 짧은 이름(\"에티오피아 오마\" · \"가을 온기\")도 등록된 긴 이름(\"에티오피아 게샤빌리지 오마 게샤 1931 …\")의 원두로 알아봄 — 적은 말이 전부 그 이름 안에 있으면 같은 원두 (나라·가공 같은 흔한 말만으로는 안 잡음) · 이름이 같은 품목(띄어쓰기·괄호[분쇄안함]·앞의 \"원두\"·대소문자·1kg=1000g 무시)이나 원두·규격·분쇄도·채널이 같은 품목은 같은 줄로 봄 — 품목 일괄 입력·엑셀 CFE코드 넣기·원두 등록 자동 완제품·표에서 고치기 모두 새 줄을 만들지 않고 기존 줄로 · 원두 일괄 입력도 띄어쓰기만 다른 원두는 막음 · 이미 두 줄로 들어간 품목은 관리자가 열 때 자동으로 하나로 (기록 많은 줄이 대표 · CFE 재고 더함 · 생산실적·지시·계획·수불·BOM 전부 대표로 · 변경이력에 남김) · 기준정보 › 품목 [중복 품목 정리] 버튼 · 서버 058_merge_product.sql 필요"],
@@ -9161,6 +9162,25 @@ function beanNeeds(){
   planRows().forEach(r=>{ need[r.p.bean] = (need[r.p.bean]||0) + needKg(r.p, r.ea); });
   return need;
 }
+/* ★ 2026-11-01 — "필요(kg)" 가 어디서 나왔는지 (Lee "생산계획을 만든 적도 없는데 부족하다고 — 뭐가 부족한지 알아야")
+   생산계획(집계)이 없어도 안전재고보다 CFE 재고가 적은 품목 · 요일별 여유분 설정이 있으면 그만큼이 "필요" 로 잡힌다. 품목별로 풀어 보여 준다 */
+function beanNeedDetail(b){
+  return planRows().filter(r=>r.p.bean===b).map(r=>{
+    const c = planCalc(r.p), manual = planEA[r.p.id] != null;
+    const src = manual ? "생산계획에서 직접 적은 수량"
+      : c.mode === "tally" ? `주문 집계 ${fmt(c.need)}EA${c.buf?` + 여유분 ${fmt(c.buf)}EA`:""}`
+      : [c.need ? `안전재고 ${fmt(r.p.safety||0)} − CFE 재고 ${fmt(r.p.cfe||0)} = ${fmt(c.need)}EA` : "", c.buf ? `요일별 여유분 ${fmt(c.buf)}EA` : ""].filter(Boolean).join(" + ");
+    return { p:r.p, ea:r.ea, kg:needKg(r.p, r.ea), src, mode: manual ? "manual" : c.mode };
+  }).sort((a,b)=>b.kg-a.kg);
+}
+async function showBeanNeed(b){
+  const rows = beanNeedDetail(b); const tot = rows.reduce((s,x)=>s+x.kg,0);
+  const noTally = rows.every(x=>x.mode==="safety");
+  await ask(`${b} — 필요 ${fmt(tot)}kg 은 이렇게 나왔습니다:\n\n` +
+    rows.map(x=>`· ${x.p.name} ${fmt(x.ea)}EA → ${fmt(x.kg)}kg\n    ${x.src}`).join("\n") +
+    (noTally ? `\n\n생산계획(집계)이 없어서 안전재고·여유분 기준으로 잡힌 값입니다.\n필요 없으면 기준정보 › 품목에서 그 품목의 안전재고를 줄이거나, 생산계획에서 수량을 0 으로 적으세요.` : ""),
+    { title:"필요 원두 내역", yes:"확인", only:true });
+}
 function renderRoast(){
   if (document.querySelector("#s-roast .subpane.on")?.id !== "rp-"+roastTab) setRoastTab(roastTab);
   const shelf = sortBatches(DB.mms.filter(m=>Number(m.stock_kg)>0 && shelfState(m.roast_date)!=="ok"));
@@ -9181,7 +9201,7 @@ function renderRoast(){
       const lack = Math.max(0, n-avail), after = Math.max(0, n-avail-inc);
       const bkg = avgBatchKg(b), nb = after>0 ? (bkg>0?Math.ceil(after/bkg):"?") : "";
       return `<tr><td class="rowno">${i+1}</td><td class="l">${mmsCodeOf(b)||'<span class="bad">미등록</span>'}</td>
-        <td class="l"><b>${b}</b></td><td>${fmt(n)}</td><td>${fmt(avail)}</td>
+        <td class="l"><b>${b}</b></td><td>${n>0?`<a href="javascript:void 0" onclick="showBeanNeed('${b.replace(/'/g,"\\'")}')" title="어느 품목 때문인지 보기" style="font-weight:600">${fmt(n)}</a>${beanNeedDetail(b).every(x=>x.mode==="safety")?`<br><span class="hint" style="padding:0;font-size:11px">계획 없음 — 안전재고 기준</span>`:""}`:fmt(n)}</td><td>${fmt(avail)}</td>
         <td class="${hold>0?'bad':''}">${hold>0?fmt(hold):"—"}</td>
         <td class="${lack>0?'bad':''}">${lack>0?fmt(lack):""}</td><td>${inc?fmt(inc):""}</td>
         <td>${bkg>0?fmt(bkg):"—"}</td><td class="${nb!==""?'bad':''}">${nb}</td>
