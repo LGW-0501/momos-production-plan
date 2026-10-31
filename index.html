@@ -1741,7 +1741,7 @@
         <button class="btn primary" onclick="addBatchQuick()" title="로스팅 계획 없이 배치를 바로 등록 (이미 있는 원두가 장부에 없을 때)">배치 추가</button>
         <button class="btn" onclick="csvBatches()">엑셀 다운로드</button></span></div>
       <div class="hint">재고가 남은 배치만 · 오래된 순 (생산 시 위에서부터 차감) · <b>계획 사용</b>은 현재 생산계획이 이 배치에서 가져갈 예정 수량입니다 ·
-        <b>[수정]</b>은 마감자가 센 잔량으로 장부를 맞추는 것입니다 — 차이는 조정 이력에 남습니다</div>
+        <b>[수정]</b>은 마감자가 센 잔량으로 장부를 맞추는 것입니다 — 차이는 조정 이력에 남습니다 · <b>[받기 되돌리기]</b>는 아직 안 쓴 배치를 받기 전(로스팅 줄)으로 돌리고, <b>[삭제]</b>는 그 밖의 배치를 지웁니다 (생산에 쓴 배치는 관리자만 · 사유를 적음)</div>
       <div class="panel-b"><table id="liveTbl"></table></div>
     </div>
     <div class="panel" id="offBatchWrap" style="display:none;border-left:4px solid var(--soft)">
@@ -6698,6 +6698,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "재고 › MMS 배치 재고 현황 — [받기 되돌리기] · [삭제] 버튼", "아직 안 쓴 배치(로스팅에서 받은 것)는 줄마다 [받기 되돌리기] — 오늘 받은 것만이 아니라 전부 · 그 밖의 배치는 [삭제] (기준정보 권한) — 잘못 넣은 배치를 그 자리에서 지움 · 생산에 쓴 배치는 기준정보 › MMS 선택 삭제와 같은 보호 (생산에 쓴 배치는 관리자만 · 사유 남김) · 사용 중단 원두의 배치 표에도"],
   ["2026-11-01", "같은 품목 알아보기 · 중복 품목 자동 통합", "재고표의 짧은 이름(\"에티오피아 오마\" · \"가을 온기\")도 등록된 긴 이름(\"에티오피아 게샤빌리지 오마 게샤 1931 …\")의 원두로 알아봄 — 적은 말이 전부 그 이름 안에 있으면 같은 원두 (나라·가공 같은 흔한 말만으로는 안 잡음) · 이름이 같은 품목(띄어쓰기·괄호[분쇄안함]·앞의 \"원두\"·대소문자·1kg=1000g 무시)이나 원두·규격·분쇄도·채널이 같은 품목은 같은 줄로 봄 — 품목 일괄 입력·엑셀 CFE코드 넣기·원두 등록 자동 완제품·표에서 고치기 모두 새 줄을 만들지 않고 기존 줄로 · 원두 일괄 입력도 띄어쓰기만 다른 원두는 막음 · 이미 두 줄로 들어간 품목은 관리자가 열 때 자동으로 하나로 (기록 많은 줄이 대표 · CFE 재고 더함 · 생산실적·지시·계획·수불·BOM 전부 대표로 · 변경이력에 남김) · 기준정보 › 품목 [중복 품목 정리] 버튼 · 서버 058_merge_product.sql 필요"],
   ["2026-11-01", "기준정보 › 검색", "품목·원두·부자재 표 위에 🔍 찾기 칸 — 이름·코드·원두·규격으로 바로 좁힘 · 띄어쓰기로 여러 말(예: \"쇼콜라 200\") · 초성(ㅅㅋㄹ)도 됨 · 사용중/중지 탭·구분 버튼과 같이 씀"],
   ["2026-10-31", "원두 등록 → 완제품(CFE) 자동 추가", "원두 일괄 입력으로 원두를 넣으면 바로 완제품을 자동으로 만들지 물음 — 하바나는 1kg·500g·100g, 싱글·블렌드는 1kg·500g·200g · 이름 \"원두 {원두명} {규격}\" · 홀빈 · CFE 코드 자동 · 이미 있는 규격은 건너뜀 · 기준정보 › 원두에 [완제품 자동 추가] 버튼 — 완제품이 빠진 원두를 한 번에"],
@@ -9255,12 +9256,16 @@ function renderRoast(){
       offLive.map(m=>{ const b = beanInfo(m.bean), st = shelfState(m.roast_date);
         return `<tr style="opacity:.75"><td class="l"><b>${batchLabel(m)}</b></td><td class="c"><b>${batchShort(m)}</b></td><td class="l">${m.bean} <span class="tag">사용 중단</span></td>
           <td class="c">${m.roast_date}</td><td><b>${fmt(m.stock_kg)}</b></td><td class="c">${b?.end_date||"—"}</td><td class="c ${st}">${shelfLabel(m.roast_date)}</td>
-          <td class="c" style="white-space:nowrap"><button class="btn" onclick="holdBatch('${m.id}')">보류</button> <button class="btn" onclick="fixBatchQty('${m.id}')">수정</button>${b?` <button class="btn" onclick="toggleBeanOff('${b.id}')">원두 다시 사용</button>`:""}</td></tr>`; }),
+          <td class="c" style="white-space:nowrap"><button class="btn" onclick="holdBatch('${m.id}')">보류</button> <button class="btn" onclick="fixBatchQty('${m.id}')">수정</button>${can("base")?` <button class="btn" style="color:var(--bad)" onclick="delBatchOne('${m.id}')">삭제</button>`:""}${b?` <button class="btn" onclick="toggleBeanOff('${b.id}')">원두 다시 사용</button>`:""}</td></tr>`; }),
       `<td colspan="4" class="c">합 계 · ${offLive.length}배치</td><td>${fmt(offLive.reduce((s,m)=>s+Number(m.stock_kg||0),0))}</td><td colspan="3"></td>`); }
   const planRs = planRows(); planBatches(planRs);
   const resv = {};
   planRs.forEach(r=>r.picks.forEach(x=>{ resv[x.b.id] = (resv[x.b.id]||0) + x.kg; }));
-  tbl("liveTbl", ["배치","현장번호","원두","로스팅일","잔여(kg)","계획 사용(kg)","사용(kg)","상미 잔여","상태",'<span class="fix">보류</span>','<span class="fix">수정</span>'],
+  /* 아직 손대지 않은 배치는 [받기 되돌리기] (로스팅 줄로 돌아감) · 그 외는 [삭제] */
+  const delBtn = m => !can("base") ? ""
+    : batchUntouched(m) && DB.roast_lines.some(l=>l.mms_id===m.id) ? ` <button class="btn" style="color:var(--bad)" onclick="unreceiveBatch('${m.id}')" title="실수로 받았을 때 — 배치를 없애고 로스팅 줄을 다시 '받을 배치'로 되돌립니다">받기 되돌리기</button>`
+    : ` <button class="btn" style="color:var(--bad)" onclick="delBatchOne('${m.id}')" title="이 배치를 지웁니다 — 생산에 쓴 배치는 관리자만 (사유 남김)">삭제</button>`;
+  tbl("liveTbl", ["배치","현장번호","원두","로스팅일","잔여(kg)","계획 사용(kg)","사용(kg)","상미 잔여","상태",'<span class="fix">보류</span>','<span class="fix">수정 · 삭제</span>'],
     live.map(m=>{ const st=shelfState(m.roast_date), h=isHeld(m);
       const used = DB.consumptions.filter(c=>consLive(c) && c.mms_id===m.id).reduce((s,c)=>s+Number(c.used_kg||0),0);
       return `<tr class="${h?"heldrow":""}"><td class="l"><b>${batchLabel(m)}</b></td>
@@ -9275,7 +9280,7 @@ function renderRoast(){
         <td class="c fix">${h
           ? `<button class="btn primary" onclick="freeBatch('${m.id}')">풀기</button>`
           : `<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}</td>
-        <td class="c fix"><button class="btn" onclick="fixBatchQty('${m.id}')" title="센 잔량으로 장부를 맞춥니다">수정</button></td></tr>`; }),
+        <td class="c fix" style="white-space:nowrap"><button class="btn" onclick="fixBatchQty('${m.id}')" title="센 잔량으로 장부를 맞춥니다">수정</button>${delBtn(m)}</td></tr>`; }),
     `<td colspan="4" class="c">합 계 · ${live.length}배치 (보류 ${live.filter(isHeld).length})${offLive.length?` · 사용 중단 원두 ${offLive.length}배치는 아래 따로`:""}</td>
      <td>${fmt(live.filter(m=>!isHeld(m)).reduce((s,m)=>s+Number(m.stock_kg||0),0))}</td>
      <td>${fmt(Object.values(resv).reduce((s,v)=>s+v,0))}</td><td colspan="5"></td>`);
@@ -13280,6 +13285,12 @@ async function delSelected(t){
   toast(`${dropIds.length}개 삭제${t==="products"?note:""}`);
 }
 /* 작업지시 · 라벨작업 · 로스팅 · MMS 배치 · 부자재 — 한 줄씩 서버 규칙대로 지우고, 안 되는 줄은 이유를 모아 보여준다 */
+/* ★ 2026-11-01 — 재고 화면에서 배치 한 줄 바로 삭제 (Lee "삭제 안 되는데") — 기준정보 › MMS 의 선택 삭제와 같은 길 (기록 있는 배치는 막음) */
+async function delBatchOne(id){
+  if (!can("base")) return deny("base");
+  const m = DB.mms.find(x=>x.id===id); if (!m) return;
+  await delSelectedRows("mms", [m]);
+}
 async function delSelectedRows(t, rows){
   if (!(await requireUser())) return;
   const nm = SEL_CFG[t].nm;
