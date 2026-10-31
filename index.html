@@ -6696,6 +6696,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "기준정보 › 검색", "품목·원두·부자재 표 위에 🔍 찾기 칸 — 이름·코드·원두·규격으로 바로 좁힘 · 띄어쓰기로 여러 말(예: \"쇼콜라 200\") · 초성(ㅅㅋㄹ)도 됨 · 사용중/중지 탭·구분 버튼과 같이 씀"],
   ["2026-10-31", "원두 등록 → 완제품(CFE) 자동 추가", "원두 일괄 입력으로 원두를 넣으면 바로 완제품을 자동으로 만들지 물음 — 하바나는 1kg·500g·100g, 싱글·블렌드는 1kg·500g·200g · 이름 \"원두 {원두명} {규격}\" · 홀빈 · CFE 코드 자동 · 이미 있는 규격은 건너뜀 · 기준정보 › 원두에 [완제품 자동 추가] 버튼 — 완제품이 빠진 원두를 한 번에"],
   ["2026-10-31", "일괄 입력 › 엑셀 줄 붙여넣기", "원두·품목·부자재·기계 일괄 입력 표에 엑셀에서 복사한 줄을 붙여넣으면 커서 칸부터 오른쪽·아래로 채움 (전에는 한 칸에 통째로 들어가 인식 못 함) · 칸 안 줄바꿈(품목보고번호 2010014↵7027129)은 한 칸으로 · 날짜 2026/10/27 → 2026-10-27"],
   ["2026-10-31", "기준정보 › 품목 — 사용중 / 사용중지 따로", "품목 표 위에 [사용중] [사용중지] [전체] 탭 (원두와 같은 식) · 사용중지 품목에 재고가 남아 있으면 그 수를 알려 줌 · 재고확인·재고 세기(CFE)에서는 사용중지 품목이 재고가 남아 있을 때만 \"사용중지\" 표시로 맨 아래에 (전에는 아예 안 보여서 남은 재고를 셀 수 없었음)"],
@@ -13351,13 +13352,25 @@ async function offSelected(){
 function renderBase(){ renderBaseInner(); basePendApplyDOM(); }
 let prodView = "live";
 function setProdView(v){ prodView = v; SEL.products.clear(); renderBase(); }
+/* ══ 기준정보 검색 — 품목 · 원두 · 부자재 (Lee 2026-11-01 "품목이 많다보니 찾기가 어렵네") ══
+   띄어쓰기로 여러 말을 적으면 전부 들어 있는 줄만 · 초성(ㅅㅋㄹ)도 됨 · 코드·원두명·규격도 같이 찾음 */
+const BASE_FIND = { products:"", beans:"", materials:"" };
+/* 초성 변환은 위의 choOf (원두 자동완성용) 를 그대로 쓴다 */
+function findHit(q, ...fields){
+  const words = String(q||"").toLowerCase().split(/\s+/).filter(Boolean); if (!words.length) return true;
+  const hay = fields.map(f=>String(f??"")).join(" ").toLowerCase(), hayCho = choOf(hay);
+  return words.every(w=>hay.includes(w) || (/^[ㄱ-ㅎ]+$/.test(w) && hayCho.includes(w)));
+}
+const findBox = (t, ph) => `<input type="search" data-f="find:${t}" value="${(BASE_FIND[t]||"").replace(/"/g,"&quot;")}" placeholder="${ph}" style="height:30px;width:220px" oninput="baseFind('${t}',this.value)">`;
+let BASE_FIND_TM = null;
+function baseFind(t, v){ BASE_FIND[t] = String(v||""); clearTimeout(BASE_FIND_TM); BASE_FIND_TM = setTimeout(()=>keepFocus(renderBase), 160); }
 function renderBaseInner(){
   /* ★ 2026-10-31 — 사용중 / 사용중지 품목을 따로 (Lee "cfe 는?") */
   const liveP = DB.products.filter(p=>!p.off), offP = DB.products.filter(p=>p.off);
   if ($("prodTab")) $("prodTab").innerHTML = [["live",`사용중 ${liveP.length}`],["off",`사용중지 ${offP.length}`],["all",`전체 ${DB.products.length}`]]
-    .map(([v,t])=>`<button class="btn ${prodView===v?"primary":""}" style="height:30px" onclick="setProdView('${v}')">${t}</button>`).join(" ");
+    .map(([v,t])=>`<button class="btn ${prodView===v?"primary":""}" style="height:30px" onclick="setProdView('${v}')">${t}</button>`).join(" ") + " " + findBox("products", "🔍 품목 찾기 — 이름·코드·원두·규격 (초성 ㅅㅋㄹ 도 됨)");
   if ($("prodSum")) { const offStock = offP.filter(p=>Number(p.cfe||0)!==0); $("prodSum").textContent = offStock.length ? `· 사용중지 품목 중 재고가 남은 것 ${offStock.length}개 (${fmt(offStock.reduce((s,p)=>s+Number(p.cfe||0),0))}EA) — 재고확인·재고 세기에 "사용중지" 로 보입니다` : ""; }
-  const prodList = sorted("tProd", prodView==="off" ? offP : prodView==="all" ? DB.products : liveP);
+  const prodList = sorted("tProd", (prodView==="off" ? offP : prodView==="all" ? DB.products : liveP).filter(p=>findHit(BASE_FIND.products, p.name, p.code, p.bean, p.spec_g ? specLabel(p.spec_g) : "", p.grind, p.channel)));
   SHOWN.products = prodList.map(p=>p.id);
   tbl("tProd", [selAllBox("products"),"CFE 코드","구분","채널","원두",'<span class="fixl">제품명</span>',"규격(g)","분쇄도","표준투입(g)","안전재고","CFE현재고",`<span title="비우면 기본 ${lossCfg().def}% (생산계획 상단)">로스율 %</span>`,"풀패키지","기본 라벨","묶음","이카전용","사용",""],
     prodList.map((p,i)=>`<tr class="${p.off?"offrow":""}${SEL.products.has(p.id)?" selrow":""}"><td class="rowno">${selBox("products",p.id,i)}${i+1}</td>
@@ -13402,8 +13415,8 @@ function renderBaseInner(){
            : ` <span class="tag ok">표시사항 모두 채워짐</span>`);
   if ($("beanTab")) $("beanTab").innerHTML =
     [["live",`사용중 ${liveB.length}`],["off",`종료 ${offB.length}`],["all",`전체 ${DB.beans.length}`]]
-      .map(([v,t])=>`<button class="btn ${beanView===v?"primary":""}" onclick="setBeanView('${v}')">${t}</button>`).join(" ");
-  const bshow = sorted("tBeans", beanView==="off" ? offB : beanView==="all" ? DB.beans : liveB);
+      .map(([v,t])=>`<button class="btn ${beanView===v?"primary":""}" onclick="setBeanView('${v}')">${t}</button>`).join(" ") + " " + findBox("beans", "🔍 원두 찾기 — 이름·MMS코드·머신 종류");
+  const bshow = sorted("tBeans", (beanView==="off" ? offB : beanView==="all" ? DB.beans : liveB).filter(b=>findHit(BASE_FIND.beans, b.name, b.mms_code, b.machine, b.color, b.report_no)));
   SHOWN.beans = bshow.map(b=>b.id);
   const rAct = DB.roasters.filter(r=>r.active!==false);
   /* 로스터기 칸이 끼어들어 정렬 칸 번호가 밀린다 — 그때그때 다시 잡는다 */
@@ -13453,7 +13466,7 @@ function renderBaseInner(){
   setTimeout(()=>{ selBar("materials"); selBar("mms"); });
 
   // ── 부자재 재고 ──
-  const mats = sorted("tMat", matKindFilter ? matsOf(matKindFilter) : DB.materials);
+  const mats = sorted("tMat", (matKindFilter ? matsOf(matKindFilter) : DB.materials).filter(M=>findHit(BASE_FIND.materials, M.name, M.code, M.kind, M.spec)));
   const msum = {}; DB.materials.forEach(M=>{ msum[M.kind]=(msum[M.kind]||0)+1; });
   const mlow = DB.materials.filter(M=>Number(M.stock||0) < Number(M.safety||0));
   if ($("matSum")) $("matSum").innerHTML =
@@ -13462,7 +13475,7 @@ function renderBaseInner(){
   if ($("matKindBtn")) $("matKindBtn").innerHTML =
     [["","전체"],...MAT_KINDS.map(k=>[k,k])].map(([v,t])=>
       `<button class="btn ${matKindFilter===v?"primary":""}" onclick="setMatKind('${v}')">${t}${
-        v&&msum[v]?` ${msum[v]}`:""}</button>`).join(" ");
+        v&&msum[v]?` ${msum[v]}`:""}</button>`).join(" ") + " " + findBox("materials", "🔍 자재 찾기 — 이름·코드·규격");
   /* 추가 버튼도 구분 목록에서 만든다 — 구분이 늘어도 빠지는 일이 없다 */
   if ($("matAddBtn")) $("matAddBtn").innerHTML =
     MAT_KINDS.map(k=>`<button class="btn ${matKindFilter===k?"primary":""}" onclick="addMaterial('${k}')">${k} 추가</button>`).join(" ") +
