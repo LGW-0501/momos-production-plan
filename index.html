@@ -2153,6 +2153,7 @@
           <b>목록에 없는 품목은 자동으로 만들어집니다</b> (원두·규격·분쇄도를 이름에서 읽음 · 안전재고는 0이니 등록 후 채워주세요) ·
           한 건씩 넣을 때는 [행추가] · CFE 코드가 없으면 [빈 코드 자동생성](규칙: 원두이니셜-규격-분쇄도) ·
           <b>원두명은 MMS와 똑같이</b> 적어야 재고가 연결됩니다.</div>
+        <div style="padding:8px 14px 0;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span id="prodTab"></span> <span id="prodSum" class="hint" style="padding:0"></span></div>
         <div class="selbar" id="selBar-products"></div>
         <div class="panel-b"><table id="tProd"></table></div>
       </div>
@@ -6660,6 +6661,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-10-31", "일괄 입력 › 엑셀 줄 붙여넣기", "원두·품목·부자재·기계 일괄 입력 표에 엑셀에서 복사한 줄을 붙여넣으면 커서 칸부터 오른쪽·아래로 채움 (전에는 한 칸에 통째로 들어가 인식 못 함) · 칸 안 줄바꿈(품목보고번호 2010014↵7027129)은 한 칸으로 · 날짜 2026/10/27 → 2026-10-27"],
+  ["2026-10-31", "기준정보 › 품목 — 사용중 / 사용중지 따로", "품목 표 위에 [사용중] [사용중지] [전체] 탭 (원두와 같은 식) · 사용중지 품목에 재고가 남아 있으면 그 수를 알려 줌 · 재고확인·재고 세기(CFE)에서는 사용중지 품목이 재고가 남아 있을 때만 \"사용중지\" 표시로 맨 아래에 (전에는 아예 안 보여서 남은 재고를 셀 수 없었음)"],
   ["2026-10-31", "로스팅 › 사용 중단 원두의 배치 따로", "기준정보 › 원두에서 종료(사용 중단)한 원두의 배치는 \"MMS 배치 재고 현황\" 에서 빠지고 아래 \"사용 중단 원두의 배치\" 표에 따로 — 생산계획·생산·부족 계산에서도 제외 · 표에서 바로 [보류]·[수정]·[원두 다시 사용] · 재고확인(MMS)·부족 현황에서도 사용 중단 표시/제외"],
   ["2026-10-30", "로스팅 › 받기 되돌리기 · 전부 취소 · 계획 전부 삭제 (057 SQL)", "오늘 받은 배치 카드에 [받기 되돌리기] — 아직 안 쓴 배치면 배치·입고 수불을 없애고 로스팅 줄을 \"받을 배치\" 로 되돌림 (쓴 적 있으면 막음) · 입고 확인에 [전부 취소] — 받기 전 줄 전부 없앰 · 로스팅 계획에 [계획 전부 삭제] — 하나도 안 받은 계획 전부 (일부만은 줄 왼쪽 네모 → 선택 삭제)"],
   ["2026-10-30", "로스팅 › 보류 탭", "보류가 없으면 빈 화면이던 것 → \"지금 보류 중인 배치가 없습니다\" 안내 · 남은 kg 가 0 인 보류 배치도 보여서 [보류 풀기]·[폐기] 할 수 있게 (전에는 숨겨져 풀 수 없었음)"],
@@ -12195,8 +12198,9 @@ const stockMode = () => $("stType").value==="cfe" ? "stock_cfe" : "stock_mms";
 $("stType").addEventListener("change", renderStock);
 function stockRows(){
   if ($("stType").value==="cfe")
-    return PRODS().map(p=>({ key:p.id, name:p.name, sub:isGround(p.grind)?p.grind:"", code:p.code,
-      app:Number(p.cfe||0), act:actual.cfe[p.id] })).filter(r=>r.app!==0 || r.act!=null);
+    return DB.products.filter(p=>!p.off || Number(p.cfe||0)!==0 || actual.cfe[p.id]!=null)
+      .map(p=>({ key:p.id, name:p.name, sub:[isGround(p.grind)?p.grind:"", p.off?"사용중지":""].filter(Boolean).join(" · "), code:p.code,
+      app:Number(p.cfe||0), act:actual.cfe[p.id], off:!!p.off })).filter(r=>r.app!==0 || r.act!=null).sort((a,b)=>(a.off?1:0)-(b.off?1:0));
   const beans = [...new Set([...DB.beans.map(b=>b.name), ...DB.mms.map(m=>m.bean), ...Object.keys(actual.mms)])].filter(Boolean);
   return beans.map(b=>({ key:b, name:b, sub:beanIsOff(b) ? "사용 중단" : "", code:mmsCodeOf(b), app:mmsByBean(b), act:actual.mms[b], off:beanIsOff(b) }))
     .filter(r=>r.app>0 || r.act!=null).sort((a,b)=>(a.off?1:0)-(b.off?1:0));
@@ -13309,8 +13313,15 @@ async function offSelected(){
   SEL.products.clear(); renderAll(); toast(`${rows.length}개 사용중지 (이력은 그대로)`);
 }
 function renderBase(){ renderBaseInner(); basePendApplyDOM(); }
+let prodView = "live";
+function setProdView(v){ prodView = v; SEL.products.clear(); renderBase(); }
 function renderBaseInner(){
-  const prodList = sorted("tProd", DB.products);
+  /* ★ 2026-10-31 — 사용중 / 사용중지 품목을 따로 (Lee "cfe 는?") */
+  const liveP = DB.products.filter(p=>!p.off), offP = DB.products.filter(p=>p.off);
+  if ($("prodTab")) $("prodTab").innerHTML = [["live",`사용중 ${liveP.length}`],["off",`사용중지 ${offP.length}`],["all",`전체 ${DB.products.length}`]]
+    .map(([v,t])=>`<button class="btn ${prodView===v?"primary":""}" style="height:30px" onclick="setProdView('${v}')">${t}</button>`).join(" ");
+  if ($("prodSum")) { const offStock = offP.filter(p=>Number(p.cfe||0)!==0); $("prodSum").textContent = offStock.length ? `· 사용중지 품목 중 재고가 남은 것 ${offStock.length}개 (${fmt(offStock.reduce((s,p)=>s+Number(p.cfe||0),0))}EA) — 재고확인·재고 세기에 "사용중지" 로 보입니다` : ""; }
+  const prodList = sorted("tProd", prodView==="off" ? offP : prodView==="all" ? DB.products : liveP);
   SHOWN.products = prodList.map(p=>p.id);
   tbl("tProd", [selAllBox("products"),"CFE 코드","구분","채널","원두",'<span class="fixl">제품명</span>',"규격(g)","분쇄도","표준투입(g)","안전재고","CFE현재고",`<span title="비우면 기본 ${lossCfg().def}% (생산계획 상단)">로스율 %</span>`,"풀패키지","기본 라벨","묶음","이카전용","사용",""],
     prodList.map((p,i)=>`<tr class="${p.off?"offrow":""}${SEL.products.has(p.id)?" selrow":""}"><td class="rowno">${selBox("products",p.id,i)}${i+1}</td>
@@ -17773,6 +17784,38 @@ async function bulkSave(){
   if (!tb_.rows.length) closeBulk();
 }
 $("bulk").addEventListener("keydown", e=>{ if (e.key === "Escape") closeBulk(); });
+/* ★ 2026-10-31 — 엑셀에서 복사한 줄을 일괄 입력 표에 바로 붙여넣기 (Lee "이거를 인식 못해")
+   전에는 붙여넣으면 한 칸에 통째로 들어갔다. 이제 커서가 있는 칸부터 오른쪽·아래로 채우고, 줄이 모자라면 늘린다.
+   칸 안에 줄바꿈이 있는 값(품목보고번호 2010014↵7027129)은 엑셀이 "…" 로 감싸 주므로 한 칸으로 읽고,
+   숫자만이면 붙여서(20100147027129), 글자면 띄어서 잇는다 · 날짜 2026/10/27 · 2026.10.27 → 2026-10-27 */
+$("bkTbl").addEventListener("paste", e=>{
+  const txt = e.clipboardData?.getData("text/plain") || ""; if (!txt) return;
+  const grid = parseTSV(txt).map(r=>r.map(c=>{ const t = String(c||"").trim();
+    if (/\n/.test(t)) { const parts = t.split(/\s*\n\s*/).filter(Boolean); return parts.every(x=>/^[\d.\-]+$/.test(x)) ? parts.join("") : parts.join(" "); }
+    return t; }));
+  if (!grid.length || (grid.length === 1 && grid[0].length <= 1)) return;     // 한 칸짜리는 그냥 붙여넣기
+  e.preventDefault();
+  const def = BULK_DEFS[bulkT]; if (!def) return;
+  const cell = e.target.closest("td"), tr = cell?.closest("tr"); if (!tr) return;
+  const colKeys = def.cols.map(c=>c.k);
+  const startKey = e.target.dataset?.bk || colKeys[0]; let ci0 = Math.max(0, colKeys.indexOf(startKey));
+  /* 첫 칸이 비어 있고 붙여넣는 줄이 표 폭과 같으면 처음 칸부터 */
+  if (grid[0].length >= colKeys.length) ci0 = 0;
+  const tb_ = $("bkTbl").querySelector("tbody"); let ri = [...tb_.rows].indexOf(tr);
+  const norm = (k, v) => { const c = def.cols.find(x=>x.k===k); if (!c) return v;
+    if (/launch|date|end_date/.test(k)) { const m = v.match(/^(\d{4})[./\-](\d{1,2})[./\-](\d{1,2})$/); if (m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`; }
+    if (c.num) return v.replace(/[^\d.\-]/g,"");
+    if (c.sel && !c.sel.includes(v)) { const hit = c.sel.find(o=>o.startsWith(v) || v.startsWith(o)); return hit || v; }
+    return v; };
+  grid.forEach(rowVals=>{
+    if (!rowVals.some(v=>v)) return;
+    while (ri >= tb_.rows.length) bulkAddRows(1);
+    const row = tb_.rows[ri];
+    rowVals.forEach((v,j)=>{ const k = colKeys[ci0 + j]; if (!k) return; const el = row.querySelector(`[data-bk="${k}"]`); if (el) el.value = norm(k, v); });
+    ri++;
+  });
+  toast(`${grid.length}줄 붙여넣었습니다 — 확인하고 [저장]`);
+});
 
 /* ══════════════════════════════════════════════════════════════
    재고 세기 — 부자재·라벨 / CFE 완제품을 화면에서 바로 적는다 (엑셀 없이)
@@ -17788,8 +17831,9 @@ function setCntKind(k){ cntKind = k; renderCount(); }
 function cntRows(){
   const D = cntDraft(), q = ($("cntFind")?.value || "").trim();
   if (cntType === "cfe")
-    return PRODS().filter(p=>!q || p.name.includes(q) || (p.code||"").includes(q))
-      .map(p=>({ key:p.id, name:p.name, sub:p.code||"", pack:1, unit:"EA", app:Number(p.cfe||0), act:D.cfe[p.id] ?? null }));
+    return DB.products.filter(p=>(!p.off || Number(p.cfe||0)!==0) && (!q || p.name.includes(q) || (p.code||"").includes(q)))
+      .map(p=>({ key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 남음":""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:Number(p.cfe||0), act:D.cfe[p.id] ?? null, off:!!p.off }))
+      .sort((a,b)=>(a.off?1:0)-(b.off?1:0));
   return matsOf(cntKind).filter(M=>!q || (M.name||"").includes(q) || (M.code||"").includes(q))
     .map(M=>({ key:M.id, name:M.name, sub:[M.kind, M.spec].filter(Boolean).join(" · "), pack:Math.max(1, Math.round(Number(M.pack_qty)||1)),
                unit:unitOf(M), app:Number(M.stock||0), act:D.mat[M.id] ?? null, safety:Number(M.safety||0) }));
