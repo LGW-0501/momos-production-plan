@@ -2005,6 +2005,11 @@
         차이 <b class="bad">(−)</b> 실제가 적음 → 기록 안 한 출고·파손 확인 · <b class="ok">(+)</b> 실제가 많음 → 기록 안 한 생산·입고 확인</div>
       <div class="panel-b"><table id="stTbl"></table></div>
     </div>
+    <div class="panel" id="cfeLotWrap">
+      <div class="panel-h">CFE 제조일자별 재고 <span class="r"><button class="btn primary" onclick="openPaste('cfe_lot')">제조일자별로 넣기</button></span></div>
+      <div class="hint">검수 완료로 들어오고 출고로 빠진 것을 제조일자(원두 로스팅일)별로 · 제조일자별로 세어 넣으면 그 수량부터 다시 셉니다 · <span class="tag warn">미상</span> 은 제조일자를 모르는 재고 (예전 재고 · 덮어쓴 재고)</div>
+      <div class="panel-b"><table id="cfeLotTbl"></table></div>
+    </div>
     <div class="panel">
       <div class="panel-h">날짜별 보유량 <span class="r" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <select id="hsType" onchange="renderHoldHist()"><option value="mms">원두 MMS (kg)</option><option value="cfe">CFE 완제품 (EA)</option><option value="mat">부자재</option></select>
@@ -2649,6 +2654,7 @@
         <option value="roast">로스팅 계획 — 원두별 필요 kg</option>
         <option value="stock_cfe">재고확인 · CFE 보유수량 (EA)</option>
         <option value="stock_mms">재고확인 · MMS 보유수량 (kg)</option>
+        <option value="cfe_lot">CFE 제조일자별 실재고 — 코드 · 품목명 · 제조일자 · 수량</option>
         <option value="mms_batch">MMS 배치별 무게 — 코드 · 로스팅날짜 · 원두 · 배치번호 · 무게 (실측 반영 · 없는 배치는 새로 등록)</option>
         <option value="cfecode">코드등록 · 품목 CFE 코드</option>
         <option value="mmscode">코드등록 · 원두 MMS 코드</option>
@@ -6761,6 +6767,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "엑셀 넣기 — 화면에 맞는 모드만 · 양식은 엑셀(.xlsx) · CFE 제조일자별", "엑셀 넣기 창은 연 화면의 모드만 보임 (재고확인 CFE = 제조일자별 실재고·합계 / 재고확인 MMS = 배치별 무게 / 그 밖은 그 모드 하나) · 원두는 합계로 넣는 길을 없애고 배치(로스팅일)째로만 — 날짜가 사라지지 않게 · [양식 다운로드]는 .xlsx (칸 너비 맞춤) · 새 모드 [CFE 제조일자별 실재고]: 코드·품목명·제조일자·수량 → 품목별 합계로 장부를 맞추고 제조일자별 수량을 남김 · 재고확인(CFE)에 \"CFE 제조일자별 재고\" 표 — 검수로 들어오고 출고로 빠진 것을 제조일자별로 · 가장 오래된 제조일자와 지난 일수 · 모르는 것은 \"미상\""],
   ["2026-11-01", "엑셀·사진 넣기 — 양식 다운로드 · MMS 배치별 무게", "엑셀 넣기 창에 [양식 다운로드] — 모드마다 맞는 머리글 양식 (집계·계획·출고·재고확인은 지금 품목/원두를, MMS 배치별 무게는 지금 남은 배치를 미리 채워 둠 → 수량·무게만 채워 붙여넣기) · 새 모드 [MMS 배치별 무게] — 코드 · 로스팅날짜(10월 29일 · 10/29 · 2026-10-29) · 원두 · 배치번호 · 무게를 배치마다 읽어 장부와 비교 → 있는 배치는 실측으로 맞추고(조정 이력) 없는 배치는 새로 등록 · 머리글 \"상품\" \"무게\" \"중량\" \"잔량\" 도 알아봄"],
   ["2026-11-01", "날짜별 보유량 — 한 달 · 월별", "기간에 [한 달 (달 고르기)] — 고른 달 1일~말일(오늘까지) 날짜별 · [월별 (월말 보유량)] — 지난 12개월 각 달 말일 보유량 (이번 달은 오늘) · 지난달보다 늘면 초록 · 줄면 빨강 · 엑셀 다운로드도 그대로"],
   ["2026-11-01", "완제품 지난 날짜 마이너스(−95) 정리 · 날짜별 보유량 칸 너비", "이력추적에서 생산을 지울 때 출고 수불이 남아 지난 날짜가 −95 로 보이던 것 — 서버 062: 앞으로는 출고 수불도 같이 지우고 재고를 되돌림 · 이미 남은 것은 [수불 찌꺼기 정리](날짜별 보유량 CFE · 대시보드 마이너스 재고 · 관리자)로 찌꺼기와 그걸 맞추려 넣은 \"마이너스 재고 바로잡기\" 를 같이 지움 · 날짜별 보유량 칸 너비를 고르게 (7일도 반듯하게)"],
@@ -12635,7 +12642,7 @@ const csvSerial = () => csv("완제품일련번호대장", ["일련번호","작�
    ⑫ 재고확인
    ══════════════════════════════════════════════════════════════ */
 let actual = { cfe:{}, mms:{} };
-const stockMode = () => $("stType").value==="cfe" ? "stock_cfe" : "stock_mms";
+const stockMode = () => $("stType").value==="cfe" ? "cfe_lot" : "mms_batch";      // 날짜(제조일자·배치)째로 넣는다
 $("stType").addEventListener("change", renderStock);
 function stockRows(){
   if ($("stType").value==="cfe")
@@ -12757,6 +12764,7 @@ function csvHoldHist(){
 }
 function renderStock(){
   try { renderHoldHist(); } catch(e){ console.warn(e); }
+  try { renderCfeLots(); } catch(e){ console.warn(e); }
   const isCfe = $("stType").value==="cfe", unit = isCfe?"EA":"kg";
   const rows = stockRows(), entered = rows.filter(r=>r.act!=null);
   const diffs = entered.map(r=>({...r, d:r.act-r.app})).filter(r=>Math.abs(r.d)>.005);
@@ -15024,6 +15032,7 @@ const HELP = {
   roast:"[원두명 | kg] 형식. 로스팅 계획으로 등록됩니다.",
   stock_cfe:"실제 보유수량(EA)을 넣으면 재고확인 화면에서 차이를 보여줍니다.",
   stock_mms:"실제 보유수량(kg)을 넣으면 재고확인 화면에서 차이를 보여줍니다 (원두별 합계). 배치마다 무게를 잰 표면 [MMS 배치별 무게] 모드가 더 정확합니다.",
+  cfe_lot:"[코드 | 품목명 | 제조일자 | 수량] — 같은 품목도 제조일자마다 한 줄. 품목별 합계로 장부를 맞추고(차이는 조정 이력), 제조일자별 수량은 \"CFE 제조일자별 재고\" 표에 그대로 남습니다. 제조일자는 10월 29일 · 10/29 · 2026-10-29 다 됩니다.",
   mms_batch:"[MMS코드 | 로스팅날짜 | 원두 | 배치번호 | 무게] — 배치마다 잰 무게. 있는 배치는 실측으로 맞추고(차이는 조정 이력), 장부에 없는 배치는 새로 등록합니다. 로스팅날짜는 10월 29일 · 2026-10-29 · 10/29 다 됩니다 · 원두는 \"원두 부산\" 처럼 줄여도 됩니다.",
   cfecode:"[코드 | 품목명 | (수량)] 형식. 예) CFE0002  원두 에스쇼콜라 200g [분쇄안함]  8 — 목록에 없는 품목은 이름에서 원두·규격·분쇄도를 읽어 새로 등록합니다(안전재고 0). 수량이 있으면 재고확인에 함께 반영할 수 있습니다.",
   mmscode:"[코드 | 원두명 | (수량)] 형식. 목록에 없는 원두는 새로 추가됩니다.",
@@ -15233,11 +15242,18 @@ function matchBean(nameRaw){
   }
   return best;
 }
+/* ★ 2026-11-01 — 연 화면에 맞는 모드만 (Lee "해당 시트에는 해당 시트 양식만 나오게 — 이것저것 다 나오더라") */
+const PASTE_GROUP = { stock_cfe:["cfe_lot","stock_cfe"], cfe_lot:["cfe_lot","stock_cfe"], mms_batch:["mms_batch"], stock_mms:["mms_batch"],
+  tally:["tally"], plan:["plan"], ship:["ship"], roast:["roast"], log:["log"], cfe:["cfe"], cfecode:["cfecode"], mmscode:["mmscode"], beanmaster:["beanmaster"], beanroaster:["beanroaster"] };
 function openPaste(mode){
+  const group = PASTE_GROUP[mode] || [mode];
+  if (mode === "stock_mms") mode = "mms_batch";                  // 원두는 날짜(배치)째로만 — 합계로 넣으면 날짜가 사라진다
+  [...$("pMode").options].forEach(o=>{ o.hidden = !group.includes(o.value); o.disabled = !group.includes(o.value); });
   $("pMode").value = mode;
   if ($("pMode").value !== mode) {        // 목록에 없는 모드면 바로 알린다 (조용히 틀린 모드로 가지 않게)
     toast(`붙여넣기 모드 "${mode}" 를 찾지 못했습니다`); return;
   }
+  $("pMode").style.pointerEvents = group.length > 1 ? "" : "none";  // 하나뿐이면 고를 것도 없다
   $("overlay").style.display = "block";
   $("pHelp").textContent = (mode==="tally" ? `[${tallyDay()} · ${tallyRound}] 로 쌓입니다 — ` : "") + (HELP[mode]||"");
   $("pText").focus();
@@ -15545,6 +15561,73 @@ function previewBeanMaster(BM){
       pRows.some(r=>!r.code)?` · 코드 없는 ${pRows.filter(r=>!r.code).length}종은 이름으로 등록 (코드는 나중에 넣으면 됩니다)`:""}</td></tr></tfoot></table></div>`;
   $("pApply").style.display = (nNew + nUpd) ? "block" : "none";
 }
+/* ══ CFE 제조일자별 재고 (Lee 2026-11-01 "CFE 도 날짜별로 넣을 수 있게") ══
+   제조일자 = 그 지시에 들어간 원두의 로스팅일(mfgDateOf). 검수 완료로 들어오고, 출고는 그 지시의 제조일자에서 빠진다.
+   마지막으로 제조일자별로 센 수량(cfe.lotcount)이 있으면 그 수량에서 시작해 그 뒤의 검수·출고만 더하고 뺀다.
+   장부 합계와 안 맞는 나머지는 — 많으면 "제조일자 미상", 모자라면 오래된 제조일자부터 뺀다 */
+const CFE_LOT_KEY = "cfe.lotcount";
+const cfeLotCounts = () => { const v = SETTINGS[CFE_LOT_KEY]; return (v && typeof v === "object") ? v : {}; };
+function cfeLotLedger(p){
+  const snap = cfeLotCounts()[p.id];
+  const since = snap?.at || "";
+  const lots = {};
+  if (snap) Object.entries(snap.lots||{}).forEach(([d,q])=>{ lots[d] = (lots[d]||0) + Number(q||0); });
+  DB.orders.filter(o=>o.product_id===p.id && o.qc_at && Number(o.qty_done)>0 && o.status !== "폐기" && String(o.qc_at) > since)
+    .forEach(o=>{ const d = mfgDateOf(o) || "미상"; lots[d] = (lots[d]||0) + Number(o.qty_done||0); });
+  (DB.shipments||[]).filter(sh=>sh.product_id===p.id && !sh.cancelled_at && String(sh.shipped_at || sh.ship_date || "") > since)
+    .forEach(sh=>{ const o = sh.order_id ? ordById(sh.order_id) : null; const d = (o && mfgDateOf(o)) || null;
+      if (d && lots[d] > 0) lots[d] -= Number(sh.qty||0); else { lots.__ship = (lots.__ship||0) + Number(sh.qty||0); } });
+  /* 지시를 모르는 출고는 오래된 제조일자부터 */
+  let rest = lots.__ship || 0; delete lots.__ship;
+  const keys = () => Object.keys(lots).sort((a,b)=>(a==="미상"?"0":a).localeCompare(b==="미상"?"0":b));
+  for (const k of keys()) { if (rest <= 0) break; const t = Math.min(rest, Math.max(0, lots[k])); lots[k] -= t; rest -= t; }
+  /* 장부 합계와 맞추기 */
+  let diff = Number(p.cfe||0) - Object.values(lots).reduce((a,b)=>a+Math.max(0,b),0);
+  Object.keys(lots).forEach(k=>{ if (lots[k] < 0) lots[k] = 0; });
+  if (diff > 0) lots["미상"] = (lots["미상"]||0) + diff;
+  else if (diff < 0) { let r = -diff; for (const k of keys()) { if (r <= 0) break; const t = Math.min(r, lots[k]); lots[k] -= t; r -= t; } }
+  return keys().filter(k=>lots[k] > 0).map(k=>({ mfg:k, qty:Math.round(lots[k]) }));
+}
+function renderCfeLots(){
+  const el = $("cfeLotTbl"); if (!el) return;
+  const wrap = $("cfeLotWrap"); if (wrap) wrap.style.display = $("stType")?.value === "cfe" ? "" : "none";
+  if ($("stType")?.value !== "cfe") return;
+  const rows = DB.products.filter(p=>!p.off || Number(p.cfe||0)>0).slice().sort(prodCmp).map(p=>({ p, lots:cfeLotLedger(p) })).filter(x=>x.lots.length);
+  const snaps = cfeLotCounts();
+  tbl("cfeLotTbl", ["코드","품목명","제조일자별 (오래된 것부터)","합계","가장 오래된 제조일자","마지막 제조일자별 실사"],
+    rows.map(({p,lots})=>{ const old = lots.find(l=>l.mfg!=="미상"); const st = "";
+      return `<tr><td class="l">${p.code||"—"}</td><td class="l"><b>${p.name}</b></td>
+        <td class="l">${lots.map(l=>`<span class="tag ${l.mfg==="미상"?"warn":""}" style="margin:1px 2px" title="${l.mfg==="미상"?"제조일자를 모르는 재고 — 제조일자별로 세어 넣으면 사라집니다":l.mfg}">${l.mfg==="미상"?"미상":l.mfg.slice(5).replace("-","/")} · ${fmt(l.qty)}</span>`).join("")}</td>
+        <td><b>${fmt(lots.reduce((s,l)=>s+l.qty,0))}</b></td>
+        <td class="c ${st}">${old ? `${old.mfg} · ${ageDays(old.mfg)}일 지남` : "—"}</td>
+        <td class="c" style="font-size:11.5px;color:var(--soft)">${snaps[p.id]?.at ? dtFull(snaps[p.id].at) : "—"}</td></tr>`; }));
+}
+function cfeLotParse(L){
+  const out = []; let H = null;
+  const norm = c => String(c||"").replace(/\s+/g,"");
+  for (let i=0;i<Math.min(L.length,6) && !H;i++){
+    const c = L[i].map(norm);
+    const qty = c.findIndex(x=>/^(수량|실재고|실사|재고|보유수량|실제수량|ea)$/i.test(x)), mfg = c.findIndex(x=>/제조일자|제조일|로스팅날짜|로스팅일|날짜|일자/.test(x));
+    if (qty>=0 && (mfg>=0 || c.some(x=>/코드|품목/.test(x)))) H = { at:i, qty, mfg, code:c.findIndex(x=>/코드|품번/.test(x)), name:c.findIndex(x=>/품목|제품|상품|품명/.test(x)) };
+  }
+  const num = v => { const t = String(v??"").replace(/,|ea/gi,"").trim(); return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : null; };
+  L.forEach((row,ri)=>{
+    if (H && ri <= H.at) return;
+    const cells = row.map(c=>String(c??"").trim()); if (!cells.some(Boolean)) return;
+    let code="", name="", mfg=null, qty=null;
+    if (H) { code = H.code>=0 ? cells[H.code] : ""; name = H.name>=0 ? cells[H.name] : ""; mfg = H.mfg>=0 ? readDateCell(row[H.mfg]) : null; qty = num(cells[H.qty]); }
+    else {
+      const rest = [];
+      cells.forEach((c,i)=>{ if (!c) return; if (!code && isCode(c)) { code = c; return; } if (!mfg && readDateCell(row[i]) && !/^\d+$/.test(c)) { mfg = readDateCell(row[i]); return; } rest.push(c); });
+      for (let i=rest.length-1;i>=0;i--) if (num(rest[i])!=null) { qty = num(rest[i]); rest.splice(i,1); break; }
+      name = rest.join(" ");
+    }
+    if (!code && !name) return;
+    const p = (code && productByCode(code)) || (name && (matchProduct(name) || findProductLike({ name }))) || null;
+    out.push({ raw:cells.filter(Boolean).join(" · "), p, mfg: mfg || "미상", qty, why: !p ? "품목을 못 찾음" : qty==null ? "수량 없음" : "" });
+  });
+  return out;
+}
 /* 날짜 읽기 — 10월 29일 · 2026-10-29 · 2026.10.29 · 10/29 · 1029 */
 function readDateCell(v){
   const t = String(v||"").trim(); if (!t) return null;
@@ -15614,7 +15697,7 @@ function pasteTemplate(){
     ship:      { n:"출고지시서",       h:["코드","품목명","출고수량"], r:P_.map(p=>[p.code||"", p.name, ""]) },
     cfe:       { n:"CFE현재고",       h:["코드","품목명","현재고"], r:P_.map(p=>[p.code||"", p.name, Number(p.cfe||0)]) },
     stock_cfe: { n:"재고확인_CFE",    h:["코드","품목명","실재고"], r:P_.map(p=>[p.code||"", p.name, ""]) },
-    stock_mms: { n:"재고확인_MMS",    h:["코드","원두명","보유수량"], r:B_.map(b=>[b.mms_code||"", b.name, ""]) },
+    cfe_lot:   { n:"CFE_제조일자별_실재고", h:["코드","품목명","제조일자","수량"], r:P_.flatMap(p=>{ const l = cfeLotLedger(p).filter(x=>x.mfg!=="미상"); return l.length ? l.map(x=>[p.code||"", p.name, md(x.mfg), ""]) : [[p.code||"", p.name, "", ""]]; }) },
     mms_batch: { n:"MMS배치별무게",   h:["MMS코드","로스팅날짜","원두","배치번호","무게"], r: live.length ? live.map(m=>[mmsCodeOf(m.bean)||"", md(m.roast_date), m.bean, Number(m.batch)||"", ""]) : [["MMS0001", md(today()), "블렌드 에스쇼콜라", 1, ""]] },
     roast:     { n:"로스팅계획",       h:["코드","원두명","수량"], r:B_.map(b=>[b.mms_code||"", b.name, ""]) },
     log:       { n:"생산실적",         h:["날짜","코드","품목명","수량","작업자","기계"], r:[[today(), P_[0]?.code||"CFE0001", P_[0]?.name||"원두 블렌드 에스쇼콜라 1kg", 10, CURRENT_USER||"", DB.machines[0]?.name||""]] },
@@ -15624,8 +15707,18 @@ function pasteTemplate(){
     beanroaster:{ n:"원두별_로스터기",  h:["원두명", ...DB.roasters.filter(r=>r.active!==false).map(r=>r.name)], r:B_.map(b=>[b.name, ...DB.roasters.filter(r=>r.active!==false).map(r=>{ const x = brRow(b.name, r.id); return x ? (x.batches ?? x.cap ?? "") : ""; })]) },
   }[mode];
   if (!T) return toast("이 모드는 양식이 없습니다");
-  csv(`양식_${T.n}`, T.h, T.r);
-  toast(`양식을 받았습니다 — 빈 칸을 채운 뒤 표 전체를 복사해 붙여넣거나 [파일]로 올리세요`);
+  xlsxOut(`양식_${T.n}`, T.h, T.r).then(()=>toast(`양식을 받았습니다 — 빈 칸을 채운 뒤 표 전체를 복사해 붙여넣거나 [파일]로 올리세요`));
+}
+/* 엑셀(.xlsx)로 — 라이브러리를 못 받으면 .csv 로 (Lee "엑셀로 주면 좋을 것 같고") */
+async function xlsxOut(name, head, rows){
+  try {
+    await loadXLSX();
+    const ws = XLSX.utils.aoa_to_sheet([head, ...rows]);
+    ws["!cols"] = head.map((h,i)=>({ wch: Math.min(44, Math.max(String(h).length*2+2, ...rows.slice(0,200).map(r=>String(r[i]??"").length*1.6+2))) }));
+    ws["!freeze"] = { xSplit:0, ySplit:1 };
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "양식");
+    XLSX.writeFile(wb, `${name}_${today()}.xlsx`);
+  } catch(e){ console.warn(e); csv(name, head, rows); }
 }
 function preview(){
   pRows = []; pHdr = null;
@@ -15636,6 +15729,7 @@ function preview(){
   // ── 원두 마스터 표 — MMS코드 모드로 붙여넣어도 머리글을 보고 알아서 넘어온다 ──
   const BM = bmHeader(parseTSV($("pText").value));
   if (BM && mode !== "beanmaster" && ["mmscode","cfecode","roast","stock_mms"].includes(mode)) {
+    [...$("pMode").options].forEach(o=>{ if (o.value==="beanmaster") { o.hidden = false; o.disabled = false; } });
     $("pMode").value = "beanmaster";
     toast("원두 마스터 표로 보여 [기준등록 · 원두 마스터] 모드로 바꿨습니다");
     return preview();
@@ -15798,6 +15892,23 @@ function preview(){
     return;
   }
 
+  // ── CFE 제조일자별 실재고 ──
+  if (mode==="cfe_lot") {
+    const rows = cfeLotParse(L); pRows = rows;
+    const by = {}; rows.filter(r=>!r.why).forEach(r=>{ const k = r.p.id; by[k] = by[k] || { p:r.p, lots:{} }; by[k].lots[r.mfg] = (by[k].lots[r.mfg]||0) + r.qty; });
+    const prods = Object.values(by);
+    $("pPrev").innerHTML = `<table><thead><tr><th>품목</th><th>제조일자</th><th>장부</th><th>센 수량</th><th>차이</th></tr></thead><tbody>` +
+      prods.map(({p,lots})=>{ const led = {}; cfeLotLedger(p).forEach(l=>led[l.mfg]=l.qty);
+        const ds = [...new Set([...Object.keys(led), ...Object.keys(lots)])].sort();
+        const tot = Object.values(lots).reduce((a,b)=>a+b,0), d = tot - Number(p.cfe||0);
+        return ds.map((k,i)=>{ const a = led[k]||0, b = lots[k]||0, dd = b - a;
+          return `<tr>${i===0?`<td class="l" rowspan="${ds.length+1}"><b>${p.name}</b><br><span class="hint" style="padding:0;font-size:10.5px">${p.code||""}</span></td>`:""}<td class="c">${k}</td><td>${fmt(a)}</td><td><b>${fmt(b)}</b></td><td class="${dd>0?"ok":dd<0?"bad":""}">${dd?(dd>0?"+":"")+fmt(dd):""}</td></tr>`; }).join("") +
+          `<tr style="background:#F7F8FB"><td class="c"><b>합계</b></td><td><b>${fmt(p.cfe)}</b></td><td><b>${fmt(tot)}</b></td><td class="${d>0?"ok":d<0?"bad":""}"><b>${d?(d>0?"+":"")+fmt(d):"일치"}</b></td></tr>`; }).join("") +
+      rows.filter(r=>r.why).map(r=>`<tr><td class="l" colspan="4" style="color:var(--soft)">${r.raw}</td><td class="c"><span class="tag bad">${r.why}</span></td></tr>`).join("") +
+      `</tbody><tfoot><tr><td colspan="5" class="c">품목 ${prods.length}개 · ${rows.filter(r=>!r.why).length}줄 · 못 읽음 ${rows.filter(r=>r.why).length}줄 — 저장하면 품목별 합계로 장부를 맞추고 제조일자별 수량을 남깁니다</td></tr></tfoot></table>`;
+    $("pApply").style.display = prods.length ? "block" : "none";
+    return;
+  }
   // ── MMS 배치별 무게 (Lee 2026-11-01 "이걸 인식 못 해 — 양식을 같이") ──
   if (mode==="mms_batch") {
     const rows = mmsBatchParse(L);
@@ -15965,7 +16076,7 @@ function preview(){
   $("pApply").style.display = okN ? "block" : "none";
 }
 
-const PASTE_MODES = ["log","tally","ship","plan","cfe","roast","stock_cfe","stock_mms","mms_batch","cfecode","mmscode","beanroaster","beanmaster"];
+const PASTE_MODES = ["log","tally","ship","plan","cfe","roast","stock_cfe","stock_mms","mms_batch","cfe_lot","cfecode","mmscode","beanroaster","beanmaster"];
 async function applyPaste(){
   const mode = $("pMode").value, withQty = $("pQty")?.checked;
   /* 모드를 못 읽으면 멈춘다 — 예전에 여기서 CFE 현재고를 말없이 덮어쓴 적이 있다 */
@@ -15975,7 +16086,7 @@ async function applyPaste(){
   if (need && !can(need)) { closePaste(); return deny(need); }
   /* ★ 저장 전에 한 번 묻는다 — 모드마다 따로 묻는 것(생산실적·출고)은 거기서 묻는다 */
   if (!["log","ship"].includes(mode)) {
-    const MODE_NAME = { tally:"집계", plan:"계획EA", cfe:"CFE 현재고", roast:"로스팅 계획", stock_cfe:"재고확인(CFE)", stock_mms:"재고확인(MMS)", mms_batch:"MMS 배치별 무게",
+    const MODE_NAME = { tally:"집계", plan:"계획EA", cfe:"CFE 현재고", roast:"로스팅 계획", stock_cfe:"재고확인(CFE)", stock_mms:"재고확인(MMS)", mms_batch:"MMS 배치별 무게", cfe_lot:"CFE 제조일자별 실재고",
       cfecode:"품목 CFE 코드", mmscode:"원두 MMS 코드", beanmaster:"원두 마스터", beanroaster:"원두별 로스터기 기준" };
     const cnt = pRows.filter(r=>!r.why && !r.bad).length || pRows.length;
     if (!(await ask(`${MODE_NAME[mode]||mode} ${cnt}건을 저장하시겠습니까?${mode==="cfe"?"\n\n(CFE 현재고를 덮어씁니다)":""}`, { title:"저장", yes:"저장" }))) return;
@@ -16052,6 +16163,26 @@ async function applyPaste(){
     const add = mk ? ` · 신규 품목 ${mk}건${nb?`, 신규 원두 ${nb}건`:""} 생성` : "";
     if (withQty) { $("stType").value="cfe"; renderStock(); go("stock"); return toast(`${n}개 CFE 코드 등록${add} · 수량은 재고확인에서 대조`); }
     go("base"); return toast(`${n}개 CFE 코드 등록${add}`);
+  }
+  if (mode==="cfe_lot") {
+    const by = {}; pRows.filter(r=>!r.why).forEach(r=>{ const k = r.p.id; by[k] = by[k] || { p:r.p, lots:{} }; by[k].lots[r.mfg] = (by[k].lots[r.mfg]||0) + r.qty; });
+    const all = { ...cfeLotCounts() }; let nFix = 0, nKeep = 0; const fail = [];
+    for (const { p, lots } of Object.values(by)) {
+      const tot = Object.values(lots).reduce((a,b)=>a+b,0);
+      const note = `제조일자별 실사 · ${Object.entries(lots).sort().map(([d,q])=>`${d==="미상"?"미상":d.slice(5)} ${fmt(q)}`).join(" · ")}`;
+      if (tot !== Number(p.cfe||0)) {
+        const res = await mesCountProductStock({ product_id:p.id, counted:tot, date:today(), note, idem:`cl-${p.id}-${uid()}` });
+        if (!res || !res.ok) { fail.push(`${p.name} — ${res?.message||"실패"}`); continue; }
+        nFix++;
+      } else nKeep++;
+      all[p.id] = { at: nowISO(), lots };
+    }
+    SETTINGS[CFE_LOT_KEY] = all; await saveSetting(CFE_LOT_KEY, all);
+    logAudit("CFE 제조일자별 실재고", `맞춤 ${nFix} · 일치 ${nKeep}`, fail.length ? `실패 ${fail.length}` : "");
+    closePaste(); if (sb) await reloadDB({ silent:true }); renderAll();
+    if (fail.length) await ask(`맞춤 ${nFix} · 일치 ${nKeep} · 실패 ${fail.length}\n\n${fail.slice(0,10).join("\n")}`, { title:"CFE 제조일자별 실재고", yes:"확인", only:true });
+    go("stock"); $("stType").value="cfe"; renderStock();
+    return toast(`품목 ${nFix+nKeep}개 제조일자별로 넣었습니다 (장부 맞춤 ${nFix})`);
   }
   if (mode==="mms_batch") {
     let nFix = 0, nNew = 0; const fail = [];
@@ -19126,7 +19257,7 @@ function resetCaps(){
   renderAll(); toast("권한을 기본값으로 되돌렸습니다");
 }
 const PASTE_CAP = { log:"log", ship:"plan", plan:"plan", tally:"plan", cfe:"base", roast:"roast",
-  stock_cfe:"stock", stock_mms:"stock", mms_batch:"stock", cfecode:"base", mmscode:"base", beanroaster:"base", beanmaster:"base" };
+  stock_cfe:"stock", stock_mms:"stock", mms_batch:"stock", cfe_lot:"stock", cfecode:"base", mmscode:"base", beanroaster:"base", beanmaster:"base" };
 const CAP_NAME = { plan:"생산계획·작업지시", work:"현장 생산", qc:"검수", ship:"출고",
   pqc:"품질(부적합)", base:"기준정보", stock:"재고확인", roast:"로스팅", log:"생산실적", sys:"초기화·백업" };
 const CAP_HELP = {
