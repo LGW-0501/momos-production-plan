@@ -1617,7 +1617,8 @@
   <div class="subtabs" id="roastTabs">
     <button class="subtab on" data-p="in">입고 · 계획</button>
     <button class="subtab" data-p="stock">배치 재고</button>
-    <button class="subtab" data-p="hold">보류 · 상미기한</button>
+    <button class="subtab" data-p="hold">보류</button>
+    <button class="subtab" data-p="shelf">상미기한</button>
     <button class="subtab" data-p="flow">수불 · 사용이력</button>
   </div>
   <div class="body">
@@ -1665,6 +1666,7 @@
     <div class="subpane" id="rp-hold">
     <div class="panel" id="holdWrap" style="display:none">
       <div class="panel-h">⛔ 보류 중인 배치 <span class="r"><span id="holdSum"></span></span></div>
+      <div class="cond" style="border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#FBFCFE" id="holdBtn"></div>
       <div class="guide">
         <b>보류한 배치는 생산계획·생산에서 건너뜁니다.</b>
         같은 원두라도 <b>배치 하나만</b> 묶입니다 — 부산 2801 이 보류여도 2802 는 그대로 씁니다.
@@ -1683,9 +1685,12 @@
         폐기만 하고 끝낼 배치라면 사유 한 번 고르는 걸로 충분하고, 메모는 안 적어도 됩니다.</div>
       <div class="panel-b"><table id="hlogTbl"></table></div>
     </div>
+    </div>
+    <div class="subpane" id="rp-shelf">
     <div class="panel" id="shelfWrap">
-      <div class="panel-h">⏰ 상미기한 주의 배치
+      <div class="panel-h">⏰ 상미기한별 배치
         <span class="r hint" id="shelfRule"></span></div>
+      <div class="cond" style="border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#FBFCFE" id="shelfBtn"></div>
       <div class="panel-b"><table id="shelfTbl"></table></div>
     </div>
     </div>
@@ -3145,7 +3150,9 @@ document.addEventListener("keydown", e=>{
    어디에 커서가 있었는지 기억했다가 다시 그린 뒤 그 자리로 돌려놓는다. */
 /* "62." 나 "" 처럼 아직 숫자가 안 된 상태 — 이때는 화면을 다시 그리지 않고 계속 치게 둔다 */
 const halfTyped = v => { const t = String(v??"").trim();
-  return t==="" || t==="-" || t==="." || /[.,]$/.test(t) || /^-?[.,]/.test(t); };
+  /* ★ 2026-11-01 — 59.0 · 59.10 처럼 소수점 뒤가 0 으로 끝나는 중간 값도 아직 치는 중으로 본다 (Lee "59.02 칠 때 .0 을 치면 점과 0 이 없어져")
+     — 값은 바로 앞(59 · 59.1)과 같으니 저장할 것도 없다 */
+  return t==="" || t==="-" || t==="." || /[.,]$/.test(t) || /^-?[.,]/.test(t) || /[.,]\d*0$/.test(t); };
 const numOf = v => { const n = parseFloat(String(v??"").replace(/,/g,"")); return isFinite(n) ? n : 0; };
 
 function keepFocus(fn, tries){
@@ -6767,6 +6774,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "입고 kg 소수점 · 보류/상미기한 따로 · 수불 순서", "입고 확인 등 숫자 칸에서 59.0 · 59.10 처럼 0 으로 끝나는 소수를 칠 때 점과 0 이 사라지던 것 고침 · 로스팅 탭 [보류 · 상미기한] → [보류] [상미기한] 둘로 · 보류는 사유별 버튼으로 걸러 봄 · 상미기한은 남은 배치 전부를 초과 · 임박 · 여유 버튼으로 (kg 합계 · 잔여일 짧은 순 · 그 자리에서 [보류]) · 원두 수불 조회도 쇼콜라 → 봉봉 → 므쵸 → 부산 → 블렌드 → 하바나 → 싱글 순"],
   ["2026-11-01", "로스팅 계획 엑셀 — 로스터기 · 로스팅일 · 배치수", "로스팅 계획 붙여넣기·양식에 로스팅일 · 로스터기 · 배치수 칸 · 로스터기는 S35 · 35 다 됨 · 비우면 원두의 머신 종류(S35_… S70_…)로 · 배치수를 비우면 그 로스터기의 1배치 kg 로 나눠 계산 · 같은 원두라도 로스터기·날짜가 다르면 따로 등록 · 양식은 로스터기 35 → 70 → 60 순"],
   ["2026-11-01", "엑셀 넣기 — 화면에 맞는 모드만 · 양식은 엑셀(.xlsx) · CFE 제조일자별", "엑셀 넣기 창은 연 화면의 모드만 보임 (재고확인 CFE = 제조일자별 실재고·합계 / 재고확인 MMS = 배치별 무게 / 그 밖은 그 모드 하나) · 원두는 합계로 넣는 길을 없애고 배치(로스팅일)째로만 — 날짜가 사라지지 않게 · [양식 다운로드]는 .xlsx (칸 너비 맞춤) · 새 모드 [CFE 제조일자별 실재고]: 코드·품목명·제조일자·수량 → 품목별 합계로 장부를 맞추고 제조일자별 수량을 남김 · 재고확인(CFE)에 \"CFE 제조일자별 재고\" 표 — 검수로 들어오고 출고로 빠진 것을 제조일자별로 · 가장 오래된 제조일자와 지난 일수 · 모르는 것은 \"미상\""],
   ["2026-11-01", "엑셀·사진 넣기 — 양식 다운로드 · MMS 배치별 무게", "엑셀 넣기 창에 [양식 다운로드] — 모드마다 맞는 머리글 양식 (집계·계획·출고·재고확인은 지금 품목/원두를, MMS 배치별 무게는 지금 남은 배치를 미리 채워 둠 → 수량·무게만 채워 붙여넣기) · 새 모드 [MMS 배치별 무게] — 코드 · 로스팅날짜(10월 29일 · 10/29 · 2026-10-29) · 원두 · 배치번호 · 무게를 배치마다 읽어 장부와 비교 → 있는 배치는 실측으로 맞추고(조정 이력) 없는 배치는 새로 등록 · 머리글 \"상품\" \"무게\" \"중량\" \"잔량\" 도 알아봄"],
@@ -9272,7 +9280,7 @@ function dayFlow(dateStr){
       unexp: measured==null ? null : Math.round((c2 - measured)*100)/100,
       gap: Math.round((o+i-u-x+a2-c2)*100)/100 };
   }).filter(r=>r.open||r.inn||r.used||r.other||r.adj||r.close||r.measured!=null||r.cntN)
-    .sort((a,b)=>Math.abs(b.unexp||0)-Math.abs(a.unexp||0) || b.used-a.used || a.bean.localeCompare(b.bean));
+    .sort((a,b)=>beanCmp(a.bean, b.bean));       // ★ 2026-11-01 — 블렌드 > 하바나 > 싱글 순 (Lee) · 차이는 색으로 보인다
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -9305,13 +9313,25 @@ async function showBeanNeed(b){
 function renderRoast(){
   if (document.querySelector("#s-roast .subpane.on")?.id !== "rp-"+roastTab) setRoastTab(roastTab);
   const shelf = sortBatches(DB.mms.filter(m=>Number(m.stock_kg)>0 && shelfState(m.roast_date)!=="ok"));
-  $("shelfWrap").style.display = shelf.length ? "" : "none";
-  tbl("shelfTbl", ["배치","원두","로스팅일","재고(kg)","경과","잔여","상태"],
-    shelf.map(m=>{ const st=shelfState(m.roast_date);
-      return `<tr><td class="l"><b>${batchLabel(m)}</b></td><td class="l">${m.bean}</td><td class="c">${m.roast_date}</td>
-        <td>${fmt(m.stock_kg)}</td><td class="c">D+${ageDays(m.roast_date)}</td>
-        <td class="c ${st}">${shelfLabel(m.roast_date)}</td>
-        <td class="c">${st==="bad"?'<span class="tag bad">초과 — 사용금지·처리</span>':'<span class="tag warn">임박 — 먼저 사용</span>'}</td></tr>`; }));
+  /* ★ 2026-11-01 — 상미기한별로 따로 (초과 · 임박 · 여유) · 잔여일 짧은 순 → 원두 순서(블렌드 > 하바나 > 싱글) */
+  { const liveAll = DB.mms.filter(m=>Number(m.stock_kg)>0);
+    const cnt = { bad:0, warn:0, ok:0 }, kg = { bad:0, warn:0, ok:0 };
+    liveAll.forEach(m=>{ const st = shelfState(m.roast_date); cnt[st]++; kg[st] += Number(m.stock_kg||0); });
+    const LBL = { bad:"초과", warn:"임박", ok:"여유" };
+    if ($("shelfBtn")) $("shelfBtn").innerHTML = `<button class="btn ${!SHELF_VIEW?"primary":""}" onclick="SHELF_VIEW='';renderRoast()">전체 ${liveAll.length}</button> ` +
+      ["bad","warn","ok"].map(k=>`<button class="btn ${SHELF_VIEW===k?"primary":""}" style="${k==="bad"&&cnt.bad?"color:var(--bad);font-weight:800":""}" onclick="SHELF_VIEW='${k}';renderRoast()">${LBL[k]} ${cnt[k]} <span class="hint" style="padding:0;font-size:11px">${fmt(Math.round(kg[k]*10)/10)}kg</span></button>`).join(" ");
+    const rows = liveAll.filter(m=>!SHELF_VIEW || shelfState(m.roast_date)===SHELF_VIEW)
+      .sort((a,b)=>daysLeft(a.roast_date)-daysLeft(b.roast_date) || beanCmp(a.bean,b.bean) || Number(a.batch)-Number(b.batch));
+    $("shelfWrap").style.display = "";
+    tbl("shelfTbl", ["현장번호","배치","원두","로스팅일","재고(kg)","경과","잔여","상태","보류"],
+      rows.map(m=>{ const st=shelfState(m.roast_date);
+        return `<tr class="${isHeld(m)?"heldrow":""}"><td class="c"><b style="font-size:15px">${batchShort(m)}</b></td><td class="l">${batchLabel(m)}</td><td class="l"><b>${m.bean}</b></td><td class="c">${m.roast_date}</td>
+          <td>${fmt(m.stock_kg)}</td><td class="c">D+${ageDays(m.roast_date)}</td>
+          <td class="c ${st}">${shelfLabel(m.roast_date)}</td>
+          <td class="c">${st==="bad"?'<span class="tag bad">초과 — 사용금지·처리</span>':st==="warn"?'<span class="tag warn">임박 — 먼저 사용</span>':'<span class="tag ok">여유</span>'}</td>
+          <td class="c">${isHeld(m)?`<span class="tag bad">${m.hold_why||"보류"}</span>`:`<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}</td></tr>`; }),
+      rows.length ? `<td colspan="4" class="c">합 계 · ${rows.length}배치</td><td><b>${fmt(Math.round(rows.reduce((t,m)=>t+Number(m.stock_kg||0),0)*100)/100)}</b></td><td colspan="4"></td>` : null);
+    if (!rows.length) $("shelfTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">${SHELF_VIEW?`${LBL[SHELF_VIEW]} 배치가 없습니다`:"남은 배치가 없습니다"}</td></tr></tbody>`; }
 
   const need = beanNeeds();
   const beans = [...new Set([...Object.keys(need), ...DB.roasting.filter(r=>!r.done).map(r=>r.bean)])].filter(b=>!beanIsOff(b) || need[b]).sort(beanCmp);
@@ -9376,7 +9396,8 @@ function renderRoast(){
     const set = (k, txt) => { const b = tb.querySelector(`[data-p="${k}"]`); if (b) b.innerHTML = txt; };
     const wait = openLines().length, held = heldAll().length, bad = shelf.filter(m=>shelfState(m.roast_date)==="bad").length;
     set("in", `입고 · 계획${wait?` <span class="tag warn" style="font-size:10px">받을 배치 ${wait}</span>`:""}`);
-    set("hold", `보류 · 상미기한${held?` <span class="tag bad" style="font-size:10px">보류 ${held}</span>`:""}${bad?` <span class="tag bad" style="font-size:10px">초과 ${bad}</span>`:(shelf.length?` <span class="tag warn" style="font-size:10px">임박 ${shelf.length}</span>`:"")}`);
+    set("hold", `보류${held?` <span class="tag bad" style="font-size:10px">${held}</span>`:""}`);
+    set("shelf", `상미기한${bad?` <span class="tag bad" style="font-size:10px">초과 ${bad}</span>`:""}${shelf.length-bad>0?` <span class="tag warn" style="font-size:10px">임박 ${shelf.length-bad}</span>`:""}`);
   })();
 
   // 오늘 받은 배치 — 바로 쓸 수 있는 것
@@ -10679,10 +10700,17 @@ function csvHold(){
         h.kg, h.why||"", h.note||"", h.held_by||"", h.result||"",
         h.freed_by||"", String(h.freed_at||"").slice(0,16).replace("T"," "), holdDays(h)]));
 }
+var HOLD_PICK = "", SHELF_VIEW = "";
 function renderHold(){
   if (!$("holdTbl")) return;
   /* ★ 2026-10-30 — 남은 kg 가 0 인 보류 배치도 보여 준다 (전에는 숨겨져서 풀 수가 없었다) · 보류가 없으면 "없음" 이라고 적는다 */
-  const held = sortBatches(DB.mms.filter(m=>isHeld(m)));
+  /* ★ 2026-11-01 — 보류 사유별로 (Lee "보류 별로 · 상미기한 별로 따로 볼 수 있게") · 원두 순서는 블렌드 > 하바나 > 싱글 */
+  const heldAllRows = DB.mms.filter(m=>isHeld(m)).sort((a,b)=>beanCmp(a.bean,b.bean) || String(a.roast_date).localeCompare(String(b.roast_date)) || Number(a.batch)-Number(b.batch));
+  const whys = {}; heldAllRows.forEach(m=>{ const k = m.hold_why || "사유 미기재"; whys[k] = (whys[k]||0) + 1; });
+  if (HOLD_PICK && !whys[HOLD_PICK]) HOLD_PICK = "";
+  if ($("holdBtn")) $("holdBtn").innerHTML = `<button class="btn ${!HOLD_PICK?"primary":""}" onclick="HOLD_PICK='';renderHold()">전체 ${heldAllRows.length}</button> ` +
+    Object.entries(whys).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`<button class="btn ${HOLD_PICK===k?"primary":""}" onclick="HOLD_PICK=${JSON.stringify(k).replace(/"/g,"&quot;")};renderHold()">${k} ${n}</button>`).join(" ");
+  const held = heldAllRows.filter(m=>!HOLD_PICK || (m.hold_why || "사유 미기재") === HOLD_PICK);
   const w = $("holdWrap"); if (w) w.style.display = "";
   if ($("holdSum")) $("holdSum").innerHTML =
     `<span class="tag bad">보류 ${held.length}배치 · ${fmt(held.reduce((t,m)=>t+Number(m.stock_kg||0),0))}kg</span>`;
