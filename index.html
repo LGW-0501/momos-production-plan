@@ -4311,11 +4311,31 @@ function qtyFixOf(o){
   const m = String(last.note||"").match(QFIX_RE); if (!m) return null;
   return { from:Math.round(numOf(m[1])), to:Math.round(numOf(m[2])), by:last.user_name||"", at:last.at };
 }
+/* ★ 반려 카드의 부적합 — 이미 생산 완료된 수량에서 빼야 한다 (부적합 기록 + 그만큼 빼고 다시 검수로 · 한 번에)
+   따로 [부적합 등록] 만 하면 정상 수량(재고)은 그대로라 버린 것이 출고까지 가거나, 나중에 수량을 또 빼서 두 번 빠질 수 있었다 */
+async function rejNg(id){
+  if (!(await requireUser())) return;
+  const o = ordById(id); if (!o) return;
+  const nm = o.product_name||prodById(o.product_id)?.name||"", n0 = Math.round(Number(o.qty_done)||0);
+  const n = await askNum("부적합 수량", `${nm} · 일련번호 ${o.serial||"—"}<br>반려된 <b>${fmt(n0)}개</b> 중 버린 수량 — 이 수만큼 빼고 나머지를 다시 검수로 올립니다`, 1,
+    { unit:"개", max:n0, quick:[ {t:"1", set:1}, {t:"+1", add:1}, {t:"+5", add:5}, {t:"+10", add:10} ] });
+  if (n === null) return;
+  const q = Math.max(0, Math.min(n0, Math.round(Number(n)||0))); if (!q) return;
+  if (q >= n0) return ask(`${fmt(n0)}개 전부 버리는 것이면 관리자가 [처음부터 다시 생산] 하거나 품질관리에서 폐기 처리합니다.`, { title:"전부 부적합", yes:"확인", only:true });
+  const type = await ask(`${nm} · 버린 것 ${fmt(q)}개\n\n왜 버렸습니까?`, { title:"부적합 — 왜 버렸나", choices:[ ...NG_TYPES.map(x=>({ v:x, label:ngLabel(x) })), { v:null, label:"취소" } ] });
+  if (!type) return;
+  if (!(await ask(`${nm}\n반려 ${fmt(n0)}개 − 부적합 ${fmt(q)}개 = ${fmt(n0-q)}개\n\n· 부적합 ${fmt(q)}개 기록 (${ngLabel(type)})\n· ${fmt(n0-q)}개로 다시 검수 대기 — 검수 완료 때 생산실적·재고가 ${fmt(n0-q)}개로 정정\n\n진행할까요?`, { title:"부적합 빼고 다시 검수로", yes:"진행" }))) return;
+  const r1 = await mesRegisterNg({ order_id:id, qty:q, type, idem:`ngr-${id}-${uid()}` });
+  if (!r1 || !r1.ok) return ask(r1?.message || "부적합을 기록하지 못했습니다", { title:"실패", yes:"확인", only:true });
+  const r = await mesResubmitQc({ order_id:id, note:`수량 정정 ${n0} → ${n0-q} · 반려 후 부적합 ${q}개 (${ngLabel(type)})`, qty:n0, rest_action:null, merged_batch:null, idem:`rsqn-${id}-${uid()}` });
+  if (!r || !r.ok) { quickRender(); return ask(`부적합 ${fmt(q)}개는 기록됐지만 다시 검수로 올리지 못했습니다 — ${r?.message||""}\n\n[수량 고치기] 로 ${fmt(n0-q)}개를 적어 올리세요 (부적합은 다시 등록하지 마세요).`, { title:"올리지 못했습니다", yes:"확인", only:true }); }
+  quickRender(); toast(`부적합 ${fmt(q)}개 기록 · ${fmt(n0-q)}개로 다시 검수 대기`);
+}
 async function rejFixQty(id){
   if (!(await requireUser())) return;
   const o = ordById(id); if (!o) return;
   const nm = o.product_name||prodById(o.product_id)?.name||"", n0 = Math.round(Number(o.qty_done)||0);
-  const v = await askNum("실제 수량", `${nm} · 일련번호 ${o.serial||"—"}<br>지금 기록 <b>${fmt(n0)}개</b> — 다시 센 실제 수량을 적으세요`, n0,
+  const v = await askNum("실제 수량", `${nm} · 일련번호 ${o.serial||"—"}<br>지금 기록 <b>${fmt(n0)}개</b> — 다시 센 <b>좋은 제품</b> 수량을 적으세요<br><span style="color:var(--bad)">버린 것이 있으면 여기서 빼지 말고 [부적합 빼고 검수로] 를 쓰세요 (두 번 빠지지 않게)</span>`, n0,
     { unit:"개", quick:[ {t:"−1", add:-1}, {t:"+1", add:1}, {t:"−5", add:-5}, {t:"+5", add:5} ] });
   if (v === null) return;
   const n1 = Math.max(0, Math.round(Number(v)||0));
@@ -6820,6 +6840,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "부적합 중복·누락 정리", "① 생산 완료 창의 버린 수량이 0 으로 시작해서, 생산 중 [부적합 등록] 한 수량이 완료 때 0 으로 덮이던(최종확정 0) 오류 → 등록한 수량이 미리 들어가고 \"이미 들어 있음 — 더 나왔으면 늘리기\" 안내 · 원두도 이 전체 수량 기준(두 번 더하지 않음) ② 반려 카드의 [부적합 등록] → [부적합 빼고 검수로]: 부적합 기록 + 그만큼 뺀 수량으로 재검수를 한 번에 (전에는 기록만 되고 정상 수량은 그대로 → 버린 것까지 출고되거나 수량을 또 빼면 두 번 빠짐) · [수량 고치기] 에 \"버린 것은 여기서 빼지 말 것\" 안내"],
+  ["2026-11-02", "부적합도 원두에서 뺌 · 만들 수 있는 수량", "생산 완료 때 배치에서 빼는 원두 = (정상 + 부적합) × 표준투입 × (1+로스율) — 전에는 정상만 빼서 부적합 21개(21kg)가 잔량으로 남아 다음 배치로 이월되던 오류 · 완료 창에 부적합 N개 → 원두 N kg 같이 빠짐 표시 · 현장 카드에 [만들 수 있는 수량 약 N개] (배치 사용 가능 kg ÷ 1개 kg)"],
+  ["2026-11-02", "검수 출고처 — 여러 곳 동시 선택", "일반(온라인)도 같이 고를 수 있게 (✓ 표시) · 고른 출고처마다 수량 칸 · 일반(온라인)은 나머지 자동 · 수량을 적어 합계가 넘으면 다른 출고처에서 자동으로 뺌 · [초기화] 로 전부 온라인"],
   ["2026-11-02", "반려 카드 — 수량 고치기", "반려 카드에 [수량 고치기]: 다시 센 실제 수량을 적으면 재검수로 올라가고, 검수 카드에 \"현장 수량 정정 115 → 112\" 표시와 함께 실제 확인수량이 미리 들어감 → 검수 완료 때 생산실적·완제품 재고가 그 수량으로 정정 · 작업 이력에도 남음"],
   ["2026-11-02", "출고 취소 창 버튼", "두 버튼이 모두 [취소] 로 보이던 것 → [닫기] / [출고 취소하기]"],
   ["2026-11-02", "출고 취소 — 사유 비우면 막히던 오류", "출고취소 때 사유를 비우면 서버가 거절(shipments_cancel_reason_req)하던 것 → 비우면 \"사유 미기재 (누가 출고 취소)\" 로 남기고 취소됨"],
@@ -17568,10 +17591,10 @@ function finishDialog(o, p, ctx){
           <input id="finGood" type="number" inputmode="numeric" min="0" value="${ctx.good0 ?? plan}" style="width:96px;height:44px;font-size:20px;text-align:center;font-weight:700">
           <button class="btn" data-g="1" style="${btnS}">+1</button><button class="btn" data-g="10" style="${btnS}">+10</button>
         </div>
-        <div style="font-weight:600;margin:14px 0 4px">버린 수량 <span class="hint" style="padding:0">찢어짐 · 무게 안 맞음 등 — 있으면 왜 버렸는지 고르세요</span></div>
+        <div style="font-weight:600;margin:14px 0 4px">버린 수량 (전체) <span class="hint" style="padding:0">${Number(o.qty_ng||0) ? `<b style="color:var(--bad)">생산 중 [부적합 등록] ${fmt(o.qty_ng)}개가 이미 들어 있습니다</b> — 더 나왔으면 그만큼 늘리세요 (따로 더하지 않음)` : "찢어짐 · 무게 안 맞음 등 — 있으면 왜 버렸는지 고르세요"}</span></div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <button class="btn" data-n="-1" style="${btnS}">−1</button>
-          <input id="finNg" type="number" inputmode="numeric" min="0" value="0" style="width:80px;height:44px;font-size:18px;text-align:center">
+          <input id="finNg" type="number" inputmode="numeric" min="0" value="${Number(o.qty_ng||0)}" style="width:80px;height:44px;font-size:18px;text-align:center">
           <button class="btn" data-n="1" style="${btnS}">+1</button>
           <select id="finNgType" style="height:44px;display:none;flex:1;min-width:140px">${NG_TYPES.map(x=>`<option value="${esc(x)}"${x==="기타"?" selected":""}>${esc(ngLabel(x))}</option>`).join("")}</select>
         </div>
@@ -17608,7 +17631,9 @@ function finishDialog(o, p, ctx){
     const sync = () => {
       T.style.display = num(N) > 0 ? "" : "none";
       const g = num(G), w = [];
-      const auto = needKg(p, g), A0 = beanAlloc(o, p, auto);
+      /* ★ 2026-11-02 부적합(생산 중 등록 + 지금 적은 버린 수량)도 원두를 쓴 것 — 정상 + 부적합 만큼 배치에서 뺀다 (Lee "21개 부적합이면 21kg 빠지고 남은 원두로") */
+      const ngAll = num(N);                              // 생산 중 등록분이 이미 들어 있는 전체 버린 수량 (서버도 이 값을 최종으로 본다)
+      const auto = needKg(p, g + ngAll), A0 = beanAlloc(o, p, auto);
       const lastRow = A0.rows[A0.rows.length-1];
       const autoLeft = lastRow ? lastRow.after : 0;
       /* 손으로 고쳤으면 — 쓴 원두 = 손댄 배치들에 있던 kg − 잔량 원두 */
@@ -17632,7 +17657,8 @@ function finishDialog(o, p, ctx){
       W.textContent = w.join("\n");
       /* ★ 2026-11-01 — 원두는 자동 계산 (Lee "봉지가 아니야 · 얼마나 남았는지 모름 · 여러 배치를 동시에 당김 — 잔량 원두를 자동으로") */
       const BI = ov.querySelector("#finBagInfo");
-      if (BI) BI.innerHTML = `이 생산에 <b>${fmt(use)}kg</b> 씀 <span style="color:var(--soft)">${manual ? `(손으로 고침 · 표준 ${fmt(stdKg(p, g))}kg · 로스 ${fmt(Math.round((use-stdKg(p, g))*1000)/1000)}kg)` : `(자동 · 표준 ${fmt(stdKg(p, g))}kg + 로스율 ${lossPctOf(p)}%)`}</span><br>` +
+      if (BI) BI.innerHTML = `이 생산에 <b>${fmt(use)}kg</b> 씀 <span style="color:var(--soft)">${manual ? `(손으로 고침 · 표준 ${fmt(stdKg(p, g))}kg · 로스 ${fmt(Math.round((use-stdKg(p, g))*1000)/1000)}kg)` : `(자동 · 정상 ${fmt(g)}개${ngAll?` + 부적합 ${fmt(ngAll)}개`:""} · 표준 ${fmt(stdKg(p, g + ngAll))}kg + 로스율 ${lossPctOf(p)}%)`}</span><br>` +
+        (ngAll ? `<span style="color:var(--bad)">부적합 ${fmt(ngAll)}개${Number(o.qty_ng||0)?` (생산 중 등록 ${fmt(o.qty_ng)}개${ngAll>Number(o.qty_ng)?` + 완료 때 ${fmt(ngAll-Number(o.qty_ng))}개`:ngAll<Number(o.qty_ng)?` → ${fmt(ngAll)}개로 줄임`:""})`:""} → 원두 ${fmt(needKg(p, ngAll))}kg 같이 빠짐</span><br>` : "") +
         AL.rows.map(x=>`<b>${batchShort(x.m)}</b> ${fmt(x.before)}kg − ${fmt(x.take)}kg → 잔량 원두 <b style="color:${x.after>0.0005?"var(--ok)":"var(--soft)"}">${fmt(x.after)}kg</b>${x.first?' <span class="hint" style="padding:0">(지시 배치)</span>':""}`).join("<br>");
       /* 잔량 원두 → 다음 배치로 이월 */
       const CR = ov.querySelector("#finCarry"), lr = AL.rows[AL.rows.length-1];
@@ -17753,7 +17779,7 @@ async function finishWork(id){
   /* 봉투 LOT 은 완료가 끝난 뒤 ordLotOnFinish 가 LOT별 사용수량으로 남긴다 */
 
   /* 배치에서 뺄 kg = 표준투입 × 수량 × (1+로스율) — 지시 배치부터, 모자라면 다음 배치 (서버도 같은 순서) · 나머지는 그 배치에 잔량 원두로 */
-  const LZ = autoLoss(o, p, good, 0, { input: F.inputKg != null ? F.inputKg : needKg(p, good) });
+  const LZ = autoLoss(o, p, good, 0, { input: F.inputKg != null ? F.inputKg : needKg(p, good + Number(ng||0)) });   // 부적합(생산 중 등록분 포함 전체)도 원두를 씀
   const actualKg = LZ.batchKg;
 
   if (o.paused_at) { const rr = await resumeWork(o.id, true); if (!rr || rr.ok === false) return toast("정지를 풀지 못했습니다 — " + (rr?.message||"")); }
@@ -18020,7 +18046,7 @@ function shipParts(o){
 async function saveShipSplit(o, list){
   const n = shipQtyOf(o) || Math.round(Number(o.qty_plan)||0);
   const parts = list.filter(x=>x.ch && x.ch !== "일반").map(x=>({ ch:x.ch, qty:Math.max(0, Math.round(Number(x.qty)||0)), note:String(x.note||"").trim(), ...(x.shipped_at?{ shipped_at:x.shipped_at, shipped_by:x.shipped_by }:{}) }));
-  const g = list.find(x=>x.ch === "일반"); if (g && g.shipped_at) parts.push({ ch:"일반", qty:0, shipped_at:g.shipped_at, shipped_by:g.shipped_by });
+  const g = list.find(x=>x.ch === "일반"); if (g && (g.shipped_at || g.sel)) parts.push({ ch:"일반", qty:0, ...(g.sel?{ sel:true }:{}), ...(g.shipped_at?{ shipped_at:g.shipped_at, shipped_by:g.shipped_by }:{}) });
   const used = parts.filter(x=>x.ch!=="일반").reduce((t,x)=>t+x.qty,0);
   if (used > n) { toast(`나눈 수량 합계 ${fmt(used)}개가 생산 ${fmt(n)}개보다 많습니다`); renderQc(); return { ok:false }; }
   const all = [...parts.filter(x=>x.ch!=="일반"), ...(n-used > 0 ? [{ ch:"일반", qty:n-used }] : [])].sort((a,b)=>b.qty-a.qty);
@@ -18034,25 +18060,41 @@ async function saveShipSplit(o, list){
   renderQc(); try { renderShip(); } catch(_){}
   return r;
 }
+const shipGenSel = o => Array.isArray(o?.ship_split) && o.ship_split.some(x=>x && x.ch==="일반" && x.sel);
+/* 고른 출고처 목록 (일반 표시 포함) — 저장할 때 그대로 넘긴다 */
+const shipListOf = o => { const sp = shipSplitOf(o); return shipGenSel(o) ? [...sp, { ch:"일반", sel:true }] : sp; };
 async function shipChToggle(id, c){
   if (!(await requireUser())) return;
   const o = ordById(id); if (!o) return;
   const n = shipQtyOf(o) || Math.round(Number(o.qty_plan)||0);
-  let sp = shipSplitOf(o);
-  if (c === "일반") sp = [];
-  else if (sp.some(x=>x.ch===c)) sp = sp.filter(x=>x.ch!==c);
-  else sp.push({ ch:c, qty:Math.max(0, n - sp.reduce((t,x)=>t+x.qty,0)), note:"" });   // 처음 고르면 전량 · 다음 것은 남은 만큼
-  await saveShipSplit(o, sp);
-  if (c === "온라인 외" && sp.some(x=>x.ch===c)) setTimeout(()=>$(`qcn-${id}-${c}`)?.focus(), 30);
+  let sp = shipSplitOf(o), gen = shipGenSel(o);
+  const used = sp.reduce((t,x)=>t+x.qty,0), rest = n - used;
+  let focus = null;
+  if (c === "일반") {
+    if (gen) gen = false;                       // 일반 표시만 끈다 (나머지가 있으면 그래도 온라인으로 나감)
+    else { gen = true; if (rest <= 0 && sp.length) focus = sp[sp.length-1].ch; }   // 다 잡혀 있으면 위 수량을 줄이라고 커서를 둔다
+  } else if (sp.some(x=>x.ch===c)) sp = sp.filter(x=>x.ch!==c);
+  else { const q = gen ? 0 : Math.max(0, rest);       // 일반(온라인)을 같이 골라 뒀으면 온라인 몫을 뺏지 않고 0 에서 시작
+    sp.push({ ch:c, qty:q, note:"" }); if (q <= 0) focus = c; }   // 처음 고르면 전량 · 다음 것은 남은 만큼(없으면 0 — 수량을 적으면 앞에서 빠짐)
+  await saveShipSplit(o, gen ? [...sp, { ch:"일반", sel:true }] : sp);
+  const f = focus || (c === "온라인 외" && sp.some(x=>x.ch===c) ? "온라인 외" : null);
+  if (f) setTimeout(()=>{ const el = $(`qcs-${id}-${f}`); if (el) { el.focus(); el.select(); } if (f === "온라인 외" && !focus) $(`qcn-${id}-${f}`)?.focus(); }, 40);
 }
+async function shipChReset(id){ const o = ordById(id); if (!o) return; if (!(await requireUser())) return; await saveShipSplit(o, []); }
 async function shipChSet(id, c, k, v){
   if (!(await requireUser())) return;
   const o = ordById(id); if (!o) return;
+  const n = shipQtyOf(o) || Math.round(Number(o.qty_plan)||0);
   const sp = shipSplitOf(o); const x = sp.find(y=>y.ch===c); if (!x) return;
-  x[k] = k === "qty" ? Math.max(0, Math.round(numOf(v))) : String(v||"").trim();
-  await saveShipSplit(o, sp);
+  if (k === "qty") {
+    x.qty = Math.min(n, Math.max(0, Math.round(numOf(v))));
+    /* 합계가 넘으면 다른 출고처(많은 것부터)에서 뺀다 — 예: 온라인 외 281 → 컬리 100 적으면 온라인 외 181 */
+    let over = sp.reduce((t,y)=>t+y.qty,0) - n;
+    for (const y of [...sp].filter(y=>y!==x).sort((a,b)=>b.qty-a.qty)) { if (over <= 0) break; const t = Math.min(y.qty, over); y.qty -= t; over -= t; }
+  } else x[k] = String(v||"").trim();
+  await saveShipSplit(o, shipGenSel(o) ? [...sp, { ch:"일반", sel:true }] : sp);
 }
-async function setOrdShip(id, ch, note){ const o = ordById(id); if (!o) return; return ch === "일반" ? shipChToggle(id, "일반") : saveShipSplit(o, [{ ch, qty:shipQtyOf(o), note:note||"" }]); }
+async function setOrdShip(id, ch, note){ const o = ordById(id); if (!o) return; return ch === "일반" ? shipChReset(id) : saveShipSplit(o, [{ ch, qty:shipQtyOf(o), note:note||"" }]); }
 const chChip = ch => CH_STYLE[ch] ? `<span style="${CH_STYLE[ch]};font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">${ch}</span>` : `${ch||"일반"}`;
 async function joinWork(id, quiet){
   if (!(await requireUser())) return;
@@ -18577,7 +18619,10 @@ function renderWork(){
           const tot = Number(m.in_kg ?? 0) || null, left = Number(m.stock_kg||0);
           const ci = carryIn(m), ck = Math.round(ci.reduce((t,a)=>t+Number(a.delta||0),0)*1000)/1000;
           const from = [...new Set(ci.map(a=>String(a.note||"").replace(/^← /,"").replace(/ 배치에서 이월.*$/,"")))].join(", ");
-          return `<div><span>배치 무게</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}${ck>0?` <span style="color:var(--ok)">+ 이월 ${fmt(ck)}kg</span>`:""}</b> <span class="hint" style="padding:0">· 사용 가능 <b>${fmt(left)}kg</b>${ck>0?` (← ${from})`:""}${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>`; })()}
+          const per = needKg(p, 1), canEa = per > 0 ? Math.floor((left + 0.0005) / per) : null;
+          const todo = Math.max(0, Math.round(Number(o.qty_plan||0) - Number(o.qty_done||0)));
+          return `<div><span>배치 무게</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}${ck>0?` <span style="color:var(--ok)">+ 이월 ${fmt(ck)}kg</span>`:""}</b> <span class="hint" style="padding:0">· 사용 가능 <b>${fmt(left)}kg</b>${ck>0?` (← ${from})`:""}${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>
+            ${canEa != null && stIdx(o) < 2 ? `<div><span>만들 수 있는 수량</span><b class="${canEa < todo ? "bad" : ""}">약 ${fmt(canEa)}개</b> <span class="hint" style="padding:0">(이 배치 ${fmt(left)}kg ÷ 1개 ${fmt(per)}kg${Number(o.qty_ng||0)?` · 부적합 ${fmt(o.qty_ng)}개`:""}${canEa < todo ? ` · 남은 ${fmt(todo)}개 중 ${fmt(todo-canEa)}개는 다음 배치에서` : ""})</span></div>` : ""}`; })()}
         ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"상자 번호":"일련번호"}</span><b>${o.serial || "완료 때 매겨짐"}</b>${
           canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="쓸 배치(=일련번호)를 직접 고르거나 일련번호를 직접 적습니다">바꾸기</button>` : ""}</div>`}
         ${(()=>{ const rows = ordLotRows(o), al = autoLotOf(o), lot = rows.length ? lotRowsText(rows) : (o.lot || al);
@@ -18599,7 +18644,7 @@ function renderWork(){
       </div>
       ${rjd ? `<div class="btns"><button class="go" style="background:var(--bad)" onclick="resubmitQc('${o.id}')">재작업 완료 → 다시 검수로</button></div>
       <div class="btns sm">
-        <button onclick="ngWork('${o.id}')">부적합 등록</button>
+        <button onclick="rejNg('${o.id}')" title="버린 수만큼 빼고 나머지를 다시 검수로 (한 번에)">부적합 빼고 검수로</button>
         <button onclick="rejFixQty('${o.id}')" style="font-weight:800">수량 고치기</button>
         <button onclick="showQcHistory('${o.id}')">작업 이력</button>
         ${can("log")||isManager() ? `<button style="color:var(--bad)" onclick="deleteRejected('${o.id}')" title="관리자 — 생산실적을 취소(재고 되돌림)하고 이 지시를 [대기]로 돌려 처음부터 다시 생산 · 이력은 그대로">처음부터 다시 생산</button>` : ""}
@@ -18714,13 +18759,16 @@ function renderQc(){
         ${(()=>{ const cc = isCostcoProd(p);
           if (cc) return `<div><span>출고처 · 비고</span><b>${chChip("코스트코")}</b><span class="hint" style="padding:0;font-size:11px;display:block">코스트코 하우스 블렌드 — 자동</span></div>`;
           const sp = shipSplitOf(o), n = shipQtyOf(o), used = sp.reduce((t,x)=>t+x.qty,0), rest = n - used;
-          const chip = (c, on) => `<button class="btn" style="height:28px;padding:0 8px;font-size:12px;${on?(CH_STYLE[c]||"background:#1F2A6B;color:#fff")+";font-weight:800;border-color:transparent":""}" onclick="shipChToggle('${o.id}','${c}')">${c==="일반"?"전부 온라인":chName(c)}</button>`;
-          return `<div style="grid-column:1/-1"><span>출고처 · 수량 · 비고 <span class="hint" style="padding:0;font-size:11px">고른 곳에 보낼 수량 — 나머지는 일반(온라인)</span></span>
-            <div style="display:flex;gap:4px;flex-wrap:wrap;margin:4px 0">${chip("일반", !sp.length)}${CHANNELS.filter(c=>c!=="일반").map(c=>chip(c, sp.some(x=>x.ch===c))).join("")}</div>
+          const genOn = shipGenSel(o) || rest > 0 || !sp.length;
+          const chip = (c, on) => `<button class="btn" style="height:30px;padding:0 9px;font-size:12.5px;${on?(CH_STYLE[c]||"background:#1F2A6B;color:#fff")+";font-weight:800;border-color:transparent":""}" onclick="shipChToggle('${o.id}','${c}')">${on?"✓ ":""}${chName(c)}</button>`;
+          return `<div style="grid-column:1/-1"><span>출고처 · 수량 · 비고 <span class="hint" style="padding:0;font-size:11px">여러 곳을 같이 고를 수 있습니다 · 적은 수량 외 나머지는 일반(온라인)</span></span>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin:4px 0">${chip("일반", genOn)}${CHANNELS.filter(c=>c!=="일반").map(c=>chip(c, sp.some(x=>x.ch===c))).join("")}
+              ${sp.length ? `<button class="btn" style="height:30px;padding:0 8px;font-size:11.5px;color:var(--soft)" onclick="shipChReset('${o.id}')" title="나눈 것을 지우고 전부 일반(온라인)으로">초기화</button>` : ""}</div>
             ${sp.map(x=>`<div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap">${chChip(x.ch)}
-              <input type="text" inputmode="numeric" value="${x.qty}" style="width:80px;height:34px;text-align:right;font-weight:700" onchange="shipChSet('${o.id}','${x.ch}','qty',this.value)"> 개
+              <input type="text" inputmode="numeric" id="qcs-${o.id}-${x.ch}" value="${x.qty}" style="width:80px;height:34px;text-align:right;font-weight:700" onchange="shipChSet('${o.id}','${x.ch}','qty',this.value)"> 개
               ${x.ch==="온라인 외"?`<input type="text" id="qcn-${o.id}-${x.ch}" value="${String(x.note||"").replace(/"/g,"&quot;")}" placeholder="거래처 · 발주 내용 (예: 태경아이앤티)" style="flex:1;min-width:140px;height:34px" onchange="shipChSet('${o.id}','${x.ch}','note',this.value)">`:""}</div>`).join("")}
-            ${sp.length ? `<div style="margin-top:6px;font-weight:700;${rest<0?"color:var(--bad)":""}">${rest<0?`합계가 ${fmt(-rest)}개 넘습니다 — 수량을 줄여 주세요`:rest>0?`나머지 ${fmt(rest)}개 → 일반(온라인)`:"전량 위 출고처로"}</div>` : ""}</div>`; })()}
+            ${sp.length && genOn ? `<div style="display:flex;gap:6px;align-items:center;margin-top:4px"><span style="background:#1F2A6B;color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;white-space:nowrap">일반(온라인)</span><b style="font-size:15px;min-width:80px;text-align:right;display:inline-block">${fmt(Math.max(0,rest))}</b> 개 <span class="hint" style="padding:0;font-size:11.5px">나머지 자동${rest<=0?" — 위 수량을 줄이면 여기로 옵니다":""}</span></div>` : ""}
+            ${sp.length ? `<div style="margin-top:6px;font-weight:700;${rest<0?"color:var(--bad)":""}">합계 ${fmt(used + Math.max(0,rest))} / ${fmt(n)}개${rest<0?` — ${fmt(-rest)}개 넘습니다`:""}</div>` : ""}</div>`; })()}
       </div>
       ${(()=>{ const f = qtyFixOf(o); return f ? `<div style="background:#FFF4E5;border:1.5px solid #F5A524;border-radius:8px;padding:6px 10px;margin:4px 0;font-weight:700">현장 수량 정정 ${fmt(f.from)} → ${fmt(f.to)}개 (${f.to>f.from?"+":""}${fmt(f.to-f.from)}) · ${f.by} ${dtFull(f.at)}<br><span style="font-weight:400;font-size:12.5px">실제 확인수량에 ${fmt(f.to)} 을 넣어 두었습니다 — 세어 보고 맞으면 검수 완료</span></div>` : ""; })()}
       <p class="hint" style="padding:0 0 4px">
