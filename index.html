@@ -2187,7 +2187,7 @@
       <div class="panel">
         <div class="panel-h">부자재 재고 <span class="r"><span id="matSum"></span></span></div>
         <div class="hint">
-          봉투·라벨·박스·트레이·스티커 재고 · <b>현재고</b>는 [입고]·[실측]·[폐기]로만 바뀜 · <b>풀패키지</b>는 이름이 인쇄된 봉투(라벨 안 붙임) · 라벨 코드는 완제품 CFE 코드를 따라감
+          공용봉투(1kg·500g·200g·하바나 100g)·풀패키지 봉투(원두별)·트레이·이카 롤패키지·아로마밸브 는 <b>LOT</b> 으로 관리 · 품목마다 따로 있는 건 <b>라벨</b>뿐 (LOT 없음) · <b>현재고</b>는 [입고]·[실측]·[폐기]로만 바뀜
           <details style="display:inline"><summary style="display:inline;cursor:pointer;color:var(--accent)">더 보기</summary>
           <b>봉투</b>는 공용이라 라벨을 붙여야 제품이 됩니다 · <b>1묶음</b>을 적어 두면 생산계획에서 몇 묶음 뜯을지가 자동으로 나옵니다 (라벨 50개면 25장 묶음 기준 2묶음) ·
           발주한 자재가 들어오면 [입고], 세어 보니 다르면 [실측], 못 쓰게 되면 [폐기](손실로 따로 남습니다) · 품목을 만들면 라벨은 자동으로 생기고, 풀패키지 품목은 봉투가 풀패키지 칸에 생깁니다.</details>
@@ -2195,6 +2195,7 @@
         <div class="cond" style="border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:#FBFCFE">
           <span id="matKindBtn"></span>
           <span style="margin-left:auto"></span>
+          <button class="btn primary" onclick="setupStdMaterials()" title="코스트코 트레이 · 공용봉투 1kg/500g/200g · 하바나 봉투 100g · 이카 롤패키지 · 이카 아로마밸브 — 없는 것만 만들고, BOM 없는 품목에 규격 봉투+라벨을 기본 BOM 으로">표준 부자재 만들기</button>
           <button class="btn primary" onclick="autoLabels()">품목별 라벨 만들기</button>
           <button class="btn primary" onclick="syncMatFromProducts()" title="라벨 코드를 완제품 CFE 코드로 맞추고, 풀패키지 품목의 봉투를 풀패키지 칸에 만듭니다">CFE 코드 맞추기 · 풀패키지 채우기</button>
           <span id="matAddBtn"></span>
@@ -2207,7 +2208,8 @@
       <div class="hint" style="margin:0 14px 10px"><b>LOT</b> — 박스마다 LOT·입고일·입력자·잔량·어느 생산에 쓰였는지는 <b>[부자재 LOT]</b> 탭에서 봅니다. [입고]할 때 LOT 를 적으면 거기 쌓입니다.</div>
       <div class="panel">
         <div class="panel-h">부자재 입·출고 이력 <span class="r hint">최근 60건</span>
-          <span class="r"><button class="btn" onclick="csvLabelMove()">엑셀 다운로드</button></span></div>
+          <span class="r" id="mvBtns"><button class="btn" onclick="csvLabelMove()">엑셀 다운로드</button></span></div>
+        <div class="selbar" id="selBar-material_moves" style="display:none"></div>
         <div class="panel-b"><table id="tLabelMv"></table></div>
       </div>
     </div>
@@ -6697,6 +6699,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "부자재 — 표준 부자재 · LOT 은 봉투류만", "[표준 부자재 만들기]: 코스트코 트레이 · 공용봉투 1kg/500g/200g · 하바나 봉투 100g · 이카 롤패키지 · 이카 아로마밸브 를 없는 것만 만들고, BOM 없는 품목에 기본 BOM(풀패키지→그 봉투 · 이카→롤패키지+밸브+라벨 · 그 외→규격 공용봉투+라벨) 자동 · LOT 은 봉투·풀패키지·트레이·박스·기타에만 — 라벨·스티커는 입고 때 LOT 을 묻지 않고 LOT 탭에서도 뺌"],
+  ["2026-11-01", "부자재 재고 — 행 추가 하나로 · 선택 합치기 · 이력 삭제 · 코드 맞추기 안내", "구분별 \"○○ 추가\" 버튼 7개 → [행 추가] 하나 (위에서 고른 구분으로) · 자동으로 못 알아본 중복은 줄을 골라 [선택 합치기] · 부자재 입·출고 이력을 시스템 관리자가 골라서/전부 지움 (060 필요 · 재고 숫자는 그대로) · [CFE 코드 맞추기]가 \"다 맞다\"고 할 때 품목에 CFE 번호가 없어 자동 코드가 남은 것은 어느 품목인지 알려 줌 · 연결 안 된 라벨도 이름이 같은 품목의 코드를 따라감"],
+  ["2026-11-01", "생산계획 — 안전재고 자동 보충 끔 (기본)", "집계를 안 적은 품목의 안전재고 부족분(쇼콜라 95개 같은 것)이 계획·원두 필요량에 저절로 잡히던 것을 끔 · 생산계획 위 [안전재고 자동 보충] 버튼으로 켜고 끔 (설정은 모든 기기에 같이) · 꺼져 있으면 \"안전재고 미달 N품목 — 계획에는 안 넣음\" 으로 표시만"],
   ["2026-11-01", "부자재 중복 — 더 넓게 알아봄", "띄어쓰기·괄호·앞의 \"원두\"·뒤의 \"라벨/봉투\"·1kg=1000g·LOT 표기가 달라도 같은 자재로 봄 · 같은 구분에 같은 코드면 이름이 달라도 같은 자재 · LOT 이 달라도 줄을 따로 만들지 않고 한 줄 안의 [LOT] 에서 셈 — 열 때 자동으로 하나로 합침 (재고·이력·LOT 전부 대표로)"],
   ["2026-11-01", "기준정보 › 부자재 재고 — 표 정리", "16칸 → 10칸 (규격·단위 한 칸 · 현재고에 묶음 수 · 안전재고·상태 한 칸 · 최근 입고/사용은 현재고에 마우스 올리면 · 입고/실측/폐기/삭제 한 칸) — 오른쪽 고정 칸이 다른 칸을 덮던 것 해결 · 위 설명글은 한 줄 + [더 보기] · 품목 코드와 다른 자동 코드(가온-1K-WB 식)는 빨간 안내 · 열 때 라벨·풀패키지 코드를 완제품 CFE 코드로 자동 맞춤 · 풀패키지 품목에는 라벨을 만들지 않고, 붙어 있던 라벨은 떼고(안 쓴 것은 지움) · 단위 칸의 엉뚱한 값(1000 등)은 구분 기본 단위로"],
   ["2026-11-01", "로스팅 › 부족 현황 — 필요(kg) 내역", "필요(kg) 숫자를 누르면 어느 품목 몇 EA 때문인지, 그 수량이 주문 집계인지 · 안전재고 부족분인지 · 요일별 여유분인지 보여 줌 · 생산계획이 없는데 잡힌 것은 \"계획 없음 — 안전재고 기준\" 표시 (안전재고보다 CFE 재고가 적으면 자동으로 필요로 잡힘)"],
@@ -7841,6 +7846,9 @@ function renderPlan(){
   if ($("planMode")) $("planMode").innerHTML = planSyncBar(tallyDay()) + " " + (manN
     ? `<span class="tag warn">손으로 고친 품목 ${manN}건</span>`
     : `<span class="tag ok">전체 자동배분</span>`) +
+    (()=>{ const low = PRODS().filter(p=>!hasTally(p.id, tallyDay()) && shortage(p) > 0).length;
+      return ` <button class="btn ${safetyAuto()?"primary":""}" style="margin-left:8px" title="집계를 안 적은 품목이라도 안전재고보다 CFE 재고가 적으면 그 차이를 계획에 자동으로 넣습니다 · 끄면 적은 집계만 계획에 잡힙니다"
+        onclick="setSafetyAuto(${safetyAuto()?"false":"true"})">안전재고 자동 보충 ${safetyAuto()?"켬":"끔"}</button>${!safetyAuto() && low ? ` <span class="hint" style="padding:0">안전재고 미달 ${low}품목 — 계획에는 안 넣음</span>` : ""}`; })() +
     ` <button class="btn ${planSplit?"primary":""}" style="margin-left:8px"
         onclick="setPlanSplit(${planSplit?"false":"true"})">배치별로 나누기 ${planSplit?"켬":"끔"}</button>` +
     ` <button class="btn ${isCompact()?"primary":""}" style="margin-left:4px" title="칸을 줄여서 옆으로 안 넘기고 봅니다"
@@ -9179,7 +9187,7 @@ async function showBeanNeed(b){
   const noTally = rows.every(x=>x.mode==="safety");
   await ask(`${b} — 필요 ${fmt(tot)}kg 은 이렇게 나왔습니다:\n\n` +
     rows.map(x=>`· ${x.p.name} ${fmt(x.ea)}EA → ${fmt(x.kg)}kg\n    ${x.src}`).join("\n") +
-    (noTally ? `\n\n생산계획(집계)이 없어서 안전재고·여유분 기준으로 잡힌 값입니다.\n필요 없으면 기준정보 › 품목에서 그 품목의 안전재고를 줄이거나, 생산계획에서 수량을 0 으로 적으세요.` : ""),
+    (noTally ? `\n\n생산계획(집계)이 없는데 [안전재고 자동 보충]이 켜져 있어 잡힌 값입니다.\n필요 없으면 생산계획 화면에서 [안전재고 자동 보충]을 끄세요.` : ""),
     { title:"필요 원두 내역", yes:"확인", only:true });
 }
 function renderRoast(){
@@ -9559,6 +9567,7 @@ const matById = id => DB.materials.find(m=>m.id===id);
 const matsOf  = kind => DB.materials.filter(m=>!kind || m.kind===kind);
 const LABELS  = () => matsOf("라벨");
 const unitOf  = M => M?.unit || MAT_UNIT[M?.kind] || "EA";
+const matHasLot = M => !!M && !["라벨","스티커"].includes(M.kind||"");     // LOT 을 매기는 자재 (라벨·스티커 제외)
 /* 옛 라벨 표를 부자재로 옮긴다 — id 를 그대로 써서 품목·지시 연결이 안 끊긴다 */
 function migrateMaterials(){
   (DB.labels||[]).forEach(L=>{
@@ -9781,11 +9790,70 @@ function matDedupeView(){
   if (out.length !== DB.materials.length) DB.materials = out;
 }
 /* 중복 자재 정리 (수동) — 자동으로 안 합쳐진 것이 있을 때 */
+/* 고른 줄끼리 합치기 — 이름이 많이 달라 자동으로 못 알아본 중복 (Lee "중복 없애달라고 했는데 안 없어짐") */
+async function mergeSelectedMaterials(){
+  if (!(await requireUser())) return;
+  if (!can("base")) return deny("base");
+  const rows = DB.materials.filter(M=>SEL.materials.has(M.id) && matActive(M));
+  if (rows.length < 2) return toast("두 줄 이상 고르세요");
+  const kinds = [...new Set(rows.map(M=>M.kind||""))];
+  if (kinds.length > 1 && !(await ask(`구분이 다른 줄이 섞여 있습니다 (${kinds.join(" · ")}).\n그래도 하나로 합칠까요? 대표 줄의 구분이 남습니다.`, { title:"선택 합치기", yes:"합치기", danger:true }))) return;
+  const list = [...rows].sort((a,b)=>matHistN(b)-matHistN(a) || (/^cfe/i.test(b.code||"")?1:0)-(/^cfe/i.test(a.code||"")?1:0) || (b.code?1:0)-(a.code?1:0) || Number(b.stock||0)-Number(a.stock||0));
+  const pick = await askText(`고른 ${rows.length}줄을 하나로 합칩니다. 대표로 남길 줄 번호를 적으세요 (나머지의 재고·이력·BOM·라벨 연결·LOT 은 대표로 옮겨지고 그 줄은 사라집니다):\n\n` +
+    list.map((M,i)=>`${i+1}. [${M.kind}] ${M.name} · ${M.code||"(코드 없음)"} · 재고 ${fmt(M.stock)} · 이력 ${matHistN(M)}건`).join("\n"), "1", "선택 합치기");
+  if (pick === null) return;
+  const i = Math.round(numOf(pick)) - 1; if (!(i >= 0 && list[i])) return toast("번호가 맞지 않습니다");
+  const keep = list[i]; let done = 0;
+  for (const d of list) { if (d.id === keep.id) continue;
+    const r = await mesMergeMaterial({ keep:keep.id, drop:d.id });
+    if (!r || r.ok === false) { await ask(`통합 실패 — ${d.name}\n${r?.message||""}`, { title:"선택 합치기", yes:"확인", only:true }); continue; }
+    const all = matLots(); if (all[d.id] && all[d.id].length) { all[keep.id] = [ ...(all[keep.id]||[]), ...all[d.id] ].sort((a,b)=>String(a.at||a.date).localeCompare(String(b.at||b.date))); delete all[d.id]; await saveLots(all); }
+    if (matHistN(d) === 0 && !(matLots()[d.id]||[]).length) { DB.materials = DB.materials.filter(x=>x.id!==d.id); delMany("materials", [d.id]); }
+    logAudit("부자재 통합 (선택)", keep.name, `${d.name} (${d.code||"-"} · 재고 ${fmt(d.stock)}) → 대표 ${keep.code||"-"}`);
+    done++;
+  }
+  SEL.materials.clear();
+  if (sb) await reloadDB({ silent:true });
+  DB.materials = DB.materials.filter(matActive);
+  renderAll(); toast(`${done}줄을 ${keep.name} 으로 합쳤습니다`);
+}
+/* 이력 지우기 (시스템 관리자) — 서버 060_admin_delete_rows.sql */
+const MV_SEL = new Set();
+function mvSel(id, on){ if (on) MV_SEL.add(id); else MV_SEL.delete(id); renderBase(); }
+function mvSelAll(on){ [...DB.material_moves].sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,60).forEach(m=>{ if (on) MV_SEL.add(m.id); else MV_SEL.delete(m.id); }); renderBase(); }
+async function adminDeleteRows(table, ids){
+  if (!ids.length) return { ok:true, deleted:0 };
+  const r = await rpc("admin_delete_rows", { p_table:table, p_ids:ids, p_user_name:CURRENT_USER||"" }, () => { DB[table] = (DB[table]||[]).filter(x=>!ids.includes(x.id)); ids.forEach(id=>del(table, id)); return { ok:true, deleted:ids.length }; });
+  if (r && r.ok !== false && sb) DB[table] = (DB[table]||[]).filter(x=>!ids.includes(x.id));
+  return r;
+}
+async function delMatMovesSel(){
+  if (!(await requireUser())) return;
+  if (!isSystemAdmin()) return toast("시스템 관리자만 이력을 지울 수 있습니다");
+  const ids = [...MV_SEL]; if (!ids.length) return;
+  if (!(await ask(`부자재 입·출고 이력 ${ids.length}건을 지웁니다. 재고 숫자는 바뀌지 않습니다 (기록만 없어짐).\n되돌릴 수 없습니다.`, { title:"이력 선택 삭제", yes:`${ids.length}건 삭제`, danger:true }))) return;
+  const r = await adminDeleteRows("material_moves", ids);
+  if (!r || r.ok === false) return ask(/admin_delete_rows|schema cache/i.test(r?.message||"") ? "서버에 이 기능이 아직 없습니다.\n\nSupabase SQL Editor 에서 060_admin_delete_rows.sql 을 실행한 뒤 다시 누르세요." : `지우지 못했습니다 — ${r?.message||""}`, { title:"삭제 실패", yes:"확인", only:true });
+  logAudit("부자재 이력 삭제", `${ids.length}건`, "시스템 관리자 · 선택");
+  MV_SEL.clear(); renderAll(); toast(`이력 ${ids.length}건을 지웠습니다`);
+}
+async function wipeMatMoves(){
+  if (!(await requireUser())) return;
+  if (!isSystemAdmin()) return toast("시스템 관리자만 이력을 지울 수 있습니다");
+  const n = DB.material_moves.length; if (!n) return toast("지울 이력이 없습니다");
+  const t = await askText(`부자재 입·출고 이력 ${n}건을 전부 지웁니다. 재고 숫자는 그대로입니다.\n되돌릴 수 없습니다 — 확인을 위해 "초기화" 라고 적어 주세요.`, "", "이력 전체 삭제");
+  if (t === null) return; if (String(t).trim() !== "초기화") return toast("지우지 않았습니다");
+  const r = await rpc("admin_wipe_tables", { p_tables:["material_moves"], p_confirm:"초기화", p_user_name:CURRENT_USER||"" }, () => { DB.material_moves = []; return { ok:true, deleted:n }; });
+  if (!r || r.ok === false) return ask(`지우지 못했습니다 — ${r?.message||""}`, { title:"삭제 실패", yes:"확인", only:true });
+  DB.material_moves = []; MV_SEL.clear();
+  logAudit("부자재 이력 전체 삭제", `${n}건`, "시스템 관리자");
+  renderAll(); toast(`이력 ${n}건을 전부 지웠습니다`);
+}
 async function mergeDupMaterials(){
   if (!(await requireUser())) return;
   if (!can("base")) return deny("base");
   const groups = matDupGroups();
-  if (!groups.length) return ask("같은 이름·구분의 자재가 둘 이상인 경우가 없습니다 — 중복이 없습니다.", { title:"중복 자재 정리", yes:"확인" });
+  if (!groups.length) return ask("자동으로 알아본 중복(이름·코드가 같은 줄)은 없습니다.\n\n이름이 많이 다른 중복은 줄 왼쪽 네모로 두 줄 이상 고른 뒤 [선택 합치기]를 누르세요.\n풀패키지와 라벨은 구분이 달라 따로 두는 것이 맞습니다.", { title:"중복 자재 정리", yes:"확인", only:true });
   if (await ask(`같은 이름·구분의 자재 ${groups.length}건을 자동으로 하나로 합칩니다 (이력 많은 줄이 대표 · 빈 줄은 지움).\n\n하나씩 직접 고르려면 [직접 고르기]`, { title:"중복 자재 정리", choices:[ { v:"auto", label:"자동으로 합치기", cls:"primary" }, { v:"pick", label:"직접 고르기" }, { v:null, label:"취소" } ] }) === "auto") { await autoMergeMaterials(); return; }
   let done = 0;
   for (const g of groups) {
@@ -9834,10 +9902,74 @@ function newFullBagFor(p){
     pack_qty:1, stock:0, safety:0, note:"라벨 없이 인쇄된 봉투", last_in:null, last_use:null };
   DB.materials.push(M); save("materials", M); return M;
 }
+/* ★ 2026-11-01 — 부자재는 이 정도만 (Lee)
+   "코스트코 트레이 · 공용봉투 1kg · 500g · 200g · 하바나 100g · 풀패키지 원두 봉투(원두별) · 이카 롤패키지 · 이카 아로마밸브 — LOT 은 이것들에 붙고,
+    품목마다 따로 있는 건 라벨(스티커)뿐"
+   [표준 부자재 만들기] 가 없는 것만 만들고, BOM 이 없는 품목에는 규격에 맞는 공용봉투(+라벨)를 기본 BOM 으로 넣는다 */
+const STD_MATS = [
+  { key:"tray",  kind:"트레이", name:"코스트코 트레이",   spec:"",     unit:"EA", pack:1 },
+  { key:"b1000", kind:"봉투",   name:"공용봉투 1kg",      spec:"1kg",  unit:"EA", pack:1 },
+  { key:"b500",  kind:"봉투",   name:"공용봉투 500g",     spec:"500g", unit:"EA", pack:1 },
+  { key:"b200",  kind:"봉투",   name:"공용봉투 200g",     spec:"200g", unit:"EA", pack:1 },
+  { key:"h100",  kind:"봉투",   name:"하바나 봉투 100g",  spec:"100g", unit:"EA", pack:1 },
+  { key:"roll",  kind:"기타",   name:"이카 롤패키지",     spec:"",     unit:"EA", pack:1 },
+  { key:"valve", kind:"기타",   name:"이카 아로마밸브",   spec:"",     unit:"EA", pack:1 },
+];
+const stdMatOf = d => DB.materials.find(M=>matActive(M) && M.kind===d.kind && (matNorm(M.name)===matNorm(d.name) || (d.spec && M.kind==="봉투" && /공용|공통/.test(M.name) && String(M.spec||M.name).includes(d.spec) && !/하바나/.test(M.name) === !/하바나/.test(d.name))));
+/* 이 품목이 쓸 공용봉투 — 하바나 100g 은 하바나 봉투, 나머지는 규격 같은 공용봉투 */
+function stdBagFor(p){
+  const g = Number(p.spec_g)||0;
+  const hav = /하바나|havana/i.test(String(p.bean||"") + " " + String(beanInfo(p.bean)?.machine||""));
+  const d = (g===100 || hav && g<=100) ? STD_MATS.find(x=>x.key==="h100") : STD_MATS.find(x=>x.spec===specLabel(g));
+  return d ? stdMatOf(d) : null;
+}
+function makeStdMaterials(){
+  let made = 0;
+  STD_MATS.forEach(d=>{ if (stdMatOf(d)) return;
+    const M = { id:uid(), code:"", name:d.name, kind:d.kind, spec:d.spec, unit:d.unit, pack_qty:d.pack, stock:0, safety:0, note:"표준 부자재", last_in:null, last_use:null };
+    DB.materials.push(M); save("materials", M); made++; });
+  return made;
+}
+/* BOM(기본 세트)이 없는 품목 — 풀패키지면 그 봉투, 이카면 롤패키지+아로마밸브, 아니면 규격 공용봉투 + 라벨 */
+function autoBomFill(){
+  let made = 0, miss = [];
+  const addLine = (p, M, qty) => { const r = { id:uid(), product_id:p.id, set_name:BOM_BASE, material_id:M.id, material:M.name, qty, unit:unitOf(M), note:"자동" }; DB.bom.push(r); save("bom", r); };
+  PRODS().forEach(p=>{
+    if (bomOf(p.id, BOM_BASE).length) return;
+    const lines = [];
+    if (isFullPack(p)) { const f = fullBagOf(p) || newFullBagFor(p); lines.push([f, 1]); }
+    else if (p.ica) { const r = stdMatOf(STD_MATS.find(x=>x.key==="roll")), v = stdMatOf(STD_MATS.find(x=>x.key==="valve")); if (r) lines.push([r, 1]); if (v) lines.push([v, 1]); const L = p.label_id ? matById(p.label_id) : null; if (L) lines.push([L, 1]); }
+    else { const bag = stdBagFor(p); if (!bag) { miss.push(p.name); return; } lines.push([bag, 1]); const L = p.label_id ? matById(p.label_id) : null; if (L) lines.push([L, 1]); }
+    if (!lines.length) return;
+    lines.forEach(([M, q])=>addLine(p, M, q)); made++;
+  });
+  return { made, miss };
+}
+async function setupStdMaterials(){
+  if (!(await requireUser())) return;
+  if (!can("base")) return deny("base");
+  const missing = STD_MATS.filter(d=>!stdMatOf(d));
+  const noBom = PRODS().filter(p=>!bomOf(p.id, BOM_BASE).length).length;
+  if (!(await ask(`표준 부자재 ${missing.length ? missing.length+"개를 만들고" : "는 다 있고"}, BOM 이 없는 품목 ${noBom}개에 기본 BOM 을 넣습니다.\n\n` +
+      (missing.length ? missing.map(d=>`· [${d.kind}] ${d.name}`).join("\n") + "\n\n" : "") +
+      `기본 BOM: 풀패키지 품목 → 그 풀패키지 봉투 · 이카 품목 → 이카 롤패키지 + 아로마밸브 + 라벨 · 그 외 → 규격 같은 공용봉투(하바나 100g 은 하바나 봉투) + 라벨 · 각 1개\n코스트코 트레이는 몇 개에 하나인지 품목마다 달라 BOM 에 직접 넣으세요.`,
+      { title:"표준 부자재 만들기", yes:"만들기" }))) return;
+  const made = makeStdMaterials(); const r = autoBomFill();
+  logAudit("표준 부자재", `자재 ${made} · BOM ${r.made}품목`, r.miss.length ? `규격 봉투 없음: ${r.miss.slice(0,5).join(", ")}` : "");
+  renderAll();
+  await ask(`부자재 ${made}개 만듦 · 기본 BOM ${r.made}품목 넣음` + (r.miss.length ? `\n\n규격에 맞는 공용봉투가 없어 BOM 을 못 넣은 품목 ${r.miss.length}개:\n${r.miss.slice(0,8).join("\n")}` : ""), { title:"표준 부자재 만들기", yes:"확인", only:true });
+}
 function syncMatCodes(){
   let fixed = 0;
   const byLabel = {};
-  PRODS().forEach(p=>{ if (p.label_id && p.code) (byLabel[p.label_id] = byLabel[p.label_id] || []).push(p.code); });
+  DB.products.forEach(p=>{ if (p.label_id && p.code) (byLabel[p.label_id] = byLabel[p.label_id] || []).push(p.code); });
+  /* 품목에 연결 안 된 라벨도 이름이 같은 품목이 있으면 그 품목의 코드로 (그리고 연결해 둔다) */
+  LABELS().filter(L=>matActive(L) && !byLabel[L.id]).forEach(L=>{
+    const p = DB.products.find(p=>!isFullPack(p) && normName(p.name) === normName(L.name) && p.code);
+    if (!p) return;
+    (byLabel[L.id] = byLabel[L.id] || []).push(p.code);
+    if (!p.label_id) { p.label_id = L.id; save("products", p); }
+  });
   Object.entries(byLabel).forEach(([lid, codes])=>{
     const L = matById(lid); if (!L) return;
     const code = [...new Set(codes)].join(" / ");
@@ -9861,7 +9993,13 @@ async function syncMatFromProducts(){
   const r = syncMatCodes();
   if (r.fixed || r.made || r.dropped) logAudit("부자재 코드 맞춤", `코드 ${r.fixed} · 풀패키지 ${r.made} · 풀패키지 품목의 라벨 뗌 ${r.dropped}`, "완제품 CFE 코드 기준");
   renderBase();
-  toast(r.fixed || r.made || r.dropped ? `코드 ${r.fixed}개 맞춤 · 풀패키지 봉투 ${r.made}개 만듦${r.dropped?` · 풀패키지 품목의 라벨 ${r.dropped}개 뗌`:""}` : "이미 다 맞습니다");
+  if (r.fixed || r.made || r.dropped) return toast(`코드 ${r.fixed}개 맞춤 · 풀패키지 봉투 ${r.made}개 만듦${r.dropped?` · 풀패키지 품목의 라벨 ${r.dropped}개 뗌`:""}`);
+  /* 다 맞는데도 CFE 번호가 아닌 코드가 남아 있으면 — 품목 쪽에 CFE 코드가 없는 것 */
+  const odd = LABELS().filter(L=>matActive(L) && L.code && !/^cfe/i.test(L.code));
+  if (odd.length) await ask(`라벨 코드는 품목 코드와 이미 같습니다.\n\n그런데 ${odd.length}개는 품목 자체에 CFE 번호가 없어 자동 코드(예: ${odd[0].code})가 붙어 있습니다:\n` +
+    odd.slice(0,8).map(L=>`· ${L.name} — ${L.code}`).join("\n") + (odd.length>8?`\n… 외 ${odd.length-8}개`:"") +
+    `\n\n기준정보 › 품목에서 [엑셀로 CFE코드 넣기]로 그 품목에 CFE 번호를 넣으면 라벨 코드도 따라 바뀝니다.`, { title:"CFE 코드 맞추기", yes:"확인", only:true });
+  else toast("이미 다 맞습니다");
 }
 async function autoLabels(){
   if (!(await requireUser())) return;
@@ -9887,10 +10025,13 @@ async function inLabel(id){
   if (ans===null) return;
   const n = Math.round(numOf(ans));
   if (!(n>0)) return toast("숫자를 적으세요");
-  /* LOT — 입고할 때 한 번만 적는다 (모든 부자재). 생산할 때는 선입선출로 저절로 붙는다 */
-  const lv = await askText(`${L.name}\n\n이 박스의 LOT 번호 (박스·봉투에 인쇄된 번호)\n모르면 비우고 확인`, "", `${L.kind} LOT`);
-  if (lv === null) return;
-  const lot = String(lv).trim();
+  /* LOT — 봉투·풀패키지·트레이·박스·기타에만 (라벨·스티커는 품목별 소모품이라 LOT 을 안 매긴다 — Lee 2026-11-01). 생산할 때는 선입선출로 저절로 붙는다 */
+  let lot = "";
+  if (matHasLot(L)) {
+    const lv = await askText(`${L.name}\n\n이 박스의 LOT 번호 (박스·봉투에 인쇄된 번호)\n모르면 비우고 확인`, "", `${L.kind} LOT`);
+    if (lv === null) return;
+    lot = String(lv).trim();
+  }
   if (!(await ask(`${L.name}\n\n입고 ${fmt(n)}${u}${lot?` · LOT ${lot}`:" · LOT 없음"} · ${today()}\n보유 ${fmt(L.stock)} → ${fmt(Number(L.stock||0)+n)}${u}\n\n저장하시겠습니까?`, { title:"입고 저장", yes:"저장" }))) return;
   const r = await mesMoveMaterial({ material_id:L.id, kind:"입고", qty:n,
     note:`발주 입고 ${fmt(n)}${u}${lot?` · LOT ${lot}`:""}`, idem:`min-${L.id}-${uid()}` });
@@ -9961,7 +10102,7 @@ function setLotKind(k){ lotKindFilter = k; renderLots(); }
 function renderLots(){
   if (!$("tLots")) return;
   const showDone = !!$("lotShowDone")?.checked;
-  const mats = DB.materials.filter(M=>!lotKindFilter || M.kind===lotKindFilter);
+  const mats = DB.materials.filter(M=>matHasLot(M) && (!lotKindFilter || M.kind===lotKindFilter));
   const rows = []; let nUse = 0, nWait = 0, nDone = 0, nNone = 0;
   mats.forEach(M=>{
     const lots = lotLedger(M);
@@ -9969,7 +10110,7 @@ function renderLots(){
     lots.forEach(l=>{ if (l.st==="사용 중") nUse++; else if (l.st==="대기") nWait++; else nDone++;
       if (l.st === "다 씀" && !showDone) return; rows.push({ M, l }); });
   });
-  const kinds = {}; DB.materials.forEach(M=>{ kinds[M.kind] = (kinds[M.kind]||0)+1; });
+  const kinds = {}; DB.materials.filter(matHasLot).forEach(M=>{ kinds[M.kind] = (kinds[M.kind]||0)+1; });
   $("lotKindBtn").innerHTML = [["","전체"], ...MAT_KINDS.filter(k=>kinds[k]).map(k=>[k, `${k} ${kinds[k]}`])].map(([v,t])=>
     `<button class="btn ${lotKindFilter===v?"primary":""}" style="height:28px;padding:0 9px;font-size:12px" onclick="setLotKind('${v}')">${t}</button>`).join("");
   $("lotSum").innerHTML = ` <span class="tag ok">사용 중 ${nUse}</span> <span class="tag">대기 ${nWait}</span> <span class="tag warn">다 씀 ${nDone}</span>${nNone?` <span class="tag bad">LOT 없음 ${nNone}</span>`:""}`;
@@ -11227,6 +11368,13 @@ function beanStateText(bn){
   const o = live[0], st = shelfState(o.roast_date);
   return `재고 ${fmt(mmsByBean(bn))}kg · <span class="${st}">${batchNo(o)} ${shelfLabel(o.roast_date)}</span>`;
 }
+const SAFETY_AUTO_KEY = "plan.safety_auto";
+const safetyAuto = () => SETTINGS[SAFETY_AUTO_KEY] === true;
+async function setSafetyAuto(on){
+  SETTINGS[SAFETY_AUTO_KEY] = !!on; await saveSetting(SAFETY_AUTO_KEY, !!on);
+  logAudit("안전재고 자동 보충", on ? "켬" : "끔", "생산계획 — 집계가 없는 품목의 안전재고 부족분을 계획에 자동으로 넣을지");
+  renderAll(); toast(on ? "안전재고 미달 품목을 계획에 자동으로 넣습니다" : "이제 적은 집계만 계획에 잡힙니다 (안전재고 미달은 표시만)");
+}
 /* 품목 하나의 계획 — 필요분(주문·안전재고) · 여유분 · 합계 */
 /* 이 수량이 어디서 왔는지 한 줄로 — "왜 36개지?" 를 표에서 바로 본다 */
 function planWhy(p, day){
@@ -11261,7 +11409,11 @@ function planNeedRaw(p, d){
 function planCalc(p, day){
   const d = day || tallyDay(), want = bufEA(p, d);
   const buf = want > 0 ? (bufCapMap(d)[p.id] ?? want) : 0;
-  if (!hasTally(p.id, d)) { const need = shortage(p); return { need, buf, want, cut: want - buf, total: need + buf, mode:"safety" }; }
+  /* ★ 2026-11-01 — 집계가 없으면 안전재고 부족분을 "자동 계획"으로 잡지 않는다 (Lee "쇼콜라 95개가 계속 자동으로 잡혀 — 안 그러게")
+       생산계획 › [안전재고 자동 보충] 을 켠 경우에만 전처럼 잡는다. 꺼져 있으면 안전재고 미달은 표시만. */
+  if (!hasTally(p.id, d)) {
+    if (!safetyAuto()) return { need:0, buf:0, want, cut:0, total:0, mode:"none", short: shortage(p) };
+    const need = shortage(p); return { need, buf, want, cut: want - buf, total: need + buf, mode:"safety" }; }
   const tally = tallyQty(p.id, undefined, d), made = madeQty(p.id, d);
   const need = Math.max(0, tally - made);
   const total = Math.max(0, tally + buf - made);
@@ -13283,6 +13435,7 @@ function selBar(t){
     ? `<span class="n">선택 ${n}개</span>
        <button class="btn danger" onclick="delSelected('${t}')">선택 삭제</button>
        ${t==="products" ? `<button class="btn" onclick="offSelected()">선택 사용중지</button>` : ""}
+       ${t==="materials" && n>=2 ? `<button class="btn primary" onclick="mergeSelectedMaterials()" title="고른 줄을 하나로 합칩니다 — 재고 더하고 이력·LOT·연결 전부 대표로">선택 합치기 (${n}줄 → 1줄)</button>` : ""}
        <button class="btn" onclick="selClear('${t}')">선택 해제</button>`
     : `<span class="hint" style="padding:0">줄 왼쪽 네모로 여러 개 골라 한 번에 지울 수 있습니다 · Shift+클릭 = 사이 전부</span>`)
     + (t==="tallies"
@@ -13578,9 +13731,10 @@ function renderBaseInner(){
       `<button class="btn ${matKindFilter===v?"primary":""}" onclick="setMatKind('${v}')">${t}${
         v&&msum[v]?` ${msum[v]}`:""}</button>`).join(" ") + " " + findBox("materials", "🔍 자재 찾기 — 이름·코드·규격");
   /* 추가 버튼도 구분 목록에서 만든다 — 구분이 늘어도 빠지는 일이 없다 */
+  /* ★ 2026-11-01 — 구분별 "○○ 추가" 버튼 7개를 없애고 [행 추가] 하나로 (Lee "계속 착각하여 추가를 눌러버림") — 위에서 고른 구분으로 줄이 생김 */
   if ($("matAddBtn")) $("matAddBtn").innerHTML =
-    MAT_KINDS.map(k=>`<button class="btn ${matKindFilter===k?"primary":""}" onclick="addMaterial('${k}')">${k} 추가</button>`).join(" ") +
-    (()=>{ const g = matDupGroups(); return g.length ? ` <button class="btn" style="color:var(--bad);font-weight:800" onclick="mergeDupMaterials()" title="같은 이름·구분의 자재가 여러 줄 — 대표 하나로 통합(이력 전부 옮김)">중복 자재 정리 ${g.length}건</button>` : ""; })();
+    `<button class="btn primary" onclick="addMaterial('${matKindFilter||"봉투"}')" title="${matKindFilter?`${matKindFilter} 한 줄을 추가합니다`:"위에서 구분을 고르면 그 구분으로, 아니면 봉투로 한 줄 추가 — 줄의 구분 칸에서 바꿀 수 있습니다"}">행 추가${matKindFilter?` (${matKindFilter})`:""}</button>` +
+    (()=>{ const g = matDupGroups(); return ` <button class="btn" style="${g.length?"color:var(--bad);font-weight:800":""}" onclick="mergeDupMaterials()" title="같은 자재가 여러 줄이면 대표 하나로 통합(재고·이력·LOT 전부 옮김) · 자동으로 못 알아본 것은 줄을 골라 [선택 합치기]">중복 자재 정리${g.length?` ${g.length}건`:""}</button>`; })();
 
   SHOWN.materials = mats.map(M=>M.id);
   /* ★ 2026-11-01 — 표 정리 (Lee "여기 너무 정리가 안 되어 있는데") : 16칸 → 10칸
@@ -13631,9 +13785,16 @@ function renderBaseInner(){
   }
 
   renderLots();
-  tbl("tLabelMv", ["일자","시각","부자재","구분","수량","이전","이후","내용","작업자"],
-    [...DB.material_moves].sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,60)
-      .map(m=>`<tr><td class="c">${m.date}</td><td class="c">${String(m.at||"").slice(11,16)}</td>
+  /* ★ 2026-11-01 — 시스템 관리자는 이력을 골라서/전부 지울 수 있다 (Lee "총관리자는 전체 이력 삭제 가능하게") — 재고 숫자는 안 바뀜 · 테스트 기록 정리용 */
+  const mvRows = [...DB.material_moves].sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,60);
+  const mvAdmin = isSystemAdmin();
+  if ($("mvBtns")) $("mvBtns").innerHTML = `<button class="btn" onclick="csvLabelMove()">엑셀 다운로드</button>` +
+    (mvAdmin ? ` <button class="btn" style="color:var(--bad)" onclick="wipeMatMoves()" title="부자재 입·출고 이력을 전부 지웁니다 (시스템 관리자) · 재고 숫자는 그대로">이력 전체 삭제</button>` : "");
+  if ($("selBar-material_moves")) { const el = $("selBar-material_moves"); el.style.display = mvAdmin ? "" : "none";
+    el.innerHTML = MV_SEL.size ? `<span class="n">선택 ${MV_SEL.size}건</span> <button class="btn danger" onclick="delMatMovesSel()">선택 삭제</button> <button class="btn" onclick="MV_SEL.clear();renderBase()">선택 해제</button>`
+      : `<span class="hint" style="padding:0">줄 왼쪽 네모로 골라 지울 수 있습니다 (시스템 관리자)</span>`; }
+  tbl("tLabelMv", [...(mvAdmin?[`<input type="checkbox" class="selbox" ${mvRows.length && mvRows.every(m=>MV_SEL.has(m.id))?"checked":""} onclick="mvSelAll(this.checked)">`]:[]),"일자","시각","부자재","구분","수량","이전","이후","내용","작업자"],
+    mvRows.map(m=>`<tr>${mvAdmin?`<td class="c"><input type="checkbox" class="selbox" ${MV_SEL.has(m.id)?"checked":""} onclick="mvSel('${m.id}',this.checked)"></td>`:""}<td class="c">${m.date}</td><td class="c">${String(m.at||"").slice(11,16)}</td>
         <td class="l"><b>${m.material_name||m.label_name}</b></td>
         <td class="c"><span class="tag ${m.kind==="입고"?"ok":(m.kind==="조정"||m.kind==="폐기")?"bad":"warn"}">${m.kind}</span></td>
         <td class="${m.qty<0?"warn":"ok"}"><b>${m.qty>0?"+":""}${fmt(m.qty)}</b></td>
@@ -17945,8 +18106,8 @@ const BULK_DEFS = {
       if (q > 0) {
         const mv = await mesMoveMaterial({ material_id:m.id, kind:"입고", qty:q, note:`초기재고${v.lot?` · LOT ${v.lot}`:""}`, idem:`bk-${m.id}` });
         if (!mv || !mv.ok) return { ok:false, message:`자재는 만들었지만 초기재고를 못 넣음 — ${mv?.message||""}` };
-        if (v.lot) { const all = matLots(); all[m.id] = [ ...(all[m.id]||[]), { lot:String(v.lot).trim(), qty:q, date:today(), at:nowISO(), by:CURRENT_USER||"" } ]; SETTINGS[MAT_LOT_KEY] = all; saveSetting(MAT_LOT_KEY, all); }
-        if (v.lot) logAudit("부자재 LOT 입고", m.name, `LOT ${String(v.lot).trim()} · ${fmt(q)} (일괄 입력 초기재고)`);
+        if (v.lot && matHasLot(m)) { const all = matLots(); all[m.id] = [ ...(all[m.id]||[]), { lot:String(v.lot).trim(), qty:q, date:today(), at:nowISO(), by:CURRENT_USER||"" } ]; SETTINGS[MAT_LOT_KEY] = all; saveSetting(MAT_LOT_KEY, all); }
+        if (v.lot && matHasLot(m)) logAudit("부자재 LOT 입고", m.name, `LOT ${String(v.lot).trim()} · ${fmt(q)} (일괄 입력 초기재고)`);
       }
       return { ok:true }; } },
   machines: { title:"기계 일괄 입력", table:"machines", tab:"mach",
