@@ -1252,6 +1252,7 @@
         <li><b>검수 완료</b> — 완제품 재고에 반영되고 출고로 넘어갑니다</li>
         <li>문제가 있으면 <b>반려</b> — 현장으로 돌아갑니다</li></ol>
     </div>
+    <div class="panel" id="qcRun" style="display:none;margin-bottom:14px;border:2px solid var(--accent)"></div>
     <div id="qcCards" class="wcards"></div>
   </div>
 </section>
@@ -6775,7 +6776,10 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
-  ["2026-11-01", "현장 작업 — 배치·일련번호 직접 고르기 · 배치 무게", "생산 카드에 [배치 무게] 줄 — 이 일련번호 배치가 총 몇 kg(입고)이고 지금 몇 kg 남았는지 · 일련번호 옆 [바꾸기] — 그 원두의 남은 배치를 오래된 순으로(남은 kg · 보류 · 상미 임박 · 다른 지시에서 쓰는지 표시) 보여 주고 고르면 배치와 일련번호가 같이 바뀜 · 원두는 생산 완료 때 고른 배치부터 차감 · [일련번호 직접 적기] 로 번호만 바꿀 수도 있음 · 대기·생산중 지시 · 생산계획/관리자 권한 · 서버 063 필요 (전에는 서버가 일련번호 수정을 막고 있었음)"],
+  ["2026-11-01", "생산 완료 · 검수 — 생산자 선택 · 센 수량대로 고침 · 검수에서 바로 완료", "생산 완료 창 맨 위에 [생산자] — 고른 사람으로 실적 기록 (작업자 칸을 안 골랐으면 로그인 계정 작업자로, 묻지 않음) · 수량 입력을 했으면 완료 창 정상품 수량이 그 수량으로 미리 채워짐 · 검수에서 센 수량이 다르면 [N개로 고치고 검수 완료] — 생산실적 · 지시 · 완제품 재고 · 출고 수량을 센 수량으로 (전에는 차이만 남기고 29개 그대로 출고로 넘어갔음 · 서버 064) · 검수 화면 위에 [생산 중] 표 — 거기서 바로 [수량 입력] [생산 완료] (검수·출고 역할도 현장 생산 권한 기본 켬)"],
+  ["2026-11-01", "현장 작업 — [같이 하는 사람 추가] 버튼 뺌", "생산 카드 아래 [같이 하는 사람 추가] 를 없앰 — 위 [작업자] 칸에서 고른 사람이 시작·완료에 기록됨 (시작한 사람은 그대로 같이 하는 사람으로 들어감)"],
+  ["2026-11-01", "현장 작업 — 필요 / 여유 수량 · 채널 표시", "생산 카드 수량 밑에 [필요 N개] (꼭 해야 하는 주문분) · [여유 +N개 · 못 채워도 됨] 따로 — 그날 생산계획의 필요분을 같은 품목 지시들에 우선순위 순서대로 먼저 채우고 나머지가 여유 · 필요 수량을 채우면 ✓ · 생산 완료 창에도 필요/여유 표시, 필요보다 적게 적으면 경고 · 카드 위 채널을 색 배지로 (컬리 보라 · 네이버 초록 · 코스트코 빨강 · 라이브 주황)"],
+  ["2026-11-01", "현장 작업 — 배치·일련번호 직접 고르기 · 배치 무게", "생산 카드에 [배치 무게] 줄 — 이 일련번호 배치가 총 몇 kg(입고)이고 지금 몇 kg 남았는지 · 일련번호 옆 [바꾸기] — 검색칸(일련번호·날짜·배치번호) · 로스팅일 버튼 · 표로 그 원두의 남은 배치를 오래된 순으로(남은 kg · 보류 · 상미 임박 · 다른 지시에서 쓰는지 표시) 보여 주고 고르면 배치와 일련번호가 같이 바뀜 · 원두는 생산 완료 때 고른 배치부터 차감 · [일련번호 직접 적기] 로 번호만 바꿀 수도 있음 · 대기·생산중 지시 · 생산계획/관리자 권한 · 서버 063 필요 (전에는 서버가 일련번호 수정을 막고 있었음)"],
   ["2026-11-01", "품목 포장재 자동 연동 — 풀패키지 · 공용/하바나 봉투 · 이카 롤패키지", "품목 표 [풀패키지] 체크 → [포장 (봉투)] 고르기: 풀패키지 / 공용봉투 {규격} (하바나 라인은 하바나 봉투 {규격}만) · 이카전용 체크하면 이카 롤패키지 + 아로마밸브로 고정 · 고르면 BOM 봉투 줄을 저절로 맞추고 봉투·풀패키지·롤패키지 자재가 없으면 만들어 부자재 재고·LOT 관리에 바로 올라옴 · 열 때(관리자) 모든 품목을 같은 규칙으로 한 번 맞춤 · 새로 만든 품목도 바로 연동 · 변경이력에 남김"],
   ["2026-11-01", "입고 kg 소수점 · 보류/상미기한 따로 · 수불 순서", "입고 확인 등 숫자 칸에서 59.0 · 59.10 처럼 0 으로 끝나는 소수를 칠 때 점과 0 이 사라지던 것 고침 · 로스팅 탭 [보류 · 상미기한] → [보류] [상미기한] 둘로 · 보류는 사유별 버튼으로 걸러 봄 · 상미기한은 남은 배치 전부를 초과 · 임박 · 여유 버튼으로 (kg 합계 · 잔여일 짧은 순 · 그 자리에서 [보류]) · 원두 수불 조회도 쇼콜라 → 봉봉 → 므쵸 → 부산 → 블렌드 → 하바나 → 싱글 순"],
   ["2026-11-01", "로스팅 계획 엑셀 — 로스터기 · 로스팅일 · 배치수", "로스팅 계획 붙여넣기·양식에 로스팅일 · 로스터기 · 배치수 칸 · 로스터기는 S35 · 35 다 됨 · 비우면 원두의 머신 종류(S35_… S70_…)로 · 배치수를 비우면 그 로스터기의 1배치 kg 로 나눠 계산 · 같은 원두라도 로스터기·날짜가 다르면 따로 등록 · 양식은 로스터기 35 → 70 → 60 순"],
@@ -12536,6 +12540,10 @@ async function requireUser(){
   const st = document.querySelector(".screen.on")?.id?.replace("s-","");
   if (STATION_SCREENS[st]) {
     if (stationWho(st)) { CURRENT_USER = stationWho(st); return true; }
+    /* ★ 2026-11-01 — 안 골랐으면 묻지 않고 로그인한 계정의 작업자로 (Lee "선택 안 하면 그냥 해당 아이디로") */
+    { const own = loginWorker(); if (own) { CURRENT_USER = own.name; return true; }
+      if (LOGIN_USER?.name) { CURRENT_USER = LOGIN_USER.name; return true; }
+      if (CURRENT_USER) return true; }
     const names = stationWorkers(st).map(w=>w.name);
     if (!names.length) { await ask(`${STATION_SCREENS[st]} 에 고를 작업자가 없습니다.\n\n기준정보 › 생산자에서 업무 역할을 ${st==="work"?"\"현장 작업자\" 또는 \"현장 관리자\"":"\"검수·출고\""} 로 지정해 주세요.`, { title:"작업자 선택", yes:"확인", only:true }); return false; }
     const pick = await ask(`${STATION_SCREENS[st]} — 누가 하나요?`, { title:"작업자 선택", choices:[ ...names.map(n=>({ label:n, v:n, cls: n===CURRENT_USER ? "primary" : "" })), { label:"취소", v:null } ] });
@@ -17240,14 +17248,18 @@ function finishDialog(o, p, ctx){
       <div class="panel-h" style="flex:0 0 auto">생산 완료</div>
       <div style="padding:14px 16px;overflow-y:auto;flex:1 1 auto;min-height:0;line-height:1.55">
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">${esc(p.name)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin:0 0 10px">
+          <b style="white-space:nowrap">생산자</b>
+          <select id="finWho" style="height:40px;flex:1;font-weight:700;font-size:15px">${(()=>{ const ws = [...new Set([ctx.worker0, ...stationWorkers("work").map(w=>w.name)].filter(Boolean))];
+            return ws.map(n=>`<option ${n===ctx.worker0?"selected":""}>${esc(n)}</option>`).join("") || `<option value="">${esc(ctx.worker0||"(계정)")}</option>`; })()}</select></div>
         <div class="hint" style="padding:0;font-size:12.5px;margin-bottom:12px">
           상자 번호(일련번호) <b>${esc(ctx.serial)}</b>${ctx.lot?` · 봉투 번호(LOT) <b>${esc(ctx.lot)}</b>`:""}<br>
           쓴 원두 <b>${esc(ctx.beanText)}</b> — 자동 기록${ctx.carriedText?`<br>${esc(ctx.carriedText)}`:""}
         </div>
-        <div style="font-weight:600;margin:4px 0">정상품 수량 <span class="hint" style="padding:0">(지시 ${fmt(plan)}개)</span></div>
+        <div style="font-weight:600;margin:4px 0">정상품 수량 <span class="hint" style="padding:0">(지시 ${fmt(plan)}개${ctx.need!=null && ctx.need < plan ? ` · <b style="color:var(--ink,#1F2A6B)">필요 ${fmt(ctx.need)}개</b> · 여유 ${fmt(plan-ctx.need)}개는 못 채워도 됨` : ""})</span></div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <button class="btn" data-g="-10" style="${btnS}">−10</button><button class="btn" data-g="-1" style="${btnS}">−1</button>
-          <input id="finGood" type="number" inputmode="numeric" min="0" value="${plan}" style="width:96px;height:44px;font-size:20px;text-align:center;font-weight:700">
+          <input id="finGood" type="number" inputmode="numeric" min="0" value="${ctx.good0 ?? plan}" style="width:96px;height:44px;font-size:20px;text-align:center;font-weight:700">
           <button class="btn" data-g="1" style="${btnS}">+1</button><button class="btn" data-g="10" style="${btnS}">+10</button>
         </div>
         <div style="font-weight:600;margin:14px 0 4px">버린 수량 <span class="hint" style="padding:0">찢어짐 · 무게 안 맞음 등 — 있으면 왜 버렸는지 고르세요</span></div>
@@ -17287,6 +17299,7 @@ function finishDialog(o, p, ctx){
       else if (used + 0.0005 < need) w.push(`※ 봉지에서 쓴 ${fmt(used)}kg 로는 ${fmt(g)}개(${fmt(need)}kg)를 만들 수 없습니다 — 수량이나 남은 kg 를 확인하세요`);
       if (ctx.label && Number(ctx.label.stock||0) < g) w.push(`※ ${ctx.label.name} 라벨 보유 ${fmt(ctx.label.stock)}장 — ${fmt(g-Number(ctx.label.stock||0))}장 모자랍니다 (완료는 됩니다 · 관리자에게 알려 주세요)`);
       if (plan > 0 && g > plan) w.push(`※ 지시(${fmt(plan)}개)보다 많습니다`);
+      if (ctx.need != null && ctx.need < plan && g < ctx.need) w.push(`※ 필요 수량(${fmt(ctx.need)}개)보다 ${fmt(ctx.need-g)}개 적습니다 — 주문이 모자랄 수 있습니다`);
       W.textContent = w.join("\n");
     };
     ov.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ G.value = Math.max(0, num(G) + Number(b.dataset.g)); sync(); });
@@ -17303,7 +17316,7 @@ function finishDialog(o, p, ctx){
       const left = bagMode === "left" ? Math.max(0, kgOf(L.value)) : 0;
       if (left > ctx.bagKg) { W.textContent = `남은 kg 가 봉지에 있던 ${fmt(ctx.bagKg)}kg 보다 많습니다`; L.focus(); return; }
       if (ctx.bagKg - left + 0.0005 < stdKg(p, good)) { W.textContent = `봉지에서 쓴 ${fmt(ctx.bagKg - left)}kg 로는 ${fmt(good)}개를 만들 수 없습니다 — 수량이나 남은 kg 를 확인하세요`; return; }
-      done({ good, ng, ngType: ng > 0 ? T.value : null, leftover: left });
+      done({ good, ng, ngType: ng > 0 ? T.value : null, leftover: left, who: ov.querySelector("#finWho")?.value || ctx.worker0 || "" });
     };
   });
 }
@@ -17361,7 +17374,7 @@ async function finishWork(id){
   const carriedText = "";
   const serial0 = o.serial || makeSerial(o.work_date);
   const lot0 = o.lot || autoLotOf(o) || "";
-  const F = await finishDialog(o, p, { plan, serial:serial0, lot:lot0, beanText, carriedText, label: labelOf(p, ordLabel(o)), bags, bagKg });
+  const F = await finishDialog(o, p, { plan, need: ordNeedSplit(o).need, good0: Number(o.qty_done||o.progress_qty||0) > 0 ? Math.round(Number(o.qty_done||o.progress_qty)) : plan, worker0: CURRENT_USER, serial:serial0, lot:lot0, beanText, carriedText, label: labelOf(p, ordLabel(o)), bags, bagKg });
   if (!F) return;
   const { good, ng, ngType } = F;
 
@@ -17380,9 +17393,10 @@ async function finishWork(id){
   if (o.paused_at) { const rr = await resumeWork(o.id, true); if (!rr || rr.ok === false) return toast("정지를 풀지 못했습니다 — " + (rr?.message||"")); }
   const key = `fw-${o.id}-${uid()}`;
   const btnBusy = setBusy(`완료 처리 중…`);
+  const who = (F && F.who) || CURRENT_USER;
   const r = await mesFinishWork({
     order_id:o.id, good, ng, ng_type:ngType, input_kg: actualKg,
-    worker:CURRENT_USER, idem:key });
+    worker:who, worker_id: workerByName(who)?.id || currentWorkerId(), idem:key });
   btnBusy();
 
   if (!r || !r.ok) {
@@ -17519,23 +17533,18 @@ async function pickOrderBatch(id){
   const p = prodById(o.product_id); const bean = p?.bean;
   const need = p ? needKg(p, Number(o.qty_plan)||0) : 0;
   const cur = batchParts(o.batch_plan)[0];
-  const list = sortBatches(DB.mms.filter(m=>m.bean===bean && Number(m.stock_kg)>0)).map(m=>{
-    const used = DB.orders.filter(x=>x.id!==o.id && ["대기","생산중"].includes(x.status) && String(x.batch_plan||"").includes(batchNo(m))).length;
-    return { m, used };
-  });
-  const choices = list.map(({m,used})=>({
-    label:`${batchShort(m)} · ${m.roast_date} ${Number(m.batch)}번 · 총 ${m.in_kg!=null?fmt(m.in_kg):"—"}kg 중 남은 ${fmt(m.stock_kg)}kg${isHeld(m)?" · 보류":""}${shelfState(m.roast_date)!=="ok"?` · ${shelfLabel(m.roast_date)}`:""}${used?` · 다른 지시 ${used}건`:""}${cur && cur.short===batchShort(m)?" ← 지금":""}`,
-    v:m.id, cls: cur && cur.short===batchShort(m) ? "primary" : "" }));
-  const pick = await ask(`${p?.name||o.product_name||""} ${fmt(o.qty_plan)}개 · 필요 원두 약 ${fmt(Math.round(need*100)/100)}kg\n지금 일련번호 ${o.serial||"—"}${o.batch_plan?` · 배치 ${o.batch_plan}`:""}\n\n쓸 배치를 고르세요 — 그 배치 번호가 일련번호가 됩니다.${list.length?"":`\n\n(${bean||"이 원두"} 의 남은 배치가 없습니다)`}`,
-    { title:"배치 · 일련번호 고르기", choices:[ ...choices, { label:"✎ 일련번호 직접 적기", v:"__type" }, { label:"취소", v:null } ] });
+  const list = sortBatches(DB.mms.filter(m=>m.bean===bean && Number(m.stock_kg)>0)).map(m=>({ m,
+    used: DB.orders.filter(x=>x.id!==o.id && ["대기","생산중"].includes(x.status) && String(x.batch_plan||"").includes(batchNo(m))).length,
+    now: !!(cur && cur.full===batchFull(m)) }));
+  /* ★ 2026-11-01 — 고르는 창을 표 + 검색으로 (Lee "보는 게 너무 불편 — 검색 창") */
+  const pick = await batchPickDialog({ title:`배치 · 일련번호 고르기`, sub:`${p?.name||o.product_name||""} ${fmt(o.qty_plan)}개 · 필요 원두 약 ${fmt(Math.round(need*100)/100)}kg · 지금 일련번호 ${o.serial||"—"}`, list, serial:o.serial||"", bean });
   if (!pick) return;
   let patch;
-  if (pick === "__type") {
-    const t = await askText(`일련번호를 적으세요 (예: 2910)\n배치는 그대로 두고 일련번호만 바꿉니다.`, o.serial||"", "일련번호 직접 적기");
-    if (t === null) return; const v = String(t).trim(); if (!v) return toast("일련번호를 적으세요");
+  if (pick.type === "serial") {
+    const v = String(pick.value||"").trim(); if (!v) return toast("일련번호를 적으세요");
     patch = { serial:v };
   } else {
-    const m = DB.mms.find(x=>x.id===pick); if (!m) return;
+    const m = DB.mms.find(x=>x.id===pick.value); if (!m) return;
     if (isHeld(m) && !(await ask(`${batchShort(m)} 배치는 보류 중입니다 (${m.hold_why||"사유 미기재"}).\n그래도 이 배치로 할까요?`, { title:"보류 배치", yes:"그래도 쓰기", danger:true }))) return;
     if (Number(m.stock_kg) + 0.0001 < need && !(await ask(`${batchShort(m)} 배치에 ${fmt(m.stock_kg)}kg 남아 필요한 ${fmt(Math.round(need*100)/100)}kg 보다 적습니다.\n모자라는 만큼은 생산 완료 때 다른 배치에서 차감됩니다. 이 배치로 할까요?`, { title:"남은 양 부족", yes:"이 배치로" }))) return;
     const text = `${batchLabel(m)} ${fmt(Math.round(Math.min(need || Number(m.stock_kg), Number(m.stock_kg))*100)/100)}kg`;
@@ -17548,6 +17557,73 @@ async function pickOrderBatch(id){
   if (sb) await pullOrder(o.id);
   renderAll(); toast(`일련번호 ${patch.serial}${patch.batch_plan?` · 배치 ${patch.batch_plan}`:""} 로 바꿨습니다`);
 }
+/* 배치 고르는 창 — 검색칸 · 표(일련번호 · 로스팅일 · 배치 · 총 · 남은 · 상미 · 비고) · 줄을 누르면 고름 · 아래에 일련번호 직접 적기 */
+function batchPickDialog(a){
+  return new Promise(res=>{
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "position:fixed;inset:0;background:rgba(15,20,40,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+    wrap.innerHTML = `<div style="background:#fff;border-radius:16px;width:min(760px,100%);max-height:88vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="padding:18px 20px 10px"><div style="font-size:18px;font-weight:800">${a.title}</div>
+        <div class="hint" style="padding:6px 0 0">${a.sub}</div>
+        <input type="search" id="bpFind" placeholder="🔍 일련번호 · 날짜 · 배치번호로 찾기 (예: 2917 · 10-30 · 11/01)" style="width:100%;height:42px;margin-top:10px;font-size:15px">
+        <div id="bpChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>
+      <div style="overflow:auto;flex:1 1 auto;padding:0 12px"><table style="width:100%"><thead><tr><th>일련번호</th><th>로스팅일</th><th>배치</th><th>총 kg</th><th>남은 kg</th><th>상미</th><th class="l">비고</th></tr></thead><tbody id="bpBody"></tbody></table></div>
+      <div style="padding:12px 20px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="hint" style="padding:0">목록에 없는 번호</span>
+        <input type="text" id="bpSerial" placeholder="일련번호 직접 적기" value="${a.serial||""}" style="width:140px;height:36px">
+        <button class="btn" id="bpSerialOk">번호만 바꾸기</button>
+        <span style="flex:1"></span><button class="btn" id="bpCancel">닫기</button></div></div>`;
+    document.body.appendChild(wrap);
+    let day = "";
+    const done = v => { wrap.remove(); res(v); };
+    const draw = () => {
+      const q = String($("bpFind").value||"").trim().replace(/[./]/g,"-");
+      const rows = a.list.filter(x=>{ const m = x.m;
+        if (day && m.roast_date !== day) return false;
+        if (!q) return true;
+        const hay = `${batchShort(m)} ${batchNo(m)} ${m.roast_date} ${m.roast_date.slice(5)} ${Number(m.batch)}번 ${fmt(m.stock_kg)}`;
+        return q.split(/\s+/).every(w=>hay.includes(w) || hay.includes(w.replace(/^0/,"")));
+      });
+      $("bpBody").innerHTML = rows.length ? rows.map(x=>{ const m = x.m, st = shelfState(m.roast_date);
+        return `<tr data-id="${m.id}" style="cursor:pointer;${x.now?"background:#EAF0FF;":""}">
+          <td class="c"><b style="font-size:16px">${batchShort(m)}</b></td><td class="c">${m.roast_date}</td><td class="c">${Number(m.batch)}번</td>
+          <td>${m.in_kg!=null?fmt(m.in_kg):"—"}</td><td><b>${fmt(m.stock_kg)}</b></td>
+          <td class="c ${st}">${shelfLabel(m.roast_date)}</td>
+          <td class="l">${x.now?'<span class="tag ok">지금</span> ':""}${isHeld(m)?`<span class="tag bad">보류</span> `:""}${x.used?`<span class="tag warn">다른 지시 ${x.used}</span>`:""}</td></tr>`; }).join("")
+        : `<tr><td colspan="7" class="c hint" style="padding:20px">${a.list.length?"찾는 배치가 없습니다":`${a.bean||"이 원두"} 의 남은 배치가 없습니다`}</td></tr>`;
+      $("bpBody").querySelectorAll("tr[data-id]").forEach(tr=>tr.onclick = () => done({ type:"batch", value:tr.dataset.id }));
+    };
+    const days = [...new Set(a.list.map(x=>x.m.roast_date))];
+    $("bpChips").innerHTML = days.length > 1 ? [`<button class="btn primary" data-d="">전체 ${a.list.length}</button>`, ...days.map(d=>`<button class="btn" data-d="${d}">${d.slice(5).replace("-","/")} · ${a.list.filter(x=>x.m.roast_date===d).length}</button>`)].join("") : "";
+    $("bpChips").querySelectorAll("button").forEach(b=>b.onclick = () => { day = b.dataset.d; $("bpChips").querySelectorAll("button").forEach(x=>x.classList.toggle("primary", x===b)); draw(); });
+    $("bpFind").oninput = draw;
+    $("bpFind").onkeydown = e => { if (e.key === "Enter") { const first = $("bpBody").querySelector("tr[data-id]"); if (first) done({ type:"batch", value:first.dataset.id }); } if (e.key === "Escape") done(null); };
+    $("bpSerialOk").onclick = () => done({ type:"serial", value:$("bpSerial").value });
+    $("bpCancel").onclick = () => done(null);
+    wrap.onclick = e => { if (e.target === wrap) done(null); };
+    draw(); setTimeout(()=>$("bpFind").focus(), 30);
+  });
+}
+/* ★ 2026-11-01 — 필요 수량 / 여유 수량 나눠 보이기 (Lee "필요 수량은 확실하게 · 여유는 100개 중 95개만 해도 괜찮은 것")
+   그날 그 품목의 생산계획 필요분(주문 집계 − 이미 만든 것 · 손으로 적은 계획은 전부 필요)을 우선순위 순서대로 지시에 먼저 채우고, 나머지가 여유 */
+function ordNeedSplit(o){
+  const p = prodById(o?.product_id); const q = Math.round(Number(o?.qty_plan)||0);
+  if (!p || !q) return { need:q, buf:0 };
+  const d = o.work_date || today();
+  let need;
+  if (p.id in planEA) need = Infinity;
+  else { const c = planCalc(p, d);
+    need = (c.mode === "none" || !(Number(c.buf) > 0)) ? Infinity : Math.max(0, Math.round(Number(c.need)||0)); }
+  if (need === Infinity) return { need:q, buf:0 };
+  /* 같은 날 같은 품목 지시들 — 우선순위 순서로 필요분을 먼저 채운다 (이미 만든 것은 집계에서 빠져 있으므로 남은 지시만) */
+  const sibs = DB.orders.filter(x=>x.product_id===p.id && x.work_date===d && ["대기","생산중"].includes(x.status))
+    .sort((a,b)=>(Number(a.priority)||0)-(Number(b.priority)||0) || String(a.id).localeCompare(String(b.id)));
+  let left = need;
+  for (const x of sibs) { const xq = Math.round(Number(x.qty_plan)||0); const n = Math.min(xq, left); left -= n; if (x.id === o.id) return { need:n, buf:xq - n }; }
+  return { need:q, buf:0 };                         // 이미 끝난 지시 등 — 나눌 근거가 없으면 전부 필요
+}
+const CH_STYLE = { "컬리":"background:#5F0080;color:#fff", "네이버":"background:#03C75A;color:#fff", "코스트코":"background:#E31837;color:#fff", "라이브":"background:#FF7A00;color:#fff" };
+const chChip = ch => CH_STYLE[ch] ? `<span style="${CH_STYLE[ch]};font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">${ch}</span>` : `${ch||"일반"}`;
 async function joinWork(id, quiet){
   if (!(await requireUser())) return;
   const o = ordById(id); if (!o) return;
@@ -17634,14 +17710,29 @@ async function qcDone(id){
   const rcv = raw === "" ? null : Number(raw);
   if (rcv != null && !(rcv >= 0)) return toast("확인수량을 숫자로 적어 주세요");
   const d = rcv == null ? 0 : rcv - Number(o.qty_done||0);
-  if (d !== 0 && !(await ask(
-      `생산완료 ${fmt(o.qty_done)} EA\n검수확인 ${fmt(rcv)} EA\n차이 ${d>0?"+":""}${fmt(d)} EA\n\n` +
-      `차이를 그대로 남기고 검수 완료합니다.\n` +
-      `생산실적·완제품재고·부적합은 바뀌지 않습니다 — 원인을 확인한 뒤 알맞은 처리를 하세요.`,
-      { title:"⚠ 수량 불일치", yes:"이대로 검수 완료" }))) return;
+  /* ★ 2026-11-01 — 검수에서 센 수량이 다르면 그 수량으로 고쳐서 넘긴다 (Lee "29개 생산 · 검수 28개인데 29개로 출고로 넘어가면 안 됨")
+     생산실적 · 지시 · 완제품 재고를 센 수량으로 · 원두 투입은 그대로(로스로 잡힘) · 서버 064 */
+  if (d !== 0) {
+    const pick = await ask(`생산완료 ${fmt(o.qty_done)}개\n검수에서 센 수량 ${fmt(rcv)}개\n차이 ${d>0?"+":""}${fmt(d)}개\n\n` +
+      `[${fmt(rcv)}개로 고치고 검수 완료] — 생산실적 · 완제품 재고 · 출고 수량이 ${fmt(rcv)}개가 됩니다 (변경이력에 남음)`,
+      { title:"⚠ 수량이 다릅니다", choices:[ { label:`${fmt(rcv)}개로 고치고 검수 완료`, v:"fix", cls:"primary" }, { label:"다시 세기", v:null } ] });
+    if (!pick) return;
+    const why = await askText(`차이 사유 (짧게 · 비워도 됨)`, d<0 ? "파손 · 덜 담김" : "덜 셈", "수량 정정 사유");
+    if (why === null) return;
+    const r = await rpc("complete_qc_fix", { p_order_id:id, p_received_qty:rcv, p_reason:String(why).trim()||null, p_user_name:CURRENT_USER||null, p_idempotency:`qcf-${id}-${uid()}` }, () => {
+      const l = DB.logs.find(x=>x.id===o.log_id), p = prodById(o.product_id);
+      if (l) { l.qty_ea = rcv; l.revision_note = `검수 수량 정정 ${fmt(o.qty_done)} → ${fmt(rcv)}`; save("logs", l); }
+      if (p) { p.cfe = Number(p.cfe||0) + d; save("products", p); }
+      DB.stock_moves.push({ id:uid(), kind:"완제품", ref_type:"log", ref_id:o.log_id, product_id:o.product_id, qty:d, reason:"검수 수량 정정", note:String(why||""), move_date:today() });
+      o.qty_done = rcv; o.progress_qty = rcv; save("orders", o);
+      return null; });
+    if (r === null) { const r2 = await mesCompleteQc({ order_id:id, received:rcv, idem:`qc-${id}-${uid()}` }); return mesTell(r2, `${fmt(rcv)}개로 고치고 검수 완료 — 출고 대기로 넘어갑니다`); }
+    if (!r || r.ok === false) return ask(/complete_qc_fix|schema cache/i.test(r?.message||"") ? "서버에 이 기능이 아직 없습니다.\n\nSupabase SQL Editor 에서 064_qc_fix_and_qc_work.sql 을 실행한 뒤 다시 누르세요." : `처리하지 못했습니다 — ${r?.message||""}`, { title:"검수", yes:"확인", only:true });
+    if (sb) await Promise.all([ pullOrder(id), pullWhere("logs", "id", o.log_id), pullWhere("products", "id", o.product_id) ]);
+    renderAll(); return toast(`${fmt(rcv)}개로 고치고 검수 완료 — 출고 대기로 넘어갑니다`);
+  }
   const r = await mesCompleteQc({ order_id:id, received:rcv, idem:`qc-${id}-${uid()}` });
-  await mesTell(r, d === 0 ? "검수 완료 — 출고 대기로 넘어갑니다"
-    : `검수 완료 · 차이 ${d>0?"+":""}${fmt(d)} EA 를 남겼습니다 — 원인 확인이 필요합니다`);
+  await mesTell(r, "검수 완료 — 출고 대기로 넘어갑니다");
 }
 /* 반려 → 조치 → 재검수 를 시간순으로 보여 준다 (이력을 덮어쓰지 않습니다) */
 /* 쓴 배치를 잘못 골랐을 때 — 그 줄 하나만 바꿉니다 (같은 kg).
@@ -17981,7 +18072,7 @@ function renderWork(){
           can("plan") ? `<span class="prib">
             <button onclick="moveOrd('${o.id}',-1)" title="먼저 하기">▲</button>
             <button onclick="moveOrd('${o.id}',1)" title="나중에 하기">▼</button></span>` : ""}</div>
-        <div class="sub">${o.channel||"일반"}${o.serial?` · ${isFloor()?"상자 번호":"일련번호"} ${o.serial}`:""}${
+        <div class="sub">${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"상자 번호":"일련번호"} ${o.serial}`:""}${
           o.batch_of>1?` · 배치 ${o.batch_seq}/${o.batch_of}`:""}${
           run && o.started_at ? ` · <span title="작업 시작 일시">시작 ${dtFull(o.started_at)}${o.started_by?` ${o.started_by}`:""}</span>` : ""}</div>
       </div>
@@ -18006,6 +18097,11 @@ function renderWork(){
         </div>`; })()}
       ${kInfoHTML(p?.bean, o)}
       <div class="big"><b>${fmt(o.qty_done)}</b> <span>/ ${fmt(o.qty_plan)} 개</span></div>
+      ${(()=>{ const sp = ordNeedSplit(o); if (!sp.buf) return "";
+        const ok = Number(o.qty_done||0) >= sp.need;
+        return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 6px">
+          <span style="background:${ok?"var(--ok)":"#1F2A6B"};color:#fff;font-weight:800;padding:3px 10px;border-radius:8px">필요 ${fmt(sp.need)}개${ok?" ✓":""}</span>
+          <span style="border:1.5px dashed var(--soft);color:var(--soft);font-weight:700;padding:2px 10px;border-radius:8px" title="여유 수량 — 원두·시간이 모자라면 못 채워도 됩니다">여유 +${fmt(sp.buf)}개 · 못 채워도 됨</span></div>`; })()}
       ${barHTML(pct, pct>=100?"ok":"")}
       <div class="meta">${pct}% ${o.qty_ng?` · <span class="bad">부적합 ${fmt(o.qty_ng)}</span>`:""}${o.note?` · <span class="warn">${o.note}</span>`:""}</div>
       <div class="wspec">
@@ -18047,7 +18143,7 @@ function renderWork(){
       <div class="btns sm">
         <button onclick="ngWork('${o.id}')">부적합 등록</button>
         ${o.status==="대기" ? "" : (o.paused_at ? `<button onclick="resumeWork('${o.id}')" style="color:var(--ok);font-weight:800">▶ 다시 시작</button>` : `<button onclick="pauseWork('${o.id}')" title="잠깐 멈춤 — 쉬는 시간·설비 이상 등. [다시 시작] 누르면 이어집니다">⏸ 잠깐 멈춤</button>`)}
-        ${o.status==="대기" ? "" : `<button onclick="joinWork('${o.id}')" title="시작한 사람은 저절로 들어갑니다 — 같이 하는 사람이 자기 이름으로 누르면 됩니다">${openWorkers(o).includes(CURRENT_USER)?"나 빠짐":"같이 하는 사람 추가"}</button>`}
+        
         ${o.status==="대기" ? "" : `<button onclick="stopWork('${o.id}')" title="이 작업을 멈추고 대기 칸으로 돌려놓습니다 — 다른 작업을 먼저 할 때">대기로 되돌리기</button>`}
       </div>
       ${o.status==="대기" && isMixedOrder(o) && can("plan") ? `<div class="btns sm" style="padding-top:0">
@@ -18096,6 +18192,17 @@ function renderQc(){
   if (QC_BUSY.size || (act && act.closest && act.closest("#qcCards") && act.tagName === "INPUT" && act.type !== "checkbox")) {
     wait.forEach(qcPatchCard); return;
   }
+  /* ★ 2026-11-01 — 검수에서 바로 생산 완료 (Lee "생산은 다 됐는데 생산 완료될 때까지 기다리면 다른 작업을 못 해") */
+  { const run = DB.orders.filter(o=>o.status==="생산중" && o.work_date <= today()).sort((a,b)=>(Number(a.priority)||0)-(Number(b.priority)||0));
+    const el = $("qcRun");
+    if (el) { el.style.display = run.length ? "" : "none";
+      el.innerHTML = run.length ? `<div class="panel-h">🏭 생산 중 — 다 됐으면 여기서 바로 완료 <span class="r hint">${can("work") ? "수량을 넣고 완료하면 아래 검수 칸으로 넘어옵니다" : "권한설정에서 검수·출고에 [현장 생산] 을 켜야 누를 수 있습니다"}</span></div>
+        <div class="panel-b"><table><thead><tr><th class="l">품목</th><th>채널</th><th>일련번호</th><th>지시</th><th>입력한 수량</th><th>기계 · 시작</th><th></th></tr></thead><tbody>${
+        run.map(o=>{ const p = prodById(o.product_id); const sp = ordNeedSplit(o);
+          return `<tr><td class="l"><b>${p?.name||o.product_name||""}</b></td><td class="c">${chChip(o.channel||p?.channel||"일반")}</td><td class="c"><b>${o.serial||"—"}</b></td>
+            <td>${fmt(o.qty_plan)}${sp.buf?`<br><span class="hint" style="padding:0;font-size:11px">필요 ${fmt(sp.need)}</span>`:""}</td><td><b>${fmt(o.qty_done||o.progress_qty||0)}</b></td>
+            <td class="c" style="font-size:12px">${o.machine||"—"}<br>${o.started_by||""} ${dtFull(o.started_at)}</td>
+            <td class="c" style="white-space:nowrap">${can("work") ? `<button class="btn" style="height:36px" onclick="countWork('${o.id}')">수량 입력</button> <button class="btn primary" style="height:36px" onclick="finishWork('${o.id}')">생산 완료</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : ""; } }
   $("qcCards").innerHTML = wait.length ? wait.map(o=>{
     const p = prodById(o.product_id);
     const l = DB.logs.find(x=>x.id===o.log_id);
@@ -18124,8 +18231,7 @@ function renderQc(){
         <div><span>차이</span><b id="qcd-${o.id}">0 EA</b></div>
       </div>
       <p class="hint" style="padding:0 0 4px">
-        세어 본 수량이 다르면 고쳐서 검수 완료하세요 —
-        <b>생산실적은 그대로 두고</b> 차이만 따로 남습니다.</p>
+        세어 본 수량이 다르면 고쳐서 검수 완료하세요 — <b>그 수량으로 생산실적 · 완제품 재고 · 출고 수량이 바뀝니다</b> (변경이력에 남음).</p>
       <div class="chk">${QC_ITEMS.map(([k,label])=>`
         <label class="${o.qc&&o.qc[k]?"on":""}">
           <input type="checkbox" data-qk="${k}" ${o.qc&&o.qc[k]?"checked":""} onchange="toggleQC('${o.id}','${k}',this.checked)"> ${label}
@@ -19384,7 +19490,7 @@ const CAP_DEFAULT = {
   admin: { plan:1, work:1, qc:1, ship:1, pqc:1, base:1, stock:1, roast:1, log:1, sys:1 },
   lead:  { plan:1, work:1,             pqc:1, base:1, stock:1,          log:1        },
   floor: {          work:1,             pqc:1                                         },   // 2026-10-29 — 현장 작업자는 누르고 보기만 (계획·실적 수정은 관리자)
-  qc:    {                  qc:1, ship:1, pqc:1                                        },
+  qc:    {          work:1, qc:1, ship:1, pqc:1                                        },   // 2026-11-01 — 검수에서 생산 완료까지
 };
 const CAP = {
   get admin(){ return CAP_DEFAULT.admin; },          // 관리자는 고정
