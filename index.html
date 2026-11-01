@@ -4235,8 +4235,10 @@ async function mesDeleteRejected(a){
     if (!v || v.ok === false) return v;
     return localTx(T => {
       open.forEach(r=>{ T.upd(r, { resolved:true, resolved_at:nowISO(), resolved_by:CURRENT_USER, handling:"deleted", handling_note:`삭제 — ${a.reason}` }); save("qc_rejections", r); });
-      T.upd(o, { status:"폐기", note:`[삭제] ${a.reason}` }); save("orders", o);
-      pushEvent(T, o, "생산중", "폐기", "qc_delete", `[삭제] ${a.reason}`);
+      /* ★ 2026-11-01 — 폐기가 아니라 대기로 (다시 생산) · 서버 065 와 같게 (Lee "삭제를 했을 뿐인데 폐기로 진행하면 안 되지") */
+      T.upd(o, { status:"대기", note:`[반려 삭제 → 다시 생산] ${a.reason}`, qty_done:0, progress_qty:0, qty_ng:0, ng_reported:0, log_id:null,
+        done_by:null, done_at:null, qc:{}, qc_by:null, qc_at:null, started_by:null, started_at:null, paused_at:null }); save("orders", o);
+      pushEvent(T, o, "생산중", "대기", "qc_delete", `[반려 삭제 → 다시 생산] ${a.reason}`);
       const r = { ok:true, returned_kg:v.returned_kg||0 }; idemPut(T, a.idem, "delete_rejected", o.id, r); return r;
     });
   });
@@ -4252,7 +4254,7 @@ async function deleteRejected(id){
     return ask(`이 생산실적에서 나뉜 다른 건(부분 반려·출고 대기)이 있어 기록째 지울 수 없습니다.\n생산실적 화면에서 관리자가 정정하세요.`, { title:"삭제 불가", yes:"확인", only:true });
   const what = split
     ? `부분 반려분이라 생산 기록은 원래 건과 하나입니다.\n→ 이 ${fmt(n)}개만 완제품 재고에서 빼고 끝냅니다 (원두 재고는 그대로).`
-    : `→ 생산실적을 취소하고 원두·부자재·완제품 재고를 되돌립니다.\n→ 기록은 지우지 않고 취소분개로 남습니다. 반려 칸에서 빠집니다.`;
+    : `→ 생산실적을 취소하고 원두·부자재·완제품 재고를 되돌립니다 (기록은 취소분개로 남음).\n→ 작업지시는 폐기가 아니라 [대기]로 돌아가 다시 생산할 수 있습니다.`;
   if (!(await ask(`${nm} ${fmt(n)}개 · 일련번호 ${o.serial||"—"} · 배치 ${o.batch_plan||"—"}\n반려 사유: ${q.reason||"—"}\n\n${what}\n\n이 반려 건을 삭제하시겠습니까?`, { title:"반려 건 삭제 — 관리자", yes:"삭제 진행", danger:true }))) return;
   const t = await askText(`되돌릴 수 없습니다. 확인을 위해 "삭제" 라고 적어 주세요.`, "", "삭제 확인");
   if (t === null) return;
@@ -4268,7 +4270,7 @@ async function deleteRejected(id){
   if (!r || r.ok === false) { quickRender(); return ask(`${r?.message||"지우지 못했습니다"}${/delete_rejected|schema cache/i.test(r?.message||"") ? "\n\n서버에 047_delete_rejected.sql 을 아직 실행하지 않았습니다." : ""}\n\n재고와 기록은 그대로입니다.`, { title:"삭제하지 못했습니다", yes:"확인", only:true }); }
   logAudit("반려 건 삭제", o.order_no||"", `${nm} ${fmt(n)}개 · 일련번호 ${o.serial||"—"} · 배치 ${o.batch_plan||"—"} · 반려 사유 ${q.reason||"—"} · ${split?"부분 반려분 — 완제품 재고에서 뺌":`생산실적 취소 · 원두 ${fmt(r.returned_kg||0)}kg 되돌림`} · 삭제 사유: ${reason}`);
   if (sb) { await Promise.all([ pullWhere("products","id",o.product_id), pullWhere("logs","order_id",o.split_from||o.id) ]).catch(()=>{}); }
-  quickRender(); toast(`반려 건을 삭제했습니다 — ${nm} ${fmt(n)}개`);
+  quickRender(); toast(split ? `반려 건을 삭제했습니다 — ${nm} ${fmt(n)}개` : `반려 건을 삭제했습니다 — ${nm} 은(는) [대기]로 돌아가 다시 생산할 수 있습니다`);
 }
 const FIX_ACTIONS = [ "재포장", "재실링", "라벨 교체", "제조일자·일련번호 수정", "이물 제거 후 재포장", "중량 재조정", "이상 없음 — 재확인만", "원두로 되돌려 다른 배치와 합침", "폐기", "기타 직접 입력" ];
 /* ── 현장 작업자용 반려 처리 — 버튼 둘 (Lee 2026-10-29) ──
@@ -6776,6 +6778,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "반려 건 삭제 → 대기로 (폐기 아님)", "검수에서 반려된 건을 현장에서 [삭제] 하면 폐기로 가던 것 → 생산실적만 취소(재고 되돌림)하고 작업지시는 [대기]로 돌아가 다시 생산 · 이미 [삭제]로 폐기된 지시도 서버 065 실행 때 대기로 되돌림"],
+  ["2026-11-01", "생산 완료 — 남은 원두 안내", "원두 봉지 [✓ 다 썼음] / [✓ 남았음] 고른 쪽에 체크 표시 · 바로 밑에 어떻게 기록되는지: 다 썼음 = 봉지 kg 전부 이 생산에 · 배치 0kg / 남았음 = 쓴 kg 만 기록 · 남은 kg 는 그 배치 재고로 그대로 남음 · 필요 원두 · 로스 kg (3% 넘으면 빨강)"],
+  ["2026-11-01", "현장 작업 — [수량 입력] 버튼 뺌", "생산 카드에는 [생산 완료] 하나만 — 수량은 생산 완료 창에서 한 번만 넣음 (검수 화면 생산 중 표도 같음)"],
   ["2026-11-01", "생산 완료 · 검수 — 생산자 선택 · 센 수량대로 고침 · 검수에서 바로 완료", "생산 완료 창 맨 위에 [생산자] — 고른 사람으로 실적 기록 (작업자 칸을 안 골랐으면 로그인 계정 작업자로, 묻지 않음) · 수량 입력을 했으면 완료 창 정상품 수량이 그 수량으로 미리 채워짐 · 검수에서 센 수량이 다르면 [N개로 고치고 검수 완료] — 생산실적 · 지시 · 완제품 재고 · 출고 수량을 센 수량으로 (전에는 차이만 남기고 29개 그대로 출고로 넘어갔음 · 서버 064) · 검수 화면 위에 [생산 중] 표 — 거기서 바로 [수량 입력] [생산 완료] (검수·출고 역할도 현장 생산 권한 기본 켬)"],
   ["2026-11-01", "현장 작업 — [같이 하는 사람 추가] 버튼 뺌", "생산 카드 아래 [같이 하는 사람 추가] 를 없앰 — 위 [작업자] 칸에서 고른 사람이 시작·완료에 기록됨 (시작한 사람은 그대로 같이 하는 사람으로 들어감)"],
   ["2026-11-01", "현장 작업 — 필요 / 여유 수량 · 채널 표시", "생산 카드 수량 밑에 [필요 N개] (꼭 해야 하는 주문분) · [여유 +N개 · 못 채워도 됨] 따로 — 그날 생산계획의 필요분을 같은 품목 지시들에 우선순위 순서대로 먼저 채우고 나머지가 여유 · 필요 수량을 채우면 ✓ · 생산 완료 창에도 필요/여유 표시, 필요보다 적게 적으면 경고 · 카드 위 채널을 색 배지로 (컬리 보라 · 네이버 초록 · 코스트코 빨강 · 라이브 주황)"],
@@ -17277,6 +17282,7 @@ function finishDialog(o, p, ctx){
         <div id="finLeftRow" style="display:none;gap:6px;align-items:center;margin-top:8px">
           <span>봉지에 남은</span><input id="finLeft" type="number" inputmode="decimal" min="0" step="0.1" value="0" style="width:96px;height:44px;font-size:18px;text-align:center"> <span>kg</span>
         </div>
+        <div id="finBagInfo" style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#F4F6FB;font-size:13px;line-height:1.6"></div>
         <div id="finWarn" style="margin-top:12px;color:var(--bad,#c0392b);font-size:13px;white-space:pre-line"></div>
       </div>
       <div style="padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;flex:0 0 auto;border-top:1px solid var(--line);background:var(--paper)">
@@ -17288,7 +17294,8 @@ function finishDialog(o, p, ctx){
     const G = ov.querySelector("#finGood"), N = ov.querySelector("#finNg"), T = ov.querySelector("#finNgType"), L = ov.querySelector("#finLeft"), W = ov.querySelector("#finWarn");
     const BA = ov.querySelector("#finBagAll"), BL = ov.querySelector("#finBagLeft"), LR = ov.querySelector("#finLeftRow");
     let bagMode = "all";
-    const setBag = m => { bagMode = m; BA.className = "btn" + (m==="all"?" primary":""); BL.className = "btn" + (m==="left"?" primary":""); LR.style.display = m==="left" ? "flex" : "none"; if (m==="left") setTimeout(()=>{ L.focus(); L.select(); }, 30); sync(); };
+    const setBag = m => { bagMode = m; BA.className = "btn" + (m==="all"?" primary":""); BL.className = "btn" + (m==="left"?" primary":"");
+      BA.textContent = (m==="all"?"✓ ":"") + "다 썼음 (봉지 비움)"; BL.textContent = (m==="left"?"✓ ":"") + "남았음"; LR.style.display = m==="left" ? "flex" : "none"; if (m==="left") setTimeout(()=>{ L.focus(); L.select(); }, 30); sync(); };
     BA.onclick = () => setBag("all"); BL.onclick = () => setBag("left");
     const num = el => Math.max(0, Math.round(Number(el.value)||0));
     const sync = () => {
@@ -17301,11 +17308,18 @@ function finishDialog(o, p, ctx){
       if (plan > 0 && g > plan) w.push(`※ 지시(${fmt(plan)}개)보다 많습니다`);
       if (ctx.need != null && ctx.need < plan && g < ctx.need) w.push(`※ 필요 수량(${fmt(ctx.need)}개)보다 ${fmt(ctx.need-g)}개 적습니다 — 주문이 모자랄 수 있습니다`);
       W.textContent = w.join("\n");
+      /* ★ 2026-11-01 — 남은 원두가 어떻게 되는지 바로 보이게 (Lee "남은 원두는 어떻게 되는 거야? 알아야지") */
+      const BI = ov.querySelector("#finBagInfo");
+      if (BI) { const loss = Math.round((used - need)*1000)/1000, codes = ctx.bags.map(batchShort).join(" + ");
+        BI.innerHTML = (bagMode === "all"
+          ? `<b>봉지 ${fmt(ctx.bagKg)}kg 전부</b> 이 생산에 쓴 것으로 기록 → ${codes} 배치 재고 <b>0kg</b>`
+          : `이 생산에 <b>${fmt(used)}kg</b> 쓴 것으로 기록 · 남은 <b>${fmt(left)}kg</b> 는 ${codes} 배치 재고로 그대로 남음 <span style="color:var(--soft)">(그 배치를 고른 생산 · 다른 배치가 모자랄 때 오래된 것부터 씀)</span>`) +
+          `<br><span style="color:var(--soft)">필요 원두 ${fmt(need)}kg (${fmt(g)}개)</span> · ${loss > 0.0005 ? `<b style="color:${loss/Math.max(need,0.001) > 0.03 ? "var(--bad)" : "inherit"}">로스 ${fmt(loss)}kg</b>` : loss < -0.0005 ? `<b class="bad">${fmt(-loss)}kg 모자람</b>` : "로스 0kg"}`; }
     };
     ov.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ G.value = Math.max(0, num(G) + Number(b.dataset.g)); sync(); });
     ov.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{ N.value = Math.max(0, num(N) + Number(b.dataset.n)); sync(); });
     [G,N,L].forEach(el=>el.addEventListener("input", sync));
-    sync();
+    setBag("all");
     const done = v => { document.removeEventListener("keydown", onKey); ov.remove(); res(v); };
     const onKey = e => { if (e.key === "Escape") done(null); };
     document.addEventListener("keydown", onKey);
@@ -18136,8 +18150,7 @@ function renderWork(){
           ? (machineBusy(o)
               ? `<button class="go" disabled style="opacity:.45" title="이 기계에서 다른 지시가 생산중입니다">앞 작업 끝나면 시작</button>`
               : `<button class="go" onclick="startWork('${o.id}')">생산 시작</button>`)
-          : `<button class="go2" onclick="countWork('${o.id}')">수량 입력</button>
-             <button class="go" onclick="finishWork('${o.id}')">생산 완료</button>`}
+          : `<button class="go" onclick="finishWork('${o.id}')">생산 완료</button>`}
       </div>
       ${run ? workTimeLine(o) : ""}
       <div class="btns sm">
@@ -18196,13 +18209,13 @@ function renderQc(){
   { const run = DB.orders.filter(o=>o.status==="생산중" && o.work_date <= today()).sort((a,b)=>(Number(a.priority)||0)-(Number(b.priority)||0));
     const el = $("qcRun");
     if (el) { el.style.display = run.length ? "" : "none";
-      el.innerHTML = run.length ? `<div class="panel-h">🏭 생산 중 — 다 됐으면 여기서 바로 완료 <span class="r hint">${can("work") ? "수량을 넣고 완료하면 아래 검수 칸으로 넘어옵니다" : "권한설정에서 검수·출고에 [현장 생산] 을 켜야 누를 수 있습니다"}</span></div>
-        <div class="panel-b"><table><thead><tr><th class="l">품목</th><th>채널</th><th>일련번호</th><th>지시</th><th>입력한 수량</th><th>기계 · 시작</th><th></th></tr></thead><tbody>${
+      el.innerHTML = run.length ? `<div class="panel-h">🏭 생산 중 — 다 됐으면 여기서 바로 완료 <span class="r hint">${can("work") ? "[생산 완료] 에서 수량을 넣으면 아래 검수 칸으로 넘어옵니다" : "권한설정에서 검수·출고에 [현장 생산] 을 켜야 누를 수 있습니다"}</span></div>
+        <div class="panel-b"><table><thead><tr><th class="l">품목</th><th>채널</th><th>일련번호</th><th>지시</th><th>기계 · 시작</th><th></th></tr></thead><tbody>${
         run.map(o=>{ const p = prodById(o.product_id); const sp = ordNeedSplit(o);
           return `<tr><td class="l"><b>${p?.name||o.product_name||""}</b></td><td class="c">${chChip(o.channel||p?.channel||"일반")}</td><td class="c"><b>${o.serial||"—"}</b></td>
-            <td>${fmt(o.qty_plan)}${sp.buf?`<br><span class="hint" style="padding:0;font-size:11px">필요 ${fmt(sp.need)}</span>`:""}</td><td><b>${fmt(o.qty_done||o.progress_qty||0)}</b></td>
+            <td>${fmt(o.qty_plan)}${sp.buf?`<br><span class="hint" style="padding:0;font-size:11px">필요 ${fmt(sp.need)}</span>`:""}</td>
             <td class="c" style="font-size:12px">${o.machine||"—"}<br>${o.started_by||""} ${dtFull(o.started_at)}</td>
-            <td class="c" style="white-space:nowrap">${can("work") ? `<button class="btn" style="height:36px" onclick="countWork('${o.id}')">수량 입력</button> <button class="btn primary" style="height:36px" onclick="finishWork('${o.id}')">생산 완료</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : ""; } }
+            <td class="c" style="white-space:nowrap">${can("work") ? `<button class="btn primary" style="height:36px" onclick="finishWork('${o.id}')">생산 완료</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : ""; } }
   $("qcCards").innerHTML = wait.length ? wait.map(o=>{
     const p = prodById(o.product_id);
     const l = DB.logs.find(x=>x.id===o.log_id);
