@@ -1217,6 +1217,7 @@
     <span class="hint" style="padding:0" id="wkInfo"></span>
     <span id="wkMachBtn" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:10px"></span>
     <span style="margin-left:auto"></span>
+    <span class="stWho" data-st="work"></span>
     <button class="btn" onclick="renderWork()">새로고침</button>
   </div>
   <div class="subtabs" id="wkTabs"></div>
@@ -1239,6 +1240,7 @@
   <div class="cond">
     <span class="hint" style="padding:0" id="qcInfo"></span>
     <span style="margin-left:auto"></span>
+    <span class="stWho" data-st="qc"></span>
     <button class="btn" onclick="renderQc()">새로고침</button>
   </div>
   <div class="body">
@@ -1259,6 +1261,7 @@
   <div class="cond">
     <span class="hint" style="padding:0" id="shInfo"></span>
     <span style="margin-left:auto"></span>
+    <span class="stWho" data-st="ship"></span>
     <button class="btn" onclick="renderShip()">새로고침</button>
   </div>
   <div class="body">
@@ -6609,6 +6612,44 @@ function del(t,id){
 /* ══════════════════════════════════════════════════════════════
    ⑥ 화면 전환
    ══════════════════════════════════════════════════════════════ */
+/* ★ 2026-11-01 — 현장 작업 · 검수 · 출고 화면에서 작업자를 고른다 (Lee "현장작업자와 검수에 작업자 선택 · 출고도")
+   화면마다 따로 기억하고(이 기기), 그 화면에 들어가면 고른 사람이 실제 작업자가 된다 — 시작·완료·참여·검수·반려·출고 기록에 그 이름이 남는다.
+   한 계정으로 여러 사람이 쓰는 현장 기기를 위해, 이 세 화면에서는 일반 계정도 명단의 누구든 고를 수 있다 (로그인 권한은 그대로). */
+const STATION_SCREENS = { work:"현장 작업", qc:"검수", ship:"출고" };
+const STATION_KEY = "momos.station.worker";
+function stationAll(){ try { return JSON.parse(localStorage.getItem(STATION_KEY) || "{}") || {}; } catch(_){ return {}; } }
+/* 화면별로 뜨는 사람 — 기준정보 › 생산자의 "업무 역할" 기준 (Lee "해당 작업자만 · 관리자는 안 뜨게")
+   현장 작업 = 현장 작업자 · 현장 관리자 / 검수 · 출고 = 검수·출고 */
+const STATION_PERMS = { work:["floor","lead"], qc:["qc"], ship:["qc"] };
+const stationWorkers = st => DB.workers.filter(w=>(STATION_PERMS[st]||[]).includes(permOf(w)) && w.active !== false);
+const stationWho = st => { const n = stationAll()[st]; return n && stationWorkers(st).some(w=>w.name===n) ? n : ""; };
+function setStationWho(st, n){
+  const all = stationAll(); if (n) all[st] = n; else delete all[st];
+  try { localStorage.setItem(STATION_KEY, JSON.stringify(all)); } catch(_){}
+  stationApply(st);
+  if (n) toast(`${STATION_SCREENS[st]} 작업자: ${n}`);
+  render(st); stationRender();
+}
+function stationApply(st){
+  const n = stationWho(st);
+  if (n) { CURRENT_USER = n; }
+  else if (LOGIN_USER && !isSystemAdmin() && !isSharedLogin()) { const own = loginWorker(); CURRENT_USER = own ? own.name : CURRENT_USER; }
+  if (typeof syncUserUI === "function") { const who = $("navWho"); if (who) who.textContent = CURRENT_USER ? `${CURRENT_USER} · 원두파트` : "제품생산팀 (원두파트)"; const av = $("avatar"); if (av) av.textContent = CURRENT_USER ? CURRENT_USER.slice(-2) : "—"; }
+}
+function stationLeave(){
+  /* 세 화면을 벗어나면 — 일반 계정은 본인으로, 시스템 관리자·공용 계정은 위 [작업자 선택] 값으로 */
+  if (LOGIN_USER && !isSystemAdmin() && !isSharedLogin()) { const own = loginWorker(); if (own) CURRENT_USER = own.name; }
+  else { try { const n = localStorage.getItem("momos_user"); if (n && workerByName(n)) CURRENT_USER = n; } catch(_){} }
+}
+function stationRender(){
+  document.querySelectorAll(".stWho").forEach(el=>{
+    const st = el.dataset.st, cur = stationWho(st);
+    el.innerHTML = `<label style="font-weight:800;${cur?"":"color:var(--bad)"}">작업자</label>
+      <select onchange="setStationWho('${st}', this.value)" style="height:34px;min-width:120px;font-weight:700;${cur?"":"border-color:var(--bad)"}">
+        <option value="">${cur?"— 선택 해제 —":stationWorkers(st).length?"누가 하나요?":"해당 작업자 없음"}</option>
+        ${stationWorkers(st).map(w=>`<option ${w.name===cur?"selected":""}>${w.name}</option>`).join("")}</select>`;
+  });
+}
 function go(s){
   if (typeof basePendCount === "function" && basePendCount() && s !== "base" && document.querySelector(".screen.on")?.id === "s-base") {
     (async()=>{ const c = await ask(`기준정보에 저장 안 한 변경 ${basePendCount()}건이 있습니다.`, { title:"저장할까요?", choices:[ { label:"저장", v:"save", cls:"primary" }, { label:"버리고 이동", v:"drop" }, { label:"머무르기", v:null } ] });
@@ -6617,6 +6658,8 @@ function go(s){
   }
   document.querySelectorAll("#menu button").forEach(b=>b.classList.toggle("on", b.dataset.s===s));
   document.querySelectorAll(".screen").forEach(x=>x.classList.toggle("on", x.id==="s-"+s));
+  if (STATION_SCREENS[s]) stationApply(s); else stationLeave();
+  stationRender();
   render(s);
   updateFavBtn();
 }
@@ -6701,6 +6744,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "현장 작업 · 검수 · 출고 — 작업자 선택", "세 화면 위쪽에 [작업자] 칸 (현장 작업 = 현장 작업자·현장 관리자 / 검수·출고 = 검수·출고 역할만 뜸 · 관리자는 안 뜸) — 고른 사람이 그 화면의 실제 작업자로 기록됨 (시작·완료·참여·검수·반려·출고) · 화면마다 따로 기억(이 기기) · 한 계정으로 여럿이 쓰는 현장 기기도 명단의 누구든 고를 수 있음 (로그인 권한은 그대로) · 안 골랐으면 누를 때 이름 단추로 물어봄 · 다른 화면으로 가면 원래 계정 작업자로 돌아감"],
   ["2026-11-01", "모든 목록 순서 — 쇼콜라·봉봉·므쵸·부산 → 블렌드 → 하바나 → 싱글 · 로스팅 35 → 70 → 60", "품목·원두·MMS 배치·부자재(라벨·풀패키지는 그 품목 순)·생산계획·부족 현황이 쇼콜라 → 봉봉 → 므쵸 → 부산 → 그 밖의 블렌드 → 하바나 → 싱글 순 · 같은 원두 안에서는 1kg → 500g → 200g → 100g · 로스팅 계획·받을 배치·로스터기는 S35 → S70 → S60 순 (로스터기 이름 또는 원두의 머신 종류에서 읽음)"],
   ["2026-11-01", "원두 종료 → 품목·부자재도 같이 빠짐", "원두를 종료하면 그 완제품 중 CFE 재고가 0 인 것은 사용중지, 그 라벨·풀패키지 봉투 중 재고가 0 인 것은 \"종료 자재\" 로 빠짐 (부자재 표에서 안 보임 · [종료 자재] 버튼에서만) · 이미 종료된 원두도 열 때 자동으로 정리 · 원두를 다시 쓰면 품목·자재도 같이 돌아옴 · 재고가 남은 것은 그대로 둠"],
   ["2026-11-01", "GitHub Pages 배포 실패 고침", "로스 화면 코드에 겹중괄호가 있어 GitHub Pages(Jekyll)가 파일을 못 읽고 배포가 실패하던 것 — 고침 · 같이 드린 .nojekyll 을 올려 두면 앞으로 이런 일이 없음"],
@@ -7065,6 +7109,7 @@ function renderAll(){
   ["dash","plan","roast","req","log","stock","pqc","cal","loss","base",
    "work","qc","ship","order","trace","rw","mt","close","count","help"].forEach(renderOne);
   syncUserUI();
+  try { stationRender(); const st = document.querySelector(".screen.on")?.id?.replace("s-",""); if (STATION_SCREENS[st] && stationWho(st)) stationApply(st); } catch(e){ console.warn(e); }
   if (typeof applyRoleLock === "function") applyRoleLock();
 }
 /* 설명 상자를 다 접거나 편다 — 브라우저가 기억한다 */
@@ -12423,6 +12468,15 @@ async function pickUser(){
   return hit;
 }
 async function requireUser(){
+  const st = document.querySelector(".screen.on")?.id?.replace("s-","");
+  if (STATION_SCREENS[st]) {
+    if (stationWho(st)) { CURRENT_USER = stationWho(st); return true; }
+    const names = stationWorkers(st).map(w=>w.name);
+    if (!names.length) { await ask(`${STATION_SCREENS[st]} 에 고를 작업자가 없습니다.\n\n기준정보 › 생산자에서 업무 역할을 ${st==="work"?"\"현장 작업자\" 또는 \"현장 관리자\"":"\"검수·출고\""} 로 지정해 주세요.`, { title:"작업자 선택", yes:"확인", only:true }); return false; }
+    const pick = await ask(`${STATION_SCREENS[st]} — 누가 하나요?`, { title:"작업자 선택", choices:[ ...names.map(n=>({ label:n, v:n, cls: n===CURRENT_USER ? "primary" : "" })), { label:"취소", v:null } ] });
+    if (!pick) return false;
+    setStationWho(st, pick); return true;
+  }
   if (CURRENT_USER) return true;
   return !!(await pickUser());
 }
