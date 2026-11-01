@@ -2005,6 +2005,17 @@
         차이 <b class="bad">(−)</b> 실제가 적음 → 기록 안 한 출고·파손 확인 · <b class="ok">(+)</b> 실제가 많음 → 기록 안 한 생산·입고 확인</div>
       <div class="panel-b"><table id="stTbl"></table></div>
     </div>
+    <div class="panel">
+      <div class="panel-h">날짜별 보유량 <span class="r" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        <select id="hsType" onchange="renderHoldHist()"><option value="mms">원두 MMS (kg)</option><option value="cfe">CFE 완제품 (EA)</option><option value="mat">부자재</option></select>
+        <select id="hsDays" onchange="renderHoldHist()"><option value="7">7일</option><option value="14" selected>14일</option><option value="31">31일</option></select>
+        <label style="color:var(--soft);font-size:12.5px;font-weight:600">끝 날짜</label><input type="date" id="hsEnd" onchange="renderHoldHist()">
+        <select id="hsBean" onchange="renderHoldHist()" title="원두 하나만 — 원두 MMS 는 배치별로, CFE 는 그 원두 품목만"><option value="">원두 전체</option></select>
+        <input type="text" id="hsFind" placeholder="이름 찾기" style="width:120px" oninput="renderHoldHist()">
+        <button class="btn" onclick="csvHoldHist()">엑셀 다운로드</button></span></div>
+      <div class="hint">그날 일을 마친 뒤(마감 기준) 장부상 보유량입니다 · 원두 이름을 누르거나 위에서 원두를 고르면 <b>그 원두만 배치별로</b> · 전날보다 <b class="ok">늘면 초록</b> · <b class="bad">줄면 빨강</b> · 숫자에 마우스를 올리면 전날 대비 증감</div>
+      <div class="panel-b"><table id="hsTbl"></table></div>
+    </div>
   </div>
 </section>
 
@@ -6747,6 +6758,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "재고확인 › 날짜별 보유량", "원두 MMS(kg) · CFE 완제품(EA) · 부자재를 날짜 칸으로 — 그날 마감 기준 장부 보유량 · 7/14/31일 · 끝 날짜 고름 · 전날보다 늘면 초록 · 줄면 빨강 · 마우스 올리면 증감 · 원두 하나만 고르면(또는 이름을 누르면) 그 원두를 배치별로 · CFE 는 그 원두 품목만 · 이름 찾기 · 엑셀 다운로드"],
+  ["2026-11-01", "MMS 배치 일괄 입력 — 이전 원두 한 번에", "기준정보 › MMS [일괄 입력] (엑셀 줄 붙여넣기 됨) · 원두 이름 줄여 적어도 됨 (쇼콜라 → 블렌드 에스쇼콜라) · 로스팅일 대신 현장번호 2801(28일 1번 · 오늘보다 뒷날이면 지난달) 이나 전체번호 26102801 을 적어도 됨"],
   ["2026-11-01", "행추가 — 여러 줄 한 번에", "모든 [행추가] 옆에 숫자 칸 — 적은 수만큼 한 번에 추가 (최대 50 · 누르고 나면 1로 돌아감) · 로스팅 계획·로스팅 요청·로스터기·품목·원두·MMS 배치·기계·생산자·부자재 · 빈 줄끼리는 중복으로 합치지 않음 (원두명 2 · 봉투명 2 처럼 번호)"],
   ["2026-11-01", "재고 세기 — 엑셀 넣기 · 붙여넣기", "재고 세기 위 [엑셀 넣기](.xlsx·.csv · 시트 여러 개면 전부) · [붙여넣기] — 줄마다 코드나 이름으로 CFE 품목·부자재를 찾아 \"실제\" 칸에 채움 (부자재·CFE 섞여 있어도 됨 · 같은 품목 여러 줄은 합산 · 묶음/낱장 열이 있으면 장수로 계산) · 장부는 그대로 — 차이를 보고 [차이 전체 반영] · 못 찾은 줄은 알려 줌"],
   ["2026-11-01", "현장 작업 · 검수 · 출고 — 작업자 선택", "세 화면 위쪽에 [작업자] 칸 (현장 작업 = 현장 작업자·현장 관리자 / 검수·출고 = 검수·출고 역할만 뜸 · 관리자는 안 뜸) — 고른 사람이 그 화면의 실제 작업자로 기록됨 (시작·완료·참여·검수·반려·출고) · 화면마다 따로 기억(이 기기) · 한 계정으로 여럿이 쓰는 현장 기기도 명단의 누구든 고를 수 있음 (로그인 권한은 그대로) · 안 골랐으면 누를 때 이름 단추로 물어봄 · 다른 화면으로 가면 원래 계정 작업자로 돌아감"],
@@ -12627,7 +12640,70 @@ function stockRows(){
   return beans.map(b=>({ key:b, name:b, sub:beanIsOff(b) ? "사용 중단" : "", code:mmsCodeOf(b), app:mmsByBean(b), act:actual.mms[b], off:beanIsOff(b) }))
     .filter(r=>r.app>0 || r.act!=null).sort((a,b)=>(a.off?1:0)-(b.off?1:0));
 }
+/* ★ 2026-11-01 — 날짜별 보유량 (Lee "28일에는 이 정도 보유 중이다, 29일은 이 정도") — 마감 기준 장부 잔량을 날짜 칸으로
+   원두 = 배치 잔량 역산(stockAsOf) · CFE = 지금 재고 − 그날 뒤 완제품 수불 · 부자재 = 지금 재고 − 그날 뒤 입·출고 */
+const ymdOf = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+function holdHistData(){
+  const type = $("hsType")?.value || "mms", n = Number($("hsDays")?.value || 14);
+  const end = $("hsEnd")?.value || today();
+  const days = [...Array(n)].map((_,i)=>{ const d = new Date(end); d.setDate(d.getDate() - (n-1-i)); return ymdOf(d); });
+  const q = ($("hsFind")?.value || "").trim();
+  const one = $("hsBean")?.value || "";            // 원두 하나만 볼 때
+  let rows = [], unit = "kg";
+  if (type === "mms" && one) {
+    /* 그 원두를 배치별로 — 어느 배치가 언제 들어와서 언제 다 썼는지 */
+    const per = days.map(D=>stockAsOf(D).filter(x=>x.m.bean===one));
+    const ids = [...new Set(per.flatMap(a=>a.map(x=>x.m.id)))];
+    rows = sortBatches(DB.mms.filter(m=>ids.includes(m.id))).map(m=>({ name:`${batchShort(m)} 배치`, sub:`${batchFull(m)} · 입고 ${fmt(m.in_kg ?? "")}kg`, batch:true,
+      vals: per.map(a=>{ const x = a.find(y=>y.m.id===m.id); return x ? Math.round(x.kg*100)/100 : 0; }) }));
+  } else if (type === "mms") {
+    const per = days.map(D=>{ const m = {}; stockAsOf(D).forEach(x=>{ m[x.m.bean] = (m[x.m.bean]||0) + x.kg; }); return m; });
+    const beans = [...new Set(per.flatMap(m=>Object.keys(m)))].sort(beanCmp);
+    rows = beans.map(b=>({ name:b, sub:mmsCodeOf(b)||"", bean:b, vals: per.map(m=>Math.round((m[b]||0)*100)/100) }));
+  } else if (type === "cfe") {
+    unit = "EA";
+    const mv = (DB.stock_moves||[]).filter(m=>m.kind==="완제품" && m.product_id);
+    rows = DB.products.filter(p=>!one || p.bean===one).map(p=>{
+      const own = mv.filter(m=>m.product_id===p.id).map(m=>({ d:String(m.move_date || m.created_at || m.at || "").slice(0,10), q:Number(m.qty)||0 }));
+      const cur = Number(p.cfe||0);
+      return { name:p.name, sub:p.code||"", off:p.off, vals: days.map(D=>cur - own.filter(x=>x.d > D).reduce((s,x)=>s+x.q,0)) };
+    });
+  } else {
+    unit = "";
+    rows = DB.materials.filter(matActive).map(M=>{
+      const own = DB.material_moves.filter(m=>(m.material_id||m.label_id)===M.id).map(m=>({ d:String(m.date || m.at || "").slice(0,10), q:Number(m.qty)||0 }));
+      const cur = Number(M.stock||0);
+      return { name:M.name, sub:`${M.kind}${M.code?` · ${M.code}`:""}`, u:unitOf(M), vals: days.map(D=>cur - own.filter(x=>x.d > D).reduce((s,x)=>s+x.q,0)) };
+    });
+  }
+  rows = rows.filter(r=>r.vals.some(v=>Math.abs(v)>.005) && (!q || findHit(q, r.name, r.sub)));
+  return { type, days, rows, unit };
+}
+function renderHoldHist(){
+  if (!$("hsTbl")) return;
+  if ($("hsEnd") && !$("hsEnd").value) $("hsEnd").value = today();
+  { const sel = $("hsBean"), cur = sel?.value || "", type = $("hsType")?.value || "mms";
+    if (sel) { sel.style.display = type === "mat" ? "none" : "";
+      const beans = [...new Set([...DB.mms.map(m=>m.bean), ...DB.products.map(p=>p.bean)])].filter(Boolean).sort(beanCmp);
+      sel.innerHTML = `<option value="">원두 전체</option>` + beans.map(b=>`<option ${b===cur?"selected":""}>${b}</option>`).join("");
+      if (type === "mat") sel.value = ""; } }
+  const { days, rows, unit } = holdHistData();
+  const WD_ = ["일","월","화","수","목","금","토"];
+  const head = ["품목", ...days.map(D=>{ const d = new Date(D); return `<span title="${D}">${d.getMonth()+1}/${d.getDate()}<br><span style="font-weight:500;font-size:10.5px;color:${d.getDay()===0?"var(--bad)":"var(--soft)"}">${WD_[d.getDay()]}</span></span>`; })];
+  const oneB = $("hsBean")?.value || "";
+  if (oneB) head[0] = `<a href="javascript:void 0" onclick="$('hsBean').value='';renderHoldHist()">← 원두 전체</a> · ${oneB}`;
+  tbl("hsTbl", head, rows.map(r=>`<tr${r.off?' style="opacity:.6"':""}><td class="l" style="white-space:nowrap">${r.bean?`<a href="javascript:void 0" title="배치별로 보기" onclick="$('hsBean').value=${JSON.stringify(r.bean).replace(/"/g,"&quot;")};renderHoldHist()" style="font-weight:800;color:inherit;text-decoration:underline dotted">${r.name}</a>`:`<b>${r.name}</b>`}${r.sub?`<br><span class="hint" style="padding:0;font-size:10.5px">${r.sub}</span>`:""}</td>${
+      r.vals.map((v,i)=>{ const d = i ? Math.round((v - r.vals[i-1])*100)/100 : 0;
+        return `<td style="text-align:right;${d>0?"color:var(--ok);font-weight:700;":d<0?"color:var(--bad);font-weight:700;":""}${v<0?"background:#FFF1F0;":""}${i===r.vals.length-1?"font-weight:800;background:#F7F8FB;":""}" title="${days[i]} · ${fmt(v)}${r.u||unit}${i?` · 전날 대비 ${d>0?"+":""}${fmt(d)}`:""}">${Math.abs(v)<.005?'<span style="color:var(--soft)">0</span>':fmt(v)}</td>`; }).join("")}</tr>`),
+    rows.length && unit ? `<td class="c">합 계 · ${rows.length}</td>${days.map((_,i)=>`<td><b>${fmt(Math.round(rows.reduce((s,r)=>s+r.vals[i],0)*100)/100)}</b></td>`).join("")}` : null);
+  if (!rows.length) { const b = $("hsTbl").querySelector("tbody"); if (b) b.innerHTML = `<tr><td colspan="${days.length+1}" class="c" style="padding:24px;color:var(--soft)">이 기간에 보유량이 있는 항목이 없습니다</td></tr>`; }
+}
+function csvHoldHist(){
+  const { type, days, rows, unit } = holdHistData();
+  csv(`날짜별보유량_${type==="mms"?"원두":type==="cfe"?"CFE":"부자재"}${$("hsBean")?.value?"_"+$("hsBean").value:""}_${days[0]}_${days[days.length-1]}`, ["품목","코드/구분", ...days], rows.map(r=>[r.name, r.sub, ...r.vals]));
+}
 function renderStock(){
+  try { renderHoldHist(); } catch(e){ console.warn(e); }
   const isCfe = $("stType").value==="cfe", unit = isCfe?"EA":"kg";
   const rows = stockRows(), entered = rows.filter(r=>r.act!=null);
   const diffs = entered.map(r=>({...r, d:r.act-r.app})).filter(r=>Math.abs(r.d)>.005);
@@ -18306,10 +18382,19 @@ const BULK_DEFS = {
       const w = { id:uid(), name:v.name.trim(), role:v.role||"사원", perm:permKey };
       const r = await saveRowAsync("workers", w); if (r.ok) DB.workers.push(w); return r; } },
   mms: { title:"MMS 배치 일괄 입력 (로스팅 입고)", table:"mms", tab:"mms",
-    hint:"원두명은 원두 표 그대로 · 로스팅일 · 그날 몇 번째 배치 · kg — 같은 날 같은 번호가 있으면 실패로 알려줍니다",
-    cols:[ { k:"bean", l:"원두", w:220, req:true, list:"beanDL" }, { k:"roast_date", l:"로스팅일", w:130, date:true, req:true }, { k:"batch", l:"그날 몇 번째", w:90, num:true, req:true }, { k:"kg", l:"재고(kg)", w:90, num:true, req:true } ],
+    hint:"이전 원두 한 번에 — 원두(\"쇼콜라\" 처럼 줄여도 됨) · 로스팅일 · 그날 몇 번째 · kg · 로스팅일 대신 \"그날 몇 번째\" 칸에 현장번호(2801 = 28일 1번)나 전체번호(26102801)를 적어도 됨 · 같은 날 같은 번호가 있으면 알려줍니다",
+    cols:[ { k:"bean", l:"원두", w:220, req:true, list:"beanDL" }, { k:"roast_date", l:"로스팅일", w:130, date:true }, { k:"batch", l:"그날 몇 번째 (또는 2801)", w:120, req:true }, { k:"kg", l:"재고(kg)", w:90, num:true, req:true } ],
     validate(v, i, all){
-      if (!v.bean) return "원두 없음"; if (!DB.beans.some(b=>b.name===v.bean.trim())) return `원두 "${v.bean}" 가 원두 표에 없음`;
+      if (!v.bean) return "원두 없음";
+      /* ★ 2026-11-01 — 원두 이름은 줄여 적어도 (쇼콜라 → 블렌드 에스쇼콜라) · 현장번호 2801 / 전체번호 26102801 도 읽음 (Lee "이전 원두 한 번에") */
+      if (!DB.beans.some(b=>b.name===v.bean.trim())) { const hit = DB.beans.find(b=>beanNrm(b.name)===beanNrm(v.bean)) ? DB.beans.find(b=>beanNrm(b.name)===beanNrm(v.bean)).name : matchBean(v.bean);
+        if (hit) v.bean = hit; else return `원두 "${v.bean}" 가 원두 표에 없음`; }
+      { const raw = String(v.batch||"").replace(/[^\d]/g,"");
+        if (raw.length === 8) { v.roast_date = `20${raw.slice(0,2)}-${raw.slice(2,4)}-${raw.slice(4,6)}`; v.batch = String(Number(raw.slice(6))); }
+        else if (raw.length === 4 && !v.roast_date) { const d = Number(raw.slice(0,2)), t = new Date(today()); let y = t.getFullYear(), m = t.getMonth()+1;
+          if (d > t.getDate()) { m--; if (m < 1) { m = 12; y--; } }                       // 오늘보다 뒷날이면 지난달
+          v.roast_date = `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`; v.batch = String(Number(raw.slice(2))); }
+        else v.batch = raw; }
       if (!/^\d{4}-\d{2}-\d{2}$/.test(v.roast_date||"")) return "로스팅일 없음"; if (!(Number(v.batch) > 0)) return "배치 번호 없음"; if (!(Number(v.kg) > 0)) return "kg 없음";
       if (DB.mms.some(m=>m.bean===v.bean.trim() && m.roast_date===v.roast_date && Number(m.batch)===Number(v.batch))) return `${v.roast_date} ${v.batch}번 배치가 이미 있음`;
       if (all.some((o,j)=>j<i && o.bean.trim()===v.bean.trim() && o.roast_date===v.roast_date && Number(o.batch)===Number(v.batch))) return "위 줄과 중복";
