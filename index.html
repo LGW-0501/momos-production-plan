@@ -3912,7 +3912,9 @@ async function initDB(){
   setTimeout(()=>{ try { autoMergeMaterials().catch(e=>console.warn(e)); } catch(e){} }, 1200);
   setTimeout(()=>{ try { autoMergeProducts().catch(e=>console.warn(e)); } catch(e){} }, 1600);
   /* 라벨·풀패키지 코드를 완제품 CFE 코드에 맞춰 둔다 (관리자 계정일 때 · 조용히) */
-  setTimeout(()=>{ try { if (can("base")) { makeStdMaterials(); const np = syncAllPack(); if (np) renderBase(); } } catch(e){ console.warn(e); } }, 2600);
+  setTimeout(()=>{ try { if (can("base")) { makeStdMaterials();
+      DB.products.filter(p=>isCostcoProd(p) && p.pack_type !== PACK_FULL && !p.ica).forEach(p=>{ p.pack_type = PACK_FULL; p.label_id = null; save("products", p); if (p.id in planLabel) delete planLabel[p.id]; });
+      const np = syncAllPack(); if (np) renderBase(); } } catch(e){ console.warn(e); } }, 2600);
   setTimeout(()=>{ try { if (can("base")) { const r = syncMatCodes(); const c = offBeanCleanup({ quiet:true }); if (r.fixed || r.made || r.dropped || c.prods || c.mats) { logAudit("부자재 코드 자동 맞춤", `코드 ${r.fixed} · 풀패키지 ${r.made} · 라벨 뗌 ${r.dropped}`, ""); renderBase(); } } } catch(e){ console.warn(e); } }, 2200);
 }
 
@@ -4256,13 +4258,10 @@ async function deleteRejected(id){
   const what = split
     ? `부분 반려분이라 생산 기록은 원래 건과 하나입니다.\n→ 이 ${fmt(n)}개만 완제품 재고에서 빼고 끝냅니다 (원두 재고는 그대로).`
     : `→ 생산실적을 취소하고 원두·부자재·완제품 재고를 되돌립니다 (기록은 취소분개로 남음).\n→ 작업지시는 폐기가 아니라 [대기]로 돌아가 다시 생산할 수 있습니다.`;
-  if (!(await ask(`${nm} ${fmt(n)}개 · 일련번호 ${o.serial||"—"} · 배치 ${o.batch_plan||"—"}\n반려 사유: ${q.reason||"—"}\n\n${what}\n\n이 반려 건을 삭제하시겠습니까?`, { title:"반려 건 삭제 — 관리자", yes:"삭제 진행", danger:true }))) return;
-  const t = await askText(`되돌릴 수 없습니다. 확인을 위해 "삭제" 라고 적어 주세요.`, "", "삭제 확인");
-  if (t === null) return;
-  if (String(t).trim() !== "삭제") return toast("삭제하지 않았습니다");
-  const why = await askText("삭제 사유 (이력에 남습니다)", "", "삭제 사유");
+  if (!(await ask(`${nm} ${fmt(n)}개 · 일련번호 ${o.serial||"—"} · 배치 ${o.batch_plan||"—"}\n반려 사유: ${q.reason||"—"}\n\n${what}\n\n이력(생산 → 반려 → 다시 생산)은 그대로 남고, 오늘 현장 작업에 생산 시작 카드로 다시 나옵니다.\n진행할까요?`, { title:"처음부터 다시 생산 — 관리자", yes:"진행", danger:true }))) return;
+  const why = await askText("다시 생산하는 이유 (이력에 남습니다)", "", "처음부터 다시 생산");
   if (why === null) return;
-  const reason = String(why).trim(); if (!reason) return toast("삭제 사유를 적어 주세요");
+  const reason = String(why).trim(); if (!reason) return toast("이유를 적어 주세요");
   const busy = setBusy("삭제 처리 중…");
   const r = split
     ? await mesCloseRejected({ order_id:id, action:"scrap", note:`[삭제] ${reason}`, idem:`drj-${id}-${uid()}` })
@@ -4271,7 +4270,7 @@ async function deleteRejected(id){
   if (!r || r.ok === false) { quickRender(); return ask(`${r?.message||"지우지 못했습니다"}${/delete_rejected|schema cache/i.test(r?.message||"") ? "\n\n서버에 047_delete_rejected.sql 을 아직 실행하지 않았습니다." : ""}\n\n재고와 기록은 그대로입니다.`, { title:"삭제하지 못했습니다", yes:"확인", only:true }); }
   logAudit("반려 건 삭제", o.order_no||"", `${nm} ${fmt(n)}개 · 일련번호 ${o.serial||"—"} · 배치 ${o.batch_plan||"—"} · 반려 사유 ${q.reason||"—"} · ${split?"부분 반려분 — 완제품 재고에서 뺌":`생산실적 취소 · 원두 ${fmt(r.returned_kg||0)}kg 되돌림`} · 삭제 사유: ${reason}`);
   if (sb) { await Promise.all([ pullWhere("products","id",o.product_id), pullWhere("logs","order_id",o.split_from||o.id) ]).catch(()=>{}); }
-  quickRender(); toast(split ? `반려 건을 삭제했습니다 — ${nm} ${fmt(n)}개` : `반려 건을 삭제했습니다 — ${nm} 은(는) [대기]로 돌아가 다시 생산할 수 있습니다`);
+  quickRender(); toast(split ? `반려분 정리 — ${nm} ${fmt(n)}개` : `${nm} — 생산실적 취소 · 오늘 현장 작업에 [생산 시작] 카드로 다시 나옵니다 (이력 유지)`);
 }
 const FIX_ACTIONS = [ "재포장", "재실링", "라벨 교체", "제조일자·일련번호 수정", "이물 제거 후 재포장", "중량 재조정", "이상 없음 — 재확인만", "원두로 되돌려 다른 배치와 합침", "폐기", "기타 직접 입력" ];
 /* ── 현장 작업자용 반려 처리 — 버튼 둘 (Lee 2026-10-29) ──
@@ -6792,6 +6791,11 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "출고 취소 — 사유 비우면 막히던 오류", "출고취소 때 사유를 비우면 서버가 거절(shipments_cancel_reason_req)하던 것 → 비우면 \"사유 미기재 (누가 출고 취소)\" 로 남기고 취소됨"],
+  ["2026-11-02", "잔량 원두 → 다음 배치로 이월 (kg 반영 · 이력)", "생산 완료 창에 잔량 원두가 있으면 [다음 배치로 이월] (같은 원두 다음 지시가 쓸 배치를 자동으로 고름 · 바꾸거나 이월 안 함 가능) → 보낸 배치 −kg · 받은 배치 +kg (예 59.5 + 2 = 61.5) · 배치 조정 이력에 잔량 이월(출)/(입) 두 줄 (어느 배치 → 어느 배치 · kg · 일련번호) · 현장 카드 배치 무게에 + 이월 kg (← 보낸 배치) — 서버 070 SQL 필요"],
+  ["2026-11-02", "반려 → 현장작업 카드로 · 하나의 작업 이력", "검수에서 반려하면 따로 된 표가 아니라 현장작업 카드 그대로 맨 위 [반려 — 현장 재작업] 칸에 (반려 수량 · 사유 · 검수자 · 반려 횟수) · 카드의 [재작업 완료 → 다시 검수로] · [작업 이력] 으로 생산 시작 → 생산 완료 → 반려 → 재작업 → 재검수 → 검수 완료를 한 줄로 · 관리자 [삭제] → [처음부터 다시 생산]: 이력은 남기고 오늘 칸에 생산 시작 카드로 다시 나옴 (전에는 원래 날짜에 묶여 안 보였음)"],
+  ["2026-11-02", "코스트코 하우스 블렌드 = 풀패키지 (라벨 없음)", "이름에 코스트코가 들어간 품목은 풀패키지로 고정 — 라벨 수량·모자람 표시 안 함 · 봉투 LOT 은 공용봉투 1kg(B295) 이 아니라 코스트코 풀패키지 봉투의 LOT · 기준정보 품목도 풀패키지로 저장하고 BOM 을 맞춤"],
+  ["2026-11-02", "출고처 수량 나누기 · 전량 출고 · LOT 표시", "검수 카드: 출고처를 고르면 전량, 수량을 줄이면 나머지는 일반(온라인) (예 281개 중 온라인 외 발주 15개 태경아이앤티 → 온라인 266개) · 여러 출고처 가능 · 출고 화면: 나눈 수량대로 각 출고처에 · 부분 출고 표시 후 마지막에 재고 차감 · [전량 출고] · [이 출고처 전량 출고] · LOT 가 하나면 번호만 (B295 49 → B295) — 서버 069 SQL 필요"],
   ["2026-11-01", "검수 카드 — 출고처 · 비고", "생산완료/실제 확인수량 옆 빈칸에 출고처 버튼(일반(온라인) · 컬리 · 네이버 · 라이브 · 온라인 외 발주) · 온라인 외 발주를 고르면 비고(거래처·발주 내용) 칸 · 코스트코 하우스 블렌드는 코스트코로 자동 고정 · 출고 화면도 이 출고처로 모이고 비고가 같이 보임 — 서버 068 SQL 필요"],
   ["2026-11-01", "검수 — [검수 대기] / [오늘 생산 계획] 따로 보기 · 먼저 완료된 지시 안내", "검수 화면 위에 두 버튼으로 나눠 봄 · 검수에서 먼저 생산 완료(예 115개)한 지시를 현장에서 다시 완료(116개)하려 하면 막고 \"이미 OOO 님이 115개로 완료 · +1 다름 · 검수의 실제 확인수량에 116 을 넣으면 실적·재고가 고쳐짐\" 안내 (재고는 두 번 잡히지 않음)"],
   ["2026-11-01", "검수 화면 — 오늘 생산 계획 전부", "검수 맨 위 칸에 생산 중인 지시만 나오던 것 → 오늘(과 밀린) 생산 계획 전부(생산 중 먼저, 그다음 대기) · 상태·시작 전 표시 · 대기 건도 [생산 완료] 로 바로 수량 넣고 검수로"],
@@ -6880,7 +6884,7 @@ const CHANGELOG = [
   ["2026-10-28", "로스관리", "기준 로스율 · 허용 오차(기본·설비별·품목별) 설정 · 생산 건별 로스(사슬 묶음·판정·사유) · 품목·설비별 평균 로스율·편차 · 생산실적 [로스] 버튼으로 다시 적기"],
   ["2026-10-28", "계정 메뉴 › 사용 설명서", "그림으로 된 사용 설명서(manual.html) — 로그인부터 마감까지 화면별 따라 하기 · 자주 묻는 질문 · 관리자 부록"],
   ["2026-10-28", "문의 · 마감 체크 · 라벨 안 함", "현장 작업자·검수 계정으로도 서버에 저장되게 (039 SQL — 전에는 그 기기에만 남고 \"저장 실패 — 서버 연결 확인\" 만 떴음) · 저장이 안 되면 이유를 그대로 보여 줌"],
-  ["2026-10-28", "현장 작업 › 반려 카드", "[조치 완료 → 다시 검수로] — 반려된 건을 손본 뒤 실적 그대로 검수 대기로 되돌림 (038 SQL) · 검수에게 재검수 알림"],
+  ["2026-10-28", "현장 작업 › 반려 카드", "[재작업 완료 → 다시 검수로] — 반려된 건을 손본 뒤 실적 그대로 검수 대기로 되돌림 (038 SQL) · 검수에게 재검수 알림"],
   ["2026-10-28", "기준정보 › 부자재 LOT (새 탭)", "봉투뿐 아니라 모든 부자재를 박스(LOT) 단위로 — 입고 시 LOT 입력(저장 확인창), 선입선출 잔량·사용 중/대기/다 씀, [이력]으로 어느 생산(일련번호)에 몇 장 쓰였는지, 이력추적에서 LOT 검색, 엑셀 다운로드"],
   ["2026-10-28", "로스율", "생산계획 상단 [로스율 기본 %] + 기준정보 › 품목 표 [로스율 %] 칸 — 필요원두 = 표준투입 × (1+로스율). 계획·배치 나누기·생산 완료 차감·수기 실적·로스팅 필요량 전부 반영"],
   ["2026-10-28", "기준정보 › 품목·원두·부자재·MMS 배치·기계·생산자", "[일괄 입력] — 표에 여러 줄 적고 [저장] → \"N건 저장하시겠습니까?\" → 줄마다 성공/실패와 사유(중복·빈칸·권한·서버 오류) · +1/+5/+10행 · 실패한 줄은 남아서 고쳐 다시 저장"],
@@ -9772,7 +9776,9 @@ const josaRo = w => { const t = String(w||""); if (!t) return "로";
 const PACK_FULL  = "풀패키지";
 const PACK_LABEL = "라벨 부착";
 let planLabel = {};          // 품목id → 라벨id ("" = 풀패키지)
-const isFullPack = p => (p?.pack_type || PACK_LABEL) === PACK_FULL;
+/* ★ 2026-11-02 코스트코 하우스 블렌드(이름에 코스트코)는 풀패키지 — 라벨 없음 (Lee "하우스 블렌드는 풀패키지인데 라벨은 필요 없는데?") */
+function isCostcoProd(p){ return /코스트코/.test(String(p?.name||"")); }
+const isFullPack = p => (p?.pack_type || PACK_LABEL) === PACK_FULL || isCostcoProd(p);
 /* 그 품목이 지금 쓰기로 돼 있는 라벨 ("" 면 풀패키지) */
 const labelPick = p => {
   if (!p) return "";
@@ -9782,7 +9788,7 @@ const labelPick = p => {
 };
 const labelOf   = (p, lid) => { const M = labelById(lid !== undefined && lid !== null ? lid : labelPick(p));
   return isLabelMat(M) ? M : null; };
-const ordLabel  = o => (o && o.label_id !== undefined && o.label_id !== null)
+const ordLabel  = o => isFullPack(prodById(o?.product_id)) ? "" : (o && o.label_id !== undefined && o.label_id !== null)
   ? o.label_id : labelPick(prodById(o?.product_id));
 /* 라벨도 안 고르고 풀패키지도 아니면 "아직 안 정함" — 실수를 잡아내기 위해 구분한다 */
 const packState = (p, lid) => {
@@ -10427,7 +10433,9 @@ const OLOT_PFX = "olot.";
 const ordLotRec = o => { const v = o && SETTINGS[OLOT_PFX + o.id]; return (v && typeof v === "object" && Array.isArray(v.rows)) ? v : null; };
 const ordLotRows = o => (ordLotRec(o)?.rows || []).filter(r=>r && String(r.lot||"").trim());
 const ordLotUsed = o => !!o && (!!o.log_id || ["생산완료","검수완료","출고완료"].includes(o.status));
-const lotRowsText = rows => rows.map(r=>`${r.lot}${Number(r.qty)>0?` ${fmt(r.qty)}`:""}`).join(" · ");
+/* LOT 하나면 번호만 (B295) · 여러 개면 LOT별 수량 (A100 150개 · B200 250개) — 숫자가 LOT 번호에 붙어 보이지 않게 */
+const lotRowsText = rows => rows.length === 1 ? String(rows[0].lot) : rows.map(r=>`${r.lot}${Number(r.qty)>0?` ${fmt(r.qty)}개`:""}`).join(" · ");
+const lotRowsFull = rows => rows.map(r=>`${r.lot}${Number(r.qty)>0?` ${fmt(r.qty)}개`:""}`).join(" · ");
 /* 이 자재를 쓰는 지시들의 LOT 행 — used: 이미 쓴 것 / plan: 예정 */
 function ordLotMap(mid){
   const used = {}, plan = {}, uses = [];
@@ -10574,11 +10582,11 @@ async function openOrderLots(id, opt={}){
       if (rec0 && !lines.length) return done({ rows:before, same:true });
       const note = String($("olNote").value||"").trim();
       const hist = [...(rec0?.hist || []), { at:nowISO(), by:CURRENT_USER||"", act: rec0 ? (ordLotUsed(o) ? "생산 후 LOT 수정" : o.status==="생산중" ? "생산 중 LOT 변경" : "LOT 수정") : "LOT 지정",
-        lines, before: lotRowsText(before), after: lotRowsText(after), note }].slice(-40);
+        lines, before: lotRowsFull(before), after: lotRowsFull(after), note }].slice(-40);
       const rec = { mid:M.id, rows:after, at: rec0?.at || nowISO(), hist };
       $("olOk").disabled = true;
       await saveOrdLot(o, rec);
-      logAudit("봉투 LOT 변경", M.name, `${o.serial||o.order_no||""} ${p?.name||""} · ${lotRowsText(before)||"(없음)"} → ${lotRowsText(after)}${lines.length?` (${lines.join(", ")})`:""}${note?` · ${note}`:""}`);
+      logAudit("봉투 LOT 변경", M.name, `${o.serial||o.order_no||""} ${p?.name||""} · ${lotRowsFull(before)||"(없음)"} → ${lotRowsFull(after)}${lines.length?` (${lines.join(", ")})`:""}${note?` · ${note}`:""}`);
       renderWork(); try { renderLots(); } catch(_){}
       toast(`봉투 LOT — ${lotRowsText(after)}`);
       done({ rows:after });
@@ -10605,7 +10613,7 @@ async function ordLotOnFinish(o, n){
   after = after.filter(r=>r.lot).map(r=>({ lot:r.lot, qty:Math.round(Number(r.qty)||0), at:r.at||nowISO(), by:r.by||CURRENT_USER||"" }));
   if (!after.length) return;
   const before = rec0 ? ordLotRows(o) : [];
-  const hist = [...(rec0?.hist || []), { at:nowISO(), by:CURRENT_USER||"", act, lines:ordLotDiff(before, after), before:lotRowsText(before), after:lotRowsText(after) }].slice(-40);
+  const hist = [...(rec0?.hist || []), { at:nowISO(), by:CURRENT_USER||"", act, lines:ordLotDiff(before, after), before:lotRowsFull(before), after:lotRowsFull(after) }].slice(-40);
   await saveOrdLot(o, { mid:M.id, rows:after, at: rec0?.at || nowISO(), hist });
 }
 /* 부자재 폐기 — 손실로 따로 남긴다 */
@@ -12700,17 +12708,21 @@ function qcNextStep(o){
   if (!s.rejected) return null;
   return s.hasLog
     ? { label:"검수 반려 — 조치 후 다시 올리세요",
-        note:"생산실적은 이미 등록돼 있습니다. 손본 뒤 [조치 완료 → 다시 검수로]를 누르면 검수 대기로 올라갑니다 · 수량·품목이 틀렸다면 관리자가 생산실적에서 정정·취소합니다." }
+        note:"생산실적은 이미 등록돼 있습니다. 손본 뒤 [재작업 완료 → 다시 검수로]를 누르면 검수 대기로 올라갑니다 · 수량·품목이 틀렸다면 관리자가 생산실적에서 정정·취소합니다." }
     : { label:"검수 반려 — 확인 필요",
         note:"조치 후 작업을 완료하면 다시 검수로 올라갑니다." };
 }
 /* 반려 → 조치 → 재검수 를 시간순 한 줄씩 (두 이력을 덮어쓰지 않고 이어 붙입니다) */
+/* ★ 2026-11-02 하나의 작업 이력 — 생산 시작 → 생산 완료 → 검수 반려 → 현장 재작업 → 재검수 → 검수 완료 → 출고 (부분 반려분은 원래 건 이력부터) */
+const EV_LABEL = { create:["지시","작업지시 생성"], start:["현장","생산 시작"], finish:["현장","생산 완료"], done:["현장","생산 완료"], stop:["현장","대기로 되돌림"],
+  qc_reject:["검수","반려 → 현장 재작업"], qc_resubmit:["현장","재작업 완료 → 다시 검수로"], qc_pass:["검수","검수 완료"], qc_close:["현장","반려 건 종결"],
+  qc_delete:["관리자","반려 건 → 처음부터 다시 생산 (실적 취소 · 재고 되돌림)"], ship:["출고","출고 완료"], unship:["출고","출고 취소"], ship_reject_split:["출고","출고 반려"], log_void:["관리자","생산실적 취소"] };
 function qcHistory(orderId){
-  const a = DB.order_events.filter(e => e.order_id === orderId
-      && ["qc_reject","qc_resubmit","qc_pass"].includes(e.event))
-      .map(e => ({ at:e.at, kind:e.event === "qc_resubmit" ? "조치" : "검수",
-        what:e.event === "qc_reject" ? "반려" : e.event === "qc_resubmit" ? "조치 완료 → 다시 검수로" : "검수완료",
-        note:e.note || "", who:e.user_name || "" }));
+  const o = ordById(orderId);
+  const ids = [orderId]; if (o && o.split_from) ids.unshift(o.split_from);
+  const cut = o && o.split_from ? String(o.created_at || "") : "";
+  const a = DB.order_events.filter(e => ids.includes(e.order_id) && EV_LABEL[e.event] && (e.order_id === orderId || !cut || String(e.at) <= cut))
+      .map(e => ({ at:e.at, kind:EV_LABEL[e.event][0], what:EV_LABEL[e.event][1] + (e.order_id !== orderId ? " (원래 건)" : ""), note:e.note || "", who:e.user_name || "" }));
   const b = DB.qc_rejections.filter(r => r.order_id === orderId)
       .map(r => ({ at:r.created_at, kind: r.stage==="ship" ? "출고 반려기록" : "반려기록",
         what:`${fmt(r.qty_affected||0)} EA`, note:(r.reason_note || "") + (r.handling_note ? ` → 조치: ${r.handling_note}` : "") + (r.merged_batch ? ` (취합 배치 ${r.merged_batch})` : ""), who:r.created_by_name || "" }));
@@ -17472,6 +17484,33 @@ function beanAlloc(o, p, kg){
     left = Math.round((left - take)*1000)/1000; rows.push({ m, before:have, take:Math.round(take*1000)/1000, after:Math.round((have-take)*1000)/1000, first:first.has(m.id) }); }
   return { rows, short: Math.max(0, left) };
 }
+/* ★ 2026-11-02 잔량 원두 이월 (Lee "다음 배치 59.5 + 이전 배치 잔량 2 → 61.5 · 어느 배치에서 몇 kg 넘어왔는지 이력")
+   받을 배치 = 같은 원두의 다음 지시(대기·생산중)가 쓸 배치 → 없으면 남은 배치 중 가장 오래된 것 */
+function nextBatchFor(o, p, fromId){
+  const ords = DB.orders.filter(x=>x.id!==o.id && ["대기","생산중"].includes(x.status) && prodById(x.product_id)?.bean===p.bean)
+    .sort((a,b)=>String(a.work_date).localeCompare(String(b.work_date)) || (Number(a.priority)||0)-(Number(b.priority)||0));
+  for (const x of ords) { const fulls = batchParts(x.batch_plan).map(y=>y.full).filter(Boolean);
+    const m = DB.mms.find(m=>m.bean===p.bean && m.id!==fromId && !isHeld(m) && fulls.includes(batchFull(m))); if (m) return m; }
+  return freeBatches(p.bean).find(m=>m.id!==fromId) || null;
+}
+const carryIn  = m => DB.adjust.filter(a=>a.ref_id===m.id && a.kind==="잔량 이월(입)");
+const carryOut = m => DB.adjust.filter(a=>a.ref_id===m.id && a.kind==="잔량 이월(출)");
+async function carryBatchKg(fromId, toId, kg, ref){
+  const A = DB.mms.find(m=>m.id===fromId), B = DB.mms.find(m=>m.id===toId);
+  if (!A || !B || !(kg > 0.0005)) return { ok:true, kg:0 };
+  const idem = `carry-${fromId}-${toId}-${ref||""}-${Math.round(kg*1000)}`;
+  const r = await rpc("carry_batch_kg", { p_from:fromId, p_to:toId, p_kg:Math.round(kg*1000)/1000, p_ref:ref||null, p_user_name:CURRENT_USER, p_idempotency:idem }, () => {
+    const v = Math.round(Math.min(kg, Number(A.stock_kg||0))*1000)/1000; if (!(v > 0)) return { ok:true, kg:0 };
+    const row = (m, kind, before, after, note) => { const x = { id:uid(), kind, ref_id:m.id, bean:m.bean, batch_full:batchFull(m), roast_date:m.roast_date, batch:m.batch, adj_date:today(), before, after, delta:Math.round((after-before)*1000)/1000, note, user:CURRENT_USER, at:nowISO() }; DB.adjust.push(x); save("adjust", x); };
+    const a0 = Number(A.stock_kg||0), b0 = Number(B.stock_kg||0);
+    A.stock_kg = Math.round((a0 - v)*1000)/1000; B.stock_kg = Math.round((b0 + v)*1000)/1000; save("mms", A); save("mms", B);
+    row(A, "잔량 이월(출)", a0, A.stock_kg, `→ ${batchFull(B)} 배치로 이월${ref?` · ${ref}`:""}`);
+    row(B, "잔량 이월(입)", b0, B.stock_kg, `← ${batchFull(A)} 배치에서 이월${ref?` · ${ref}`:""}`);
+    return { ok:true, kg:v, from_after:A.stock_kg, to_after:B.stock_kg };
+  }, { quiet:true });
+  if (r && r.ok && sb) { try { await Promise.all([pullWhere("mms","id",fromId), pullWhere("mms","id",toId), pullWhere("adjust","ref_id",toId), pullWhere("adjust","ref_id",fromId)]); } catch(_){} }
+  return r;
+}
 function finishDialog(o, p, ctx){
   return new Promise(res=>{
     const plan = ctx.plan, esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -17515,6 +17554,7 @@ function finishDialog(o, p, ctx){
           <span class="hint" style="padding:0" id="finLeftHint"></span>
         </div>
         <div id="finBagInfo" style="margin-top:8px;padding:8px 10px;border-radius:8px;background:#F4F6FB;font-size:13px;line-height:1.7"></div>
+        <div id="finCarry" style="display:none;margin-top:8px;padding:8px 10px;border-radius:8px;background:#EAF7EF;font-size:13px;line-height:1.7"></div>
         <div id="finWarn" style="margin-top:12px;color:var(--bad,#c0392b);font-size:13px;white-space:pre-line"></div>
       </div>
       <div style="padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;flex:0 0 auto;border-top:1px solid var(--line);background:var(--paper)">
@@ -17563,6 +17603,26 @@ function finishDialog(o, p, ctx){
       const BI = ov.querySelector("#finBagInfo");
       if (BI) BI.innerHTML = `이 생산에 <b>${fmt(use)}kg</b> 씀 <span style="color:var(--soft)">${manual ? `(손으로 고침 · 표준 ${fmt(stdKg(p, g))}kg · 로스 ${fmt(Math.round((use-stdKg(p, g))*1000)/1000)}kg)` : `(자동 · 표준 ${fmt(stdKg(p, g))}kg + 로스율 ${lossPctOf(p)}%)`}</span><br>` +
         AL.rows.map(x=>`<b>${batchShort(x.m)}</b> ${fmt(x.before)}kg − ${fmt(x.take)}kg → 잔량 원두 <b style="color:${x.after>0.0005?"var(--ok)":"var(--soft)"}">${fmt(x.after)}kg</b>${x.first?' <span class="hint" style="padding:0">(지시 배치)</span>':""}`).join("<br>");
+      /* 잔량 원두 → 다음 배치로 이월 */
+      const CR = ov.querySelector("#finCarry"), lr = AL.rows[AL.rows.length-1];
+      const lk = lr ? lr.after : 0;
+      if (CR) {
+        if (!lr || !(lk > 0.0005)) { CR.style.display = "none"; ctx._carry = null; }
+        else {
+          const cands = DB.mms.filter(m=>m.bean===p.bean && m.id!==lr.m.id && !isHeld(m) && !AL.rows.some(x=>x.m.id===m.id && x.after <= 0.0005));
+          const nb = nextBatchFor(o, p, lr.m.id);
+          const cur = ctx._carryPick !== undefined ? ctx._carryPick : (nb ? nb.id : "");
+          const list = sortBatches(cands); if (nb && !list.some(m=>m.id===nb.id)) list.unshift(nb);
+          const tgt = list.find(m=>m.id===cur);
+          ctx._carry = tgt ? { from:lr.m.id, to:tgt.id, kg:lk } : null;
+          CR.style.display = "";
+          CR.innerHTML = `잔량 원두 <b>${fmt(lk)}kg</b> (${batchShort(lr.m)}) →
+            <select id="finCarrySel" style="height:34px;font-weight:700;max-width:100%">${list.map(m=>`<option value="${m.id}" ${m.id===cur?"selected":""}>${batchShort(m)} 배치로 이월 (${fmt(m.stock_kg)} → ${fmt(Math.round((Number(m.stock_kg||0)+lk)*1000)/1000)}kg)${nb&&m.id===nb.id?" · 다음 배치":""}</option>`).join("")}
+              <option value="" ${!cur?"selected":""}>이월 안 함 — ${batchShort(lr.m)} 에 그대로</option></select>
+            ${tgt ? `<br><b>${batchShort(tgt)}</b> 사용 가능 ${fmt(tgt.stock_kg)}kg + 이월 ${fmt(lk)}kg = <b>${fmt(Math.round((Number(tgt.stock_kg||0)+lk)*1000)/1000)}kg</b>` : ""}`;
+          const SEL = CR.querySelector("#finCarrySel"); if (SEL) SEL.onchange = () => { ctx._carryPick = SEL.value; sync(); };
+        }
+      }
     };
     ov.querySelectorAll("[data-g]").forEach(b=>b.onclick=()=>{ G.value = Math.max(0, num(G) + Number(b.dataset.g)); sync(); });
     ov.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{ N.value = Math.max(0, num(N) + Number(b.dataset.n)); sync(); });
@@ -17580,7 +17640,7 @@ function finishDialog(o, p, ctx){
       const good = num(G), ng = num(N);
       if (good <= 0) { W.textContent = "정상품 수량을 넣어 주세요"; G.focus(); return; }
       const left = 0; if (manual && ctx._use != null) ctx.manualInput = ctx._use;
-      done({ good, ng, ngType: ng > 0 ? T.value : null, leftover: left, inputKg: manual ? ctx._use : null, who: ov.querySelector("#finWho")?.value || ctx.worker0 || "" });
+      done({ good, ng, ngType: ng > 0 ? T.value : null, leftover: left, inputKg: manual ? ctx._use : null, who: ov.querySelector("#finWho")?.value || ctx.worker0 || "", carry: ctx._carry || null });
     };
   });
 }
@@ -17683,6 +17743,12 @@ async function finishWork(id){
                { title:"완료하지 못했습니다", yes:"확인", only:true });
   }
   if (!sb) DB.order_workers.filter(w=>w.order_id===o.id && !w.out_at).forEach(w=>{ w.out_at = nowISO(); save("order_workers", w); });
+  /* ★ 잔량 원두 → 다음 배치로 이월 (배치 kg 를 실제로 옮기고 이력 두 줄) */
+  if (!r.replayed && F.carry && F.carry.to) {
+    const cr = await carryBatchKg(F.carry.from, F.carry.to, F.carry.kg, r.serial || o.serial || "");
+    if (!cr || cr.ok === false) toast(`잔량 이월을 못 했습니다 — ${cr?.message || ""} (070 SQL 실행했는지) · 원두는 원래 배치에 그대로 있습니다`);
+    else if (cr.kg > 0) toast(`잔량 원두 ${fmt(cr.kg)}kg → ${batchShort(DB.mms.find(m=>m.id===F.carry.to)||{})} 로 이월 (사용 가능 ${fmt(cr.to_after ?? 0)}kg)`);
+  }
   /* ★ 봉투 LOT별 사용수량 — 행이 없으면 선입선출로 나눠 남기고, 있으면 완료 수량(정상+버림)에 맞춘다 */
   if (!r.replayed) ordLotOnFinish(ordById(o.id) || o, good + (ng||0)).catch(()=>{});
   /* 로스 기록 — 재고와는 별개. 기다리지 않고 뒤에서 보낸다 */
@@ -17902,24 +17968,60 @@ function ordNeedSplit(o){
 }
 const CH_STYLE = { "컬리":"background:#5F0080;color:#fff", "네이버":"background:#03C75A;color:#fff", "코스트코":"background:#E31837;color:#fff", "라이브":"background:#FF7A00;color:#fff", "온라인 외":"background:#475467;color:#fff" };
 /* ★ 2026-11-01 출고처 — 코스트코 하우스 블렌드(이름에 코스트코)는 무조건 코스트코 · 나머지는 지시의 채널 */
-const isCostcoProd = p => /코스트코/.test(String(p?.name||""));
 const ordShipCh = o => { const p = prodById(o?.product_id); return isCostcoProd(p) ? "코스트코" : (o?.channel || p?.channel || "일반"); };
 const chName = c => c === "온라인 외" ? "온라인 외 발주" : c === "일반" ? "일반(온라인)" : c;
-async function setOrdShip(id, ch, note){
+/* ★ 2026-11-02 출고처 수량 나누기 (Lee "281개 중 15개만 태경이고 나머지는 온라인") — o.ship_split = [{ch, qty, note, shipped_at, shipped_by}] · 적은 것 외 나머지는 일반(온라인) */
+const shipQtyOf = o => Math.round(Number(o?.qty_done)||0);
+function shipSplitOf(o){            // 손으로 정한 나눔 (일반 제외) — 없으면 지시 채널로 전량
+  const sp = Array.isArray(o?.ship_split) ? o.ship_split : null;
+  if (sp) return sp.filter(x=>x && x.ch && x.ch !== "일반").map(x=>({ ...x, qty:Math.max(0, Math.round(Number(x.qty)||0)) }));
+  return (o?.channel && o.channel !== "일반") ? [{ ch:o.channel, qty:shipQtyOf(o), note:o.ship_note||"" }] : [];
+}
+function shipParts(o){
+  const p = prodById(o.product_id), n = shipQtyOf(o), sp = Array.isArray(o.ship_split) ? o.ship_split : [];
+  const flag = ch => sp.find(x=>x && x.ch===ch) || {};
+  if (isCostcoProd(p)) return [{ ch:"코스트코", qty:n, note:o.ship_note||"", shipped_at:flag("코스트코").shipped_at, shipped_by:flag("코스트코").shipped_by }];
+  const parts = shipSplitOf(o).filter(x=>x.qty > 0);
+  const used = parts.reduce((t,x)=>t+x.qty,0);
+  if (n - used > 0 || !parts.length) parts.push({ ch:"일반", qty:Math.max(0, n-used), note:"", rest:true, shipped_at:flag("일반").shipped_at, shipped_by:flag("일반").shipped_by });
+  return parts;
+}
+async function saveShipSplit(o, list){
+  const n = shipQtyOf(o) || Math.round(Number(o.qty_plan)||0);
+  const parts = list.filter(x=>x.ch && x.ch !== "일반").map(x=>({ ch:x.ch, qty:Math.max(0, Math.round(Number(x.qty)||0)), note:String(x.note||"").trim(), ...(x.shipped_at?{ shipped_at:x.shipped_at, shipped_by:x.shipped_by }:{}) }));
+  const g = list.find(x=>x.ch === "일반"); if (g && g.shipped_at) parts.push({ ch:"일반", qty:0, shipped_at:g.shipped_at, shipped_by:g.shipped_by });
+  const used = parts.filter(x=>x.ch!=="일반").reduce((t,x)=>t+x.qty,0);
+  if (used > n) { toast(`나눈 수량 합계 ${fmt(used)}개가 생산 ${fmt(n)}개보다 많습니다`); renderQc(); return { ok:false }; }
+  const all = [...parts.filter(x=>x.ch!=="일반"), ...(n-used > 0 ? [{ ch:"일반", qty:n-used }] : [])].sort((a,b)=>b.qty-a.qty);
+  const ch = all[0]?.ch || "일반";
+  const note = parts.filter(x=>x.ch!=="일반" && x.qty>0).map(x=>`${chName(x.ch)} ${fmt(x.qty)}${x.note?` ${x.note}`:""}`).join(" · ");
+  const split = parts.length ? parts : [];
+  const r = await rpc("set_order_ship", { p_order_id:o.id, p_channel:ch, p_ship_note:note, p_user_name:CURRENT_USER, p_split:split },
+    () => { o.channel = ch; o.ship_note = note; o.ship_split = split.length ? split : null; save("orders", o); return { ok:true }; });
+  if (!r || !r.ok) { toast(r?.message || "출고처를 저장하지 못했습니다 (069 SQL 실행했는지)"); return r || { ok:false }; }
+  o.channel = ch; o.ship_note = note; o.ship_split = split.length ? split : null;
+  renderQc(); try { renderShip(); } catch(_){}
+  return r;
+}
+async function shipChToggle(id, c){
   if (!(await requireUser())) return;
   const o = ordById(id); if (!o) return;
-  const p = prodById(o.product_id);
-  if (isCostcoProd(p) && ch !== "코스트코") return toast("코스트코 하우스 블렌드는 코스트코로만 나갑니다");
-  const nt = ch === "온라인 외" ? String(note ?? o.ship_note ?? "").trim() : "";
-  if (o.channel === ch && String(o.ship_note||"") === nt) return;
-  const r = await rpc("set_order_ship", { p_order_id:id, p_channel:ch, p_ship_note:nt, p_user_name:CURRENT_USER },
-    () => { o.channel = ch; o.ship_note = nt; save("orders", o); return { ok:true }; });
-  if (!r || !r.ok) return toast(r?.message || "출고처를 저장하지 못했습니다 (068 SQL 실행했는지)");
-  o.channel = ch; o.ship_note = nt;
-  if (sb) logAudit("출고처 변경", o.serial||o.order_no||"", `${p?.name||""} → ${chName(ch)}${nt?` (${nt})`:""}`);
-  renderQc(); try { renderShip(); } catch(_){}
-  if (ch === "온라인 외" && !nt) setTimeout(()=>$(`qcn-${id}`)?.focus(), 30);
+  const n = shipQtyOf(o) || Math.round(Number(o.qty_plan)||0);
+  let sp = shipSplitOf(o);
+  if (c === "일반") sp = [];
+  else if (sp.some(x=>x.ch===c)) sp = sp.filter(x=>x.ch!==c);
+  else sp.push({ ch:c, qty:Math.max(0, n - sp.reduce((t,x)=>t+x.qty,0)), note:"" });   // 처음 고르면 전량 · 다음 것은 남은 만큼
+  await saveShipSplit(o, sp);
+  if (c === "온라인 외" && sp.some(x=>x.ch===c)) setTimeout(()=>$(`qcn-${id}-${c}`)?.focus(), 30);
 }
+async function shipChSet(id, c, k, v){
+  if (!(await requireUser())) return;
+  const o = ordById(id); if (!o) return;
+  const sp = shipSplitOf(o); const x = sp.find(y=>y.ch===c); if (!x) return;
+  x[k] = k === "qty" ? Math.max(0, Math.round(numOf(v))) : String(v||"").trim();
+  await saveShipSplit(o, sp);
+}
+async function setOrdShip(id, ch, note){ const o = ordById(id); if (!o) return; return ch === "일반" ? shipChToggle(id, "일반") : saveShipSplit(o, [{ ch, qty:shipQtyOf(o), note:note||"" }]); }
 const chChip = ch => CH_STYLE[ch] ? `<span style="${CH_STYLE[ch]};font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">${ch}</span>` : `${ch||"일반"}`;
 async function joinWork(id, quiet){
   if (!(await requireUser())) return;
@@ -18072,11 +18174,11 @@ async function fixBatch(consId){
 async function showQcHistory(id){
   const o = ordById(id); if (!o) return;
   const rows = qcHistory(id);
-  if (!rows.length) return toast("검수 이력이 없습니다");
+  if (!rows.length) return toast("이력이 없습니다");
   const txt = rows.map(r =>
     `${dtFull(r.at)}  ${r.kind}  ${r.what}` +
     (r.note ? `\n    ${r.note}` : "") + (r.who ? `  (${r.who})` : "")).join("\n");
-  await ask(txt, { title:`${o.product_name||""} 검수 이력`, yes:"닫기" });
+  await ask(txt, { title:`${o.product_name||""} · ${o.serial||""} 작업 이력 (생산 → 반려 → 재작업 → 재검수)`, yes:"닫기" });
 }
 async function qcReject(id){
   if (!(await requireUser())) return;
@@ -18111,18 +18213,59 @@ async function shipDone(id){
   if (!(await requireUser())) return;
   const o = ordById(id); if(!o) return;
   const p = prodById(o.product_id); if(!p) return;
-  if (!(await ask(`${o.channel} · ${p.name} ${fmt(o.qty_done)}EA 출고 완료로 처리합니다.\n완제품 재고에서 빠집니다.`,
+  if (!(await ask(`${chName(ordShipCh(o))} · ${p.name} ${fmt(o.qty_done)}EA 출고 완료로 처리합니다.\n완제품 재고에서 빠집니다.`,
     {title:"출고 완료", yes:"출고"}))) return;
   const r = await mesShipOrder({ order_id:id, idem:`ship-${id}-${uid()}` });
-  await mesTell(r, `${o.channel} 출고 완료`);
+  await mesTell(r, `${chName(ordShipCh(o))} 출고 완료`);
 }
+/* 나눈 출고의 한 부분 — 표시만 해 두고, 마지막 부분이 나갈 때 지시 전체를 출고(재고 차감)한다 */
+async function shipPart(id, ch, quiet){
+  if (!quiet && !(await requireUser())) return { ok:false };
+  const o = ordById(id); if (!o) return { ok:false };
+  const ps = shipParts(o);
+  if (ps.length <= 1) { if (quiet) return mesShipOrder({ order_id:id, idem:`ship-${id}-${uid()}` }); return shipDone(id); }
+  const pt = ps.find(x=>x.ch===ch); if (!pt) return { ok:false };
+  const left = ps.filter(x=>!x.shipped_at && x !== pt);
+  if (!quiet && !(await ask(`${chName(ch)} · ${o.product_name||prodById(o.product_id)?.name||""} ${fmt(pt.qty)}개 출고 완료로 처리합니다.` +
+      (left.length ? `\n\n남은 출고: ${left.map(x=>`${chName(x.ch)} ${fmt(x.qty)}개`).join(" · ")}\n(완제품 재고는 남은 출고까지 끝나면 ${fmt(shipQtyOf(o))}개가 한 번에 빠집니다)` : `\n\n마지막 출고처 — 완제품 재고에서 ${fmt(shipQtyOf(o))}개가 빠집니다.`),
+      { title:"출고 완료", yes:"출고" }))) return { ok:false };
+  if (!left.length) {
+    const r = await mesShipOrder({ order_id:id, idem:`ship-${id}-${uid()}` });
+    if (!quiet) await mesTell(r, `${chName(ch)} 출고 완료 — 전부 나감`);
+    return r;
+  }
+  const list = ps.map(x=>x === pt ? { ...x, shipped_at:nowISO(), shipped_by:CURRENT_USER||"" } : x);
+  const r = await saveShipSplit(o, list);
+  if (r && r.ok) { logAudit("부분 출고", o.serial||o.order_no||"", `${o.product_name||""} ${chName(ch)} ${fmt(pt.qty)}개`); if (!quiet) toast(`${chName(ch)} ${fmt(pt.qty)}개 출고 — 남은 ${left.map(x=>`${chName(x.ch)} ${fmt(x.qty)}`).join(" · ")}`); }
+  return r;
+}
+async function shipRun(items, title){
+  if (!(await requireUser())) return;
+  if (!items.length) return toast("출고할 것이 없습니다");
+  const q = items.reduce((t,x)=>t+x.qty,0);
+  if (!(await ask(`${title}\n\n${items.slice(0,12).map(x=>`· ${chName(x.ch)} — ${x.name} ${fmt(x.qty)}개 (${x.serial||""})`).join("\n")}${items.length>12?`\n… 외 ${items.length-12}건`:""}\n\n합계 ${items.length}건 · ${fmt(q)}개 — 완제품 재고에서 빠집니다.`, { title:"전량 출고", yes:"전부 출고" }))) return;
+  const busy = setBusy(`출고 중… (${items.length}건)`); const fail = [];
+  for (const x of items) { const r = await shipPart(x.id, x.ch, true); if (!r || !r.ok) fail.push(`${x.name} ${x.serial||""} — ${r?.message||"실패"}`); }
+  busy(); quickRender(); try { renderShip(); } catch(_){}
+  if (fail.length) return ask(`${items.length - fail.length}건 출고 · ${fail.length}건 못 함\n\n${fail.join("\n")}`, { title:"전량 출고", yes:"확인", only:true });
+  toast(`전량 출고 완료 — ${items.length}건 · ${fmt(q)}개`);
+}
+function shipItems(filterCh){
+  const out = [];
+  DB.orders.filter(o=>o.status==="검수완료").forEach(o=>shipParts(o).forEach(pt=>{ if (pt.shipped_at) return; if (filterCh && chName(pt.ch) !== filterCh) return;
+    out.push({ id:o.id, ch:pt.ch, qty:pt.qty, name:o.product_name||prodById(o.product_id)?.name||"", serial:o.serial }); }));
+  return out;
+}
+const shipAll = () => shipRun(shipItems(), "출고 대기 전부를 출고 완료로 처리합니다.");
+const shipGroup = ch => shipRun(shipItems(ch), `${ch} 출고 대기 전부를 출고 완료로 처리합니다.`);
 async function shipBack(id){
   const o = ordById(id); if(!o) return;
   if (!(await ask(`${o.product_name||prodById(o.product_id)?.name||""} ${fmt(o.qty_done||0)}개 출고를 취소하고 재고를 되돌립니다.\n` +
     `출고 기록은 지우지 않고 취소 표시만 남습니다.`, {title:"출고 취소", yes:"취소"}))) return;
-  const why = await askText("취소 사유 (비워도 됩니다)", "", "출고 취소");
+  const why = await askText("취소 사유 (비우면 \"사유 미기재\" 로 남습니다)", "", "출고 취소");
   if (why === null) return;
-  const r = await mesUnshipOrder({ order_id:id, reason:why || null,
+  /* ★ 2026-11-02 서버는 취소 사유가 꼭 있어야 한다 (shipments_cancel_reason_req) — 비우면 막히던 것 */
+  const r = await mesUnshipOrder({ order_id:id, reason:String(why).trim() || `사유 미기재 (${CURRENT_USER||"—"} 출고 취소)`,
                                    idem:`unship-${id}-${uid()}` });
   await mesTell(r, "출고를 취소했습니다");
 }
@@ -18292,7 +18435,11 @@ function renderWork(){
   const rej = DB.orders.map(o=>({ o, f:qcFlow(o) })).filter(x=>x.f)
     .sort((a,b)=>String(lastEv(b.o,"qc_reject")?.at||"").localeCompare(String(lastEv(a.o,"qc_reject")?.at||"")));
   const rejIds = new Set(rej.filter(x=>x.f==="조치 필요").map(x=>x.o.id));
-  const all  = ordsOf(d).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
+  /* ★ 2026-11-02 반려 → 현장작업 카드 그대로 (Lee "별도 형태가 아니라 기존 현장작업 카드 형식으로") — 날짜와 상관없이 맨 위 "반려 — 다시 작업" */
+  const rejCards = rej.filter(x=>x.f==="조치 필요").map(x=>x.o);
+  /* 반려 건을 [처음부터 다시 생산] 한 지시는 원래 날짜에 묶이지 않고 오늘 칸에 다시 나온다 */
+  const redo = d === today() ? DB.orders.filter(o=>o.status==="대기" && o.work_date < d && /^\[반려 삭제/.test(String(o.note||""))) : [];
+  const all  = ordsOf(d).concat(redo).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
   const done = ordsOf(d).filter(o=>stIdx(o) >= 2);
 
   /* 기계 순서대로 묶는다 — 기준정보에 없는 설비명(재작업 등)은 뒤에 붙인다 */
@@ -18339,38 +18486,24 @@ function renderWork(){
 
   const shown = wkMach === "반려" ? [] : (wkMach ? groups.filter(g=>kindOf(g)===wkMach) : groups);
   /* 반려 칸 — 품목 · 배치 · LOT · 사유 · 반려 일시 · 조치 상태 */
-  const rejPanel = (!rej.length || (wkMach && wkMach !== "반려")) ? "" : (()=>{
-    const n1 = rej.filter(x=>x.f==="조치 필요").length, n2 = rej.length - n1;
-    if (isFloor()) return `<div class="panel" id="wkRej" style="margin-bottom:14px;border:2px solid var(--bad)">
-      <div class="panel-h" style="color:var(--bad)">⚠ 돌아온 제품 — 다시 봐야 할 것 ${n1}건${n2?` · 검수 기다리는 중 ${n2}건`:""}
-        <span class="r hint">검수에서 돌려보낸 제품입니다 · 고쳤으면 [다시 포장했음] · 못 고치면 [못 고쳤음]</span></div>
-      <div class="panel-b"><table><thead><tr><th class="l">제품 · 몇 개</th><th>상자 번호</th><th class="l">왜 돌아왔나</th><th></th></tr></thead><tbody>${
-        rej.map(({o,f})=>{ const p = prodById(o.product_id); const rj = lastEv(o,"qc_reject"); const q = qcState(o); const asked = rejAskedTicket(o);
-          return `<tr><td class="l" style="white-space:nowrap"><b style="font-size:15px">${p?.name||o.product_name||""}</b> <b>${fmt(o.qty_done)}개</b><br><span class="hint" style="padding:0">${o.machine||"—"} · ${dtFull(rj?.at || q.at)}</span></td>
-            <td class="c"><b>${o.serial||"—"}</b></td>
-            <td class="l" style="font-size:14px;min-width:160px">⛔ ${rj?.note || q.reason || "(이유 없음)"}${f==="재검수 대기" ? `<br><span class="tag warn">검수 기다리는 중</span>` : asked ? `<br><span class="tag warn">관리자 확인 요청함 · ${dtFull(asked.at)}</span>` : ""}</td>
-            <td class="c" style="white-space:nowrap">${f==="조치 필요" ? `<button class="btn primary" style="height:40px;font-size:14px" onclick="resubmitQc('${o.id}')">처리하기</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div></div>`;
-    return `<div class="panel" id="wkRej" style="margin-bottom:14px;border:2px solid var(--bad)">
-      <div class="panel-h" style="color:var(--bad)">⚠ 반려 — 조치 필요 ${n1}건${n2?` · 재검수 대기 ${n2}건`:""}
-        <span class="r hint">손본 뒤 [조치 완료 → 다시 검수로] · 검수 완료되면 여기서 빠집니다 · 🔔 알림은 알려 주는 것, 이 칸은 지금 할 일</span></div>
-      <div class="panel-b"><table><thead><tr><th>상태</th><th class="l">품목 · 생산 완료</th><th>일련번호</th><th class="l">배치</th><th>봉투 LOT</th><th class="l">반려 사유 → 조치</th><th>반려 일시 · 검수자</th><th></th></tr></thead><tbody>${
-        rej.map(({o,f})=>{ const p = prodById(o.product_id); const rj = lastEv(o,"qc_reject"), rs = lastEv(o,"qc_resubmit"); const q = qcState(o);
-          return `<tr><td class="c" style="white-space:nowrap"><span class="tag ${f==="조치 필요"?"bad":"warn"}">${f}</span><br><span class="tag" style="font-size:10.5px">${q.stage==="ship"?"출고 반려":"검수 반려"}</span>${q.count>1?`<br><span class="hint" style="padding:0;font-size:11px">반려 ${q.count}회</span>`:""}</td>
-            <td class="l" style="white-space:nowrap"><b>${p?.name||o.product_name||""}</b> ${o.split_from ? `<span class="tag warn" style="font-size:10.5px">${fmt((ordById(o.split_from)?.qty_done||0)+Number(o.qty_done||0))}개 중 ${fmt(o.qty_done)}개</span>` : `${fmt(o.qty_done)}EA`}<br><span class="hint" style="padding:0">${o.machine||"—"} · 완료 ${dtFull(o.done_at)} ${o.done_by||""}</span></td>
-            <td class="c"><b>${o.serial||"—"}</b></td><td class="l" style="font-size:12px">${o.batch_plan||"—"}</td><td class="c">${lotOf(o)||"—"}</td>
-            <td class="l" style="font-size:12.5px;min-width:180px">⛔ ${rj?.note || q.reason || "(사유 없음)"}${f==="재검수 대기" ? `<br>🔁 ${rs?.note||"조치 내용 없음"} <span class="hint" style="padding:0">${dtFull(rs?.at)} ${rs?.user_name||""}</span>` : `<br><span class="bad">조치 후 다시 올려 주세요</span>`}</td>
-            <td class="c" style="font-size:12px;white-space:nowrap">${dtFull(rj?.at || q.at)}<br>${rj?.user_name || q.by || "—"}</td>
-            <td class="c" style="white-space:nowrap">${f==="조치 필요" ? `<button class="btn primary" style="height:30px" onclick="resubmitQc('${o.id}')">조치 완료 → 다시 검수로</button> <button class="btn" style="height:30px" onclick="ngWork('${o.id}')">부적합</button>${can("log")||isManager() ? ` <button class="btn" style="height:30px;color:var(--bad)" onclick="deleteRejected('${o.id}')" title="관리자 — 반려 건을 지웁니다 (재고 되돌림 · 이력 남음)">삭제</button>` : ""}` : `<button class="btn" style="height:30px" onclick="go('qc')">검수 화면</button>`} <button class="btn" style="height:30px" onclick="showQcHistory('${o.id}')">이력</button></td></tr>`; }).join("")}</tbody></table></div></div>`; })();
+  const rejShown = rejCards.filter(o=>!wkMach || wkMach === "반려" || machKind(o.machine||"") === wkMach || (wkMach === "미지정" && !o.machine));
+  const rejWait = rej.filter(x=>x.f==="재검수 대기").length;
+  const rejPanelF = () => !rejShown.length ? (wkMach === "반려" && rejWait ? `<div class="wempty">다시 작업할 반려 건이 없습니다<br><span>재검수 기다리는 중 ${rejWait}건 — 검수가 끝나면 이력에 남습니다</span></div>` : "") : `<div class="mgrp" style="border-color:var(--bad)">
+      <div class="mgrp-h" style="color:var(--bad)"><b>⚠ ${isFloor() ? "돌아온 제품 — 다시 작업" : "반려 — 현장 재작업"}</b>
+        <span class="tag bad">${rejShown.length}건</span>${rejWait ? `<span class="tag warn">재검수 대기 ${rejWait}</span>` : ""}
+        <span class="r">반려된 수량만큼 카드로 돌아옵니다 · 고친 뒤 <b>[재작업 완료 → 다시 검수로]</b> · 이력은 하나로 이어집니다</span></div>
+      <div class="wcards">${rejShown.map(o=>card(o)).join("")}</div></div>`;
   const card = o=>{
     const p = prodById(o.product_id);
-    const pct = pctOf(o), run = o.status==="생산중";
-    return `<div class="wc ${run?"run":""}">
+    const rjd = rejIds.has(o.id);                         // 반려되어 돌아온 카드
+    const pct = pctOf(o), run = o.status==="생산중" && !rjd;
+    return `<div class="wc ${run?"run":""}" ${rjd?'style="border:2px solid var(--bad)"':""}>
       <div class="hd">
         <div class="nm"><span class="pri">${o.priority||"-"}</span>${specChip(specOf(o))}${p?.name||"품목 없음"}${
           can("plan") ? `<span class="prib">
             <button onclick="moveOrd('${o.id}',-1)" title="먼저 하기">▲</button>
             <button onclick="moveOrd('${o.id}',1)" title="나중에 하기">▼</button></span>` : ""}</div>
-        <div class="sub">${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"상자 번호":"일련번호"} ${o.serial}`:""}${
+        <div class="sub">${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 다시 생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"상자 번호":"일련번호"} ${o.serial}`:""}${
           o.batch_of>1?` · 배치 ${o.batch_seq}/${o.batch_of}`:""}${
           run && o.started_at ? ` · <span title="작업 시작 일시">시작 ${dtFull(o.started_at)}${o.started_by?` ${o.started_by}`:""}</span>` : ""}</div>
       </div>
@@ -18380,7 +18513,7 @@ function renderWork(){
           <div class="t">⚠ 검수에서 돌아왔습니다</div>
           <div class="r1">${q.reason || "(이유 없음)"}</div>
           <div class="r2">${fmt(q.qty_done)}개 · ${q.at ? String(q.at).slice(0,16).replace("T"," ") : ""}${q.by ? ` · ${q.by}` : ""}</div>
-          ${rejAskedTicket(o) ? `<div class="r3">관리자 확인 요청함 — 기다려 주세요</div>` : (q.hasLog || o.log_id ? `<div style="margin-top:8px"><button class="btn primary" style="height:40px;font-size:14px" onclick="event.stopPropagation();resubmitQc('${o.id}')">처리하기</button></div>` : "")}
+          ${rejAskedTicket(o) ? `<div class="r3">관리자 확인 요청함 — 기다려 주세요</div>` : ""}
         </div>`;
         return `<div class="qcrej" onclick="showQcHistory('${o.id}')" title="눌러서 반려 이력 보기">
           <div class="t">⚠ ${n ? n.label : "검수 반려"}</div>
@@ -18391,16 +18524,16 @@ function renderWork(){
           <div class="r2">${q.at ? String(q.at).slice(0,16).replace("T"," ") : ""}${
             q.by ? ` · ${q.by}` : ""}${q.count > 1 ? ` · 반려 ${q.count}회` : ""}</div>
           ${n ? `<div class="r3">${n.note}</div>` : ""}
-          ${q.hasLog || o.log_id ? `<div style="margin-top:8px"><button class="btn primary" style="height:34px" onclick="event.stopPropagation();resubmitQc('${o.id}')">조치 완료 → 다시 검수로</button>${can("log")||isManager() ? ` <button class="btn" style="height:34px;color:var(--bad)" onclick="event.stopPropagation();deleteRejected('${o.id}')">삭제</button>` : ""}</div>` : ""}
+          <div class="r3" style="font-size:11.5px">눌러서 이력 보기 (생산 → 반려 → 재작업 → 재검수)</div>
         </div>`; })()}
       ${kInfoHTML(p?.bean, o)}
-      <div class="big"><b>${fmt(o.qty_done)}</b> <span>/ ${fmt(o.qty_plan)} 개</span></div>
+      ${rjd ? `<div class="big"><b style="color:var(--bad)">${fmt(o.qty_done)}</b> <span>개 반려 — 다시 작업</span></div>` : `<div class="big"><b>${fmt(o.qty_done)}</b> <span>/ ${fmt(o.qty_plan)} 개</span></div>`}
       ${(()=>{ const sp = ordNeedSplit(o); if (!sp.buf) return "";
         const ok = Number(o.qty_done||0) >= sp.need;
         return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 6px">
           <span style="background:${ok?"var(--ok)":"#1F2A6B"};color:#fff;font-weight:800;padding:3px 10px;border-radius:8px">필요 ${fmt(sp.need)}개${ok?" ✓":""}</span>
           <span style="border:1.5px dashed var(--soft);color:var(--soft);font-weight:700;padding:2px 10px;border-radius:8px" title="여유 수량 — 원두·시간이 모자라면 못 채워도 됩니다">여유 +${fmt(sp.buf)}개 · 못 채워도 됨</span></div>`; })()}
-      ${barHTML(pct, pct>=100?"ok":"")}
+      ${rjd ? "" : barHTML(pct, pct>=100?"ok":"")}
       <div class="meta">${pct}% ${o.qty_ng?` · <span class="bad">부적합 ${fmt(o.qty_ng)}</span>`:""}${o.note?` · <span class="warn">${o.note}</span>`:""}</div>
       <div class="wspec">
         <div><span>${isFloor()?"원두 봉지(배치)":"배치"}</span>${(()=>{ const ps = batchParts(o.batch_plan);
@@ -18411,7 +18544,9 @@ function renderWork(){
         ${(()=>{ /* ★ 2026-11-01 — 이 일련번호(배치)가 총 몇 kg 짜리인지 (Lee) */
           const m = ordBatchMms(o); if (!m) return "";
           const tot = Number(m.in_kg ?? 0) || null, left = Number(m.stock_kg||0);
-          return `<div><span>배치 무게</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}</b> <span class="hint" style="padding:0">· 남은 ${fmt(left)}kg${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>`; })()}
+          const ci = carryIn(m), ck = Math.round(ci.reduce((t,a)=>t+Number(a.delta||0),0)*1000)/1000;
+          const from = [...new Set(ci.map(a=>String(a.note||"").replace(/^← /,"").replace(/ 배치에서 이월.*$/,"")))].join(", ");
+          return `<div><span>배치 무게</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}${ck>0?` <span style="color:var(--ok)">+ 이월 ${fmt(ck)}kg</span>`:""}</b> <span class="hint" style="padding:0">· 사용 가능 <b>${fmt(left)}kg</b>${ck>0?` (← ${from})`:""}${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>`; })()}
         ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"상자 번호":"일련번호"}</span><b>${o.serial || "완료 때 매겨짐"}</b>${
           canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="쓸 배치(=일련번호)를 직접 고르거나 일련번호를 직접 적습니다">바꾸기</button>` : ""}</div>`}
         ${(()=>{ const rows = ordLotRows(o), al = autoLotOf(o), lot = rows.length ? lotRowsText(rows) : (o.lot || al);
@@ -18431,6 +18566,13 @@ function renderWork(){
         ${o.status==="대기" && can("plan") && (wkLabelEdit || packState(p, ordLabel(o))==="미지정")
           ? `<div class="pick">${labelSel(ordLabel(o), `setOrdLabel('${o.id}',this.value)`)}</div>` : ""}
       </div>
+      ${rjd ? `<div class="btns"><button class="go" style="background:var(--bad)" onclick="resubmitQc('${o.id}')">재작업 완료 → 다시 검수로</button></div>
+      <div class="btns sm">
+        <button onclick="ngWork('${o.id}')">부적합 등록</button>
+        <button onclick="showQcHistory('${o.id}')">작업 이력</button>
+        ${can("log")||isManager() ? `<button style="color:var(--bad)" onclick="deleteRejected('${o.id}')" title="관리자 — 생산실적을 취소(재고 되돌림)하고 이 지시를 [대기]로 돌려 처음부터 다시 생산 · 이력은 그대로">처음부터 다시 생산</button>` : ""}
+      </div>
+    </div>` : ""}${rjd ? "" : `
       <div class="btns">
         ${o.status==="대기"
           ? (machineBusy(o)
@@ -18447,11 +18589,11 @@ function renderWork(){
       </div>
       ${o.status==="대기" && isMixedOrder(o) && can("plan") ? `<div class="btns sm" style="padding-top:0">
         <button onclick="splitOrder('${o.id}')" style="color:var(--blue-600);font-weight:800">배치별로 나누기</button>
-      </div>` : ""}
-    </div>`;
+      </div>` : ""}${DB.order_events.some(e=>e.order_id===o.id && /^qc_/.test(e.event)) ? `<div class="btns sm" style="padding-top:0"><button onclick="showQcHistory('${o.id}')">작업 이력 (반려 → 재작업)</button></div>` : ""}
+    </div>`}`;
   };
 
-  $("wkCards").innerHTML = rejPanel + (shown.length ? shown.map(g=>{
+  $("wkCards").innerHTML = rejPanelF() + (shown.length ? shown.map(g=>{
     const m   = DB.machines.find(x=>x.name===g.name);
     const ea  = g.items.reduce((t,o)=>t+Number(o.qty_plan||0),0);
     const madeEa = g.items.reduce((t,o)=>t+Number(o.qty_done||0),0);
@@ -18536,11 +18678,17 @@ function renderQc(){
           <input type="number" id="qcq-${o.id}" value="${typed[o.id] !== undefined ? typed[o.id] : (o.qty_done ?? "")}" min="0"
             style="width:92px;text-align:right;font-weight:700"
             oninput="qcQtyHint('${o.id}', this.value)"></div>
-        <div><span>차이</span><b id="qcd-${o.id}">0 EA</b></div>
-        ${(()=>{ const ch = ordShipCh(o), cc = isCostcoProd(p);
-          return `<div><span>출고처 · 비고</span>${cc ? `<b>${chChip("코스트코")}</b><span class="hint" style="padding:0;font-size:11px;display:block">코스트코 하우스 블렌드 — 자동</span>`
-            : `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:2px">${CHANNELS.map(c=>`<button class="btn" style="height:28px;padding:0 8px;font-size:12px;${c===ch?(CH_STYLE[c]||"background:#1F2A6B;color:#fff")+";font-weight:800;border-color:transparent":""}" onclick="setOrdShip('${o.id}','${c}')">${chName(c)}</button>`).join("")}</div>
-              ${ch === "온라인 외" ? `<input type="text" id="qcn-${o.id}" value="${String(o.ship_note||"").replace(/"/g,"&quot;")}" placeholder="거래처 · 발주 내용 (예: 부산 카페 OO 20개)" style="width:100%;height:34px;margin-top:6px" onchange="setOrdShip('${o.id}','온라인 외',this.value)">` : ""}`}</div>`; })()}
+        <div ${isCostcoProd(p)?"":'style="grid-column:1/-1"'}><span>차이</span><b id="qcd-${o.id}">0 EA</b></div>
+        ${(()=>{ const cc = isCostcoProd(p);
+          if (cc) return `<div><span>출고처 · 비고</span><b>${chChip("코스트코")}</b><span class="hint" style="padding:0;font-size:11px;display:block">코스트코 하우스 블렌드 — 자동</span></div>`;
+          const sp = shipSplitOf(o), n = shipQtyOf(o), used = sp.reduce((t,x)=>t+x.qty,0), rest = n - used;
+          const chip = (c, on) => `<button class="btn" style="height:28px;padding:0 8px;font-size:12px;${on?(CH_STYLE[c]||"background:#1F2A6B;color:#fff")+";font-weight:800;border-color:transparent":""}" onclick="shipChToggle('${o.id}','${c}')">${c==="일반"?"전부 온라인":chName(c)}</button>`;
+          return `<div style="grid-column:1/-1"><span>출고처 · 수량 · 비고 <span class="hint" style="padding:0;font-size:11px">고른 곳에 보낼 수량 — 나머지는 일반(온라인)</span></span>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin:4px 0">${chip("일반", !sp.length)}${CHANNELS.filter(c=>c!=="일반").map(c=>chip(c, sp.some(x=>x.ch===c))).join("")}</div>
+            ${sp.map(x=>`<div style="display:flex;gap:6px;align-items:center;margin-top:4px;flex-wrap:wrap">${chChip(x.ch)}
+              <input type="text" inputmode="numeric" value="${x.qty}" style="width:80px;height:34px;text-align:right;font-weight:700" onchange="shipChSet('${o.id}','${x.ch}','qty',this.value)"> 개
+              ${x.ch==="온라인 외"?`<input type="text" id="qcn-${o.id}-${x.ch}" value="${String(x.note||"").replace(/"/g,"&quot;")}" placeholder="거래처 · 발주 내용 (예: 태경아이앤티)" style="flex:1;min-width:140px;height:34px" onchange="shipChSet('${o.id}','${x.ch}','note',this.value)">`:""}</div>`).join("")}
+            ${sp.length ? `<div style="margin-top:6px;font-weight:700;${rest<0?"color:var(--bad)":""}">${rest<0?`합계가 ${fmt(-rest)}개 넘습니다 — 수량을 줄여 주세요`:rest>0?`나머지 ${fmt(rest)}개 → 일반(온라인)`:"전량 위 출고처로"}</div>` : ""}</div>`; })()}
       </div>
       <p class="hint" style="padding:0 0 4px">
         세어 본 수량이 다르면 고쳐서 검수 완료하세요 — <b>그 수량으로 생산실적 · 완제품 재고 · 출고 수량이 바뀝니다</b> (변경이력에 남음).</p>
@@ -18563,24 +18711,28 @@ function renderShip(){
   const gone  = DB.orders.filter(o=>o.status==="출고완료").sort((a,b)=>String(b.ship_at).localeCompare(String(a.ship_at))).slice(0,40);
   $("shInfo").innerHTML = ready.length ? `출고 대기 <b>${ready.length}</b>건` : "출고 대기가 없습니다";
 
+  /* ★ 2026-11-02 출고처별 — 나눈 수량(예 태경 15 · 온라인 266)은 각 출고처에 그 수량으로 · [전량 출고] */
   const by = {};
-  ready.forEach(o=>{ const c = chName(ordShipCh(o)); (by[c] = by[c] || []).push(o); });
-  $("shBoard").innerHTML = Object.keys(by).length ? `<div class="board">` + Object.entries(by).map(([ch,os])=>`
+  ready.forEach(o=>{ const ps = shipParts(o);
+    ps.forEach(pt=>{ if (pt.shipped_at) return; const c = chName(pt.ch); (by[c] = by[c] || []).push({ o, pt, multi: ps.length > 1, ps }); }); });
+  const allIt = shipItems(), allN = allIt.length, allQ = allIt.reduce((t,x)=>t+x.qty,0);
+  $("shBoard").innerHTML = Object.keys(by).length ? (allN > 1 ? `<div style="display:flex;justify-content:flex-end;margin:0 0 10px"><button class="btn primary" style="height:44px;padding:0 18px;font-size:15px;font-weight:800" onclick="shipAll()">전량 출고 — ${allN}건 · ${fmt(allQ)}개</button></div>` : "") + `<div class="board">` + Object.entries(by).map(([ch,its])=>`
     <div class="rc"><div class="h"><div class="nm">${ch}</div>
-      <div class="sub">${os.length}건 · ${fmt(os.reduce((s,o)=>s+Number(o.qty_done||0),0))}개</div></div>
-      <div class="items">${os.map(o=>{ const p=prodById(o.product_id);
+      <div class="sub">${its.length}건 · ${fmt(its.reduce((t,x)=>t+x.pt.qty,0))}개${its.length>1?` <button class="btn" style="height:28px;padding:0 10px;margin-left:8px;font-size:12px;font-weight:800" onclick="shipGroup('${ch}')">이 출고처 전량 출고</button>`:""}</div></div>
+      <div class="items">${its.map(({o,pt,multi,ps})=>{ const p=prodById(o.product_id);
+        const others = multi ? ps.filter(x=>x!==pt).map(x=>`${chName(x.ch)} ${fmt(x.qty)}${x.shipped_at?" ✓":""}`).join(" · ") : "";
         return `<div class="item"><div class="top"><b style="flex:1">${p?.name||""}</b>
           <span class="hint" style="padding:0;font-size:11px">${o.serial||o.order_no}</span></div>
-          <div class="row">수량 <b>${fmt(o.qty_done)}</b> 개 <span class="calc">검수 ${o.qc_by||"—"} ${dtFull(o.qc_at)}</span></div>${o.ship_note?`
-          <div class="row" style="font-weight:700">비고 · ${o.ship_note}</div>`:""}
+          <div class="row">수량 <b>${fmt(pt.qty)}</b> 개${multi?` <span class="hint" style="padding:0;font-size:11px">(전체 ${fmt(shipQtyOf(o))} 중 · ${others})</span>`:""} <span class="calc">검수 ${o.qc_by||"—"} ${dtFull(o.qc_at)}</span></div>
+          ${pt.note?`<div class="row" style="font-weight:700">비고 · ${pt.note}</div>`:(!multi&&o.ship_note&&!pt.rest?`<div class="row" style="font-weight:700">비고 · ${o.ship_note}</div>`:"")}
           <div class="row"><span class="calc">생산 완료 ${dtFull(o.done_at)} ${o.done_by||""}</span></div>
-          <div class="mv"><button onclick="shipDone('${o.id}')">출고 완료</button> <button class="btn" style="height:30px;color:var(--bad);font-weight:800" onclick="shipReject('${o.id}')" title="출고 단계에서 문제 — 현장 반려 칸으로">반려</button></div></div>`; }).join("")}</div>
+          <div class="mv"><button onclick="shipPart('${o.id}','${pt.ch}')">출고 완료</button> <button class="btn" style="height:30px;color:var(--bad);font-weight:800" onclick="shipReject('${o.id}')" title="출고 단계에서 문제 — 현장 반려 칸으로">반려</button></div></div>`; }).join("")}</div>
     </div>`).join("") + `</div>`
     : `<div class="wempty">출고할 것이 없습니다<br><span>검수가 끝나면 출고처별로 여기 모입니다</span></div>`;
 
   tbl("shTbl", ["출고 일시","출고처","품목","수량","일련번호","LOT","생산 완료","검수 완료","출고자",""],
     sorted("shTbl", gone).map(o=>{ const p=prodById(o.product_id);
-      return `<tr><td class="c">${dtFull(o.ship_at)}</td><td class="c"><span class="tag">${chName(ordShipCh(o))}</span>${o.ship_note?`<br><span class="hint" style="padding:0;font-size:11px">${o.ship_note}</span>`:""}</td>
+      return `<tr><td class="c">${dtFull(o.ship_at)}</td><td class="c">${(()=>{ const ps = shipParts(o); return ps.length > 1 ? ps.map(x=>`<span class="tag">${chName(x.ch)} ${fmt(x.qty)}</span>`).join(" ") : `<span class="tag">${chName(ps[0]?.ch||ordShipCh(o))}</span>`; })()}${o.ship_note?`<br><span class="hint" style="padding:0;font-size:11px">${o.ship_note}</span>`:""}</td>
         <td class="l">${p?.name||""}</td><td>${fmt(o.qty_done)}</td>
         <td class="l">${o.serial||"—"}</td><td class="l">${ordLotRows(o).length?lotRowsText(ordLotRows(o)):(o.lot||"—")}</td>
         <td class="c" style="font-size:12px">${dtFull(o.done_at)}<br>${o.done_by||"—"}</td><td class="c" style="font-size:12px">${dtFull(o.qc_at)}<br>${o.qc_by||"—"}</td><td class="c">${o.ship_by||"—"}</td>
