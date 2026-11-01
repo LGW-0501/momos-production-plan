@@ -1419,6 +1419,9 @@
     <input type="text" id="cntFind" placeholder="이름 찾기" style="width:140px;margin-left:6px" oninput="renderCount()">
     <span style="margin-left:auto"></span>
     <button class="btn" onclick="cntDraftClear()">입력 지우기</button>
+    <button class="btn" onclick="cntImport('paste')" title="엑셀에서 복사한 표를 붙여넣기 — 부자재·CFE 섞여 있어도 됨">붙여넣기</button>
+    <button class="btn" onclick="cntImport('file')" title="엑셀 파일(.xlsx·.csv) — 시트가 여러 개면 전부 읽음">엑셀 넣기</button>
+    <input type="file" id="cntFile" accept=".xlsx,.xls,.csv,.txt" style="display:none">
     <button class="btn primary" id="cntApplyBtn" onclick="cntApplyAll()">차이 전체 반영</button>
   </div>
   <div class="body">
@@ -1643,7 +1646,7 @@
     <div class="panel">
       <div class="panel-h">로스팅 계획 · 입고 등록
         <span class="r"><span id="roastWait"></span>
-          <button class="btn" onclick="addRoast()">행추가</button>
+          <button class="btn" onclick="addMulti(addRoast, this)">행추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()">
           <button class="btn" style="color:var(--bad)" onclick="deleteAllRoastPlans()" title="아직 하나도 안 받은 계획을 전부 지웁니다 — 줄 왼쪽 네모로 일부만 골라 지울 수도 있습니다">계획 전부 삭제</button></span></div>
       <div class="guide">
         <b>무엇을 몇 배치로 받을지 정하는 곳입니다 — 실제로 받는 것은 맨 위 [입고 확인]에서</b>
@@ -1770,7 +1773,7 @@
     </span>
     <button class="btn" onclick="fillAssign()">미지정 자동배분</button>
     <button class="btn" onclick="clearAssign()">배분 초기화</button>
-    <button class="btn" onclick="addReq()">행추가</button>
+    <button class="btn" onclick="addMulti(addReq, this)">행추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()">
     <span style="margin-left:auto"></span>
     <button class="btn" onclick="sendToPlan()">로스팅 계획으로 보내기</button>
     <button class="btn" onclick="csvReq()">엑셀 다운로드</button>
@@ -1809,7 +1812,7 @@
     </div>
 
     <div class="panel">
-      <div class="panel-h">로스터기 기준정보 <span class="r"><button class="btn" onclick="addRoaster()">행추가</button></span></div>
+      <div class="panel-h">로스터기 기준정보 <span class="r"><button class="btn" onclick="addMulti(addRoaster, this)">행추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()"></span></div>
       <div class="hint"><b>하루 최대 배치 / 하루 최대 생두(kg)</b>를 넣으면 그 로스터기에 담긴 양이 능력을 넘을 때 카드가 빨갛게 바뀌고, 자동배분도 여유가 있는 다른 로스터기로 넘깁니다 (비우면 제한 없음) ·
         <b>배치·생두 칸에 값을 넣으면 그 값이 우선</b>이고, [자동] 버튼을 누르면 필요량 기준 자동계산으로 돌아갑니다 ·
         각 카드의 [+ 원두 추가]로 직접 담고, 원두의 [로스터기] 선택상자나 카드 아래 화살표로 옮깁니다 ·
@@ -2143,7 +2146,7 @@
           <span class="r">
             <button class="btn primary" onclick="openPaste('cfecode')">엑셀로 CFE코드 넣기</button>
             <button class="btn" onclick="fillCodes()">빈 코드 자동생성</button>
-            <button class="btn" onclick="addProduct()">행추가</button>
+            <button class="btn" onclick="addMulti(addProduct, this)">행추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()">
             <button class="btn primary" onclick="openBulk('products')" title="여러 품목을 표에 한 번에 적고 저장">일괄 입력</button>
             <button class="btn" onclick="csvProducts()">엑셀 다운로드</button></span></div>
         <div class="hint"><b>기본 라벨</b>은 그 품목에 <b>평소 붙이는 라벨</b>입니다 —
@@ -2173,7 +2176,7 @@
             <button class="btn" onclick="openPaste('mmscode')">엑셀로 MMS코드 넣기</button>
             <button class="btn" onclick="openPaste('beanmaster')">엑셀로 원두 마스터 넣기</button>
             <button class="btn" onclick="applyBeanRules()" title="머신 종류 칸(S35_하바나 싱글 · S70_시그니처 블렌드 …)대로 로스터기 가능 칸과 1배치 kg(하바나 싱글 10 · 싱글 20)을 채웁니다">머신 종류대로 세팅</button>
-            <button class="btn" onclick="addBean()">행추가</button>
+            <button class="btn" onclick="addMulti(addBean, this)">행추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()">
             <button class="btn primary" onclick="openBulk('beans')" title="여러 원두를 표에 한 번에 적고 저장">일괄 입력</button>
             <button class="btn" onclick="csvBeans()">엑셀 다운로드</button></span></div>
         <div class="hint">포장 전 원두(반제품)입니다. <b class="bad">컬러 · 품목보고번호 · 원산지</b>는 한글표시사항(식품표시광고법)에 들어가는 값이라
@@ -2262,7 +2265,7 @@
     </div>
     <div class="subpane" id="p-mms">
       <div class="panel">
-        <div class="panel-h">MMS 원두재고 (배치별) <span class="r"><button class="btn" onclick="addMms()">행추가</button> <button class="btn primary" onclick="openBulk('mms')">일괄 입력</button></span></div>
+        <div class="panel-h">MMS 원두재고 (배치별) <span class="r"><button class="btn" onclick="addMulti(addMms, this)">행추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()"> <button class="btn primary" onclick="openBulk('mms')">일괄 입력</button></span></div>
         <div class="hint">보통 입고처리로 자동 등록됩니다 · 생산 시 오래된 배치부터 차감(선입선출)</div>
         <div class="selbar" id="selBar-mms"></div>
         <div class="panel-b"><table id="tMms"></table></div>
@@ -2270,7 +2273,7 @@
     </div>
     <div class="subpane" id="p-mach">
       <div class="panel">
-        <div class="panel-h">기계 · 인원 · 능력 <span class="r"><button class="btn" onclick="addMachine()">행추가</button> <button class="btn primary" onclick="openBulk('machines')">일괄 입력</button></span></div>
+        <div class="panel-h">기계 · 인원 · 능력 <span class="r"><button class="btn" onclick="addMulti(addMachine, this)">행추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()"> <button class="btn primary" onclick="openBulk('machines')">일괄 입력</button></span></div>
         <div class="hint">규격별 속도(EA/h)에 <b>0 = 그 규격 생산 불가</b> · <b>인원비례</b> 체크 시 가용시간 = 가동시간 × 인원 ·
           <b>분쇄가능</b> 미체크 기계엔 분쇄 품목 미배정 · <b>라벨(초/EA)</b>은 스티커 부착시간으로, 값을 넣으면 그만큼 생산속도가 낮춰져 배분에 반영됩니다 · <span class="bad">속도 일부는 임시값이니 실측값으로 수정하세요 (미확인: 수동1구 200g·100g, 리팩 100g)</span></div>
         <div class="panel-b"><table id="tMach"></table></div>
@@ -2278,7 +2281,7 @@
     </div>
     <div class="subpane" id="p-work">
       <div class="panel">
-        <div class="panel-h">생산자 명단 · 권한 <span class="r"><button class="btn" onclick="addWorker()">행추가</button> <button class="btn primary" onclick="openBulk('workers')">일괄 입력</button></span></div>
+        <div class="panel-h">생산자 명단 · 권한 <span class="r"><button class="btn" onclick="addMulti(addWorker, this)">행추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()"> <button class="btn primary" onclick="openBulk('workers')">일괄 입력</button></span></div>
         <div class="hint" id="workHint"></div>
         <div class="panel-b"><table id="tWork"></table></div>
       </div>
@@ -6744,6 +6747,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "행추가 — 여러 줄 한 번에", "모든 [행추가] 옆에 숫자 칸 — 적은 수만큼 한 번에 추가 (최대 50 · 누르고 나면 1로 돌아감) · 로스팅 계획·로스팅 요청·로스터기·품목·원두·MMS 배치·기계·생산자·부자재 · 빈 줄끼리는 중복으로 합치지 않음 (원두명 2 · 봉투명 2 처럼 번호)"],
+  ["2026-11-01", "재고 세기 — 엑셀 넣기 · 붙여넣기", "재고 세기 위 [엑셀 넣기](.xlsx·.csv · 시트 여러 개면 전부) · [붙여넣기] — 줄마다 코드나 이름으로 CFE 품목·부자재를 찾아 \"실제\" 칸에 채움 (부자재·CFE 섞여 있어도 됨 · 같은 품목 여러 줄은 합산 · 묶음/낱장 열이 있으면 장수로 계산) · 장부는 그대로 — 차이를 보고 [차이 전체 반영] · 못 찾은 줄은 알려 줌"],
   ["2026-11-01", "현장 작업 · 검수 · 출고 — 작업자 선택", "세 화면 위쪽에 [작업자] 칸 (현장 작업 = 현장 작업자·현장 관리자 / 검수·출고 = 검수·출고 역할만 뜸 · 관리자는 안 뜸) — 고른 사람이 그 화면의 실제 작업자로 기록됨 (시작·완료·참여·검수·반려·출고) · 화면마다 따로 기억(이 기기) · 한 계정으로 여럿이 쓰는 현장 기기도 명단의 누구든 고를 수 있음 (로그인 권한은 그대로) · 안 골랐으면 누를 때 이름 단추로 물어봄 · 다른 화면으로 가면 원래 계정 작업자로 돌아감"],
   ["2026-11-01", "모든 목록 순서 — 쇼콜라·봉봉·므쵸·부산 → 블렌드 → 하바나 → 싱글 · 로스팅 35 → 70 → 60", "품목·원두·MMS 배치·부자재(라벨·풀패키지는 그 품목 순)·생산계획·부족 현황이 쇼콜라 → 봉봉 → 므쵸 → 부산 → 그 밖의 블렌드 → 하바나 → 싱글 순 · 같은 원두 안에서는 1kg → 500g → 200g → 100g · 로스팅 계획·받을 배치·로스터기는 S35 → S70 → S60 순 (로스터기 이름 또는 원두의 머신 종류에서 읽음)"],
   ["2026-11-01", "원두 종료 → 품목·부자재도 같이 빠짐", "원두를 종료하면 그 완제품 중 CFE 재고가 0 인 것은 사용중지, 그 라벨·풀패키지 봉투 중 재고가 0 인 것은 \"종료 자재\" 로 빠짐 (부자재 표에서 안 보임 · [종료 자재] 버튼에서만) · 이미 종료된 원두도 열 때 자동으로 정리 · 원두를 다시 쓰면 품목·자재도 같이 돌아옴 · 재고가 남은 것은 그대로 둠"],
@@ -9792,7 +9797,8 @@ const matNorm = v => String(v||"").toLowerCase().replace(/[\[(].*?[\])]/g,"").re
 /* ★ 2026-10-29 — 같은 이름·구분이면 같은 자재다 (1묶음이 달라도) · Lee "묶음을 하는 게 아니라 중복은 사라지게" */
 const matKeyOf = M => `${matNorm(M.name)}|${M.kind||""}`;
 const matActive = M => M && M.active !== false;
-const matSame = (a, b) => (a.kind||"") === (b.kind||"") && (
+const matPlaceholder = M => new RegExp(`^${M.kind||""}명( \\d+)?$`).test(String(M.name||"").trim());     // 아직 이름 안 적은 빈 줄
+const matSame = (a, b) => !matPlaceholder(a) && !matPlaceholder(b) && (a.kind||"") === (b.kind||"") && (
   (matNorm(a.name) && matNorm(a.name) === matNorm(b.name)) ||
   (codeKey(a.code) && codeKey(a.code) === codeKey(b.code)));                      // 같은 구분에 같은 코드면 이름이 달라도 같은 자재
 function matDupOf(M, excludeId){ return DB.materials.find(x=>matActive(x) && x.id !== (excludeId||M.id) && matSame(M, x)) || null; }
@@ -9957,12 +9963,13 @@ async function mergeDupMaterials(){
   renderAll();
   await ask(`중복 자재 ${done}줄을 대표로 통합했습니다.\n재고 세기 · 부자재 재고 · LOT 에서 한 줄로 보입니다. 통합된 줄은 변경이력에 남습니다.`, { title:"중복 자재 정리", yes:"확인" });
 }
-function addMaterial(kind){
+function addMaterial(kind, idx){
   const k = kind || "봉투";
-  /* 아직 이름을 안 적은 빈 줄이 있으면 또 만들지 않고 그 줄로 간다 (같은 이름의 줄이 쌓이지 않게) */
-  const blank = DB.materials.find(x=>matActive(x) && x.kind===k && String(x.name).trim()===`${k}명`);
+  /* 아직 이름을 안 적은 빈 줄이 있으면 또 만들지 않고 그 줄로 간다 (같은 이름의 줄이 쌓이지 않게) — 여러 줄 추가일 때는 번호를 붙여 만든다 */
+  const blank = idx ? null : DB.materials.find(x=>matActive(x) && x.kind===k && matPlaceholder(x));
   if (blank) { if (matKindFilter && matKindFilter !== k) matKindFilter = k; renderBase(); toast(`먼저 만든 빈 줄에 이름을 적어 주세요`); focusNewRow("tMat", 'input[data-k="name"]'); return; }
-  const m = { id:uid(), code:"", name:`${k}명`, kind:k, spec:"", unit:MAT_UNIT[k]||"EA",
+  const nb = DB.materials.filter(x=>matActive(x) && x.kind===k && matPlaceholder(x)).length;
+  const m = { id:uid(), code:"", name: nb ? `${k}명 ${nb+1}` : `${k}명`, kind:k, spec:"", unit:MAT_UNIT[k]||"EA",
     pack_qty:(k==="라벨"?PACK_DEFAULT:1), stock:0, safety:0, note:"", last_in:null, last_use:null };
   DB.materials.push(m); save("materials", m);
   /* 다른 구분으로 걸러 보고 있었으면 새로 만든 쪽으로 옮겨 준다 — 안 그러면 만들어도 안 보인다 */
@@ -13884,7 +13891,7 @@ function renderBaseInner(){
   /* 추가 버튼도 구분 목록에서 만든다 — 구분이 늘어도 빠지는 일이 없다 */
   /* ★ 2026-11-01 — 구분별 "○○ 추가" 버튼 7개를 없애고 [행 추가] 하나로 (Lee "계속 착각하여 추가를 눌러버림") — 위에서 고른 구분으로 줄이 생김 */
   if ($("matAddBtn")) $("matAddBtn").innerHTML =
-    `<button class="btn primary" onclick="addMaterial('${matKindFilter||"봉투"}')" title="${matKindFilter?`${matKindFilter} 한 줄을 추가합니다`:"위에서 구분을 고르면 그 구분으로, 아니면 봉투로 한 줄 추가 — 줄의 구분 칸에서 바꿀 수 있습니다"}">행 추가${matKindFilter?` (${matKindFilter})`:""}</button>` +
+    `<button class="btn primary" onclick="addMulti(i=>addMaterial('${matKindFilter||"봉투"}', i), this)" title="${matKindFilter?`${matKindFilter} 줄을 추가합니다`:"위에서 구분을 고르면 그 구분으로, 아니면 봉투로 추가 — 줄의 구분 칸에서 바꿀 수 있습니다"}">행 추가${matKindFilter?` (${matKindFilter})`:""}</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 줄 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()">` +
     (()=>{ const g = matDupGroups(); return ` <button class="btn" style="${g.length?"color:var(--bad);font-weight:800":""}" onclick="mergeDupMaterials()" title="같은 자재가 여러 줄이면 대표 하나로 통합(재고·이력·LOT 전부 옮김) · 자동으로 못 알아본 것은 줄을 골라 [선택 합치기]">중복 자재 정리${g.length?` ${g.length}건`:""}</button>`; })();
 
   SHOWN.materials = mats.map(M=>M.id);
@@ -14814,12 +14821,24 @@ function csvBeans(){
         live.reduce((s,m)=>s+Number(m.stock_kg||0),0), live.length,
         DB.products.filter(p=>p.bean===b.name).map(p=>p.name).join(" / ")]; }));
 }
-function addProduct(){ const r=P("원두명",500,0,30); r.code=makeCode(r); DB.products.push(r); save("products",r); renderAll(); focusNewRow("tProd", 'input[data-k="bean"]'); }
+/* ★ 2026-11-01 — 행추가 여러 줄 한 번에 (Lee "행추가 한 번에 여러 개 가능하게") — 버튼 옆 숫자만큼 */
+let ADD_MULTI_N = 1;                               // 지금 몇 줄째 추가 중인지 (줄마다 이름·배치번호를 다르게)
+async function addMulti(fn, btn){
+  const inp = btn?.nextElementSibling?.classList?.contains("addN") ? btn.nextElementSibling : null;
+  const n = Math.max(1, Math.min(50, Math.round(Number(inp?.value)||1)));
+  const t0 = window.toast; if (n > 1) window.toast = () => {};          // 줄마다 뜨는 안내는 한 번만
+  try { for (let i = 0; i < n; i++) { ADD_MULTI_N = i; await fn(i); } }
+  finally { window.toast = t0; ADD_MULTI_N = 0; }
+  if (n > 1) toast(`${n}줄을 추가했습니다 — 맨 아래부터 채우세요`);
+  if (inp) inp.value = 1;
+}
+function addProduct(){ const nb = DB.products.filter(p=>/^원두명( \d+)?$/.test(String(p.bean||"").trim())).length; const r=P(nb?`원두명 ${nb+1}`:"원두명",500,0,30); r.code=makeCode(r); DB.products.push(r); save("products",r); renderAll(); focusNewRow("tProd", 'input[data-k="bean"]'); }
 let beanView = "live";               // live 사용중 · off 종료 · all 전체
 function setBeanView(v){ beanView = v; renderBase(); }
 function addBean(){
   if (beanView === "off") beanView = "live";
-  const r = { id:uid(), name:"원두명", mms_code:"", machine:"", color:"", report_no:"",
+  const nb = DB.beans.filter(b=>/^원두명( \d+)?$/.test(String(b.name||"").trim())).length;
+  const r = { id:uid(), name: nb ? `원두명 ${nb+1}` : "원두명", mms_code:"", machine:"", color:"", report_no:"",
     compose:"", note:"", launch:"", end_date:"" };
   DB.beans.push(r); save("beans",r); renderBase();
   focusNewRow("tBeans", 'input[data-k="name"]');
@@ -14849,7 +14868,8 @@ async function seedBeanMaster(){
 }
 const addBom = () => addBomLine($("bomProd")?.value, BOM_BASE);
 async function addMms(){
-  const r = await mesAddMms({ bean:"원두명", roast_date:today(), batch:1, kg:0,
+  const nextB = Math.max(0, ...DB.mms.filter(m=>m.bean==="원두명" && m.roast_date===today()).map(m=>Number(m.batch)||0)) + 1;
+  const r = await mesAddMms({ bean:"원두명", roast_date:today(), batch:nextB, kg:0,
                               idem:`mms-${uid()}` });
   if (!r || !r.ok) return toast(r?.message || "배치를 만들지 못했습니다");
   renderAll(); focusNewRow("tMms", 'input[data-k="bean"]');
@@ -14918,6 +14938,7 @@ const findExactProduct = (bean, spec, grind) => DB.products.find(p =>
 const prodChan = p => p?.channel || "일반";
 function prodSameAs(a, b){
   if (!a || !b || a === b) return false;
+  if (/^원두명( \d+)?$/.test(String(a.bean||"").trim()) || /^원두명( \d+)?$/.test(String(b.bean||"").trim())) return false;   // 아직 안 채운 빈 줄
   if ((a.grind||"홀빈") !== (b.grind||"홀빈") || prodChan(a) !== prodChan(b)) return false;
   const na = normName(a.name), nb = normName(b.name);
   if (na && nb && na === nb) return true;
@@ -18407,6 +18428,111 @@ let cntType = "mat", cntKind = "";
 const CNT_DRAFT_KEY = "momos.count.draft";
 function cntDraft(){ try { const v = JSON.parse(localStorage.getItem(CNT_DRAFT_KEY) || "null"); if (v && v.date === today()) return v; } catch(_){} return { date:today(), mat:{}, cfe:{} }; }
 function cntPut(type, id, v){ const D = cntDraft(); if (v == null || v === "") delete D[type][id]; else D[type][id] = v; try { localStorage.setItem(CNT_DRAFT_KEY, JSON.stringify(D)); } catch(_){} }
+/* ★ 2026-11-01 — 재고 세기에 엑셀 넣기 (Lee "재고 세기에서 엑셀 넣기도 가능해? 여러 가지")
+   붙여넣기 또는 파일(시트 여러 개면 전부) → 줄마다 코드·이름으로 CFE 품목이나 부자재를 찾아 "실제" 칸에 채운다.
+   장부에는 아직 안 들어간다 — 화면에서 차이를 보고 [차이 전체 반영] (차이 사유는 그때 물음)
+   열 이름이 있으면 쓴다: 코드 · 품목명/자재명 · 수량(실사/재고/수량) · 묶음 · 낱장(낱개) — 없으면 줄에서 코드·이름·마지막 숫자를 알아서 읽는다 */
+async function loadXLSX(){
+  if (window.XLSX) return;
+  await new Promise((res,rej)=>{ const s=document.createElement("script");
+    s.src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+}
+let CNT_IMPORT_HINT = "";                            // 지금 읽는 시트 이름 (라벨 시트면 라벨로)
+function cntMatchRow(code, name){
+  const ck = codeKey(code);
+  const matWord = /라벨|봉투|트레이|박스|스티커|롤|밸브|풀패키지/.test(String(name||"") + " " + String(CNT_IMPORT_HINT||""));
+  if (ck) {
+    /* 라벨은 품목과 같은 CFE 코드를 쓴다 — 줄(또는 시트 이름)에 "라벨·봉투…" 가 있으면 자재 쪽을 먼저 */
+    const M = DB.materials.find(M=>matActive(M) && String(M.code||"").split(" / ").some(c=>codeKey(c)===ck));
+    const p = DB.products.find(p=>codeKey(p.code)===ck);
+    if (M && (matWord || !p)) return { type:"mat", id:M.id, label:`[${M.kind}] ${M.name}`, pack:Math.max(1, Math.round(Number(M.pack_qty)||1)) };
+    if (p) return { type:"cfe", id:p.id, label:p.name, pack:1 };
+  }
+  if (name) {
+    const nm = matNorm(name);
+    const M = DB.materials.find(M=>matActive(M) && matNorm(M.name)===nm);
+    const p = DB.products.find(p=>normName(p.name)===normName(name)) || matchProduct(name) || findProductLike({ name });
+    /* 이름이 품목·자재 둘 다에 맞으면 — 줄에 "라벨/봉투/트레이…" 가 적혀 있으면 자재, 아니면 품목 */
+    if (M && (!p || matWord)) return { type:"mat", id:M.id, label:`[${M.kind}] ${M.name}`, pack:Math.max(1, Math.round(Number(M.pack_qty)||1)) };
+    if (p) return { type:"cfe", id:p.id, label:p.name, pack:1 };
+    if (M) return { type:"mat", id:M.id, label:`[${M.kind}] ${M.name}`, pack:Math.max(1, Math.round(Number(M.pack_qty)||1)) };
+  }
+  return null;
+}
+function cntParseGrid(grid){
+  const out = [];
+  let hdr = null;
+  const find = (h, re) => h.findIndex(c=>re.test(String(c||"").replace(/\s+/g,"")));
+  grid.forEach(row=>{
+    const cells = row.map(c=>String(c??"").trim());
+    if (!cells.some(Boolean)) return;
+    /* 머리줄 */
+    if (!hdr && cells.some(c=>/^(코드|cfe코드|자재코드|품목코드)$/i.test(c.replace(/\s+/g,""))) || !hdr && cells.some(c=>/^(품목명|자재명|제품명|이름|품명)$/.test(c.replace(/\s+/g,"")))) {
+      hdr = { code:find(cells,/^(코드|cfe코드|자재코드|품목코드)$/i), name:find(cells,/^(품목명|자재명|제품명|이름|품명|품목)$/),
+              qty:find(cells,/^(실사|실재고|실제|수량|재고|현재고|센수량|실사수량|합계)$/), bund:find(cells,/^(묶음|묶음수|박스)$/), loose:find(cells,/^(낱장|낱개|잔량)$/) };
+      return;
+    }
+    const num = v => { const t = String(v||"").replace(/,/g,""); return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : null; };
+    let code = "", name = "", qty = null, bund = null, loose = null;
+    if (hdr) {
+      code = hdr.code>=0 ? cells[hdr.code] : ""; name = hdr.name>=0 ? cells[hdr.name] : "";
+      qty = hdr.qty>=0 ? num(cells[hdr.qty]) : null; bund = hdr.bund>=0 ? num(cells[hdr.bund]) : null; loose = hdr.loose>=0 ? num(cells[hdr.loose]) : null;
+      if (qty == null && hdr.qty < 0) { for (let i=cells.length-1;i>=0;i--){ if (i!==hdr.code && num(cells[i])!=null) { qty = num(cells[i]); break; } } }
+    } else {
+      const rest = [...cells];
+      for (let i=rest.length-1;i>=0;i--){ if (num(rest[i])!=null) { qty = num(rest[i]); rest.splice(i,1); break; } }
+      const ci = rest.findIndex(c=>c && (isCode(c) || /^CFE/i.test(c))); if (ci>=0) { code = rest[ci]; rest.splice(ci,1); }
+      name = rest.filter(c=>c && !/^\d+$/.test(c)).join(" ").trim();
+    }
+    if (!code && !name) return;
+    if (qty == null && bund == null && loose == null) return;
+    out.push({ code, name, qty, bund, loose });
+  });
+  return out;
+}
+async function cntImport(how){
+  if (!(await requireUser())) return;
+  let grids = [];
+  if (how === "paste") {
+    const t = await ask("엑셀에서 표를 복사해 붙여넣으세요 (부자재·CFE 섞여 있어도 됩니다)\n코드 · 이름 · 수량 열이 있으면 그대로, 묶음 · 낱장 열이 있으면 장수로 계산합니다.", { prompt:true, multi:true, value:"", title:"재고 세기 — 붙여넣기" });
+    if (!t) return;
+    grids = [parseTSV(String(t))];
+  } else {
+    const f = await new Promise(res=>{ const el = $("cntFile"); el.value = ""; el.onchange = () => res(el.files[0] || null); el.click(); });
+    if (!f) return;
+    try {
+      if (/\.xlsx?$/i.test(f.name)) { await loadXLSX(); const wb = XLSX.read(await f.arrayBuffer());
+        grids = wb.SheetNames.map(n=>{ const g = XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:"" }); g.sheet = n; return g; }); }
+      else { const t = await f.text(); grids = [parseTSV(t.includes("\t") ? t : t.split(/\r?\n/).map(l=>l.split(",").join("\t")).join("\n"))]; }
+    } catch(e){ console.warn(e); return toast("파일을 읽지 못했습니다"); }
+  }
+  const rows = grids.flatMap(g=>cntParseGrid(g).map(r=>({ ...r, sheet:g.sheet||"" })));
+  if (!rows.length) return ask("읽을 줄이 없습니다 — 코드나 이름, 그리고 수량이 있는 줄이 필요합니다.", { title:"재고 세기", yes:"확인", only:true });
+  const hit = [], miss = [];
+  const sum = {};                                    // 같은 품목이 여러 줄(시트)이면 더한다
+  rows.forEach(r=>{
+    CNT_IMPORT_HINT = r.sheet || "";
+    const m = cntMatchRow(r.code, r.name);
+    if (!m) { miss.push(`${r.code||""} ${r.name||""}`.trim()); return; }
+    const q = (r.bund != null || r.loose != null) ? Math.round((r.bund||0)*m.pack + (r.loose||0)) : Math.round(Number(r.qty)||0);
+    const k = `${m.type}|${m.id}`;
+    if (sum[k]) { sum[k].q += q; sum[k].n++; } else { sum[k] = { ...m, q, n:1 }; hit.push(k); }
+  });
+  CNT_IMPORT_HINT = "";
+  const list = hit.map(k=>sum[k]);
+  const nC = list.filter(x=>x.type==="cfe").length, nM = list.filter(x=>x.type==="mat").length;
+  if (!list.length) return ask(`맞는 품목·자재를 찾지 못했습니다.\n\n${miss.slice(0,10).map(x=>"· "+x).join("\n")}`, { title:"재고 세기", yes:"확인", only:true });
+  if (!(await ask(`${rows.length}줄을 읽었습니다 — CFE ${nC}개 · 부자재 ${nM}개를 "실제" 칸에 채웁니다 (장부는 아직 안 바뀜):\n\n` +
+      list.slice(0,12).map(x=>`· ${x.label} → ${fmt(x.q)}${x.n>1?` (${x.n}줄 합산)`:""}`).join("\n") + (list.length>12?`\n… 외 ${list.length-12}개`:"") +
+      (miss.length ? `\n\n못 찾은 줄 ${miss.length}개 (건너뜀):\n${miss.slice(0,8).map(x=>"· "+x).join("\n")}${miss.length>8?`\n… 외 ${miss.length-8}개`:""}` : ""),
+      { title:"재고 세기 — 엑셀 넣기", yes:"채우기" }))) return;
+  list.forEach(x=>cntPut(x.type, x.id, Math.max(0, x.q)));
+  if (nC && !nM) cntType = "cfe"; else if (nM && !nC) cntType = "mat";
+  if (cntType === "mat") cntKind = "";
+  renderCount();
+  logAudit("재고 세기 엑셀 넣기", `CFE ${nC} · 부자재 ${nM}`, miss.length ? `못 찾음 ${miss.length}줄` : "");
+  toast(`실제 칸에 채웠습니다 — CFE ${nC} · 부자재 ${nM}${nC&&nM?" (위에서 CFE/부자재를 바꿔 각각 확인)":""} · 확인 후 [차이 전체 반영]`);
+}
 function cntDraftClear(){ try { localStorage.removeItem(CNT_DRAFT_KEY); } catch(_){} renderCount(); toast("입력을 지웠습니다 (장부는 그대로)"); }
 function setCntType(t){ cntType = t; renderCount(); }
 function setCntKind(k){ cntKind = k; renderCount(); }
