@@ -3682,7 +3682,7 @@ async function autoProductsFor(beans, opt={}){
   for (const x of plan) for (const g of x.specs) {
     const p = P(x.b.name, g, 0, 0, { grind:"홀빈" }); p.code = makeCode(p); p.pack_type = PACK_LABEL;
     const r = await saveRowAsync("products", p);
-    if (r && r.ok) { DB.products.push(p); n++; } else fail.push(`${p.name} — ${r?.message||"실패"}`);
+    if (r && r.ok) { DB.products.push(p); n++; try { syncProdPack(p, { quiet:true }); } catch(_){} } else fail.push(`${p.name} — ${r?.message||"실패"}`);
   }
   if (n) logAudit("완제품 자동 추가", `${n}개`, plan.map(x=>`${x.b.name}: ${x.specs.map(specLabel).join("/")}`).join(", "));
   renderAll();
@@ -3910,6 +3910,7 @@ async function initDB(){
   setTimeout(()=>{ try { autoMergeMaterials().catch(e=>console.warn(e)); } catch(e){} }, 1200);
   setTimeout(()=>{ try { autoMergeProducts().catch(e=>console.warn(e)); } catch(e){} }, 1600);
   /* 라벨·풀패키지 코드를 완제품 CFE 코드에 맞춰 둔다 (관리자 계정일 때 · 조용히) */
+  setTimeout(()=>{ try { if (can("base")) { makeStdMaterials(); const np = syncAllPack(); if (np) renderBase(); } } catch(e){ console.warn(e); } }, 2600);
   setTimeout(()=>{ try { if (can("base")) { const r = syncMatCodes(); const c = offBeanCleanup({ quiet:true }); if (r.fixed || r.made || r.dropped || c.prods || c.mats) { logAudit("부자재 코드 자동 맞춤", `코드 ${r.fixed} · 풀패키지 ${r.made} · 라벨 뗌 ${r.dropped}`, ""); renderBase(); } } } catch(e){ console.warn(e); } }, 2200);
 }
 
@@ -6774,6 +6775,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-01", "현장 작업 — 배치·일련번호 직접 고르기 · 배치 무게", "생산 카드에 [배치 무게] 줄 — 이 일련번호 배치가 총 몇 kg(입고)이고 지금 몇 kg 남았는지 · 일련번호 옆 [바꾸기] — 그 원두의 남은 배치를 오래된 순으로(남은 kg · 보류 · 상미 임박 · 다른 지시에서 쓰는지 표시) 보여 주고 고르면 배치와 일련번호가 같이 바뀜 · 원두는 생산 완료 때 고른 배치부터 차감 · [일련번호 직접 적기] 로 번호만 바꿀 수도 있음 · 대기·생산중 지시 · 생산계획/관리자 권한 · 서버 063 필요 (전에는 서버가 일련번호 수정을 막고 있었음)"],
+  ["2026-11-01", "품목 포장재 자동 연동 — 풀패키지 · 공용/하바나 봉투 · 이카 롤패키지", "품목 표 [풀패키지] 체크 → [포장 (봉투)] 고르기: 풀패키지 / 공용봉투 {규격} (하바나 라인은 하바나 봉투 {규격}만) · 이카전용 체크하면 이카 롤패키지 + 아로마밸브로 고정 · 고르면 BOM 봉투 줄을 저절로 맞추고 봉투·풀패키지·롤패키지 자재가 없으면 만들어 부자재 재고·LOT 관리에 바로 올라옴 · 열 때(관리자) 모든 품목을 같은 규칙으로 한 번 맞춤 · 새로 만든 품목도 바로 연동 · 변경이력에 남김"],
   ["2026-11-01", "입고 kg 소수점 · 보류/상미기한 따로 · 수불 순서", "입고 확인 등 숫자 칸에서 59.0 · 59.10 처럼 0 으로 끝나는 소수를 칠 때 점과 0 이 사라지던 것 고침 · 로스팅 탭 [보류 · 상미기한] → [보류] [상미기한] 둘로 · 보류는 사유별 버튼으로 걸러 봄 · 상미기한은 남은 배치 전부를 초과 · 임박 · 여유 버튼으로 (kg 합계 · 잔여일 짧은 순 · 그 자리에서 [보류]) · 원두 수불 조회도 쇼콜라 → 봉봉 → 므쵸 → 부산 → 블렌드 → 하바나 → 싱글 순"],
   ["2026-11-01", "로스팅 계획 엑셀 — 로스터기 · 로스팅일 · 배치수", "로스팅 계획 붙여넣기·양식에 로스팅일 · 로스터기 · 배치수 칸 · 로스터기는 S35 · 35 다 됨 · 비우면 원두의 머신 종류(S35_… S70_…)로 · 배치수를 비우면 그 로스터기의 1배치 kg 로 나눠 계산 · 같은 원두라도 로스터기·날짜가 다르면 따로 등록 · 양식은 로스터기 35 → 70 → 60 순"],
   ["2026-11-01", "엑셀 넣기 — 화면에 맞는 모드만 · 양식은 엑셀(.xlsx) · CFE 제조일자별", "엑셀 넣기 창은 연 화면의 모드만 보임 (재고확인 CFE = 제조일자별 실재고·합계 / 재고확인 MMS = 배치별 무게 / 그 밖은 그 모드 하나) · 원두는 합계로 넣는 길을 없애고 배치(로스팅일)째로만 — 날짜가 사라지지 않게 · [양식 다운로드]는 .xlsx (칸 너비 맞춤) · 새 모드 [CFE 제조일자별 실재고]: 코드·품목명·제조일자·수량 → 품목별 합계로 장부를 맞추고 제조일자별 수량을 남김 · 재고확인(CFE)에 \"CFE 제조일자별 재고\" 표 — 검수로 들어오고 출고로 빠진 것을 제조일자별로 · 가장 오래된 제조일자와 지난 일수 · 모르는 것은 \"미상\""],
@@ -13554,6 +13557,7 @@ function applyCellChange(t, row, k, nv, was){
           moved.length>2?` 외 ${moved.length-2}`:""})을 ${to}${josaRo(to)} 바꿨습니다`; })() : ""));
   }
   save(t, row);
+  if (t==="products" && ["ica","spec_g","bean","pack_type"].includes(k)) { if (k==="ica" && row.ica) { row.pack_type = PACK_LABEL; save(t, row); } syncProdPack(row); }
   renderDash(); renderPlan(); renderRoast(); renderStock();
   if (t==="roasters" || t==="bean_roasters" || t==="beans") renderReq();
 }
@@ -13583,12 +13587,76 @@ function setPackQty(labelId, v){
   save("materials", L);
   keepFocus(renderAll);
 }
+/* ══ 품목 포장재 자동 연동 (Lee 2026-11-01) ══
+   "풀패키지로 클릭하면 자동으로 연동 · 이카 전용이면 롤패키지 · 풀패키지가 아니면 공용봉투, 하바나 라인은 하바나 봉투만"
+   품목마다 BOM(기본 세트)의 봉투 줄을 하나로 맞춘다:
+     풀패키지 → 그 품목의 풀패키지 봉투 (없으면 만듦)
+     이카 전용 → 이카 롤패키지 + 이카 아로마밸브 (+ 라벨)
+     그 외     → 규격 공용봉투 (하바나 라인은 하바나 봉투) + 라벨
+   봉투·롤패키지가 없으면 만들어 둔다 — 그래서 부자재 LOT 관리에 저절로 올라온다 */
+const isHavanaProd = p => /하바나|havana/i.test(String(p?.bean||"") + " " + String(beanInfo(p?.bean)?.machine||"") + " " + String(p?.name||""));
+const PACK_MAT_NAMES = ["이카 롤패키지","이카 아로마밸브"];
+function bagSpecName(p){ return `${isHavanaProd(p) ? "하바나 봉투" : "공용봉투"} ${specLabel(Number(p.spec_g)||0)}`; }
+function ensureMat(name, kind, spec){
+  const hit = DB.materials.find(M=>matActive(M) && M.kind===kind && matNorm(M.name)===matNorm(name));
+  if (hit) return hit;
+  const M = { id:uid(), code:"", name, kind, spec:spec||"", unit:MAT_UNIT[kind]||"EA", pack_qty:1, stock:0, safety:0, note:"자동 (포장재 연동)", last_in:null, last_use:null };
+  DB.materials.push(M); save("materials", M); return M;
+}
+function packModeOf(p){ return p.ica ? "ica" : isFullPack(p) ? "full" : "bag"; }
+function packMatsFor(p){
+  const mode = packModeOf(p), out = [];
+  if (mode === "full") out.push(fullBagOf(p) || newFullBagFor(p));
+  else if (mode === "ica") { out.push(ensureMat("이카 롤패키지", "기타", "")); out.push(ensureMat("이카 아로마밸브", "기타", "")); }
+  else out.push(ensureMat(bagSpecName(p), "봉투", specLabel(Number(p.spec_g)||0)));
+  if (mode !== "full") { const L = p.label_id ? matById(p.label_id) : newLabelFor(p); if (L) out.push(L); }
+  return out.filter(Boolean);
+}
+const isPackLine = M => !!M && (M.kind === "봉투" || isFullBag(M) || PACK_MAT_NAMES.includes(M.name) || M.kind === "라벨");
+/* 이 품목의 포장재 BOM 을 맞춘다 — 바뀐 게 있으면 true */
+function syncProdPack(p, opt={}){
+  if (!p || p.off) return false;
+  if (!Number(p.spec_g) && packModeOf(p) === "bag") return false;          // 규격이 없으면 봉투를 못 고른다
+  const want = packMatsFor(p);
+  const cur = bomOf(p.id, BOM_BASE);
+  const curPack = cur.filter(b=>isPackLine(matById(b.material_id)));
+  const same = curPack.length === want.length && want.every(M=>curPack.some(b=>b.material_id===M.id));
+  if (same) return false;
+  curPack.filter(b=>!want.some(M=>M.id===b.material_id)).forEach(b=>{ DB.bom = DB.bom.filter(x=>x.id!==b.id); del("bom", b.id); });
+  want.filter(M=>!curPack.some(b=>b.material_id===M.id)).forEach(M=>{
+    const r = { id:uid(), product_id:p.id, set_name:BOM_BASE, material_id:M.id, material:M.name, qty:1, unit:unitOf(M), note:"자동 (포장재 연동)" };
+    DB.bom.push(r); save("bom", r); });
+  if (!opt.quiet) logAudit("포장재 연동", p.name, want.map(M=>M.name).join(" + "));
+  return true;
+}
+function syncAllPack(){
+  let n = 0; PRODS().forEach(p=>{ try { if (syncProdPack(p, { quiet:true })) n++; } catch(e){ console.warn(e); } });
+  if (n) logAudit("포장재 자동 연동", `${n}품목`, "풀패키지 · 이카 롤패키지 · 공용/하바나 봉투");
+  return n;
+}
+/* 품목 표의 [포장] 칸 — 풀패키지 / 공용봉투(하바나는 하바나 봉투) · 이카 전용이면 롤패키지로 고정 */
+function setPackMode(id, v){
+  const p = prodById(id); if (!p) return;
+  if (!can("base")) return deny("base");
+  if (p.ica && v !== "ica") { toast("이카 전용 품목은 롤패키지입니다 — 이카전용 체크를 풀면 바꿀 수 있습니다"); return renderBase(); }
+  const oldFull = v !== "full" ? fullBagOf(p) : null;
+  p.pack_type = v === "full" ? PACK_FULL : PACK_LABEL;
+  if (v === "full") p.label_id = null;
+  save("products", p);
+  if (p.id in planLabel) delete planLabel[p.id];
+  syncProdPack(p);
+  /* 풀패키지를 풀었는데 그 파우치를 한 번도 안 썼으면(재고 0 · 기록 없음) 자재에서도 지운다 */
+  if (oldFull && Number(oldFull.stock||0) === 0 && matHistN(oldFull) === 0 && !(matLots()[oldFull.id]||[]).length) { DB.materials = DB.materials.filter(x=>x.id!==oldFull.id); delMany("materials", [oldFull.id]); }
+  renderAll();
+  toast(`${p.name} — ${v==="full" ? `${PACK_FULL} (파우치 · 라벨 없음)` : `${bagSpecName(p)} + 라벨`}`);
+}
 function setFullPack(id, on){
   const p = prodById(id); if(!p) return;
   p.pack_type = on ? PACK_FULL : PACK_LABEL;
   if (on) p.label_id = null;
   save("products", p);
   if (p.id in planLabel) delete planLabel[p.id];
+  syncProdPack(p);
   renderAll();
   toast(on ? `${p.name} — ${PACK_FULL} (라벨 안 붙임)`
            : `${p.name} — 라벨 부착. 라벨이 없으면 작업지시 때 자동으로 만들어 붙습니다`);
@@ -13947,7 +14015,7 @@ function renderBaseInner(){
   if ($("prodSum")) { const offStock = offP.filter(p=>Number(p.cfe||0)!==0); $("prodSum").textContent = offStock.length ? `· 사용중지 품목 중 재고가 남은 것 ${offStock.length}개 (${fmt(offStock.reduce((s,p)=>s+Number(p.cfe||0),0))}EA) — 재고확인·재고 세기에 "사용중지" 로 보입니다` : ""; }
   const prodList = sorted("tProd", (prodView==="off" ? offP : prodView==="all" ? DB.products : liveP).filter(p=>findHit(BASE_FIND.products, p.name, p.code, p.bean, p.spec_g ? specLabel(p.spec_g) : "", p.grind, p.channel)));
   SHOWN.products = prodList.map(p=>p.id);
-  tbl("tProd", [selAllBox("products"),"CFE 코드","구분","채널","원두",'<span class="fixl">제품명</span>',"규격(g)","분쇄도","표준투입(g)","안전재고","CFE현재고",`<span title="비우면 기본 ${lossCfg().def}% (생산계획 상단)">로스율 %</span>`,"풀패키지","기본 라벨","묶음","이카전용","사용",""],
+  tbl("tProd", [selAllBox("products"),"CFE 코드","구분","채널","원두",'<span class="fixl">제품명</span>',"규격(g)","분쇄도","표준투입(g)","안전재고","CFE현재고",`<span title="비우면 기본 ${lossCfg().def}% (생산계획 상단)">로스율 %</span>`,"포장 (봉투)","기본 라벨","묶음","이카전용","사용",""],
     prodList.map((p,i)=>`<tr class="${p.off?"offrow":""}${SEL.products.has(p.id)?" selrow":""}"><td class="rowno">${selBox("products",p.id,i)}${i+1}</td>
       <td class="l">${inp("products",p.id,"code",p.code)}</td>
       <td class="c">${inp("products",p.id,"category",p.category)}</td>
@@ -13960,9 +14028,11 @@ function renderBaseInner(){
       <td>${inp("products",p.id,"safety",p.safety,"number")}</td>
       <td>${inp("products",p.id,"cfe",p.cfe,"number")}</td>
       <td><input type="text" inputmode="decimal" class="num" style="width:56px" value="${lossCfg().items[p.id] ?? ""}" placeholder="${lossCfg().def}" data-f="loss:${p.id}" ${can("base")?"":"disabled"} onchange="setLossPct('${p.id}',this.value)" title="비우면 기본값"></td>
-      <td class="c"><label class="chk-full" title="체크하면 파우치에 이미 인쇄된 풀패키지 — 라벨을 안 붙입니다">
-        <input type="checkbox" ${isFullPack(p)?"checked":""} onchange="setFullPack('${p.id}',this.checked)">
-        <span>${PACK_FULL}</span></label></td>
+      <td class="c">${p.ica
+        ? `<span class="tag" title="이카 전용 — 이카 롤패키지 + 아로마밸브">이카 롤패키지</span>`
+        : `<select onchange="setPackMode('${p.id}',this.value)" ${can("base")?"":"disabled"} title="풀패키지 = 이름이 인쇄된 파우치(라벨 없음) · 아니면 ${isHavanaProd(p)?"하바나 봉투":"공용봉투"} + 라벨" style="min-width:132px;font-weight:700">
+            <option value="full" ${isFullPack(p)?"selected":""}>${PACK_FULL}</option>
+            <option value="bag" ${!isFullPack(p)?"selected":""}>${bagSpecName(p)}</option></select>`}</td>
       <td class="l">${isFullPack(p)
         ? `<span class="tag">파우치에 인쇄 — 라벨 없음</span>`
         : `<select data-t="products" data-id="${p.id}" data-k="label_id">
@@ -17433,6 +17503,51 @@ async function resumeWork(id, quiet){
   if (!quiet) await mesTell(r, "재개 — 다시 생산시간에 들어갑니다");
   return r;
 }
+/* ★ 2026-11-01 — 배치(=일련번호)를 직접 고르기 (Lee "지정된 일련번호를 쓰는 게 아니라 우리가 가지고 있는 걸 직접 선택")
+   그 원두의 남은 배치를 오래된 순으로 보여 주고 고르면 배치·일련번호가 같이 바뀐다 · 원두는 생산 완료 때 고른 배치부터 차감된다
+   목록에 없는 번호는 [직접 적기] — 일련번호만 바꾼다 · 대기·생산중 지시만 (서버 063) */
+/* 지시에 적힌 배치 → MMS 배치 (원두 · 전체번호로 찾음) */
+function ordBatchMms(o){
+  const bp = batchParts(o?.batch_plan)[0]; if (!bp) return null;
+  const bean = prodById(o.product_id)?.bean;
+  return DB.mms.find(m=>(!bean || m.bean===bean) && batchFull(m)===bp.full) || DB.mms.find(m=>batchFull(m)===bp.full) || null;
+}
+const canPickBatch = o => o && ["대기","생산중"].includes(o.status) && !o.log_id && (can("plan") || isManager());
+async function pickOrderBatch(id){
+  if (!(await requireUser())) return;
+  const o = ordById(id); if (!o || !canPickBatch(o)) return;
+  const p = prodById(o.product_id); const bean = p?.bean;
+  const need = p ? needKg(p, Number(o.qty_plan)||0) : 0;
+  const cur = batchParts(o.batch_plan)[0];
+  const list = sortBatches(DB.mms.filter(m=>m.bean===bean && Number(m.stock_kg)>0)).map(m=>{
+    const used = DB.orders.filter(x=>x.id!==o.id && ["대기","생산중"].includes(x.status) && String(x.batch_plan||"").includes(batchNo(m))).length;
+    return { m, used };
+  });
+  const choices = list.map(({m,used})=>({
+    label:`${batchShort(m)} · ${m.roast_date} ${Number(m.batch)}번 · 총 ${m.in_kg!=null?fmt(m.in_kg):"—"}kg 중 남은 ${fmt(m.stock_kg)}kg${isHeld(m)?" · 보류":""}${shelfState(m.roast_date)!=="ok"?` · ${shelfLabel(m.roast_date)}`:""}${used?` · 다른 지시 ${used}건`:""}${cur && cur.short===batchShort(m)?" ← 지금":""}`,
+    v:m.id, cls: cur && cur.short===batchShort(m) ? "primary" : "" }));
+  const pick = await ask(`${p?.name||o.product_name||""} ${fmt(o.qty_plan)}개 · 필요 원두 약 ${fmt(Math.round(need*100)/100)}kg\n지금 일련번호 ${o.serial||"—"}${o.batch_plan?` · 배치 ${o.batch_plan}`:""}\n\n쓸 배치를 고르세요 — 그 배치 번호가 일련번호가 됩니다.${list.length?"":`\n\n(${bean||"이 원두"} 의 남은 배치가 없습니다)`}`,
+    { title:"배치 · 일련번호 고르기", choices:[ ...choices, { label:"✎ 일련번호 직접 적기", v:"__type" }, { label:"취소", v:null } ] });
+  if (!pick) return;
+  let patch;
+  if (pick === "__type") {
+    const t = await askText(`일련번호를 적으세요 (예: 2910)\n배치는 그대로 두고 일련번호만 바꿉니다.`, o.serial||"", "일련번호 직접 적기");
+    if (t === null) return; const v = String(t).trim(); if (!v) return toast("일련번호를 적으세요");
+    patch = { serial:v };
+  } else {
+    const m = DB.mms.find(x=>x.id===pick); if (!m) return;
+    if (isHeld(m) && !(await ask(`${batchShort(m)} 배치는 보류 중입니다 (${m.hold_why||"사유 미기재"}).\n그래도 이 배치로 할까요?`, { title:"보류 배치", yes:"그래도 쓰기", danger:true }))) return;
+    if (Number(m.stock_kg) + 0.0001 < need && !(await ask(`${batchShort(m)} 배치에 ${fmt(m.stock_kg)}kg 남아 필요한 ${fmt(Math.round(need*100)/100)}kg 보다 적습니다.\n모자라는 만큼은 생산 완료 때 다른 배치에서 차감됩니다. 이 배치로 할까요?`, { title:"남은 양 부족", yes:"이 배치로" }))) return;
+    const text = `${batchLabel(m)} ${fmt(Math.round(Math.min(need || Number(m.stock_kg), Number(m.stock_kg))*100)/100)}kg`;
+    const bp = batchParts(text)[0];
+    patch = { batch_plan:text, serial:bp?.short || batchShort(m), serial_full:bp?.full || batchFull(m) };
+  }
+  const r = await mesEditOrder({ order_id:o.id, patch, idem:`ob-${o.id}-${uid()}` });
+  if (!r || r.ok === false) return ask(/serial/.test(r?.message||"") ? "서버에 일련번호 수정 기능이 아직 없습니다.\n\nSupabase SQL Editor 에서 063_edit_order_serial.sql 을 실행한 뒤 다시 누르세요." : `바꾸지 못했습니다 — ${r?.message||""}`, { title:"배치 · 일련번호", yes:"확인", only:true });
+  logAudit("배치·일련번호 변경", p?.name||"", `${o.serial||"—"} → ${patch.serial}${patch.batch_plan?` · 배치 ${patch.batch_plan}`:""}`);
+  if (sb) await pullOrder(o.id);
+  renderAll(); toast(`일련번호 ${patch.serial}${patch.batch_plan?` · 배치 ${patch.batch_plan}`:""} 로 바꿨습니다`);
+}
 async function joinWork(id, quiet){
   if (!(await requireUser())) return;
   const o = ordById(id); if (!o) return;
@@ -17899,7 +18014,12 @@ function renderWork(){
           if (ps.length === 1) return `<b>${ps[0].text}</b>`;
           return `<b class="bad">배치 ${ps.length}개 섞임</b>`;
         })()}</div>
-        ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"상자 번호":"일련번호"}</span><b>${o.serial || "완료 때 매겨짐"}</b></div>`}
+        ${(()=>{ /* ★ 2026-11-01 — 이 일련번호(배치)가 총 몇 kg 짜리인지 (Lee) */
+          const m = ordBatchMms(o); if (!m) return "";
+          const tot = Number(m.in_kg ?? 0) || null, left = Number(m.stock_kg||0);
+          return `<div><span>배치 무게</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}</b> <span class="hint" style="padding:0">· 남은 ${fmt(left)}kg${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>`; })()}
+        ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"상자 번호":"일련번호"}</span><b>${o.serial || "완료 때 매겨짐"}</b>${
+          canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="쓸 배치(=일련번호)를 직접 고르거나 일련번호를 직접 적습니다">바꾸기</button>` : ""}</div>`}
         ${(()=>{ const al = autoLotOf(o), lot = o.lot || al;
           if (isFloor()) return lot ? `<div><span>봉투 번호(LOT)</span><b>${lot}</b></div>` : "";
           return `<div><span>봉투 LOT</span><b class="${lot?"":"bad"}" title="${o.lot?"직접 적은 값":al?"봉투 입고 때 적은 LOT (선입선출)":"봉투 입고 때 LOT 를 적으면 저절로 붙습니다"}">${lot || "봉투 LOT 없음"}</b>${!o.lot&&al?` <span class="hint" style="padding:0;font-size:10.5px">자동</span>`:""}${stIdx(o)<2 && can("plan")?` <button class="btn" style="height:24px;padding:0 8px;margin-left:6px" onclick="setOrderLot('${o.id}')">수정</button>`:""}</div>`; })()}
@@ -18673,7 +18793,7 @@ const BULK_DEFS = {
       const p = P(v.bean||"", Number(v.spec_g)||0, Number(v.cfe)||0, Number(v.safety)||0,
         { code:v.code||"", grind:v.grind||"홀빈", name:v.name.trim(), std:Number(v.std_g)||Number(v.spec_g)||0, ch:v.channel||"일반" });
       p.pack_type = v.pack_type || PACK_LABEL; if (!p.code) p.code = makeCode(p);
-      const r = await saveRowAsync("products", p); if (r.ok) DB.products.push(p); return r; } },
+      const r = await saveRowAsync("products", p); if (r.ok) { DB.products.push(p); try { syncProdPack(p, { quiet:true }); } catch(_){} } return r; } },
   beans: { title:"원두 일괄 입력", table:"beans", tab:"beans",
     hint:"원두명은 꼭 · MMS 코드 · 머신 종류(S35_하바나 싱글 / S70_시그니처 블렌드 …) · 컬러·품목보고번호·원산지는 한글표시사항에 들어가니 채우세요",
     cols:[ { k:"mms_code", l:"MMS 코드", w:100, ph:"MMS0001" }, { k:"machine", l:"머신 종류", w:170, ph:"S35_일반 싱글" },
