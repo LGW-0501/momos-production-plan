@@ -3978,6 +3978,7 @@ async function initDB(){
   /* 같은 라벨·봉투가 여러 줄이면 (관리자 계정일 때) 조용히 하나로 */
   setTimeout(()=>{ try { autoMergeMaterials().catch(e=>console.warn(e)); } catch(e){} }, 1200);
   setTimeout(()=>{ try { autoMergeProducts().catch(e=>console.warn(e)); } catch(e){} }, 1600);
+  setTimeout(()=>{ try { fixBizSplit(); } catch(e){ console.warn(e); } }, 2400);
   /* 라벨·풀패키지 코드를 완제품 CFE 코드에 맞춰 둔다 (관리자 계정일 때 · 조용히) */
   setTimeout(()=>{ try { if (can("base")) { makeStdMaterials();
       DB.products.filter(p=>isCostcoProd(p) && p.pack_type !== PACK_FULL && !p.ica).forEach(p=>{ p.pack_type = PACK_FULL; p.label_id = null; save("products", p); if (p.id in planLabel) delete planLabel[p.id]; });
@@ -6912,6 +6913,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "에스쇼콜라 사업자(CFE0004F) 되살리기", "전에 자동 합치기로 일반 에스쇼콜라 1kg 에 사업자 코드 CFE0004F 가 남은 것 → 기준정보 권한 계정이 열 때 한 번 묻고: 일반 → CFE0004 · 사업자전용 1kg(CFE0004F) 새로 만듦 (BOM 복사 · 지난 기록은 일반에 그대로)"],
+  ["2026-11-02", "사업자전용 품목 따로 인식", "집계·생산계획 붙여넣기에서 \"에스쇼콜라 사업자전용\" 이 일반 에스쇼콜라로 합쳐지던 것 → 이름에 사업자(전용)이 있으면 사업자 품목끼리만 맞춤 · 없으면 \"원두 에스쇼콜라 사업자전용 1kg\" 로 새로 만들 준비 · 코드가 다른 두 품목은 같은 품목으로 보지 않음 (자동 합치기에서도)"],
   ["2026-11-02", "입고 확인 — 원두(품목)별로", "받을 배치를 원두별로 묶음: 위에 원두 버튼(배치 수·kg) — 누르면 그 원두만 · 원두마다 한 줄 요약(배치 수 · 로스터기 · 로스팅일 · kg 합계 · [이 원두 전부 받음] · 체크로 전부 선택) — 줄을 누르면 펼침/접기 · 모두 펼치기/접기"],
   ["2026-11-02", "재고 세기 CFE — 제조일자별 수량", "오래된 제조일자 한 칸 → 제조일자별로 묶어 왼쪽부터 오래된 순 (예: 10/29 9개 · 10/30 100개) · 날짜마다 D-N/상미 초과 · 여유분은 주황 점선"],
   ["2026-11-02", "출고장 — 필요분 / 여유분", "출고장 재고를 필요분·여유분으로 나눠 봄 (품목마다 \"필요 N · 여유 N\" · 여유 묶음은 주황 점선) · 묶음을 누르면 여유분↔필요분으로 옮기기 (일부 수량도 · 실수 바로잡기) · [포장일로 불러오기] — 073 전에 출고 완료한 것을 포장일로 불러와 전부 여유분/필요분으로 넣기 · 출고 완료 때 그날 주문(집계)을 넘는 수량은 자동으로 여유분 (주문이 없던 날 포장분은 전부 여유분) — 서버 074 SQL 필요"],
@@ -15600,6 +15603,10 @@ const HELP = {
 };
 let pRows = [];
 const normName = s => String(s||"").replace(/[\[(].*?[\])]/g,"").replace(/\s+/g,"").replace(/^원두/,"").replace(/1kg/gi,"1000g").toLowerCase();
+/* ★ 2026-11-02 같은 원두·규격이라도 다른 품목 — 사업자전용 등 (Lee "에스쇼콜라 사업자가 그냥 에스쇼콜라랑 합쳐져 · 코드가 다른데")
+   이름에 이 말이 있으면 그 말이 있는 품목끼리만 같은 품목으로 본다 */
+const PROD_VARIANTS = [[/사업자|업소용|b2b/i, "사업자"]];
+const prodVariant = name => { const t = String(name||""); for (const [re, k] of PROD_VARIANTS) if (re.test(t)) return k; return ""; };
 function grindInName(s){
   const m = String(s||"").match(/[\[(]\s*([^\])]*?)\s*[\])]/);
   return m ? (GRIND_ALIAS[m[1].replace(/\s+/g,"")] || null) : null;
@@ -15615,17 +15622,18 @@ function beanByCode(code){
   return DB.beans.find(b=>b.mms_code && codeKey(b.mms_code)===k) || null;
 }
 function matchProduct(nameRaw){
-  const n = normName(nameRaw), g = grindInName(nameRaw);
-  let c = DB.products.filter(x=>normName(x.name)===n);
-  if (!c.length) c = DB.products.filter(x=>normName(x.name).includes(n) || n.includes(normName(x.name)));
+  const n = normName(nameRaw), g = grindInName(nameRaw), v = prodVariant(nameRaw);
+  const pool = DB.products.filter(x=>prodVariant(x.name) === v);          // 사업자전용은 사업자전용끼리만
+  let c = pool.filter(x=>normName(x.name)===n);
+  if (!c.length) c = pool.filter(x=>normName(x.name).includes(n) || n.includes(normName(x.name)));
   if (!c.length) return null;
   if (g) { const byG = c.filter(x=>(x.grind||"홀빈")===g); return byG.length ? byG[0] : null; }
   return c[0];
 }
 /* 붙여넣은 품목명 한 줄에서 원두·규격·분쇄도를 뽑아냄 — 목록에 없는 품목을 새로 만들 때 사용 */
 const SPEC_RE = /(\d+(?:[.,]\d+)?)\s*(kg|킬로|키로|g|그램)\b/i;
-const findExactProduct = (bean, spec, grind) => DB.products.find(p =>
-  beanNrm(p.bean)===beanNrm(bean) && Number(p.spec_g)===Number(spec) && (p.grind||"홀빈")===(grind||"홀빈"));
+const findExactProduct = (bean, spec, grind, variant) => DB.products.find(p =>
+  beanNrm(p.bean)===beanNrm(bean) && Number(p.spec_g)===Number(spec) && (p.grind||"홀빈")===(grind||"홀빈") && prodVariant(p.name)===(variant||""));
 
 /* ★ 2026-11-01 — 같은 품목 알아보기 (Lee "오마·온기 이름이 같은 게 있으면 알아서 인식하게 — 계속 품목이 추가가 돼")
    두 줄이 같은 품목이면 : 분쇄도·채널이 같고
@@ -15634,10 +15642,35 @@ const findExactProduct = (bean, spec, grind) => DB.products.find(p =>
    새로 넣을 때(일괄 입력 · 엑셀 CFE코드 · 원두 등록 자동 완제품 · 표에서 고치기)는 이미 있는 줄로 보내고,
    이미 두 줄로 들어가 있던 것은 열 때 자동으로 하나로 합친다 (autoMergeProducts) */
 const prodChan = p => p?.channel || "일반";
+/* ★ 2026-11-02 사업자 품목 되살리기 (Lee "에스쇼콜라는 CFE0004 · 에스쇼콜라 사업자가 CFE0004F")
+   전에 같은 원두·규격이라 하나로 합쳐지면서 일반 품목에 사업자 코드(…F)가 남은 경우:
+   일반 품목은 코드를 …(F 뺀 것)으로 돌리고, 사업자 품목(…F · "사업자전용")을 새로 만든다 — 기준정보 권한 계정이 열 때 한 번 묻는다 */
+const BIZ_CODES = [["CFE0004F", "CFE0004"]];
+async function fixBizSplit(){
+  if (!can("base")) return;
+  for (const [biz, gen] of BIZ_CODES) {
+    const A = DB.products.find(p=>codeKey(p.code)===codeKey(biz)); if (!A || prodVariant(A.name)) continue;   // 이미 사업자 이름이면 정상
+    if (DB.products.some(p=>p.id!==A.id && codeKey(p.code)===codeKey(gen))) {
+      /* 일반 코드 품목은 따로 있고 이 줄만 이름이 일반 — 이름에 사업자전용만 붙인다 */
+      if (!(await ask(`${A.name} 의 코드가 ${biz}(사업자) 입니다.\n일반 ${gen} 품목은 따로 있습니다.\n\n이 줄 이름을 "${A.name.replace(/(\d+\s*(kg|g))/i, "사업자전용 $1")}" 로 바꿀까요?`, { title:"사업자 품목 정리", yes:"바꾸기", no:"나중에" }))) return;
+      A.name = A.name.replace(/(\d+\s*(kg|g))/i, "사업자전용 $1"); save("products", A); logAudit("사업자 품목 정리", A.name, `${biz} 이름에 사업자전용`); renderAll(); continue;
+    }
+    if (!(await ask(`일반 ${A.name} 에 사업자 코드 ${biz} 가 붙어 있습니다 (전에 같은 품목으로 합쳐짐).\n\n· ${A.name} → 코드 ${gen} (지금까지 기록은 그대로 이 품목)\n· 사업자 품목 새로 만들기 → "${A.name.replace(/(\d+\s*(kg|g))/i, "사업자전용 $1")}" 코드 ${biz}\n\n그대로 진행할까요? (오늘 붙여넣은 집계에 사업자 수량이 섞였으면 다시 붙여넣어 주세요)`, { title:"사업자 품목 되살리기", yes:"진행", no:"나중에" }))) return;
+    const B = { ...A, id:uid(), code:biz, name:A.name.replace(/(\d+\s*(kg|g))/i, "사업자전용 $1"), cfe:0, safety:0 };
+    ["created_at","updated_at"].forEach(k=>delete B[k]);
+    A.code = gen; save("products", A);
+    DB.products.push(B); save("products", B);
+    try { DB.bom.filter(b=>b.product_id===A.id).forEach(b=>{ const nb = { ...b, id:uid(), product_id:B.id }; DB.bom.push(nb); save("bom", nb); }); } catch(_){}
+    logAudit("사업자 품목 되살리기", B.name, `${A.name} 코드 ${biz} → ${gen} · ${B.name} ${biz} 새로 만듦`);
+    renderAll(); toast(`${A.name} → ${gen} · ${B.name} (${biz}) 만들었습니다`);
+  }
+}
 function prodSameAs(a, b){
   if (!a || !b || a === b) return false;
   if (/^원두명( \d+)?$/.test(String(a.bean||"").trim()) || /^원두명( \d+)?$/.test(String(b.bean||"").trim())) return false;   // 아직 안 채운 빈 줄
   if ((a.grind||"홀빈") !== (b.grind||"홀빈") || prodChan(a) !== prodChan(b)) return false;
+  if (prodVariant(a.name) !== prodVariant(b.name)) return false;                  // 사업자전용 ≠ 일반
+  if (a.code && b.code && codeKey(a.code) !== codeKey(b.code)) return false;     // 코드가 다르면 다른 품목
   const na = normName(a.name), nb = normName(b.name);
   if (na && nb && na === nb) return true;
   const ba = beanNrm(a.bean), bb = beanNrm(b.bean);
@@ -15760,8 +15793,9 @@ function parseProduct(nameRaw){
   let near = null;
   if (!matched) { const nb = nearBean(s); if (nb){ matched = nb.bean; near = nb.score; } }
   const bn = matched || bean;
-  return { bean:bn, spec, grind, near, newBean: !!bn && !DB.beans.some(b=>b.name===bn),
-    name: `원두 ${bn} ${spec?specLabel(spec):""}${isGround(grind)?" "+grind:""}`.replace(/\s+/g," ").trim() };
+  const variant = prodVariant(s);
+  return { bean:bn, spec, grind, near, variant, newBean: !!bn && !DB.beans.some(b=>b.name===bn),
+    name: `원두 ${bn}${variant?" 사업자전용":""} ${spec?specLabel(spec):""}${isGround(grind)?" "+grind:""}`.replace(/\s+/g," ").trim() };
 }
 const STOP = ["디카페인","내추럴","워시드","무산소","허니","블렌드","시즈널","원두","lot"];
 /* 혼자서는 원두를 가리키지 못하는 흔한 말 — 나라·가공·분류 (짧은 이름 맞추기에서 이것만으로는 안 잡는다) */
@@ -16364,7 +16398,7 @@ function preview(){
         let p = matchProduct(nameRaw) || findProductLike({ name:nameRaw }), mk = null;
         if (!p) {                                   // 목록에 없는 품목 → 이름에서 해석해 새로 만들 준비
           const d = parseProduct(nameRaw);
-          if (d.spec && d.bean) p = findExactProduct(d.bean, d.spec, d.grind);
+          if (d.spec && d.bean) p = findExactProduct(d.bean, d.spec, d.grind, d.variant);
           if (!p && d.spec && d.bean) mk = d;
         }
         pRows.push({ nameRaw, code, qty, p, mk });
@@ -16584,7 +16618,7 @@ function preview(){
         const label = `${nm} ${spec>=1000?"1kg":spec+"g"}`;
         let p = matchProduct(label), mk = null, near = null;
         if (!p) { const d = parseProduct(label);
-          if (d.spec && d.bean) p = findExactProduct(d.bean, d.spec, d.grind);
+          if (d.spec && d.bean) p = findExactProduct(d.bean, d.spec, d.grind, d.variant);
           if (p) near = d.near; else if (d.spec && d.bean) mk = d; }
         pRows.push({ nameRaw:label, qty:v, p, mk, near });
       }
@@ -16619,7 +16653,7 @@ function preview(){
       let p = matchProduct(nameRaw), mk = null, near = null;
       if (!p) {                                      // 목록에 없는 품목 → 이름에서 해석해 새로 만들 준비
         const d = parseProduct(nameRaw);
-        if (d.spec && d.bean) p = findExactProduct(d.bean, d.spec, d.grind);
+        if (d.spec && d.bean) p = findExactProduct(d.bean, d.spec, d.grind, d.variant);
         if (p) near = d.near; else if (d.spec && d.bean) mk = d;
       }
       pRows.push({ nameRaw, qty, p, mk, near, code });
