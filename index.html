@@ -6914,6 +6914,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "사업자 품목 — 일반과 이름이 같아 막히던 것", "기준정보에서 CFE0004F 줄의 원두를 에스쇼콜라로 바꾸면 \"이미 있는 품목\" 으로 막히던 것 → 코드가 다르면 다른 품목으로 봄 · 코드 끝이 F 인 줄이 F 뺀 코드(일반)와 품목명이 같으면 이름에 \"사업자전용\" 을 붙일지 물음 (원두명이 비어 있으면 일반 품목 원두로 채움)"],
+  ["2026-11-02", "원두 이름 인식 — COE·엘 등 · 표기 차이", "\"과테말라 COE 엘 모리또 게이샤 워시드\" 처럼 COE·엘·농장 같은 말은 빼고 고유한 말로 찾음 · 모리또=모리토, 엘모리토(붙여 씀)도 같은 원두로"],
   ["2026-11-02", "사업자 줄 붙여넣기 — 품목이 없을 때", "붙여넣기에 사업자 줄이 있는데 사업자 품목이 없으면 [미리보기] 때 사업자 품목 되살리기를 먼저 묻고 · 그래도 없으면 \"원두 에스쇼콜라 사업자전용 1kg\" 를 일반 코드+F(CFE0004 → CFE0004F)로 새로 만듦"],
   ["2026-11-02", "원두 이름 인식 — 띄어쓰기·표기 차이", "\"에콰도르 라스 팔마스 시드라 워시드\" 처럼 등록 이름과 띄어쓰기가 다르거나(라스 팔마스 = 라스팔마스) 고유한 말 중 하나가 표기가 달라도 나머지가 다 맞으면 그 원두로 인식"],
   ["2026-11-02", "이카 생산품 — 라벨 없음 · 풀패키지", "이카 전용 품목이나 이카 기계로 잡힌 작업지시는 라벨 없이 \"풀패키지 (이카 롤패키지 · 라벨 없음)\" 으로 표시 · 라벨 묶음·모자람·라벨 고르기 안 나옴 · BOM 에 라벨을 넣지 않음 (롤패키지·아로마밸브만) · 이카 전용 품목에 붙어 있던 라벨 연결은 기준정보 권한 계정이 열 때 뺌"],
@@ -13921,6 +13923,7 @@ document.addEventListener("change", e=>{
     const nv0 = el.type === "number" ? Number(el.value)||0 : el.value;
     const d = findProductLike({ ...row, [k]: nv0 }, row.id);
     if (d) { el.value = was; toast(`이미 있는 품목입니다 — ${d.code||""} ${d.name} · 새로 만들지 말고 그 줄을 쓰세요`); return; }
+    if (/F$/i.test(String(row.code||"").trim())) setTimeout(()=>fixBizSplit().catch(()=>{}), 300);   // 사업자(…F) 줄이면 이름 정리
   }
   /* ★ 041 — 같은 자재(이름·구분·묶음)가 이미 있으면 그 줄로 바꾸지 못하게 */
   if (t === "materials" && ["name","kind","pack_qty"].includes(k)) {
@@ -15655,6 +15658,16 @@ const prodChan = p => p?.channel || "일반";
 const BIZ_CODES = [["CFE0004F", "CFE0004"]];
 async function fixBizSplit(){
   if (!can("base")) return;
+  /* 코드 끝이 F 이고 F 를 뺀 코드의 일반 품목이 따로 있는데 이름이 똑같으면 — 이 줄 이름에 사업자전용을 붙인다 */
+  for (const A of DB.products.filter(p=>/F$/i.test(String(p.code||"").trim()) && !prodVariant(p.name))) {
+    const gen = String(A.code).trim().replace(/F$/i, "");
+    const G = DB.products.find(p=>p.id!==A.id && codeKey(p.code)===codeKey(gen));
+    if (!G || normName(G.name) !== normName(A.name)) continue;
+    const nn = A.name.replace(/(\d+\s*(kg|g))/i, "사업자전용 $1"); if (nn === A.name) continue;
+    if (!(await ask(`${A.code} 와 ${G.code} 의 품목명이 "${A.name}" 로 같습니다.\n${A.code} 는 사업자 품목이니 이름을 "${nn}" 로 바꿀까요?\n(이름이 같으면 붙여넣기 때 어느 쪽인지 구분하지 못합니다)`, { title:"사업자 품목 이름", yes:"바꾸기", no:"나중에" }))) continue;
+    A.name = nn; if (/^원두명( \d+)?$/.test(String(A.bean||"").trim()) && G.bean) A.bean = G.bean;
+    save("products", A); logAudit("사업자 품목 이름", A.name, `${A.code} — ${G.code} 와 이름이 같아 사업자전용 붙임`); renderAll();
+  }
   for (const [biz, gen] of BIZ_CODES) {
     const A = DB.products.find(p=>codeKey(p.code)===codeKey(biz)); if (!A || prodVariant(A.name)) continue;   // 이미 사업자 이름이면 정상
     if (DB.products.some(p=>p.id!==A.id && codeKey(p.code)===codeKey(gen))) {
@@ -15685,7 +15698,7 @@ function prodSameAs(a, b){
 }
 /* q = { name, bean, spec(또는 spec_g), grind, channel } — 같은 품목이 이미 있으면 그 줄 */
 function findProductLike(q, excludeId){
-  const probe = { name:q.name||"", bean:q.bean||"", spec_g:Number(q.spec ?? q.spec_g)||0,
+  const probe = { name:q.name||"", bean:q.bean||"", spec_g:Number(q.spec ?? q.spec_g)||0, code:q.code||"",
                   grind:q.grind || grindInName(q.name) || "홀빈", channel:q.channel||"일반" };
   let hit = DB.products.find(p=>p.id !== excludeId && prodSameAs(probe, p));
   if (!hit && probe.name && !probe.bean) {                     // 이름만 있을 때 — 이름에서 원두·규격을 읽어 다시
@@ -15807,7 +15820,8 @@ function parseProduct(nameRaw){
 const STOP = ["디카페인","내추럴","워시드","무산소","허니","블렌드","시즈널","원두","lot"];
 /* 혼자서는 원두를 가리키지 못하는 흔한 말 — 나라·가공·분류 (짧은 이름 맞추기에서 이것만으로는 안 잡는다) */
 const BEAN_COMMON = [...STOP, "에티오피아","콜롬비아","케냐","브라질","파나마","과테말라","코스타리카","온두라스","엘살바도르","페루","르완다","부룬디","인도네시아","탄자니아","니카라과","볼리비아","에콰도르","예멘","인도","멕시코",
-  "게이샤","게샤","싱글","오리진","스페셜티","스페셜","디카프","하바나","일반","매장","사업자전용","사업자","전용","커피","가을","겨울","봄","여름"];
+  "게이샤","게샤","싱글","오리진","스페셜티","스페셜","디카프","하바나","일반","매장","사업자전용","사업자","전용","커피","가을","겨울","봄","여름",
+  "coe","컵오브엑셀런스","엘","el","la","de","del","데","델","농장","finca","핀카"];
 function matchBean(nameRaw){
   /* ① 띄어쓰기를 떼고 먼저 본다.
      "에 스 쇼콜라" 도 "에스쇼콜라" 도 "원두 에 스 쇼콜라 200g" 도 전부 에스쇼콜라다.
@@ -15832,7 +15846,12 @@ function matchBean(nameRaw){
     /* ★ 2026-11-02 띄어쓰기가 달라도 (Lee "라스 팔마스 인식 못 해") — "라스 팔마스" = "라스팔마스" · 고유한 말이 전부 원두 이름 안에 (띄어쓰기 무시) 있으면 그 원두
          고유한 말이 3개 이상이면 하나는 달라도(오타·표기 차이) 나머지가 다 맞으면 인정 */
     const dist = inT.filter(t=>!BEAN_COMMON.includes(t)).map(beanNrm).filter(t=>t.length>1);
-    const scored = DB.beans.map(x=>x.name).filter(Boolean).map(b=>{ const k = beanNrm(b); const hit = dist.filter(t=>k.includes(t)).length; return { b, hit }; })
+    /* 표기가 조금 달라도 (모리또 = 모리토) — 원두 이름의 단어 중 비슷한 게 있으면 맞은 것으로 */
+    const tokHit = (t, b) => { const k = beanNrm(b); if (k.includes(t)) return true;
+      if (t.length < 3) return false;
+      for (let i = 0; i + t.length <= k.length; i++) if (simRatio(t, k.slice(i, i + t.length)) >= 0.66) return true;   // 붙여 쓴 이름 안에서도 (엘모리토)
+      return false; };
+    const scored = DB.beans.map(x=>x.name).filter(Boolean).map(b=>{ const hit = dist.filter(t=>tokHit(t, b)).length; return { b, hit }; })
       .filter(x=>x.hit === dist.length || (dist.length >= 3 && x.hit >= dist.length - 1))
       .sort((a,b)=>b.hit - a.hit || a.b.length - b.b.length);
     if (scored.length && (scored.length === 1 || scored[0].hit > scored[1].hit || scored[0].b.length < scored[1].b.length)) return scored[0].b;
@@ -19914,7 +19933,7 @@ const BULK_DEFS = {
         const nb = DB.beans.find(b=>beanNrm(b.name)===beanNrm(v.bean)) || (matchBean(v.bean) ? DB.beans.find(b=>b.name===matchBean(v.bean)) : null);
         if (nb) v.bean = nb.name; else return `원두 "${v.bean}" 가 원두 표에 없음`;
       }
-      { const d = findProductLike({ name:v.name, bean:v.bean, spec:v.spec_g, grind:v.grind||"홀빈", channel:v.channel||"일반" });
+      { const d = findProductLike({ name:v.name, bean:v.bean, spec:v.spec_g, code:v.code||"", grind:v.grind||"홀빈", channel:v.channel||"일반" });
         if (d) return `이미 있는 품목 — ${d.code||""} ${d.name}${normName(d.name)!==normName(v.name)?" (원두·규격이 같음)":""}`; }
       if (all.some((o,j)=>j<i && prodSameAs({ name:v.name, bean:v.bean, spec_g:Number(v.spec_g), grind:v.grind||"홀빈", channel:v.channel||"일반" },
                                              { name:o.name, bean:o.bean, spec_g:Number(o.spec_g), grind:o.grind||"홀빈", channel:o.channel||"일반" }))) return "위 줄과 같은 품목";
