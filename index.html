@@ -6915,6 +6915,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "받은 배치 — 배치번호 바꾸기", "받은 배치 카드의 번호 아래 [번호 바꾸기] — 그날 몇 번째 배치인지 고침 (같은 원두·같은 로스팅일에 이미 있는 번호는 막음 · 아직 안 쓴 배치만 · 받은 kg·받은 날은 그대로) · 그 배치로 잡힌 대기 작업지시가 있으면 알려 줌"],
+  ["2026-11-02", "받은 배치 — 원두별로", "받은 배치 칸을 원두별로: 위 원두 버튼(배치 수·kg) — 누르면 그 원두만 · 원두마다 요약 줄(배치 수 · 합계 kg · 번호 범위 · 15kg 미만 배치 수 · [이 원두 kg 한 번에] · [이 원두 받기 되돌리기]) — 누르면 카드 펼침"],
   ["2026-11-02", "받은 배치 — 그 자리에서 kg 고치기", "받은 배치 카드마다 kg 칸 + [kg 고치기] (Enter 도 됨) · 위에 [원두별 kg 한 번에] — 그 원두 배치를 전부 같은 kg 로 · 아직 안 쓴 배치는 받은 kg(입고량)부터 고쳐짐(같은 번호·같은 받은 날로 다시 받음) · 이미 쓴 배치는 잔량 실측으로 · 15kg 미만은 빨간 칸"],
   ["2026-11-02", "받기 전부 되돌리기", "받은 배치 칸에 [받기 전부 되돌리기 N] — 그날 받은 배치 중 아직 안 쓴 것을 원두별로(또는 전부) 받기 전으로 · 그 배치로 잡힌 대기 작업지시도 같이 지움 → 입고 확인에서 kg 를 고쳐 다시 [받음]"],
   ["2026-11-02", "로스팅 계획 — 1배치 kg × 배치수 · 잘못 잡힌 것 바로잡기", "로스팅 계획의 계획(kg) → [1배치(kg)] (아래에 × N배치 = 전체 kg) · 배치수를 바꿔도 1배치 kg 는 그대로 · 받기 전 배치 줄 kg 도 1배치 kg 로 · 붙여넣기도 1배치 kg 로 적은 것으로 알아봄 · 전에 58kg 15배치를 58÷15 = 3.86kg 로 받은 계획은 [1배치 kg 바로잡기]: 안 쓴 배치는 받기 전으로 되돌리고 1배치 kg 로 · 그 배치로 잘게 나뉜 대기 작업지시는 지움 → 입고 확인에서 저울 kg 확인 후 [받음]"],
@@ -9666,14 +9668,33 @@ function renderRoast(){
   const todayIn = DB.mms.filter(m=>m.in_date===inDay && Number(m.stock_kg)>0);
   if ($("unrcvAllBtn")) { const nU = DB.mms.filter(m=>m.in_date===inDay && batchUntouched(m)).length;
     $("unrcvAllBtn").innerHTML = (nU ? `<button class="btn primary" style="height:30px;margin-left:8px" onclick="fixReceivedKgBean('${inDay}')">원두별 kg 한 번에</button>` : "") + (nU ? `<button class="btn" style="height:30px;color:var(--bad);font-weight:800;margin-left:6px" onclick="unreceiveAll('${inDay}')">받기 전부 되돌리기 ${nU}</button>` : ""); }
-  if ($("todayIn")) $("todayIn").innerHTML = todayIn.length
-    ? `<div class="newbatch">${todayIn.map(m=>`<div class="nb${isHeld(m)?" held":""}">
-         <div class="no">${batchShort(m)}</div>
+  /* ★ 2026-11-02 원두별로 (Lee "원두별로 볼 수 있게") — 위 버튼으로 원두 하나만 · 원두마다 요약 줄(누르면 펼침) */
+  const card = m=>`<div class="nb${isHeld(m)?" held":""}">
+         <div class="no" style="display:flex;flex-direction:column;align-items:center;gap:4px">${batchShort(m)}${batchUntouched(m) ? `<button class="btn" style="height:24px;padding:0 6px;font-size:11px;font-weight:600" onclick="fixBatchNo('${m.id}')">번호 바꾸기</button>` : ""}</div>
          <div class="dt"><b>${m.bean}</b><br><span>${batchFull(m)} · ${fmt(m.stock_kg)}kg 남음</span><br>
-           <span style="display:inline-flex;gap:4px;align-items:center;margin:4px 0"><input type="text" inputmode="decimal" id="rk-${m.id}" value="${m.in_kg ?? m.stock_kg}" style="width:72px;height:30px;text-align:right;font-weight:700;${Number(m.in_kg ?? m.stock_kg)<15?"border-color:var(--bad);color:var(--bad)":""}" onkeydown="if(event.key==='Enter')fixReceivedKg('${m.id}')"> kg <button class="btn primary" style="height:30px;padding:0 8px" onclick="fixReceivedKg('${m.id}')">kg 고치기</button></span><br>
+           <span style="display:inline-flex;gap:4px;align-items:center;margin:4px 0"><input type="text" inputmode="decimal" id="rk-${m.id}" value="${m.in_kg ?? m.stock_kg}" style="width:60px;height:30px;text-align:right;font-weight:700;${Number(m.in_kg ?? m.stock_kg)<15?"border-color:var(--bad);color:var(--bad)":""}" onkeydown="if(event.key==='Enter')fixReceivedKg('${m.id}')">kg <button class="btn primary" style="height:30px;padding:0 7px" onclick="fixReceivedKg('${m.id}')" title="받은 kg 고치기">고치기</button></span><br>
            ${isHeld(m)
              ? `<span class="tag bad">보류 — ${m.hold_why||""}</span> <button class="btn" onclick="freeBatch('${m.id}')">풀기</button>`
-             : `<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}${batchUntouched(m) ? ` <button class="btn" style="color:var(--bad)" onclick="unreceiveBatch('${m.id}')" title="실수로 받았을 때 — 받기 전으로 되돌립니다">받기 되돌리기</button>` : ""}</div></div>`).join("")}</div>`
+             : `<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}${batchUntouched(m) ? ` <button class="btn" style="color:var(--bad)" onclick="unreceiveBatch('${m.id}')" title="실수로 받았을 때 — 받기 전으로 되돌립니다">받기 되돌리기</button>` : ""}</div></div>`;
+  const tBeans = [...new Set(todayIn.map(m=>m.bean))].sort(beanCmp);
+  if (RCV_BEAN && !tBeans.includes(RCV_BEAN)) RCV_BEAN = "";
+  const tShown = RCV_BEAN ? [RCV_BEAN] : tBeans, tOne = tShown.length === 1;
+  const esc1 = b => String(b).replace(/'/g,"\\'");
+  if ($("todayIn")) $("todayIn").innerHTML = todayIn.length
+    ? (tBeans.length > 1 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px">` + [`<button class="btn ${!RCV_BEAN?"primary":""}" style="height:32px" onclick="setRcvBean('')">전체 ${todayIn.length}</button>`,
+        ...tBeans.map(b=>{ const ms = todayIn.filter(m=>m.bean===b); return `<button class="btn ${RCV_BEAN===b?"primary":""}" style="height:32px" onclick="setRcvBean('${esc1(b)}')"><b>${b}</b> ${ms.length} <span style="opacity:.75;font-size:11.5px">· ${fmt(Math.round(ms.reduce((t,m)=>t+Number(m.stock_kg||0),0)*100)/100)}kg</span></button>`; })].join("") + `</div>` : "")
+      + tShown.map(b=>{ const ms = todayIn.filter(m=>m.bean===b), open = tOne || RCV_OPEN.has(b);
+          const kgs = ms.map(m=>Number(m.in_kg ?? m.stock_kg)), small = kgs.filter(k=>k<15).length;
+          return `<div style="border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:#EEF1F8;cursor:pointer" onclick="if(event.target.closest('button,input'))return;rcvFold('${esc1(b)}')">
+              <span style="width:14px">${open?"▾":"▸"}</span><b style="font-size:16px">${b}</b>
+              <span class="tag warn">${ms.length}배치</span><span>합 <b>${fmt(Math.round(ms.reduce((t,m)=>t+Number(m.stock_kg||0),0)*100)/100)}</b>kg</span>
+              <span class="hint" style="padding:0">${ms.map(batchShort).slice(0,1)}${ms.length>1?` ~ ${batchShort(ms[ms.length-1])}`:""}</span>
+              ${small ? `<span class="tag bad">${small}배치 15kg 미만</span>` : ""}
+              <span style="flex:1"></span>
+              <button class="btn primary" style="height:30px" onclick="fixReceivedKgBean('${inDay}','${esc1(b)}')">이 원두 kg 한 번에</button>
+              ${ms.some(batchUntouched) ? `<button class="btn" style="height:30px;color:var(--bad)" onclick="unreceiveAll('${inDay}','${esc1(b)}')">이 원두 받기 되돌리기</button>` : ""}</div>
+            ${open ? `<div class="newbatch" style="padding:8px">${ms.map(card).join("")}</div>` : ""}</div>`; }).join("")
     : `<div class="hint" style="padding:12px 2px">${inDay===today()?"오늘":inDay} 받은 배치가 없습니다.</div>`;
 
   /* ★ 2026-10-31 — 사용 중단(종료)한 원두의 배치는 따로 (Lee "사용중인 원두, 사용중단 원두가 따로 있어야") */
@@ -11402,10 +11423,14 @@ async function unreceiveBatch(id, opt={}){
   renderAll(); toast(`${m.bean} ${batchShort(m)} 받기를 되돌렸습니다 — 받을 배치로 돌아갔습니다`);
   return true;
 }
+var RCV_BEAN = "", RCV_OPEN = new Set();
+function setRcvBean(b){ RCV_BEAN = b; if (b) RCV_OPEN.add(b); renderRoast(); }
+function rcvFold(b){ RCV_OPEN.has(b) ? RCV_OPEN.delete(b) : RCV_OPEN.add(b); renderRoast(); }
 /* ★ 2026-11-02 받은 배치 kg 를 그 자리에서 고치기 (Lee "여기 안에서 kg 조정 가능하게")
    아직 안 쓴 배치 = 받기를 되돌리고 같은 번호·같은 받은 날로 고친 kg 다시 받음 (입고 kg 부터 맞음) · 쓴 배치 = 잔량 실측으로 */
-async function reReceive(m, kg){
+async function reReceive(m, kg, newNo){
   const l = DB.roast_lines.find(x=>x.mms_id===m.id);
+  if (newNo && (!l || !batchUntouched(m))) return { ok:false, message:"이미 생산에 쓴 배치는 번호를 바꿀 수 없습니다" };
   if (!l || !batchUntouched(m)) {
     return mesCountStock({ mms_id:m.id, counted:kg, date:today(), note:`받은 kg 정정 ${fmt(m.stock_kg)} → ${fmt(kg)}kg`, idem:`rk-${m.id}-${uid()}` });
   }
@@ -11413,8 +11438,9 @@ async function reReceive(m, kg){
   const ok = await unreceiveBatch(m.id, { quiet:true }); if (ok !== true) return { ok:false, message:"받기를 되돌리지 못했습니다" };
   if (sb) { try { await pullWhere("roast_lines","id",lid); } catch(_){} }
   const l2 = DB.roast_lines.find(x=>x.id===lid) || l;
-  await mesEditRoastLine({ line_id:lid, patch:{ kg }, idem:`rl-rk-${lid}-${uid()}` }); l2.kg = kg;
-  const res = await mesReceiveLine({ line_id:lid, kg, batch_no:(l2.batch_no ?? m.batch ?? null), roast_date:l2.roast_date || null, in_date:inD, idem:`rl-rk2-${lid}-${uid()}` });
+  const no = newNo || l2.batch_no || m.batch || null;
+  await mesEditRoastLine({ line_id:lid, patch:{ kg, ...(newNo ? { batch_no:newNo } : {}) }, idem:`rl-rk-${lid}-${uid()}` }); l2.kg = kg; if (newNo) l2.batch_no = newNo;
+  const res = await mesReceiveLine({ line_id:lid, kg, batch_no:no, roast_date:l2.roast_date || null, in_date:inD, idem:`rl-rk2-${lid}-${uid()}` });
   return res;
 }
 async function fixReceivedKg(mmsId){
@@ -11428,11 +11454,29 @@ async function fixReceivedKg(mmsId){
   if (sb) await reloadDB({ silent:true });
   renderAll(); toast(`${m.bean} ${batchShort(m)} → ${fmt(kg)}kg`);
 }
-async function fixReceivedKgBean(day){
+/* ★ 2026-11-02 배치번호 바꾸기 (Lee "배치번호도 변경 가능하게") — 같은 원두·같은 로스팅일에 이미 있는 번호는 안 됨 */
+async function fixBatchNo(mmsId){
+  if (!(await requireUser())) return;
+  const m = DB.mms.find(x=>x.id===mmsId); if (!m) return;
+  if (!batchUntouched(m)) return ask("이미 생산에 쓴 배치는 번호를 바꿀 수 없습니다 (생산 기록에 그 번호가 남아 있음).", { title:"배치번호 바꾸기", yes:"확인", only:true });
+  const v = await askText(`${m.bean} · 로스팅 ${m.roast_date}\n지금 ${batchShort(m)} (${Number(m.batch)}번 배치)\n\n바꿀 배치 번호 (그날 몇 번째 배치인지 · 예: 3)`, String(Number(m.batch)||""), "배치번호 바꾸기");
+  if (v === null) return; const no = Math.round(numOf(v));
+  if (!(no > 0 && no < 100)) return toast("1 ~ 99 사이 숫자로 적어 주세요");
+  if (no === Number(m.batch)) return toast("지금 번호와 같습니다");
+  const dup = DB.mms.find(x=>x.id!==m.id && x.bean===m.bean && x.roast_date===m.roast_date && Number(x.batch)===no);
+  if (dup) return ask(`${m.bean} ${m.roast_date} 의 ${no}번 배치(${batchShort(dup)})가 이미 있습니다.\n그 배치 번호를 먼저 다른 번호로 바꾸세요.`, { title:"배치번호 바꾸기", yes:"확인", only:true });
+  const ords = DB.orders.filter(o=>o.status==="대기" && batchParts(o.batch_plan).some(b=>b.full===batchFull(m)) && prodById(o.product_id)?.bean===m.bean);
+  if (ords.length && !(await ask(`이 배치(${batchShort(m)})로 잡힌 대기 작업지시가 ${ords.length}건 있습니다 — 지시의 배치 칸은 옛 번호로 남습니다 (작업지시에서 [바꾸기] 로 다시 고르세요).\n\n계속할까요?`, { title:"배치번호 바꾸기", yes:"계속", no:"닫기" }))) return;
+  const busy = setBusy("번호 바꾸는 중…"); const r = await reReceive(m, Number(m.in_kg ?? m.stock_kg), no); busy();
+  if (!r || r.ok === false) { renderAll(); return ask(r?.message || "바꾸지 못했습니다", { title:"배치번호 바꾸기", yes:"확인", only:true }); }
+  if (sb) await reloadDB({ silent:true });
+  renderAll(); toast(`${m.bean} ${Number(m.batch)}번 → ${no}번 배치 (${batchShort({ ...m, batch:no })})`);
+}
+async function fixReceivedKgBean(day, bean){
   if (!(await requireUser())) return;
   const all = DB.mms.filter(m=>m.in_date===day);
   const beans = [...new Set(all.map(m=>m.bean))].sort(beanCmp); if (!beans.length) return;
-  const b = beans.length === 1 ? beans[0] : await ask(`${day} 받은 배치 — 어느 원두의 kg 를 한 번에 고칠까요?`, { title:"원두별 kg 한 번에", choices:[ ...beans.map(x=>({ v:x, label:`${x} ${all.filter(m=>m.bean===x).length}배치` })), { v:null, label:"취소" } ] });
+  const b = bean || (beans.length === 1 ? beans[0] : await ask(`${day} 받은 배치 — 어느 원두의 kg 를 한 번에 고칠까요?`, { title:"원두별 kg 한 번에", choices:[ ...beans.map(x=>({ v:x, label:`${x} ${all.filter(m=>m.bean===x).length}배치` })), { v:null, label:"취소" } ] }));
   if (!b) return;
   const ms = all.filter(m=>m.bean===b);
   const v = await askText(`${b} ${ms.length}배치 — 1배치 kg 를 적으세요 (전부 같은 kg 로 · 다른 배치는 카드에서 따로)`, String(ms[0]?.in_kg ?? ms[0]?.stock_kg ?? ""), "원두별 kg 한 번에");
@@ -11443,9 +11487,9 @@ async function fixReceivedKgBean(day){
   toast(`${b} ${ok}배치 → ${fmt(kg)}kg${fail?` · 못 한 것 ${fail}`:""}`);
 }
 /* ★ 2026-11-02 그날 받은 배치를 한 번에 받기 전으로 (Lee "이거 전부 되돌리기 할 수 있게") — 원두별로 골라서 */
-async function unreceiveAll(day){
+async function unreceiveAll(day, onlyBean){
   if (!(await requireUser())) return;
-  const all = DB.mms.filter(m=>m.in_date===day && batchUntouched(m));
+  const all = DB.mms.filter(m=>m.in_date===day && batchUntouched(m) && (!onlyBean || m.bean===onlyBean));
   const used = DB.mms.filter(m=>m.in_date===day && !batchUntouched(m));
   if (!all.length) return toast("되돌릴 배치가 없습니다");
   const beans = [...new Set(all.map(m=>m.bean))].sort(beanCmp);
