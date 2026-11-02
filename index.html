@@ -6912,6 +6912,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "재고 세기 CFE — 제조일자별 수량", "오래된 제조일자 한 칸 → 제조일자별로 묶어 왼쪽부터 오래된 순 (예: 10/29 9개 · 10/30 100개) · 날짜마다 D-N/상미 초과 · 여유분은 주황 점선"],
   ["2026-11-02", "출고장 — 필요분 / 여유분", "출고장 재고를 필요분·여유분으로 나눠 봄 (품목마다 \"필요 N · 여유 N\" · 여유 묶음은 주황 점선) · 묶음을 누르면 여유분↔필요분으로 옮기기 (일부 수량도 · 실수 바로잡기) · [포장일로 불러오기] — 073 전에 출고 완료한 것을 포장일로 불러와 전부 여유분/필요분으로 넣기 · 출고 완료 때 그날 주문(집계)을 넘는 수량은 자동으로 여유분 (주문이 없던 날 포장분은 전부 여유분) — 서버 074 SQL 필요"],
   ["2026-11-02", "CFE = 출고장 재고 (제조일자별 · 상미기한) · 오늘 출고 확정", "[출고 완료] = 출고장 입고 → 출고장 재고(CFE)에 제조일자별 묶음으로 쌓임 · 출고 화면 [출고장 재고 · 오늘 출고 확정]: 품목마다 출고장 재고 · 제조일자별(오래된 것부터, D-N/상미 초과) · 그날 입고 · 주문(생산계획) · 이미 나감 · 나갈 수량(고칠 수 있음) · 확정 후 남음(모자라면 −) → [오늘 출고 확정] 오래된 제조일자부터 뺌 · 확정 취소 · CFE 상미기한(일) 설정 / 재고 세기 CFE: 앱 재고 = 출고장 재고 · 출고장 입고 · 당일 출고 예정 · 남을 재고 · 오래된 제조일자 · 반영하면 출고장 재고를 센 값으로 — 서버 073 SQL 필요"],
   ["2026-11-02", "결재 · 날짜별 전체 초기화", "왼쪽 메뉴 [결재]: 날짜를 고르고 [미리보기] 로 지울 것(작업지시·실적·검수·출고·주문 집계·받은 원두 배치·로스팅 계획·부자재/완제품 수기 수불·부적합)을 센 뒤 — 총 관리자는 [초기화] (\"초기화\" 입력 · 재고 되돌림) · 다른 계정은 [결재 요청] (사유) → 총 관리자가 결재함에서 [승인](바로 실행) / [반려](사유) · 요청자는 [요청 취소] · 대기 건수는 메뉴에 빨간 숫자 · 전부 변경이력에 남음 — 서버 072 SQL 필요"],
@@ -20197,11 +20198,15 @@ function renderCount(){
       const plan = Math.max(0, Math.round(tally - outQ));
       const base = r.act != null ? r.act : r.app;
       const old = YARD_OK === true ? yardLotsOf(pid)[0] : null;
-      F[pid] = { inQ, outQ, tally, plan, left: base - plan, base: r.act != null ? "센 수량" : "출고장 재고", old, buf: YARD_OK === true ? yardBufQty(pid) : 0 }; });
+      /* 제조일자별로 묶어 오래된 날짜부터 (예: 10/29 9개 · 10/30 100개) */
+      const byDate = []; if (YARD_OK === true) yardLotsOf(pid).forEach(l=>{ const k = l.mfg_date || ""; let g = byDate.find(x=>x.d===k);
+        if (!g) { g = { d:k, q:0, buf:0 }; byDate.push(g); } g.q += Number(l.left_qty||0); if (l.is_buf) g.buf += Number(l.left_qty||0); });
+      byDate.sort((a,b)=>String(a.d||"9").localeCompare(String(b.d||"9")));
+      F[pid] = { inQ, outQ, tally, plan, left: base - plan, base: r.act != null ? "센 수량" : "출고장 재고", old, byDate, buf: YARD_OK === true ? yardBufQty(pid) : 0 }; });
   }
   const shortN = flow ? rows.filter(r=>F[r.key] && F[r.key].left < 0).length : 0;
   if (flow) $("cntCards").innerHTML += `<div class="card ${shortN?"red":"green"}"><div class="lb">${CD.slice(5).replace("-","/")} 출고 예정 빼면 부족</div><div class="vl">${shortN} <small>품목</small></div></div>`;
-  const cntHead = flow ? ["No","품목", YARD_OK === true ? "출고장 재고" : "앱 재고",`출고장 입고 <span class="hint" style="padding:0;font-size:10.5px">${CD.slice(5).replace("-","/")}</span>`,`당일 출고 예정 <span class="hint" style="padding:0;font-size:10.5px">생산계획</span>`,"남을 재고","오래된 제조일자","실제 (센 수량)","차이","", ""] : ["No","품목","앱 재고","실제 (센 수량)","차이","", ""];
+  const cntHead = flow ? ["No","품목", YARD_OK === true ? "출고장 재고" : "앱 재고",`출고장 입고 <span class="hint" style="padding:0;font-size:10.5px">${CD.slice(5).replace("-","/")}</span>`,`당일 출고 예정 <span class="hint" style="padding:0;font-size:10.5px">생산계획</span>`,"남을 재고","제조일자별 (왼쪽이 오래된 것)","실제 (센 수량)","차이","", ""] : ["No","품목","앱 재고","실제 (센 수량)","차이","", ""];
   tbl("cntSheet", cntHead,
     rows.map((r,i)=>{
       const has = r.act != null, d = has ? r.act - r.app : 0;
@@ -20209,7 +20214,7 @@ function renderCount(){
       const flowCells = !flow ? "" : `<td>${f.inQ?`<b style="color:var(--ok)">+${fmt(f.inQ)}</b>`:"—"}</td>
         <td>${f.plan?`<b>${fmt(f.plan)}</b>${f.outQ?`<br><span class="hint" style="padding:0;font-size:10.5px">주문 ${fmt(f.tally)} − 확정 ${fmt(f.outQ)}</span>`:""}`:(f.tally?`<span class="hint" style="padding:0">다 나감</span>`:"—")}</td>
         <td class="${f.left<0?"bad":""}" title="${f.base} − 당일 출고 예정"><b style="font-size:15px">${f.left<0?`−${fmt(-f.left)}`:fmt(f.left)}</b>${f.left<0?`<br><span class="tag bad" style="font-size:10.5px">${fmt(-f.left)}개 부족</span>`:""}</td>
-        <td class="c" style="font-size:12px">${f.old ? `${f.old.mfg_date ? f.old.mfg_date.slice(5).replace("-","/") : "—"} <b>${fmt(f.old.left_qty)}</b><br>${yardShelfTag(f.old.mfg_date)}` : "—"}${f.buf?`<br><span style="color:#B26B00;font-weight:700">여유 ${fmt(f.buf)}</span>`:""}</td>`;
+        <td class="l" style="font-size:12px;min-width:220px">${f.byDate.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${f.byDate.map(g=>`<span style="display:inline-flex;flex-direction:column;align-items:center;padding:2px 7px;border:1.5px ${g.buf===g.q?"dashed #F5A524;background:#FFF8EC":"solid var(--line)"};border-radius:7px;line-height:1.35"><span>${g.d ? g.d.slice(5).replace("-","/") : "날짜 없음"} <b style="font-size:13.5px">${fmt(g.q)}</b>개</span>${yardShelfTag(g.d)}${g.buf && g.buf!==g.q?`<span style="color:#B26B00;font-size:10.5px">여유 ${fmt(g.buf)}</span>`:g.buf?`<span style="color:#B26B00;font-size:10.5px">여유</span>`:""}</span>`).join("")}</div>` : "—"}</td>`;
       const inCell = r.pack > 1
         ? `<span class="cwrap"><input type="text" inputmode="numeric" class="cin" id="cb-${r.key}" data-f="cb:${r.key}" placeholder="0" value="${has?Math.floor(r.act/r.pack):""}" oninput="setCntPack('${r.key}',this.value,${r.pack})"><small>묶음(${r.pack})</small>
              + <input type="text" inputmode="numeric" class="cin" id="cp-${r.key}" data-f="cp:${r.key}" placeholder="0" value="${has?r.act%r.pack:""}" oninput="setCntPiece('${r.key}',${r.pack})"><small>${r.unit}</small>
