@@ -1272,6 +1272,15 @@
     <div id="shBoard"></div>
     <div class="panel">
       <div class="panel-h">출고 완료 내역</div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line)">
+        <b style="white-space:nowrap">출고일</b>
+        <input type="date" id="shDay" style="height:34px;font-size:14px" onkeydown="if(event.key==='Enter')shDayGo()">
+        <button class="btn primary" style="height:34px" onclick="shDayGo()">조회</button>
+        <button class="btn" style="height:34px" onclick="shDaySet(-1)">◀ 전날</button>
+        <button class="btn" style="height:34px" onclick="shDaySet(0)">오늘</button>
+        <button class="btn" style="height:34px" onclick="shDaySet(1)">다음날 ▶</button>
+        <button class="btn" style="height:34px" onclick="shDaySet('all')">전체</button>
+        <span class="hint" style="padding:0" id="shDayInfo"></span></div>
       <div class="panel-b"><table id="shTbl"></table></div>
     </div>
   </div>
@@ -1424,6 +1433,7 @@
     <button class="btn" onclick="cntImport('paste')" title="엑셀에서 복사한 표를 붙여넣기 — 부자재·CFE 섞여 있어도 됨">붙여넣기</button>
     <button class="btn" onclick="cntImport('file')" title="엑셀 파일(.xlsx·.csv) — 시트가 여러 개면 전부 읽음">엑셀 넣기</button>
     <input type="file" id="cntFile" accept=".xlsx,.xls,.csv,.txt" style="display:none">
+    <label style="margin-left:6px;white-space:nowrap"><b>센 날짜</b></label><input type="date" id="cntDay" style="height:34px" title="이 날짜로 장부에 들어갑니다 (어제 마감 때 센 것을 오늘 넣을 때 등)">
     <button class="btn primary" id="cntApplyBtn" onclick="cntApplyAll()">차이 전체 반영</button>
   </div>
   <div class="body">
@@ -1640,6 +1650,14 @@
         받는 즉시 재고에 잡혀 <b>생산계획이 그 배치를 바로 씁니다</b> ·
         계획보다 덜 나왔으면 그 줄만 <b>[취소]</b>하세요.
       </div>
+      <div id="inSelBar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line)">
+        <b style="white-space:nowrap">받은 날짜</b>
+        <input type="date" id="inDayAll" style="height:34px;font-size:14px">
+        <button class="btn" style="height:34px" onclick="inDaySel()">고른 줄에 넣기</button>
+        <button class="btn" style="height:34px" onclick="inDayQuick(0)">오늘</button>
+        <button class="btn" style="height:34px" onclick="inDayQuick(-1)">어제</button>
+        <button class="btn primary" style="height:34px" onclick="takeSel()">고른 줄 받음</button>
+        <span class="hint" style="padding:0" id="inSelInfo">줄 왼쪽 네모로 여러 개를 고르세요 · 로스팅은 일요일, 받은 건 월요일처럼 다를 때</span></div>
       <div class="panel-b"><table id="inTbl"></table></div>
     </div>
     <div class="panel">
@@ -1657,11 +1675,20 @@
           <li><b>계획(kg)</b>과 <b>배치수</b>를 넣으면 배치 줄이 그만큼 위에 펼쳐집니다</li>
           <li>맨 위에서 배치마다 <b>날짜·kg</b>만 확인하고 [받음]</li></ol>
       </div>
+      <div id="roastDayBar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line)">
+        <b style="white-space:nowrap">로스팅일</b>
+        <input type="date" id="roastDay" style="height:34px;font-size:14px" onkeydown="if(event.key==='Enter')roastDayGo()">
+        <button class="btn primary" style="height:34px" onclick="roastDayGo()">조회</button>
+        <button class="btn" style="height:34px" onclick="roastDaySet(-1)">◀ 전날</button>
+        <button class="btn" style="height:34px" onclick="roastDaySet(0)">오늘</button>
+        <button class="btn" style="height:34px" onclick="roastDaySet(1)">다음날 ▶</button>
+        <button class="btn" style="height:34px" onclick="roastDaySet('all')">전체</button>
+        <span class="hint" style="padding:0" id="roastDayInfo"></span></div>
       <div class="selbar" id="selBar-roasting"></div>
       <div class="panel-b"><table id="roastTbl"></table></div>
     </div>
     <div class="panel">
-      <div class="panel-h">오늘 받은 배치 <span class="r hint">지금 바로 쓸 수 있습니다</span></div>
+      <div class="panel-h"><span id="todayInT">오늘 받은 배치</span> <span class="r hint">위 로스팅일 조회 날짜를 따라갑니다 · 남은 kg 가 있는 배치만</span></div>
       <div class="panel-b" id="todayIn"></div>
     </div>
     </div>
@@ -5608,6 +5635,12 @@ async function mesUndoUse(a){
 
 /* ── 로스팅 입고 — ★ 중복 입고 방지 + 입고 수불 ──────────────── */
 async function mesReceiveLine(a){
+  if (sb && a.in_date) {
+    const r0 = await rpc("receive_roast_line", { p_line_id:a.line_id, p_kg:a.kg ?? null, p_idempotency:a.idem, p_in_date:a.in_date }, null, { quiet:true });
+    if (r0 && r0.ok !== false) return r0;
+    if (!/receive_roast_line|schema cache|function|p_in_date/i.test(r0?.message||"")) return r0;
+    toast("서버에 071 SQL 을 실행하면 받은 날짜가 따로 남습니다 — 지금은 로스팅일로 받습니다");
+  }
   return rpc("receive_roast_line",
     { p_line_id:a.line_id, p_kg:a.kg ?? null, p_idempotency:a.idem },
     () => {
@@ -5621,12 +5654,12 @@ async function mesReceiveLine(a){
         const seq = DB.mms.filter(m => m.bean === l.bean && m.roast_date === l.roast_date)
           .reduce((mx,m) => Math.max(mx, Number(m.batch)||0), 0) + 1;
         const b = M(l.bean, l.roast_date, seq, kg);
-        b.in_date = l.roast_date; b.in_kg = kg;
+        b.in_date = a.in_date || l.roast_date; b.in_kg = kg;
         T.add("mms", b); save("mms", b);
         /* ★ 입고도 수불로 남긴다 (전에는 안 남았다) */
         putMove(T, { kind:"원두", ref_type:"roast_line", ref_id:l.id, mms_id:b.id,
           bean:l.bean, qty:kg, unit:"kg", reason:"입고",
-          note:`로스팅 입고 · ${batchFull(b)}`, move_date:l.roast_date,
+          note:`로스팅 입고 · ${batchFull(b)}${b.in_date!==l.roast_date?` · 받은 날 ${b.in_date.slice(5)}`:""}`, move_date:b.in_date,
           user_name:CURRENT_USER });
         if (!DB.beans.some(x => x.name === l.bean)) {
           const nb = T.add("beans", { id:uid(), name:l.bean, mms_code:"" }); save("beans", nb); }
@@ -6840,6 +6873,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "날짜 — 입고 받은 날 · 출고 내역 조회 · 재고 세기 센 날", "입고 확인: [받은 날짜] 칸 (로스팅일과 따로 — 일요일 로스팅 · 월요일 받음) · 줄 왼쪽 네모로 여러 줄 고르고 받은 날짜 한 번에 넣기 · [고른 줄 받음] · 배치의 받은 날과 입고 수불 날짜가 받은 날짜로 (배치번호·상미기한은 로스팅일 그대로 — 서버 071 SQL) / 출고 완료 내역: 출고일 칸 + [조회] · 전날 · 오늘 · 다음날 · 전체 (기본 오늘 · 그날 건수·수량 합계) / 재고 세기: [센 날짜] — 그 날짜로 장부에 들어감"],
+  ["2026-11-02", "로스팅 계획 — 날짜로 조회", "로스팅 계획·입고 등록 표 위에 로스팅일 칸 + [조회] (날짜를 치거나 달력에서 골라 조회 · Enter 도 됨) · [◀ 전날] [오늘] [다음날 ▶] [전체] · 기본은 오늘 — 어제 받은 줄은 어제 날짜로 보면 나오고, 아직 안 받은 지난 줄은 오늘 화면에 같이 · 그날 줄 수·입고 kg 합계"],
+  ["2026-11-02", "로스 — 남은 원두 중 부적합(재포장) 따로", "생산실적·로스의 [로스] 에서 남은 원두 처리에 [부적합(재포장) 따로 · 나머지 로스] 추가 — 부적합 kg (기본: 부적합 수량 × 1개 kg)는 로스에서 빼고 나머지만 이 건의 로스 · 메모에 \"부적합(재포장) 21kg 따로 · 나머지 N kg 로스\" 로 남음"],
   ["2026-11-02", "부적합 중복·누락 정리", "① 생산 완료 창의 버린 수량이 0 으로 시작해서, 생산 중 [부적합 등록] 한 수량이 완료 때 0 으로 덮이던(최종확정 0) 오류 → 등록한 수량이 미리 들어가고 \"이미 들어 있음 — 더 나왔으면 늘리기\" 안내 · 원두도 이 전체 수량 기준(두 번 더하지 않음) ② 반려 카드의 [부적합 등록] → [부적합 빼고 검수로]: 부적합 기록 + 그만큼 뺀 수량으로 재검수를 한 번에 (전에는 기록만 되고 정상 수량은 그대로 → 버린 것까지 출고되거나 수량을 또 빼면 두 번 빠짐) · [수량 고치기] 에 \"버린 것은 여기서 빼지 말 것\" 안내"],
   ["2026-11-02", "부적합도 원두에서 뺌 · 만들 수 있는 수량", "생산 완료 때 배치에서 빼는 원두 = (정상 + 부적합) × 표준투입 × (1+로스율) — 전에는 정상만 빼서 부적합 21개(21kg)가 잔량으로 남아 다음 배치로 이월되던 오류 · 완료 창에 부적합 N개 → 원두 N kg 같이 빠짐 표시 · 현장 카드에 [만들 수 있는 수량 약 N개] (배치 사용 가능 kg ÷ 1개 kg)"],
   ["2026-11-02", "검수 출고처 — 여러 곳 동시 선택", "일반(온라인)도 같이 고를 수 있게 (✓ 표시) · 고른 출고처마다 수량 칸 · 일반(온라인)은 나머지 자동 · 수량을 적어 합계가 넘으면 다른 출고처에서 자동으로 뺌 · [초기화] 로 전부 온라인"],
@@ -9400,6 +9436,12 @@ async function showBeanNeed(b){
     (noTally ? `\n\n생산계획(집계)이 없는데 [안전재고 자동 보충]이 켜져 있어 잡힌 값입니다.\n필요 없으면 생산계획 화면에서 [안전재고 자동 보충]을 끄세요.` : ""),
     { title:"필요 원두 내역", yes:"확인", only:true });
 }
+var ROAST_DAY = "";
+function roastDayGo(){ const v = $("roastDay")?.value; ROAST_DAY = v || "all"; renderRoast(); }
+function roastDaySet(d){ if (d === "all") ROAST_DAY = "all"; else if (d === 0) ROAST_DAY = today();
+  else { const base = (ROAST_DAY && ROAST_DAY !== "all") ? ROAST_DAY : today(); const t = new Date(base + "T00:00:00"); t.setDate(t.getDate() + d);
+    ROAST_DAY = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`; }
+  renderRoast(); }
 function renderRoast(){
   if (document.querySelector("#s-roast .subpane.on")?.id !== "rp-"+roastTab) setRoastTab(roastTab);
   const shelf = sortBatches(DB.mms.filter(m=>Number(m.stock_kg)>0 && shelfState(m.roast_date)!=="ok"));
@@ -9440,8 +9482,14 @@ function renderRoast(){
           hold>0 && lack>0 ? `<br><span class="hint" style="padding:0;font-size:11px">보류 ${fmt(hold)}kg 를 빼고 계산한 값입니다</span>` : ""}</td></tr>`;
     }));
 
-  const rs = [...DB.roasting].sort((a,b)=>(a.done?1:0)-(b.done?1:0) || String(a.plan_date).localeCompare(String(b.plan_date)) || roastRank(a)-roastRank(b) || beanCmp(a.bean, b.bean));
-  const waitN = rs.filter(r=>!r.done).length;
+  /* ★ 2026-11-02 로스팅일로 조회 (Lee "받은 원두는 어제 날짜인데 그대로 남아 있네 · 날짜를 입력하거나 달력에서 골라 조회") — 기본 오늘 · 받기 전 줄은 지난 날짜여도 오늘 화면에 같이 */
+  const RD = ROAST_DAY || today();
+  if ($("roastDay") && document.activeElement !== $("roastDay")) $("roastDay").value = RD === "all" ? "" : RD;
+  const rsAll = [...DB.roasting].sort((a,b)=>(a.done?1:0)-(b.done?1:0) || String(a.plan_date).localeCompare(String(b.plan_date)) || roastRank(a)-roastRank(b) || beanCmp(a.bean, b.bean));
+  const rs = RD === "all" ? rsAll : rsAll.filter(r=>(r.plan_date||today()) === RD || (!r.done && RD === today() && (r.plan_date||today()) < RD));
+  if ($("roastDayInfo")) { const dn = rs.filter(r=>r.done).length, old = rs.filter(r=>!r.done && (r.plan_date||today()) < RD).length;
+    $("roastDayInfo").innerHTML = RD === "all" ? `전체 ${rsAll.length}줄` : `${RD.slice(5).replace("-","/")} — ${rs.length}줄 (입고완료 ${dn} · 받기 전 ${rs.length-dn}${old?` · 지난 날짜 미입고 ${old}`:""}) · 입고 ${fmt(Math.round(rs.reduce((t,r)=>t+Number(r.received_kg||0),0)*100)/100)}kg`; }
+  const waitN = rsAll.filter(r=>!r.done).length;
   if ($("roastWait")) $("roastWait").innerHTML = waitN
     ? `<span class="tag warn">입고 대기 ${waitN}건</span>`
     : `<span class="tag ok">입고 대기 없음</span>`;
@@ -9491,7 +9539,9 @@ function renderRoast(){
   })();
 
   // 오늘 받은 배치 — 바로 쓸 수 있는 것
-  const todayIn = DB.mms.filter(m=>m.in_date===today() && Number(m.stock_kg)>0);
+  const inDay = (RD && RD !== "all") ? RD : today();
+  if ($("todayInT")) $("todayInT").textContent = inDay === today() ? "오늘 받은 배치" : `${inDay.slice(5).replace("-","/")} 받은 배치`;
+  const todayIn = DB.mms.filter(m=>m.in_date===inDay && Number(m.stock_kg)>0);
   if ($("todayIn")) $("todayIn").innerHTML = todayIn.length
     ? `<div class="newbatch">${todayIn.map(m=>`<div class="nb${isHeld(m)?" held":""}">
          <div class="no">${batchShort(m)}</div>
@@ -9499,7 +9549,7 @@ function renderRoast(){
            ${isHeld(m)
              ? `<span class="tag bad">보류 — ${m.hold_why||""}</span> <button class="btn" onclick="freeBatch('${m.id}')">풀기</button>`
              : `<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}${batchUntouched(m) ? ` <button class="btn" style="color:var(--bad)" onclick="unreceiveBatch('${m.id}')" title="실수로 받았을 때 — 받기 전으로 되돌립니다">받기 되돌리기</button>` : ""}</div></div>`).join("")}</div>`
-    : `<div class="hint" style="padding:12px 2px">오늘 받은 배치가 없습니다.</div>`;
+    : `<div class="hint" style="padding:12px 2px">${inDay===today()?"오늘":inDay} 받은 배치가 없습니다.</div>`;
 
   /* ★ 2026-10-31 — 사용 중단(종료)한 원두의 배치는 따로 (Lee "사용중인 원두, 사용중단 원두가 따로 있어야") */
   const allLive = sortBatches(DB.mms.filter(m=>Number(m.stock_kg)>0));
@@ -11071,10 +11121,15 @@ function renderIn(){
   if ($("inWait")) $("inWait").innerHTML = rows.length
     ? `<span class="tag warn">받을 배치 ${rows.length}개 · ${fmt(rows.reduce((t,x)=>t+Number(x.l.kg||0),0))}kg</span>`
     : `<span class="tag ok">받을 배치 없음</span>`;
-  tbl("inTbl", ["현장번호","전체번호","원두","로스터기","로스팅일","받은 kg","",''],
+  IN_SEL.forEach(id=>{ if (!rows.some(x=>x.l.id===id)) IN_SEL.delete(id); });
+  if ($("inSelInfo")) $("inSelInfo").innerHTML = IN_SEL.size ? `<b>${IN_SEL.size}줄 고름</b> · ${fmt(rows.filter(x=>IN_SEL.has(x.l.id)).reduce((t,x)=>t+Number(x.l.kg||0),0))}kg` : "줄 왼쪽 네모로 여러 개를 고르세요 · 로스팅은 일요일, 받은 건 월요일처럼 다를 때";
+  if ($("inDayAll") && !$("inDayAll").value) $("inDayAll").value = today();
+  tbl("inTbl", [`<input type="checkbox" ${rows.length && rows.every(x=>IN_SEL.has(x.l.id))?"checked":""} onclick="inSelAll(this.checked)" title="전부 고르기">`,"현장번호","전체번호","원두","로스터기","로스팅일","받은 날짜","받은 kg","",''],
     rows.map(({l,r})=>{
       const m = { roast_date:l.roast_date, batch:nos[l.id], bean:l.bean };
-      return `<tr class="wait">
+      const ind = l.in_date || today();
+      return `<tr class="wait" ${IN_SEL.has(l.id)?'style="background:#EAF0FF"':""}>
+        <td class="c"><input type="checkbox" ${IN_SEL.has(l.id)?"checked":""} onclick="inSel('${l.id}',this.checked)"></td>
         <td class="c" title="${l.bean} · ${l.roast_date} ${nos[l.id]}번 배치">
           <b style="font-size:19px;letter-spacing:-.5px">${batchShort(m)}</b></td>
         <td class="c"><b>${batchFull(m)}</b><br>
@@ -11083,13 +11138,15 @@ function renderIn(){
         <td class="c">${r.roaster?`<span class="tag">${r.roaster}</span>`:"—"}</td>
         <td class="c"><input type="date" data-f="ln-${l.id}-d" value="${l.roast_date}"
           onchange="setLine('${l.id}','roast_date',this.value)"></td>
+        <td class="c"><input type="date" data-f="ln-${l.id}-i" value="${ind}" min="${l.roast_date}" style="${ind!==l.roast_date?"font-weight:800;color:var(--blue-600,#2348d8)":""}"
+          onchange="setLine('${l.id}','in_date',this.value)">${ind!==l.roast_date?`<br><span class="hint" style="padding:0;font-size:10.5px">로스팅 ${l.roast_date.slice(5)} → 받음 ${ind.slice(5)}</span>`:""}</td>
         <td><input class="cntin" type="text" inputmode="decimal" data-f="ln-${l.id}-k"
           value="${l.kg ?? ""}" placeholder="받은 kg" oninput="setLine('${l.id}','kg',this.value)"></td>
         <td class="c"><button class="btn primary" onclick="takeLine('${l.id}')">받음</button>
           <button class="btn" onclick="takeHold('${l.id}')" title="받되 바로 보류 — 검사 결과를 기다릴 때">보류로</button></td>
         <td class="c"><button class="btn danger" onclick="dropLine('${l.id}')" title="이 배치는 안 나왔습니다">취소</button></td></tr>`;
     }),
-    rows.length ? `<td colspan="5" class="c">합 계 · ${rows.length}배치</td>
+    rows.length ? `<td colspan="7" class="c">합 계 · ${rows.length}배치</td>
       <td><b>${fmt(rows.reduce((t,x)=>t+Number(x.l.kg||0),0))}</b></td><td colspan="2"></td>` : null);
 }
 /* 치는 중에는 화면에만 둡니다 */
@@ -11116,12 +11173,38 @@ async function takeLine(id){
   const r = DB.roasting.find(x=>x.id===l.plan_id);
   const kg = Number(l.kg)||0;
   if (kg <= 0) return toast("받은 kg 을 먼저 적으세요");
+  const inD = l.in_date || today();
+  if (l.roast_date && inD < l.roast_date) return toast(`받은 날짜(${inD})가 로스팅일(${l.roast_date})보다 앞설 수 없습니다`);
   const res = await mesReceiveLine({ line_id:id, kg, batch_no:(l.batch_no ?? null),
-                                     roast_date:l.roast_date || null,
+                                     roast_date:l.roast_date || null, in_date:inD,
                                      idem:`rl-${id}-${uid()}` });
   if (!res || !res.ok) { renderAll(); return toast(res?.message || "입고하지 못했습니다"); }
   renderAll();
-  toast(`${l.bean} 배치 ${res.batch_full} 입고 — 바로 생산에 쓸 수 있습니다`);
+  IN_SEL.delete(id);
+  toast(`${l.bean} 배치 ${res.batch_full} 입고${inD!==l.roast_date?` (받은 날 ${inD.slice(5)})`:""} — 바로 생산에 쓸 수 있습니다`);
+  return res;
+}
+/* ★ 2026-11-02 입고 확인 — 여러 줄 골라 받은 날짜 한 번에 · 고른 줄만 받기 (Lee "일요일에 로스팅했는데 월요일에 받을 수 있잖아") */
+var IN_SEL = new Set();
+function inSel(id, on){ on ? IN_SEL.add(id) : IN_SEL.delete(id); renderIn(); }
+function inSelAll(on){ IN_SEL = new Set(on ? openLines().map(x=>x.l.id) : []); renderIn(); }
+function inDayQuick(d){ const t = new Date(); t.setDate(t.getDate()+d); $("inDayAll").value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`; inDaySel(); }
+function inDaySel(){
+  const v = $("inDayAll")?.value; if (!v) return toast("받은 날짜를 고르세요");
+  if (!IN_SEL.size) return toast("줄 왼쪽 네모로 받은 날짜를 바꿀 줄을 고르세요");
+  let n = 0, bad = 0;
+  IN_SEL.forEach(id=>{ const l = DB.roast_lines.find(x=>x.id===id); if (!l) return; if (l.roast_date && v < l.roast_date) { bad++; return; } l.in_date = v; n++; });
+  renderIn(); toast(`${n}줄 받은 날짜 → ${v}${bad?` · ${bad}줄은 로스팅일보다 앞서서 안 바꿈`:""}`);
+}
+async function takeSel(){
+  if (!(await requireUser())) return;
+  const rows = openLines().filter(x=>IN_SEL.has(x.l.id));
+  if (!rows.length) return toast("줄 왼쪽 네모로 받을 줄을 고르세요");
+  const noKg = rows.filter(x=>!(Number(x.l.kg)>0)); if (noKg.length) return toast(`받은 kg 이 없는 줄이 ${noKg.length}개 있습니다`);
+  const byDay = {}; rows.forEach(({l})=>{ const d = l.in_date || today(); byDay[d] = (byDay[d]||0) + 1; });
+  if (!(await ask(`${rows.length}개 배치 · 합계 ${fmt(rows.reduce((t,x)=>t+Number(x.l.kg),0))}kg 을 받습니다.\n\n받은 날짜: ${Object.entries(byDay).map(([d,n])=>`${d} ${n}개`).join(" · ")}`, { title:"고른 줄 받음", yes:`${rows.length}개 받음` }))) return;
+  let ok = 0; for (const { l } of rows) { const r = await takeLine(l.id); if (r && r.ok) ok++; }
+  toast(`${ok}개 배치 입고 완료`);
 }
 /* 계획에 달린 줄을 다 받았으면 계획을 닫는다 */
 function gotoIn(){
@@ -11254,6 +11337,7 @@ const cntBags  = D => stockAsOf(D).filter(x=>x.m.bean===cntBean && Math.abs(x.kg
              || (Number(a.m.batch)-Number(b.m.batch)));
 
 function renderCount(){
+  if ($("cntDay") && !$("cntDay").value) { $("cntDay").value = today(); $("cntDay").max = today(); }
   const w = $("cntWrap"); if (!w) return;
   if (!cntBean) { w.style.display = "none"; return; }
   w.style.display = "";
@@ -17499,15 +17583,25 @@ async function editLoss(logId){
   if (lv === null) return; const leftover = Math.max(0, kgOf(lv));
   let to = l.leftover_to || "loss";
   if (leftover > 0) { to = await ask(`남은 원두 ${fmt(leftover)}kg 을 어떻게 했습니까?`, { title:"남은 원두 처리", choices:[
-      { v:"next", label:"다음 생산에 합산", cls:"primary" }, { v:"loss", label:"이 건의 로스로" }, { v:"keep", label:"잔량으로 보관" }, { v:null, label:"취소" } ] }); if (!to) return; }
+      { v:"ng", label:"부적합(재포장) 따로 · 나머지 로스", cls:"primary" }, { v:"next", label:"다음 생산에 합산" }, { v:"loss", label:"전부 이 건의 로스로" }, { v:"keep", label:"잔량으로 보관" }, { v:null, label:"취소" } ] }); if (!to) return; }
+  /* ★ 2026-11-02 남은 원두 중 부적합(다시 포장할 것)은 따로 — 로스가 아니다 · 나머지만 로스 (Lee) */
+  let ngKg = 0;
+  if (to === "ng") {
+    const ngEa = Number(o.qty_ng || l.qty_ng || 0), def = Math.min(leftover, ngEa ? stdKg(p, ngEa) : leftover);
+    const v = await askText(`남은 원두 ${fmt(leftover)}kg 중 부적합(재포장할 것)은 몇 kg 입니까?${ngEa?`\n(부적합 ${fmt(ngEa)}개 = ${fmt(stdKg(p, ngEa))}kg)`:""}\n\n나머지는 이 건의 로스로 잡습니다.`, String(Math.round(def*1000)/1000), "부적합(재포장) kg");
+    if (v === null) return;
+    ngKg = Math.min(leftover, Math.max(0, kgOf(v)));
+    to = "loss";
+  }
   const rule = lossRuleOf(p, l.machine);
   const chain = carried ? lossChainOf(carried) : [];
   const sumIn = chain.reduce((s,x)=>s+Number(x.input_kg||0),0) + Number(l.input_kg||0);
   const sumOut = chain.reduce((s,x)=>{ const q=prodById(x.product_id); return s+(q?stdKg(q,x.qty_ea):0); },0) + outKg;
   const keep = to === "keep" ? leftover : 0;
-  const lossKg = Math.round((sumIn - sumOut) * 1000) / 1000, totalIn = Math.round((sumIn + keep) * 1000) / 1000;
+  const lossKg = Math.round((sumIn - sumOut - ngKg) * 1000) / 1000, totalIn = Math.round((sumIn + keep) * 1000) / 1000;
   const pct = totalIn > 0 ? Math.round(lossKg / totalIn * 10000) / 100 : 0;
   let flag = to === "next" ? "open" : lossFlagOf(pct, rule), reason = l.loss_reason || null, note = l.loss_note || null;
+  const ngNote = ngKg > 0 ? `부적합(재포장) ${fmt(ngKg)}kg 따로 · 나머지 ${fmt(Math.round((leftover-ngKg)*1000)/1000)}kg 로스` : "";
   if (flag === "high" || flag === "low") {
     const r = await ask(`로스가 기준을 벗어났습니다 — 사유를 고르세요\n\n투입 ${fmt(totalIn)}kg · 정상 생산 ${fmt(sumOut)}kg · 로스 ${fmt(lossKg)}kg = ${pct}% (정상 ${rule.lo}~${rule.hi}%)`,
       { title: flag === "high" ? "로스 이상 — 기준 초과" : "로스 이상 — 기준 미달", choices:[ ...LOSS_REASONS.map(x=>({ v:x, label:x })), { v:null, label:"취소" } ] });
@@ -17515,10 +17609,11 @@ async function editLoss(logId){
     const t = await askText(r === "기타 직접 입력" ? "사유를 적어 주세요" : "덧붙일 메모 (없으면 그대로 확인)", note || "", "메모"); if (t === null) return; note = String(t).trim() || null;
     if (r === "기타 직접 입력" && !note) return toast("사유를 적어 주세요");
   } else { reason = null; note = null; }
+  if (ngNote) note = note ? `${ngNote} · ${String(note).replace(/^부적합\(재포장\)[^·]*· 나머지 [^·]*로스( · )?/,"")}`.replace(/ · $/,"") : ngNote;
   const r = await recordLoss(l.id, { leftover, to, carried_from: carried ? carried.id : null, carried_kg: ck, loss_kg:lossKg, loss_pct:pct, flag, rule, reason, note });
   if (!r || r.ok === false) return toast("로스 기록 실패 — " + (r?.message || ""));
   if (sb) await pullWhere("logs", "id", l.id);
-  renderAll(); toast(`로스 기록 — ${LOSS_FLAG_T[flag]} ${flag==="open"?"":`(${pct}%)`}`);
+  renderAll(); toast(`로스 기록 — ${LOSS_FLAG_T[flag]} ${flag==="open"?"":`(${pct}%)`}${ngKg>0?` · 부적합(재포장) ${fmt(ngKg)}kg 은 로스에서 뺌`:""}`);
 }
 
 /* ══ 생산 완료 — 한 화면에서 끝낸다 (Lee 2026-10-29) ══
@@ -18787,9 +18882,20 @@ function renderQc(){
 }
 
 /* ══ 출고 ══ */
+var SH_DAY = "";
+const ymdLocal = t => { if (!t) return ""; const d = new Date(t); if (isNaN(d)) return String(t).slice(0,10); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+function shDayGo(){ const v = $("shDay")?.value; SH_DAY = v || "all"; renderShip(); }
+function shDaySet(d){ if (d === "all") SH_DAY = "all"; else if (d === 0) SH_DAY = today();
+  else { const base = (SH_DAY && SH_DAY !== "all") ? SH_DAY : today(); const t = new Date(base + "T00:00:00"); t.setDate(t.getDate() + d); SH_DAY = ymdLocal(t); }
+  renderShip(); }
 function renderShip(){
   const ready = DB.orders.filter(o=>o.status==="검수완료");
-  const gone  = DB.orders.filter(o=>o.status==="출고완료").sort((a,b)=>String(b.ship_at).localeCompare(String(a.ship_at))).slice(0,40);
+  /* ★ 2026-11-02 출고 완료 내역 — 날짜로 조회 (기본 오늘) */
+  const SD = SH_DAY || today();
+  if ($("shDay") && document.activeElement !== $("shDay")) $("shDay").value = SD === "all" ? "" : SD;
+  const goneAll = DB.orders.filter(o=>o.status==="출고완료").sort((a,b)=>String(b.ship_at).localeCompare(String(a.ship_at)));
+  const gone = SD === "all" ? goneAll.slice(0,300) : goneAll.filter(o=>ymdLocal(o.ship_at) === SD);
+  if ($("shDayInfo")) $("shDayInfo").innerHTML = `${SD==="all"?`전체 (최근 ${fmt(gone.length)}건)`:`${SD.slice(5).replace("-","/")} — ${gone.length}건`} · ${fmt(gone.reduce((t,o)=>t+Number(o.qty_done||0),0))}개`;
   $("shInfo").innerHTML = ready.length ? `출고 대기 <b>${ready.length}</b>건` : "출고 대기가 없습니다";
 
   /* ★ 2026-11-02 출고처별 — 나눈 수량(예 태경 15 · 온라인 266)은 각 출고처에 그 수량으로 · [전량 출고] */
@@ -18818,7 +18924,7 @@ function renderShip(){
         <td class="l">${o.serial||"—"}</td><td class="l">${ordLotRows(o).length?lotRowsText(ordLotRows(o)):(o.lot||"—")}</td>
         <td class="c" style="font-size:12px">${dtFull(o.done_at)}<br>${o.done_by||"—"}</td><td class="c" style="font-size:12px">${dtFull(o.qc_at)}<br>${o.qc_by||"—"}</td><td class="c">${o.ship_by||"—"}</td>
         <td class="c"><button class="btn" onclick="shipBack('${o.id}')">출고취소</button></td></tr>`; }),
-    `<td colspan="3" class="c">최근 ${gone.length}건</td><td>${fmt(gone.reduce((s,o)=>s+Number(o.qty_done||0),0))}</td><td colspan="6"></td>`);
+    `<td colspan="3" class="c">${SD==="all"?"최근":SD.slice(5).replace("-","/")} ${gone.length}건</td><td>${fmt(gone.reduce((s,o)=>s+Number(o.qty_done||0),0))}</td><td colspan="6"></td>`);
 }
 
 /* ══ LOT 추적 — 일련번호·LOT·지시번호 아무거나 넣으면 전체 이력 ══ */
@@ -19764,6 +19870,7 @@ function setCntPack(key, b, p){ const n = Math.max(0, Math.round(numOf(b)))*(p||
 function setCntPiece(key, p){ const b = Math.max(0, Math.round(numOf($("cb-"+key)?.value||0))), n = b*p + Math.max(0, Math.round(numOf($("cp-"+key)?.value||0)));
   cntPut(cntType, key, n); keepFocus(renderCount); }
 function renderCount(){
+  if ($("cntDay") && !$("cntDay").value) { $("cntDay").value = today(); $("cntDay").max = today(); }
   if (!$("cntSheet")) return;
   const rows = cntRows(), ent = rows.filter(r=>r.act != null), diffs = ent.filter(r=>r.act !== r.app);
   $("cntTypeBtn").innerHTML = [["mat","부자재 · 라벨"],["cfe","CFE 완제품"]].map(([v,t])=>`<button class="btn ${cntType===v?"primary":""}" onclick="setCntType('${v}')">${t}</button>`).join(" ");
@@ -19818,16 +19925,17 @@ async function negFix(pid){
   if (sb) await reloadDB({ silent:true });
   renderAll(); toast(`${p.name} → ${fmt(n)}EA 로 맞췄습니다`);
 }
+const cntDayOf = () => { const v = $("cntDay")?.value; return v && v <= today() ? v : today(); };
 async function cntApplyRow(r, why){
   const d = Math.round((r.act - r.app)*1000)/1000;
   if (cntType === "cfe") {
-    const res = await mesCountProductStock({ product_id:r.key, counted:Number(r.act), date:today(), note:cntNoteOf(why, "재고 세기 반영"), idem:`cnt-${r.key}-${uid()}` });
+    const res = await mesCountProductStock({ product_id:r.key, counted:Number(r.act), date:cntDayOf(), note:cntNoteOf(why, "재고 세기 반영"), idem:`cnt-${r.key}-${uid()}` });
     if (res && res.ok && why && d) logAudit(/오출고/.test(why.reason) ? "완제품 오출고 (재고 세기)" : `완제품 실측 차이 — ${why.reason}`, r.name, `${d>0?"+":""}${fmt(d)}EA → ${fmt(r.act)}EA${why.note?` · ${why.note}`:""}`);
     return res;
   }
   if (!d) return { ok:true };
   const M = matById(r.key);
-  const res = await mesMoveMaterial({ material_id:r.key, kind:"조정", qty:d, note:cntNoteOf(why, `재고 세기 ${fmt(r.act)}${r.unit} (장부 ${fmt(r.app)}${r.unit})`), idem:`cnt-${r.key}-${uid()}` });
+  const res = await mesMoveMaterial({ material_id:r.key, kind:"조정", qty:d, date:cntDayOf(), note:cntNoteOf(why, `재고 세기 ${fmt(r.act)}${r.unit} (장부 ${fmt(r.app)}${r.unit})${cntDayOf()!==today()?` · ${cntDayOf()} 에 셈`:""}`), idem:`cnt-${r.key}-${uid()}` });
   if (res && res.ok && M) logAudit(`${M.kind} 조정${why?` — ${why.reason}`:""}`, M.name, `${d>0?"+":""}${fmt(d)}${r.unit} → ${fmt(r.act)}${r.unit}${why?.note?` · ${why.note}`:""}`);
   return res;
 }
