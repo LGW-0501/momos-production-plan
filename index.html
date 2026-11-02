@@ -5692,9 +5692,10 @@ async function mesReceiveLine(a){
       const kg = Number(a.kg ?? l.kg) || 0;
       if (kg <= 0) return MES_ERR("bad_qty","받은 kg 을 먼저 적으세요");
       return localTx(T => {
-        const seq = DB.mms.filter(m => m.bean === l.bean && m.roast_date === l.roast_date)
-          .reduce((mx,m) => Math.max(mx, Number(m.batch)||0), 0) + 1;
-        const b = M(l.bean, l.roast_date, seq, kg);
+        const taken = DB.mms.filter(m => m.bean === l.bean && m.roast_date === l.roast_date);
+        const want = Number(a.batch_no ?? l.batch_no) || 0;
+        const seq = want > 0 && !taken.some(m=>Number(m.batch)===want) ? want : taken.reduce((mx,m) => Math.max(mx, Number(m.batch)||0), 0) + 1;
+        const b = M(l.bean, l.roast_date, seq, kg); l.batch_no = seq;
         b.in_date = a.in_date || l.roast_date; b.in_kg = kg;
         T.add("mms", b); save("mms", b);
         /* ★ 입고도 수불로 남긴다 (전에는 안 남았다) */
@@ -6914,6 +6915,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "받은 배치 — 그 자리에서 kg 고치기", "받은 배치 카드마다 kg 칸 + [kg 고치기] (Enter 도 됨) · 위에 [원두별 kg 한 번에] — 그 원두 배치를 전부 같은 kg 로 · 아직 안 쓴 배치는 받은 kg(입고량)부터 고쳐짐(같은 번호·같은 받은 날로 다시 받음) · 이미 쓴 배치는 잔량 실측으로 · 15kg 미만은 빨간 칸"],
   ["2026-11-02", "받기 전부 되돌리기", "받은 배치 칸에 [받기 전부 되돌리기 N] — 그날 받은 배치 중 아직 안 쓴 것을 원두별로(또는 전부) 받기 전으로 · 그 배치로 잡힌 대기 작업지시도 같이 지움 → 입고 확인에서 kg 를 고쳐 다시 [받음]"],
   ["2026-11-02", "로스팅 계획 — 1배치 kg × 배치수 · 잘못 잡힌 것 바로잡기", "로스팅 계획의 계획(kg) → [1배치(kg)] (아래에 × N배치 = 전체 kg) · 배치수를 바꿔도 1배치 kg 는 그대로 · 받기 전 배치 줄 kg 도 1배치 kg 로 · 붙여넣기도 1배치 kg 로 적은 것으로 알아봄 · 전에 58kg 15배치를 58÷15 = 3.86kg 로 받은 계획은 [1배치 kg 바로잡기]: 안 쓴 배치는 받기 전으로 되돌리고 1배치 kg 로 · 그 배치로 잘게 나뉜 대기 작업지시는 지움 → 입고 확인에서 저울 kg 확인 후 [받음]"],
   ["2026-11-02", "배치 kg 가 너무 작을 때 경고", "로스팅 계획에 계획(kg)÷배치수가 15kg 미만이면 \"1배치 4.33kg?\" 빨간 표시 · 입고 확인 받은 kg 이 15kg 미만이면 칸이 빨갛고 [받음] 때 한 번 확인 — 작은 kg 로 받으면 작업지시가 배치마다 19개씩 잘게 나뉘던 원인"],
@@ -9663,11 +9665,12 @@ function renderRoast(){
   if ($("todayInT")) $("todayInT").textContent = inDay === today() ? "오늘 받은 배치" : `${inDay.slice(5).replace("-","/")} 받은 배치`;
   const todayIn = DB.mms.filter(m=>m.in_date===inDay && Number(m.stock_kg)>0);
   if ($("unrcvAllBtn")) { const nU = DB.mms.filter(m=>m.in_date===inDay && batchUntouched(m)).length;
-    $("unrcvAllBtn").innerHTML = nU ? `<button class="btn" style="height:30px;color:var(--bad);font-weight:800;margin-left:8px" onclick="unreceiveAll('${inDay}')">받기 전부 되돌리기 ${nU}</button>` : ""; }
+    $("unrcvAllBtn").innerHTML = (nU ? `<button class="btn primary" style="height:30px;margin-left:8px" onclick="fixReceivedKgBean('${inDay}')">원두별 kg 한 번에</button>` : "") + (nU ? `<button class="btn" style="height:30px;color:var(--bad);font-weight:800;margin-left:6px" onclick="unreceiveAll('${inDay}')">받기 전부 되돌리기 ${nU}</button>` : ""); }
   if ($("todayIn")) $("todayIn").innerHTML = todayIn.length
     ? `<div class="newbatch">${todayIn.map(m=>`<div class="nb${isHeld(m)?" held":""}">
          <div class="no">${batchShort(m)}</div>
          <div class="dt"><b>${m.bean}</b><br><span>${batchFull(m)} · ${fmt(m.stock_kg)}kg 남음</span><br>
+           <span style="display:inline-flex;gap:4px;align-items:center;margin:4px 0"><input type="text" inputmode="decimal" id="rk-${m.id}" value="${m.in_kg ?? m.stock_kg}" style="width:72px;height:30px;text-align:right;font-weight:700;${Number(m.in_kg ?? m.stock_kg)<15?"border-color:var(--bad);color:var(--bad)":""}" onkeydown="if(event.key==='Enter')fixReceivedKg('${m.id}')"> kg <button class="btn primary" style="height:30px;padding:0 8px" onclick="fixReceivedKg('${m.id}')">kg 고치기</button></span><br>
            ${isHeld(m)
              ? `<span class="tag bad">보류 — ${m.hold_why||""}</span> <button class="btn" onclick="freeBatch('${m.id}')">풀기</button>`
              : `<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}${batchUntouched(m) ? ` <button class="btn" style="color:var(--bad)" onclick="unreceiveBatch('${m.id}')" title="실수로 받았을 때 — 받기 전으로 되돌립니다">받기 되돌리기</button>` : ""}</div></div>`).join("")}</div>`
@@ -11398,6 +11401,46 @@ async function unreceiveBatch(id, opt={}){
   if (sb) await reloadDB({ silent:true });
   renderAll(); toast(`${m.bean} ${batchShort(m)} 받기를 되돌렸습니다 — 받을 배치로 돌아갔습니다`);
   return true;
+}
+/* ★ 2026-11-02 받은 배치 kg 를 그 자리에서 고치기 (Lee "여기 안에서 kg 조정 가능하게")
+   아직 안 쓴 배치 = 받기를 되돌리고 같은 번호·같은 받은 날로 고친 kg 다시 받음 (입고 kg 부터 맞음) · 쓴 배치 = 잔량 실측으로 */
+async function reReceive(m, kg){
+  const l = DB.roast_lines.find(x=>x.mms_id===m.id);
+  if (!l || !batchUntouched(m)) {
+    return mesCountStock({ mms_id:m.id, counted:kg, date:today(), note:`받은 kg 정정 ${fmt(m.stock_kg)} → ${fmt(kg)}kg`, idem:`rk-${m.id}-${uid()}` });
+  }
+  const inD = m.in_date || today(), lid = l.id;
+  const ok = await unreceiveBatch(m.id, { quiet:true }); if (ok !== true) return { ok:false, message:"받기를 되돌리지 못했습니다" };
+  if (sb) { try { await pullWhere("roast_lines","id",lid); } catch(_){} }
+  const l2 = DB.roast_lines.find(x=>x.id===lid) || l;
+  await mesEditRoastLine({ line_id:lid, patch:{ kg }, idem:`rl-rk-${lid}-${uid()}` }); l2.kg = kg;
+  const res = await mesReceiveLine({ line_id:lid, kg, batch_no:(l2.batch_no ?? m.batch ?? null), roast_date:l2.roast_date || null, in_date:inD, idem:`rl-rk2-${lid}-${uid()}` });
+  return res;
+}
+async function fixReceivedKg(mmsId){
+  if (!(await requireUser())) return;
+  const m = DB.mms.find(x=>x.id===mmsId); if (!m) return;
+  const kg = Math.round(numOf($(`rk-${mmsId}`)?.value)*100)/100;
+  if (!(kg > 0)) return toast("kg 를 숫자로 적어 주세요");
+  if (Math.abs(kg - Number(m.in_kg ?? m.stock_kg)) < 0.005) return toast("지금과 같습니다");
+  const busy = setBusy("고치는 중…"); const r = await reReceive(m, kg); busy();
+  if (!r || r.ok === false) { renderAll(); return toast(r?.message || "고치지 못했습니다"); }
+  if (sb) await reloadDB({ silent:true });
+  renderAll(); toast(`${m.bean} ${batchShort(m)} → ${fmt(kg)}kg`);
+}
+async function fixReceivedKgBean(day){
+  if (!(await requireUser())) return;
+  const all = DB.mms.filter(m=>m.in_date===day);
+  const beans = [...new Set(all.map(m=>m.bean))].sort(beanCmp); if (!beans.length) return;
+  const b = beans.length === 1 ? beans[0] : await ask(`${day} 받은 배치 — 어느 원두의 kg 를 한 번에 고칠까요?`, { title:"원두별 kg 한 번에", choices:[ ...beans.map(x=>({ v:x, label:`${x} ${all.filter(m=>m.bean===x).length}배치` })), { v:null, label:"취소" } ] });
+  if (!b) return;
+  const ms = all.filter(m=>m.bean===b);
+  const v = await askText(`${b} ${ms.length}배치 — 1배치 kg 를 적으세요 (전부 같은 kg 로 · 다른 배치는 카드에서 따로)`, String(ms[0]?.in_kg ?? ms[0]?.stock_kg ?? ""), "원두별 kg 한 번에");
+  if (v === null) return; const kg = Math.round(numOf(v)*100)/100; if (!(kg > 0)) return toast("kg 를 숫자로 적어 주세요");
+  const busy = setBusy(`${b} ${ms.length}배치 고치는 중…`); let ok = 0, fail = 0;
+  for (const m of ms) { if (Math.abs(kg - Number(m.in_kg ?? m.stock_kg)) < 0.005) { ok++; continue; } const r = await reReceive(m, kg); if (r && r.ok !== false) ok++; else fail++; }
+  busy(); if (sb) await reloadDB({ silent:true }); renderAll();
+  toast(`${b} ${ok}배치 → ${fmt(kg)}kg${fail?` · 못 한 것 ${fail}`:""}`);
 }
 /* ★ 2026-11-02 그날 받은 배치를 한 번에 받기 전으로 (Lee "이거 전부 되돌리기 할 수 있게") — 원두별로 골라서 */
 async function unreceiveAll(day){
