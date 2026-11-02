@@ -1132,6 +1132,7 @@
     <button data-s="base" data-r="admin"><span class="ico">◇</span><span class="lb">기준정보</span></button>
     <div class="grp" data-r="admin,qc,floor,lead"></div>
     <button data-s="help" data-r="admin,lead,floor,qc"><span class="ico">✎</span><span class="lb">문의</span></button>
+    <button data-s="approve" data-r="admin,lead,floor,qc"><span class="ico">☑</span><span class="lb">결재</span></button>
   </nav>
   <div class="menu gnbOut" id="gnbTools">
     <button onclick="reloadDB();closeNav()"><span class="ico">↻</span><span class="lb">새로고침</span></button>
@@ -1392,6 +1393,33 @@
   </div>
 </section>
 
+<!-- ══════ 결재 · 날짜별 전체 초기화 (2026-11-02) ══════ -->
+<section class="screen" id="s-approve">
+  <div class="cond">
+    <span class="hint" style="padding:0" id="apInfo"></span>
+    <span style="margin-left:auto"></span>
+    <button class="btn" onclick="loadApprovals(true)">새로고침</button>
+  </div>
+  <div class="body">
+    <h2 class="page">결재<small id="asof-approve"></small></h2>
+    <div class="guide"><b>지우기처럼 되돌리기 어려운 일은 총 관리자만 합니다.</b>
+      다른 계정은 <b>[결재 요청]</b>을 올리고, 총 관리자가 <b>[승인]</b>하면 그때 실행됩니다 · 요청·승인·반려는 모두 변경이력에 남습니다.</div>
+    <div class="panel">
+      <div class="panel-h">날짜별 전체 초기화 <span class="r hint">그날 생긴 기록을 한 번에 지우고 재고를 되돌립니다 — 테스트 정리용</span></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 16px">
+        <b>날짜</b><input type="date" id="apDate" style="height:36px;font-size:14px">
+        <button class="btn" style="height:36px" onclick="apPreview()">미리보기 (몇 건인지)</button>
+        <button class="btn primary" style="height:36px" id="apRunBtn" onclick="apRun()">초기화</button>
+      </div>
+      <div id="apPrev" style="padding:0 16px 14px"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h">결재함 <span class="r" id="apTabs"></span></div>
+      <div class="panel-b"><table id="apTbl"></table></div>
+    </div>
+  </div>
+</section>
+
 <section class="screen" id="s-help">
   <div class="cond">
     <span class="hint" style="padding:0">보기</span><span id="helpSum"></span>
@@ -1429,7 +1457,7 @@
     <span id="cntKindBtn" style="margin-left:6px"></span>
     <input type="text" id="cntFind" placeholder="이름 찾기" style="width:140px;margin-left:6px" oninput="renderCount()">
     <span style="margin-left:auto"></span>
-    <button class="btn" onclick="cntDraftClear()">입력 지우기</button>
+    <button class="btn" onclick="cntDraftClear()" title="고른 센 날짜에 적은 입력만 지웁니다 — 장부·다른 날짜는 그대로">이 날짜 입력 초기화</button>
     <button class="btn" onclick="cntImport('paste')" title="엑셀에서 복사한 표를 붙여넣기 — 부자재·CFE 섞여 있어도 됨">붙여넣기</button>
     <button class="btn" onclick="cntImport('file')" title="엑셀 파일(.xlsx·.csv) — 시트가 여러 개면 전부 읽음">엑셀 넣기</button>
     <input type="file" id="cntFile" accept=".xlsx,.xls,.csv,.txt" style="display:none">
@@ -6873,6 +6901,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "결재 · 날짜별 전체 초기화", "왼쪽 메뉴 [결재]: 날짜를 고르고 [미리보기] 로 지울 것(작업지시·실적·검수·출고·주문 집계·받은 원두 배치·로스팅 계획·부자재/완제품 수기 수불·부적합)을 센 뒤 — 총 관리자는 [초기화] (\"초기화\" 입력 · 재고 되돌림) · 다른 계정은 [결재 요청] (사유) → 총 관리자가 결재함에서 [승인](바로 실행) / [반려](사유) · 요청자는 [요청 취소] · 대기 건수는 메뉴에 빨간 숫자 · 전부 변경이력에 남음 — 서버 072 SQL 필요"],
+  ["2026-11-02", "재고 세기 — 날짜별 입력 · 날짜별 초기화", "센 날짜마다 입력이 따로 저장 — 날짜를 바꾸면 그날 적은 값이 보이고 새 날짜는 빈 칸에서 시작 · 장부에 반영한 값은 그 날짜에 \"반영함 N (장부 M → N) · 시각 · 누가\" 로 남음 · [입력 지우기] → [이 날짜 입력 초기화] (고른 날짜만 · 장부·다른 날짜는 그대로) · 이 기기에 45일치 보관"],
   ["2026-11-02", "재고 세기 CFE — 들어옴 · 나감 · 출고 예정 · 남을 재고", "CFE 완제품 표에 센 날짜 기준 [들어옴(검수 완료)] · [나감(출고)] · [출고 예정(생산계획 주문 − 이미 출고)] · [남을 재고 = 센 수량(없으면 앱 재고) − 출고 예정] — 모자라면 −N 빨간 표시와 \"N개 부족\" · 위 카드에 부족 품목 수 · [남은 재고 계산] 버튼으로 켜고 끔"],
   ["2026-11-02", "날짜 — 입고 받은 날 · 출고 내역 조회 · 재고 세기 센 날", "입고 확인: [받은 날짜] 칸 (로스팅일과 따로 — 일요일 로스팅 · 월요일 받음) · 왼쪽 체크박스로 배치를 선택해 받은 날짜 한 번에 적용 · [선택한 배치 입고] · 배치의 받은 날과 입고 수불 날짜가 받은 날짜로 (배치번호·상미기한은 로스팅일 그대로 — 서버 071 SQL) / 출고 완료 내역: 출고일 칸 + [조회] · 전날 · 오늘 · 다음날 · 전체 (기본 오늘 · 그날 건수·수량 합계) / 재고 세기: [센 날짜] — 그 날짜로 장부에 들어감"],
   ["2026-11-02", "로스팅 계획 — 날짜로 조회", "로스팅 계획·입고 등록 표 위에 로스팅일 칸 + [조회] (날짜를 치거나 달력에서 골라 조회 · Enter 도 됨) · [◀ 전날] [오늘] [다음날 ▶] [전체] · 기본은 오늘 — 어제 받은 줄은 어제 날짜로 보면 나오고, 아직 안 받은 지난 줄은 오늘 화면에 같이 · 그날 줄 수·입고 kg 합계"],
@@ -7227,7 +7257,7 @@ function renderOne(s){
   ({ dash:renderDash, plan:renderPlan, roast:renderRoast, req:renderReq, log:renderLog,
      stock:renderStock, pqc:renderPqc, cal:renderCal, loss:renderLoss, base:renderBase,
      work:renderWork, qc:renderQc, ship:renderShip, order:renderOrder, trace:renderTrace,
-     rw:renderRw, mt:renderMt, close:renderClose, count:renderCount, help:renderHelp, capa:renderCapa, find:renderFind })[s]?.();
+     rw:renderRw, mt:renderMt, close:renderClose, count:renderCount, help:renderHelp, approve:renderApprove, capa:renderCapa, find:renderFind })[s]?.();
 }
 /* ★ 기준 순서 — 품목은 CFE 코드 번호, 원두는 MMS 코드 번호, 부자재는 구분→코드→이름 순.
      표·카드·계획·집계·여유분·재고 세기 전부 이 순서를 따른다 (머리글 정렬을 누르면 그게 우선) */
@@ -19473,6 +19503,112 @@ function helpBadge(){
   if (!el) { el = document.createElement("span"); el.className = "badge"; b.appendChild(el); }
   el.textContent = n;
 }
+/* ══ 결재 · 날짜별 전체 초기화 (Lee 2026-11-02 "총 관리자만 삭제 · 본인이 삭제하고 싶으면 결재 요청" · "결재 기능을 만들어줘") ══
+   서버 072: admin_purge_date(미리보기는 누구나 · 실행은 총 관리자) · request_approval · decide_approval(총 관리자) · cancel_approval */
+let APPROVALS = [], AP_VIEW = "대기", AP_LOADED = false;
+const AP_KIND = { date_purge:"날짜별 전체 초기화" };
+async function loadApprovals(show){
+  if (!sb) { AP_LOADED = true; if (show) renderApprove(); return; }
+  try { const { data, error } = await sb.from(tb("approvals")).select("*").order("requested_at", { ascending:false }).limit(300);
+    if (error) throw error; APPROVALS = data || []; AP_LOADED = true; }
+  catch(e){ AP_LOADED = "missing"; }
+  apBadge(); if (show || document.querySelector("#s-approve.on, #s-approve.active")) renderApprove();
+}
+function apBadge(){ const b = document.querySelector('#menu button[data-s="approve"] .lb'); if (!b) return;
+  const n = APPROVALS.filter(a=>a.status==="대기" && (isSystemAdmin() || a.requested_by === CURRENT_USER || a.requested_by === LOGIN_USER?.name)).length;
+  b.innerHTML = `결재${n?` <span style="background:var(--bad);color:#fff;border-radius:9px;padding:0 6px;font-size:11px">${n}</span>`:""}`; }
+const apSummary = r => r ? [`작업지시 ${fmt(r.orders||0)}건${r.shipped?` (출고 ${r.shipped})`:""}${r.logs?` · 생산실적 ${r.logs}`:""}`, `주문 집계 ${fmt(r.tallies||0)}줄`, `받은 원두 배치 ${fmt(r.mms||0)}개`, `로스팅 계획 ${fmt(r.roasting||0)}건`, `부자재 수기 수불 ${fmt(r.mat_moves||0)}건`, `완제품 재고 세기 ${fmt(r.cfe_moves||0)}건`, `부적합 ${fmt(r.pqc||0)}건`].join(" · ") + ((r.skipped||[]).length ? `\n건너뜀 ${(r.skipped||[]).length}건: ${(r.skipped||[]).slice(0,5).map(x=>`${x.what} — ${x.why}`).join(" / ")}` : "") : "";
+async function apDry(d){
+  return rpc("admin_purge_date", { p_date:d, p_confirm:null, p_dry:true, p_user_name:CURRENT_USER }, () => {
+    const ords = DB.orders.filter(o=>o.work_date===d && !o.split_from);
+    return { ok:true, dry:true, date:d, orders:ords.length, shipped:ords.filter(o=>o.status==="출고완료").length, logs:ords.filter(o=>o.log_id).length,
+      tallies:DB.tallies.filter(t=>t.date===d).length, mms:DB.mms.filter(m=>m.in_date===d).length, roasting:DB.roasting.filter(r=>r.plan_date===d).length,
+      mat_moves:DB.material_moves.filter(m=>m.date===d).length, cfe_moves:0, pqc:DB.pqc.filter(q=>q.date===d).length, skipped:[] }; }, { quiet:true });
+}
+async function apPreview(){
+  const d = $("apDate")?.value; if (!d) return toast("날짜를 고르세요");
+  const r = await apDry(d);
+  if (!r || r.ok === false) { $("apPrev").innerHTML = `<div class="bad">${r?.message || "미리보기를 못 했습니다"}${/admin_purge_date|schema cache|function/i.test(r?.message||"") ? " — 서버에 072 SQL 을 실행하세요" : ""}</div>`; return null; }
+  $("apPrev").innerHTML = `<div style="background:#FFF4E5;border:1.5px solid #F5A524;border-radius:8px;padding:10px 12px;line-height:1.7"><b>${d} 에 지울 것</b><br>${apSummary(r).replace(/\n/g,"<br>")}<br><span class="hint" style="padding:0">재고(원두·부자재·완제품)는 되돌립니다 · 다른 날 생산에 쓰인 원두 배치는 건너뜁니다</span></div>`;
+  return r;
+}
+async function apRun(){
+  if (!(await requireUser())) return;
+  const d = $("apDate")?.value; if (!d) return toast("날짜를 고르세요");
+  const pv = await apPreview(); if (!pv) return;
+  const total = (pv.orders||0)+(pv.tallies||0)+(pv.mms||0)+(pv.roasting||0)+(pv.mat_moves||0)+(pv.cfe_moves||0)+(pv.pqc||0);
+  if (!total) return toast(`${d} 에 지울 기록이 없습니다`);
+  if (!isSystemAdmin()) {
+    const why = await askText(`${d} 전체 초기화 — 총 관리자에게 결재를 올립니다.\n\n${apSummary(pv)}\n\n요청 사유`, "", "결재 요청");
+    if (why === null) return; if (!String(why).trim()) return toast("요청 사유를 적어 주세요");
+    const r = await rpc("request_approval", { p_kind:"date_purge", p_title:`${d} 전체 초기화`, p_payload:{ date:d }, p_reason:String(why).trim(), p_user_name:CURRENT_USER },
+      () => { APPROVALS.unshift({ id:uid(), kind:"date_purge", title:`${d} 전체 초기화`, payload:{ date:d }, reason:String(why).trim(), status:"대기", requested_by:CURRENT_USER, requested_at:nowISO() }); return { ok:true }; });
+    if (!r || r.ok === false) return ask(r?.message || "결재를 올리지 못했습니다", { title:"결재 요청", yes:"확인", only:true });
+    await loadApprovals(true); return toast("결재를 올렸습니다 — 총 관리자가 승인하면 실행됩니다");
+  }
+  if (!(await ask(`${d} 의 기록을 전부 지웁니다.\n\n${apSummary(pv)}\n\n되돌릴 수 없습니다.`, { title:"날짜별 전체 초기화", yes:"계속", danger:true }))) return;
+  const t = await askText(`확인을 위해 "초기화" 라고 적어 주세요`, "", "초기화 확인"); if (t === null) return;
+  if (String(t).trim() !== "초기화") return toast("초기화하지 않았습니다");
+  const busy = setBusy(`${d} 초기화 중…`);
+  const r = await rpc("admin_purge_date", { p_date:d, p_confirm:"초기화", p_dry:false, p_user_name:CURRENT_USER }, () => ({ ok:false, message:"서버 연결이 필요합니다" }));
+  busy();
+  if (!r || r.ok === false) return ask(r?.message || "초기화하지 못했습니다", { title:"초기화 실패", yes:"확인", only:true });
+  if (sb) await reloadDB({ silent:true });
+  renderAll(); $("apPrev").innerHTML = ""; ask(`${d} 초기화 완료\n\n${apSummary(r)}`, { title:"날짜별 전체 초기화", yes:"확인", only:true });
+}
+async function apDecide(id, ok){
+  if (!(await requireUser())) return;
+  if (!isSystemAdmin()) return toast("총 관리자만 결재할 수 있습니다");
+  const a = APPROVALS.find(x=>x.id===id); if (!a) return;
+  let note = "";
+  if (ok) {
+    let pv = null; if (a.kind === "date_purge") pv = await apDry(a.payload?.date);
+    if (!(await ask(`${a.title}\n요청 ${a.requested_by} · ${dtFull(a.requested_at)}\n사유: ${a.reason||"—"}\n\n${pv && pv.ok!==false ? apSummary(pv) : ""}\n\n승인하면 바로 실행됩니다 (되돌릴 수 없음).`, { title:"결재 승인", yes:"승인 · 실행", danger:true }))) return;
+    const t = await askText("승인 메모 (없으면 그대로 확인)", "", "승인"); if (t === null) return; note = String(t).trim();
+  } else {
+    const t = await askText(`${a.title}\n반려 사유`, "", "결재 반려"); if (t === null) return; note = String(t).trim();
+    if (!note) return toast("반려 사유를 적어 주세요");
+  }
+  const busy = setBusy(ok ? "승인 · 실행 중…" : "반려 중…");
+  const r = await rpc("decide_approval", { p_id:id, p_ok:ok, p_note:note || null, p_user_name:CURRENT_USER }, () => { a.status = ok ? "승인" : "반려"; a.decided_by = CURRENT_USER; a.decided_at = nowISO(); a.decide_note = note; return { ok:true }; });
+  busy();
+  if (!r || r.ok === false) { await loadApprovals(true); return ask(r?.message || "처리하지 못했습니다", { title:"결재", yes:"확인", only:true }); }
+  if (ok && sb) await reloadDB({ silent:true });
+  await loadApprovals(true); renderAll();
+  toast(ok ? `승인 — ${a.title} 실행했습니다` : `반려했습니다`);
+}
+async function apCancel(id){
+  const a = APPROVALS.find(x=>x.id===id); if (!a) return;
+  if (!(await ask(`${a.title} 결재 요청을 취소할까요?`, { title:"요청 취소", yes:"요청 취소", no:"닫기" }))) return;
+  const r = await rpc("cancel_approval", { p_id:id, p_user_name:CURRENT_USER }, () => { a.status = "취소"; return { ok:true }; });
+  if (!r || r.ok === false) return toast(r?.message || "취소하지 못했습니다");
+  await loadApprovals(true); toast("요청을 취소했습니다");
+}
+function setApView(v){ AP_VIEW = v; renderApprove(); }
+function renderApprove(){
+  if (!$("apTbl")) return;
+  if (!AP_LOADED) { loadApprovals(true); }
+  if ($("apDate") && !$("apDate").value) $("apDate").value = today();
+  const sys = isSystemAdmin();
+  if ($("apRunBtn")) { $("apRunBtn").textContent = sys ? "초기화 (총 관리자)" : "결재 요청"; $("apRunBtn").className = "btn primary"; $("apRunBtn").style.cssText = "height:36px;" + (sys ? "background:var(--bad);border-color:var(--bad);color:#fff" : ""); }
+  const me = n => n && (n === CURRENT_USER || n === LOGIN_USER?.name);
+  const list = APPROVALS.filter(a=>AP_VIEW === "전체" || (AP_VIEW === "대기" ? a.status === "대기" : AP_VIEW === "내 요청" ? me(a.requested_by) : a.status !== "대기"));
+  const nWait = APPROVALS.filter(a=>a.status==="대기").length;
+  $("apInfo").innerHTML = AP_LOADED === "missing" ? `<span class="bad">서버에 072 SQL 을 실행해야 결재를 쓸 수 있습니다</span>` : `결재 대기 <b>${nWait}</b>건${sys?" · 총 관리자":""}`;
+  $("apTabs").innerHTML = ["대기","내 요청","처리됨","전체"].map(v=>`<button class="btn ${AP_VIEW===v?"primary":""}" style="height:28px;padding:0 10px;font-size:12px" onclick="setApView('${v}')">${v}${v==="대기"&&nWait?` ${nWait}`:""}</button>`).join(" ");
+  const ST = { "대기":"warn", "승인":"ok", "반려":"bad", "취소":"", "실패":"bad" };
+  tbl("apTbl", ["요청 일시","종류","내용","사유","요청자","상태","처리",""],
+    list.map(a=>`<tr><td class="c" style="white-space:nowrap">${dtFull(a.requested_at)}</td><td class="c"><span class="tag">${AP_KIND[a.kind]||a.kind}</span></td>
+      <td class="l"><b>${a.title||""}</b>${a.result && a.status!=="대기" ? `<br><span class="hint" style="padding:0;font-size:11.5px">${apSummary(a.result).replace(/\n/g,"<br>")}</span>` : ""}</td>
+      <td class="l">${a.reason||""}</td><td class="c">${a.requested_by||"—"}</td>
+      <td class="c"><span class="tag ${ST[a.status]||""}">${a.status}</span></td>
+      <td class="c" style="font-size:12px">${a.decided_at ? `${a.decided_by||""}<br>${dtFull(a.decided_at)}${a.decide_note?`<br><span class="hint" style="padding:0">${a.decide_note}</span>`:""}` : "—"}</td>
+      <td class="c" style="white-space:nowrap">${a.status==="대기" ? (sys ? `<button class="btn primary" style="height:30px" onclick="apDecide('${a.id}',true)">승인</button> <button class="btn" style="height:30px;color:var(--bad)" onclick="apDecide('${a.id}',false)">반려</button>` : "") + (me(a.requested_by) ? ` <button class="btn" style="height:30px" onclick="apCancel('${a.id}')">요청 취소</button>` : "") : ""}</td></tr>`),
+    list.length ? null : null);
+  if (!list.length) $("apTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:22px">${AP_VIEW==="대기"?"대기 중인 결재가 없습니다":"결재 기록이 없습니다"}</td></tr></tbody>`;
+  apBadge();
+}
+setInterval(()=>{ if (sb && LOGIN_USER) loadApprovals(false); }, 60000);
 function renderHelp(){
   if (!$("helpList")) return;
   const sel = $("hScreen");
@@ -19745,8 +19881,20 @@ $("bkTbl").addEventListener("paste", e=>{
    ══════════════════════════════════════════════════════════════ */
 let cntType = "mat", cntKind = "";
 const CNT_DRAFT_KEY = "momos.count.draft";
-function cntDraft(){ try { const v = JSON.parse(localStorage.getItem(CNT_DRAFT_KEY) || "null"); if (v && v.date === today()) return v; } catch(_){} return { date:today(), mat:{}, cfe:{} }; }
-function cntPut(type, id, v){ const D = cntDraft(); if (v == null || v === "") delete D[type][id]; else D[type][id] = v; try { localStorage.setItem(CNT_DRAFT_KEY, JSON.stringify(D)); } catch(_){} }
+/* ★ 2026-11-02 날짜별 — 센 날짜마다 입력이 따로 (다음 날은 빈 칸에서 시작 · 지난 날짜를 고르면 그날 적은 값·반영한 값이 다시 보임) */
+const CNT_BYDATE_KEY = "momos.count.byDate";
+function cntAll(){ try { const v = JSON.parse(localStorage.getItem(CNT_BYDATE_KEY) || "null"); if (v && typeof v === "object") return v; } catch(_){}
+  /* 예전 하루짜리 기록이 있으면 옮긴다 */
+  const all = {}; try { const o = JSON.parse(localStorage.getItem(CNT_DRAFT_KEY) || "null"); if (o && o.date) all[o.date] = { mat:o.mat||{}, cfe:o.cfe||{}, done:{ mat:{}, cfe:{} } }; } catch(_){}
+  return all; }
+function cntSaveAll(all){ const keys = Object.keys(all).sort(); while (keys.length > 45) delete all[keys.shift()]; try { localStorage.setItem(CNT_BYDATE_KEY, JSON.stringify(all)); } catch(_){} }
+function cntDraft(d){ const k = d || (typeof cntDayOf === "function" ? cntDayOf() : today()); const e = cntAll()[k] || {};
+  return { date:k, mat:e.mat||{}, cfe:e.cfe||{}, done:{ mat:(e.done||{}).mat||{}, cfe:(e.done||{}).cfe||{} } }; }
+function cntPut(type, id, v){ const all = cntAll(), k = cntDayOf(); const e = all[k] = all[k] || { mat:{}, cfe:{}, done:{ mat:{}, cfe:{} } };
+  e[type] = e[type] || {}; if (v == null || v === "") delete e[type][id]; else e[type][id] = v; cntSaveAll(all); }
+/* 장부에 반영한 값 — 그 날짜에 남겨 둔다 (입력 칸은 비우고 "반영함" 으로 보임) */
+function cntDone(type, id, act, app){ const all = cntAll(), k = cntDayOf(); const e = all[k] = all[k] || { mat:{}, cfe:{}, done:{ mat:{}, cfe:{} } };
+  e.done = e.done || { mat:{}, cfe:{} }; e.done[type] = e.done[type] || {}; e.done[type][id] = { act, app, at:nowISO(), by:CURRENT_USER||"" }; if (e[type]) delete e[type][id]; cntSaveAll(all); }
 /* ★ 2026-11-01 — 재고 세기에 엑셀 넣기 (Lee "재고 세기에서 엑셀 넣기도 가능해? 여러 가지")
    붙여넣기 또는 파일(시트 여러 개면 전부) → 줄마다 코드·이름으로 CFE 품목이나 부자재를 찾아 "실제" 칸에 채운다.
    장부에는 아직 안 들어간다 — 화면에서 차이를 보고 [차이 전체 반영] (차이 사유는 그때 물음)
@@ -19852,18 +20000,24 @@ async function cntImport(how){
   logAudit("재고 세기 엑셀 넣기", `CFE ${nC} · 부자재 ${nM}`, miss.length ? `못 찾음 ${miss.length}줄` : "");
   toast(`실제 칸에 채웠습니다 — CFE ${nC} · 부자재 ${nM}${nC&&nM?" (위에서 CFE/부자재를 바꿔 각각 확인)":""} · 확인 후 [차이 전체 반영]`);
 }
-function cntDraftClear(){ try { localStorage.removeItem(CNT_DRAFT_KEY); } catch(_){} renderCount(); toast("입력을 지웠습니다 (장부는 그대로)"); }
+async function cntDraftClear(){
+  const k = cntDayOf(), all = cntAll(), e = all[k];
+  const n = e ? Object.keys(e.mat||{}).length + Object.keys(e.cfe||{}).length : 0;
+  if (!n) return toast(`${k} 에 적은 입력이 없습니다`);
+  if (!(await ask(`${k} 에 적은 입력 ${n}개를 지웁니다.\n(장부와 이미 반영한 기록은 그대로 · 다른 날짜 입력도 그대로)`, { title:"이 날짜 입력 초기화", yes:"초기화" }))) return;
+  e.mat = {}; e.cfe = {}; cntSaveAll(all); try { localStorage.removeItem(CNT_DRAFT_KEY); } catch(_){}
+  renderCount(); toast(`${k} 입력을 초기화했습니다 (장부는 그대로)`); }
 function setCntType(t){ cntType = t; renderCount(); }
 function setCntKind(k){ cntKind = k; renderCount(); }
 function cntRows(){
   const D = cntDraft(), q = ($("cntFind")?.value || "").trim();
   if (cntType === "cfe")
     return DB.products.filter(p=>(!p.off || Number(p.cfe||0)!==0) && (!q || p.name.includes(q) || (p.code||"").includes(q)))
-      .map(p=>({ key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 남음":""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:Number(p.cfe||0), act:D.cfe[p.id] ?? null, off:!!p.off }))
+      .map(p=>({ key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 남음":""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:Number(p.cfe||0), act:D.cfe[p.id] ?? null, off:!!p.off, done:D.done.cfe[p.id] || null }))
       .sort((a,b)=>(a.off?1:0)-(b.off?1:0));
   return matsOf(cntKind).filter(M=>!q || (M.name||"").includes(q) || (M.code||"").includes(q))
     .map(M=>({ key:M.id, name:M.name, sub:[M.kind, M.spec].filter(Boolean).join(" · "), pack:Math.max(1, Math.round(Number(M.pack_qty)||1)),
-               unit:unitOf(M), app:Number(M.stock||0), act:D.mat[M.id] ?? null, safety:Number(M.safety||0) }));
+               unit:unitOf(M), app:Number(M.stock||0), act:D.mat[M.id] ?? null, safety:Number(M.safety||0), done:D.done.mat[M.id] || null }));
 }
 function setCntOne(key, v){ cntPut(cntType, key, v === "" ? null : Math.max(0, Math.round(numOf(v)))); keepFocus(renderCount); }
 function setCntPack(key, b, p){ const n = Math.max(0, Math.round(numOf(b)))*(p||1) + Math.max(0, Math.round(numOf($("cp-"+key)?.value||0)));
@@ -19881,7 +20035,7 @@ function renderCount(){
   $("cntTitle").innerHTML = cntType === "cfe" ? `CFE 완제품 (EA) <span class="r"><button class="btn ${CNT_FLOW?"primary":""}" style="height:30px" onclick="CNT_FLOW=!CNT_FLOW;renderCount()" title="센 날짜의 검수 입고 · 출고 · 생산계획 출고 예정을 보고, 출고 예정을 뺀 남을 재고를 계산">${CNT_FLOW?"✓ ":""}남은 재고 계산 (출고 예정 차감)</button></span>` : `부자재 · 라벨${cntKind?` — ${cntKind}`:""}`;
   $("cntCards").innerHTML = `
     <div class="card"><div class="lb">항목</div><div class="vl">${rows.length}</div></div>
-    <div class="card ${ent.length?"green":""}"><div class="lb">입력함</div><div class="vl">${ent.length} <small>/ ${rows.length}</small></div></div>
+    <div class="card ${ent.length?"green":""}"><div class="lb">${cntDayOf()===today()?"오늘":cntDayOf().slice(5).replace("-","/")} 입력함</div><div class="vl">${ent.length} <small>/ ${rows.length}${rows.filter(r=>r.done).length?` · 반영 ${rows.filter(r=>r.done).length}`:""}</small></div></div>
     <div class="card ${diffs.length?"red":"green"}"><div class="lb">차이 있음</div><div class="vl">${diffs.length} <small>${diffs.length?`부족 ${fmt(diffs.filter(r=>r.act<r.app).reduce((s,r)=>s+(r.act-r.app),0))} / 초과 +${fmt(diffs.filter(r=>r.act>r.app).reduce((s,r)=>s+(r.act-r.app),0))}`:""}</small></div></div>`;
   if (cntType === "mat") { const g = matDupGroups(); if (g.length) $("cntCards").innerHTML += `<div class="card red" style="cursor:pointer" onclick="goTo('base','label');setTimeout(mergeDupMaterials,300)" title="같은 자재가 여러 줄 — 눌러서 하나로 통합"><div class="lb">같은 자재가 여러 줄</div><div class="vl">${g.length} <small>묶음 · 눌러서 정리</small></div></div>`; }
   $("cntApplyBtn").style.display = diffs.length ? "" : "none";
@@ -19917,7 +20071,7 @@ function renderCount(){
         <td class="l"><b>${r.name}</b>${r.sub?`<br><span class="hint" style="padding:0;font-size:11px">${r.sub}</span>`:""}</td>
         <td><b>${fmt(r.app)}</b> <span class="hint" style="padding:0">${r.unit}</span>${r.pack>1?`<br><span class="hint" style="padding:0;font-size:11px">${Math.floor(r.app/r.pack)}묶음${r.app%r.pack?` + ${r.app%r.pack}`:""}</span>`:""}${r.safety&&r.app<r.safety?` <span class="tag bad">안전재고 미달</span>`:""}</td>
         ${flowCells}
-        <td>${inCell}</td>
+        <td>${inCell}${r.done && !has ? `<br><span class="tag ok" style="font-size:10.5px">반영함 ${fmt(r.done.act)}${r.done.act!==r.done.app?` (장부 ${fmt(r.done.app)} → ${fmt(r.done.act)})`:" · 일치"} · ${dtFull(r.done.at).slice(-5)} ${r.done.by||""}</span>` : ""}</td>
         <td class="${!has?"":d===0?"ok":d<0?"bad":"warn"}">${has ? (d===0?"일치":(d>0?"+":"")+fmt(d)) : ""}</td>
         <td class="c"><button class="btn" style="height:34px;min-width:40px;font-size:15px" title="앱 재고와 같음" onclick="setCntOne('${r.key}','${r.app}')">=</button></td>
         <td class="c">${has && d ? `<button class="btn primary" style="height:34px" onclick="cntApplyOne('${r.key}')">반영</button>` : ""}</td></tr>`; }),
@@ -19968,7 +20122,7 @@ async function cntApplyOne(key){
   if (r.act !== r.app) { const w = await cntReasonDialog(cntType === "cfe" ? "cfe" : "mat", [r]); if (!w) return; why = w[r.key]; }
   const res = await cntApplyRow(r, why);
   if (!res || !res.ok) { renderAll(); return toast(res?.message || "반영하지 못했습니다"); }
-  cntPut(cntType, key, null); renderAll(); toast(`${r.name} → ${fmt(r.act)}${r.unit} 반영${why?` — ${why.reason}`:""}`);
+  cntDone(cntType, key, r.act, r.app); renderAll(); toast(`${r.name} → ${fmt(r.act)}${r.unit} 반영${why?` — ${why.reason}`:""}`);
 }
 async function cntApplyAll(){
   if (!(await requireUser())) return;
@@ -19977,9 +20131,9 @@ async function cntApplyAll(){
   if (!(await ask(`${diffs.length}건의 장부를 센 수량으로 고칩니다:\n` + diffs.slice(0,8).map(r=>`· ${r.name}  ${fmt(r.app)} → ${fmt(r.act)} (${r.act-r.app>0?"+":""}${fmt(r.act-r.app)})`).join("\n") + (diffs.length>8?`\n… 외 ${diffs.length-8}건`:"") + `\n\n조정 이력에 ${CURRENT_USER} 이름으로 남습니다.`, { title:"차이 전체 반영", yes:`${diffs.length}건 반영` }))) return;
   const why = await cntReasonDialog(cntType === "cfe" ? "cfe" : "mat", diffs); if (!why) return;
   let ok = 0, fail = [];
-  for (const r of diffs) { const res = await cntApplyRow(r, why[r.key]); if (res && res.ok) { ok++; cntPut(cntType, r.key, null); } else fail.push(r.name); }
+  for (const r of diffs) { const res = await cntApplyRow(r, why[r.key]); if (res && res.ok) { ok++; cntDone(cntType, r.key, r.act, r.app); } else fail.push(r.name); }
   /* 일치한 것도 입력을 비운다 — 다음 날 헷갈리지 않게 */
-  cntRows().filter(r=>r.act != null && r.act === r.app).forEach(r=>cntPut(cntType, r.key, null));
+  cntRows().filter(r=>r.act != null && r.act === r.app).forEach(r=>cntDone(cntType, r.key, r.act, r.app));
   renderAll(); toast(fail.length ? `${ok}건 반영 · 실패 ${fail.length}건 (${fail.slice(0,2).join(", ")})` : `${ok}건 반영했습니다`);
 }
 
