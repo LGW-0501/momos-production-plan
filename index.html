@@ -2740,7 +2740,7 @@
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <span>파일</span><input type="file" id="pFile" accept=".xlsx,.xls,.csv,.txt">
         <span>사진</span><input type="file" id="pImg" accept="image/*">
-        <button class="btn" onclick="preview()">미리보기</button>
+        <button class="btn" onclick="previewBiz()">미리보기</button>
         <span class="hint" style="padding:0" id="pOcr"></span>
       </div>
       <div id="pShot" style="display:none"></div>
@@ -3981,6 +3981,7 @@ async function initDB(){
   setTimeout(()=>{ try { fixBizSplit(); } catch(e){ console.warn(e); } }, 2400);
   /* 라벨·풀패키지 코드를 완제품 CFE 코드에 맞춰 둔다 (관리자 계정일 때 · 조용히) */
   setTimeout(()=>{ try { if (can("base")) { makeStdMaterials();
+      DB.products.filter(p=>p.ica && p.label_id).forEach(p=>{ p.label_id = null; save("products", p); if (p.id in planLabel) delete planLabel[p.id]; });
       DB.products.filter(p=>isCostcoProd(p) && p.pack_type !== PACK_FULL && !p.ica).forEach(p=>{ p.pack_type = PACK_FULL; p.label_id = null; save("products", p); if (p.id in planLabel) delete planLabel[p.id]; });
       const np = syncAllPack(); if (np) renderBase(); } } catch(e){ console.warn(e); } }, 2600);
   setTimeout(()=>{ try { if (can("base")) { const r = syncMatCodes(); const c = offBeanCleanup({ quiet:true }); if (r.fixed || r.made || r.dropped || c.prods || c.mats) { logAudit("부자재 코드 자동 맞춤", `코드 ${r.fixed} · 풀패키지 ${r.made} · 라벨 뗌 ${r.dropped}`, ""); renderBase(); } } } catch(e){ console.warn(e); } }, 2200);
@@ -6913,6 +6914,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "사업자 줄 붙여넣기 — 품목이 없을 때", "붙여넣기에 사업자 줄이 있는데 사업자 품목이 없으면 [미리보기] 때 사업자 품목 되살리기를 먼저 묻고 · 그래도 없으면 \"원두 에스쇼콜라 사업자전용 1kg\" 를 일반 코드+F(CFE0004 → CFE0004F)로 새로 만듦"],
+  ["2026-11-02", "원두 이름 인식 — 띄어쓰기·표기 차이", "\"에콰도르 라스 팔마스 시드라 워시드\" 처럼 등록 이름과 띄어쓰기가 다르거나(라스 팔마스 = 라스팔마스) 고유한 말 중 하나가 표기가 달라도 나머지가 다 맞으면 그 원두로 인식"],
+  ["2026-11-02", "이카 생산품 — 라벨 없음 · 풀패키지", "이카 전용 품목이나 이카 기계로 잡힌 작업지시는 라벨 없이 \"풀패키지 (이카 롤패키지 · 라벨 없음)\" 으로 표시 · 라벨 묶음·모자람·라벨 고르기 안 나옴 · BOM 에 라벨을 넣지 않음 (롤패키지·아로마밸브만) · 이카 전용 품목에 붙어 있던 라벨 연결은 기준정보 권한 계정이 열 때 뺌"],
   ["2026-11-02", "에스쇼콜라 사업자(CFE0004F) 되살리기", "전에 자동 합치기로 일반 에스쇼콜라 1kg 에 사업자 코드 CFE0004F 가 남은 것 → 기준정보 권한 계정이 열 때 한 번 묻고: 일반 → CFE0004 · 사업자전용 1kg(CFE0004F) 새로 만듦 (BOM 복사 · 지난 기록은 일반에 그대로)"],
   ["2026-11-02", "사업자전용 품목 따로 인식", "집계·생산계획 붙여넣기에서 \"에스쇼콜라 사업자전용\" 이 일반 에스쇼콜라로 합쳐지던 것 → 이름에 사업자(전용)이 있으면 사업자 품목끼리만 맞춤 · 없으면 \"원두 에스쇼콜라 사업자전용 1kg\" 로 새로 만들 준비 · 코드가 다른 두 품목은 같은 품목으로 보지 않음 (자동 합치기에서도)"],
   ["2026-11-02", "입고 확인 — 원두(품목)별로", "받을 배치를 원두별로 묶음: 위에 원두 버튼(배치 수·kg) — 누르면 그 원두만 · 원두마다 한 줄 요약(배치 수 · 로스터기 · 로스팅일 · kg 합계 · [이 원두 전부 받음] · 체크로 전부 선택) — 줄을 누르면 펼침/접기 · 모두 펼치기/접기"],
@@ -9931,7 +9935,9 @@ const PACK_LABEL = "라벨 부착";
 let planLabel = {};          // 품목id → 라벨id ("" = 풀패키지)
 /* ★ 2026-11-02 코스트코 하우스 블렌드(이름에 코스트코)는 풀패키지 — 라벨 없음 (Lee "하우스 블렌드는 풀패키지인데 라벨은 필요 없는데?") */
 function isCostcoProd(p){ return /코스트코/.test(String(p?.name||"")); }
-const isFullPack = p => (p?.pack_type || PACK_LABEL) === PACK_FULL || isCostcoProd(p);
+/* ★ 2026-11-02 이카(롤패키지)로 만드는 품목도 라벨 없음 → 풀패키지 (Lee "이카에서 생산되는 것들은 라벨이 따로 없으니 풀패키지") */
+const isFullPack = p => (p?.pack_type || PACK_LABEL) === PACK_FULL || isCostcoProd(p) || !!p?.ica;
+const ordIca = o => !!o && (/이카|ica/i.test(String(o.machine||"")) || !!prodById(o.product_id)?.ica);
 /* 그 품목이 지금 쓰기로 돼 있는 라벨 ("" 면 풀패키지) */
 const labelPick = p => {
   if (!p) return "";
@@ -9941,7 +9947,7 @@ const labelPick = p => {
 };
 const labelOf   = (p, lid) => { const M = labelById(lid !== undefined && lid !== null ? lid : labelPick(p));
   return isLabelMat(M) ? M : null; };
-const ordLabel  = o => isFullPack(prodById(o?.product_id)) ? "" : (o && o.label_id !== undefined && o.label_id !== null)
+const ordLabel  = o => (isFullPack(prodById(o?.product_id)) || ordIca(o)) ? "" : (o && o.label_id !== undefined && o.label_id !== null)
   ? o.label_id : labelPick(prodById(o?.product_id));
 /* 라벨도 안 고르고 풀패키지도 아니면 "아직 안 정함" — 실수를 잡아내기 위해 구분한다 */
 const packState = (p, lid) => {
@@ -10437,6 +10443,7 @@ function curLotOf(M){
 /* 이 품목이 쓰는 봉투 — 풀패키지면 그 봉투, 아니면 BOM 의 공용 봉투, 없으면 규격이 같은 봉투 */
 function bagMatOf(p){
   if (!p) return null;
+  if (p.ica) return DB.materials.find(m=>matActive(m) && m.name === "이카 롤패키지") || null;   // 이카는 롤패키지 LOT
   if (isFullPack(p)) { const f = fullBagOf(p); if (f) return f; }
   const bl = bomOf(p.id).map(b=>matById(b.material_id)).filter(Boolean);
   return bl.find(m=>m.kind==="봉투") || bl.find(isFullBag)
@@ -14072,7 +14079,7 @@ function packMatsFor(p){
   if (mode === "full") out.push(fullBagOf(p) || newFullBagFor(p));
   else if (mode === "ica") { out.push(ensureMat("이카 롤패키지", "기타", "")); out.push(ensureMat("이카 아로마밸브", "기타", "")); }
   else out.push(ensureMat(bagSpecName(p), "봉투", specLabel(Number(p.spec_g)||0)));
-  if (mode !== "full") { const L = p.label_id ? matById(p.label_id) : newLabelFor(p); if (L) out.push(L); }
+  if (mode === "bag") { const L = p.label_id ? matById(p.label_id) : newLabelFor(p); if (L) out.push(L); }   // 이카(롤패키지)·풀패키지는 라벨 없음
   return out.filter(Boolean);
 }
 const isPackLine = M => !!M && (M.kind === "봉투" || isFullBag(M) || PACK_MAT_NAMES.includes(M.name) || M.kind === "라벨");
@@ -15822,6 +15829,13 @@ function matchBean(nameRaw){
   if (inT.some(t=>!BEAN_COMMON.includes(t))) {
     const cands = DB.beans.map(x=>x.name).filter(Boolean).filter(b=>{ const bt = tok(b); return inT.every(t=>bt.some(x=>x===t || x.includes(t))); });
     if (cands.length) return cands.sort((a,b)=>tok(a).length - tok(b).length || a.length - b.length)[0];
+    /* ★ 2026-11-02 띄어쓰기가 달라도 (Lee "라스 팔마스 인식 못 해") — "라스 팔마스" = "라스팔마스" · 고유한 말이 전부 원두 이름 안에 (띄어쓰기 무시) 있으면 그 원두
+         고유한 말이 3개 이상이면 하나는 달라도(오타·표기 차이) 나머지가 다 맞으면 인정 */
+    const dist = inT.filter(t=>!BEAN_COMMON.includes(t)).map(beanNrm).filter(t=>t.length>1);
+    const scored = DB.beans.map(x=>x.name).filter(Boolean).map(b=>{ const k = beanNrm(b); const hit = dist.filter(t=>k.includes(t)).length; return { b, hit }; })
+      .filter(x=>x.hit === dist.length || (dist.length >= 3 && x.hit >= dist.length - 1))
+      .sort((a,b)=>b.hit - a.hit || a.b.length - b.b.length);
+    if (scored.length && (scored.length === 1 || scored[0].hit > scored[1].hit || scored[0].b.length < scored[1].b.length)) return scored[0].b;
   }
   let best=null, bc=0, bs=0;
   for (const b of DB.beans.map(x=>x.name)) {
@@ -16326,6 +16340,11 @@ async function xlsxOut(name, head, rows){
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "양식");
     XLSX.writeFile(wb, `${name}_${today()}.xlsx`);
   } catch(e){ console.warn(e); csv(name, head, rows); }
+}
+/* 사업자 줄이 있는데 사업자 품목이 없으면 — 먼저 되살리기(fixBizSplit)를 묻고 미리보기 */
+async function previewBiz(){
+  if (/사업자|업소용/.test($("pText").value || "") && !DB.products.some(p=>prodVariant(p.name))) { try { await fixBizSplit(); } catch(e){ console.warn(e); } }
+  preview();
 }
 function preview(){
   pRows = []; pHdr = null;
@@ -16861,6 +16880,10 @@ async function applyPaste(){
       const b = { id:uid(), name:r.mk.bean, mms_code:"" }; DB.beans.push(b); save("beans",b); mkB++;
     }
     const p = P(r.mk.bean, r.mk.spec, 0, 0, { code:r.code||"", grind:r.mk.grind, name:r.mk.name });
+    if (!p.code && r.mk.variant) {          // 사업자 품목 — 일반 품목 코드 + F (예: CFE0004 → CFE0004F)
+      const g = findExactProduct(r.mk.bean, r.mk.spec, r.mk.grind, "");
+      if (g?.code && !DB.products.some(x=>codeKey(x.code)===codeKey(g.code + "F"))) p.code = g.code + "F";
+    }
     if (!p.code) p.code = makeCode(p);
     DB.products.push(p); save("products",p); mkP++;
     return p;
@@ -18838,8 +18861,8 @@ function renderWork(){
           const btn = canLot ? ` <button class="btn" style="height:${isFloor()?32:24}px;padding:0 8px;margin-left:6px" onclick="event.stopPropagation();openOrderLots('${o.id}')" title="LOT별 잔량을 보고 고르기 · 여러 LOT 나눠 적기 · 바꾼 이력">LOT 관리</button>` : "";
           if (isFloor()) return (lot || canLot) ? `<div><span>봉투 번호(LOT)</span><b>${lot || "—"}</b>${btn}</div>` : "";
           return `<div><span>봉투 LOT</span><b class="${lot?"":"bad"}" title="${rows.length?"LOT 관리에서 적은 값":o.lot?"직접 적은 값":al?"봉투 입고 때 적은 LOT (선입선출)":"봉투 입고 때 LOT 를 적으면 저절로 붙습니다"}">${lot || "봉투 LOT 없음"}</b>${!rows.length&&!o.lot&&al?` <span class="hint" style="padding:0;font-size:10.5px">자동</span>`:""}${rows.length>1?` <span class="tag warn" style="font-size:10.5px">LOT ${rows.length}개</span>`:""}${btn}</div>`; })()}
-        ${(()=>{ const L = labelById(ordLabel(o)), st = packState(p, ordLabel(o));
-          if (st === "풀패키지") return `<div><span>포장</span><b>${PACK_FULL}</b></div>`;
+        ${(()=>{ const L = labelById(ordLabel(o)), st = ordIca(o) ? "풀패키지" : packState(p, ordLabel(o));
+          if (st === "풀패키지") return `<div><span>포장</span><b>${PACK_FULL}</b>${ordIca(o)?` <span class="hint" style="padding:0;font-size:11px">이카 롤패키지 · 라벨 없음</span>`:""}</div>`;
           if (!L) return isFloor() ? `<div><span>라벨</span><b>관리자 확인 중</b></div>` : `<div><span>포장</span><b class="bad">라벨 미지정</b></div>`;
           const x = labelNeed(p, o.qty_plan, ordLabel(o));
           /* 라벨 이름이 품목명과 같으면 이름은 생략 — 묶음만 */
@@ -18847,7 +18870,7 @@ function renderWork(){
           return `<div><span>라벨</span><b>${nm}${labelText(p, o.qty_plan, ordLabel(o))}</b>${
             x.short ? ` <span class="tag bad">${fmt(x.short)}장 모자람</span>` : ""}</div>`;
         })()}
-        ${o.status==="대기" && can("plan") && (wkLabelEdit || packState(p, ordLabel(o))==="미지정")
+        ${o.status==="대기" && can("plan") && !ordIca(o) && (wkLabelEdit || packState(p, ordLabel(o))==="미지정")
           ? `<div class="pick">${labelSel(ordLabel(o), `setOrdLabel('${o.id}',this.value)`)}</div>` : ""}
       </div>
       ${rjd ? `<div class="btns"><button class="go" style="background:var(--bad)" onclick="resubmitQc('${o.id}')">재작업 완료 → 다시 검수로</button></div>
