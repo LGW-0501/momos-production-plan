@@ -6912,6 +6912,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "입고 확인 — 원두(품목)별로", "받을 배치를 원두별로 묶음: 위에 원두 버튼(배치 수·kg) — 누르면 그 원두만 · 원두마다 한 줄 요약(배치 수 · 로스터기 · 로스팅일 · kg 합계 · [이 원두 전부 받음] · 체크로 전부 선택) — 줄을 누르면 펼침/접기 · 모두 펼치기/접기"],
   ["2026-11-02", "재고 세기 CFE — 제조일자별 수량", "오래된 제조일자 한 칸 → 제조일자별로 묶어 왼쪽부터 오래된 순 (예: 10/29 9개 · 10/30 100개) · 날짜마다 D-N/상미 초과 · 여유분은 주황 점선"],
   ["2026-11-02", "출고장 — 필요분 / 여유분", "출고장 재고를 필요분·여유분으로 나눠 봄 (품목마다 \"필요 N · 여유 N\" · 여유 묶음은 주황 점선) · 묶음을 누르면 여유분↔필요분으로 옮기기 (일부 수량도 · 실수 바로잡기) · [포장일로 불러오기] — 073 전에 출고 완료한 것을 포장일로 불러와 전부 여유분/필요분으로 넣기 · 출고 완료 때 그날 주문(집계)을 넘는 수량은 자동으로 여유분 (주문이 없던 날 포장분은 전부 여유분) — 서버 074 SQL 필요"],
   ["2026-11-02", "CFE = 출고장 재고 (제조일자별 · 상미기한) · 오늘 출고 확정", "[출고 완료] = 출고장 입고 → 출고장 재고(CFE)에 제조일자별 묶음으로 쌓임 · 출고 화면 [출고장 재고 · 오늘 출고 확정]: 품목마다 출고장 재고 · 제조일자별(오래된 것부터, D-N/상미 초과) · 그날 입고 · 주문(생산계획) · 이미 나감 · 나갈 수량(고칠 수 있음) · 확정 후 남음(모자라면 −) → [오늘 출고 확정] 오래된 제조일자부터 뺌 · 확정 취소 · CFE 상미기한(일) 설정 / 재고 세기 CFE: 앱 재고 = 출고장 재고 · 출고장 입고 · 당일 출고 예정 · 남을 재고 · 오래된 제조일자 · 반영하면 출고장 재고를 센 값으로 — 서버 073 SQL 필요"],
@@ -11159,40 +11160,71 @@ const openLines = () => DB.roasting.filter(r=>!r.done)
   .sort((a,b)=>String(a.plan_date).localeCompare(String(b.plan_date)) || roastRank(a)-roastRank(b) || beanCmp(a.bean, b.bean))
   .flatMap(r=>ensureLines(r).filter(l=>!l.done).map(l=>({ l, r })));
 
+/* ★ 2026-11-02 입고 확인 — 원두(품목)별로 묶어 보기 (Lee "너무 보기 어렵고 힘들어 품목별로") */
+var IN_BEAN = "", IN_OPEN = new Set();
+function setInBean(b){ IN_BEAN = b; if (b) IN_OPEN.add(b); renderIn(); }
+function inFold(b){ IN_OPEN.has(b) ? IN_OPEN.delete(b) : IN_OPEN.add(b); renderIn(); }
+function inSelBean(b, on){ openLines().filter(x=>x.l.bean===b).forEach(x=>on ? IN_SEL.add(x.l.id) : IN_SEL.delete(x.l.id)); renderIn(); }
+async function takeBean(b){ IN_SEL = new Set(openLines().filter(x=>x.l.bean===b).map(x=>x.l.id)); renderIn(); return takeSel(); }
 function renderIn(){
   if (!$("inTbl")) return;
-  const rows = openLines();
-  const nos = pendingNos(rows.map(x=>x.l));
-  if ($("inWait")) $("inWait").innerHTML = rows.length
-    ? `<span class="tag warn">받을 배치 ${rows.length}개 · ${fmt(rows.reduce((t,x)=>t+Number(x.l.kg||0),0))}kg</span>`
+  const all = openLines();
+  const nos = pendingNos(all.map(x=>x.l));
+  if ($("inWait")) $("inWait").innerHTML = all.length
+    ? `<span class="tag warn">받을 배치 ${all.length}개 · ${fmt(Math.round(all.reduce((t,x)=>t+Number(x.l.kg||0),0)*100)/100)}kg</span>`
     : `<span class="tag ok">받을 배치 없음</span>`;
-  IN_SEL.forEach(id=>{ if (!rows.some(x=>x.l.id===id)) IN_SEL.delete(id); });
-  if ($("inSelInfo")) $("inSelInfo").innerHTML = IN_SEL.size ? `<b>${IN_SEL.size}개 배치 선택</b> · ${fmt(rows.filter(x=>IN_SEL.has(x.l.id)).reduce((t,x)=>t+Number(x.l.kg||0),0))}kg` : "왼쪽 체크박스로 배치를 선택하세요 · 로스팅일과 받은 날짜가 다를 때 (예: 일요일 로스팅 → 월요일 입고)";
+  IN_SEL.forEach(id=>{ if (!all.some(x=>x.l.id===id)) IN_SEL.delete(id); });
+  if ($("inSelInfo")) $("inSelInfo").innerHTML = IN_SEL.size ? `<b>${IN_SEL.size}개 배치 선택</b> · ${fmt(Math.round(all.filter(x=>IN_SEL.has(x.l.id)).reduce((t,x)=>t+Number(x.l.kg||0),0)*100)/100)}kg` : "원두를 누르면 펼쳐집니다 · 체크박스로 고르거나 원두마다 [이 원두 전부 받음]";
   if ($("inDayAll") && !$("inDayAll").value) $("inDayAll").value = today();
-  tbl("inTbl", [`<input type="checkbox" ${rows.length && rows.every(x=>IN_SEL.has(x.l.id))?"checked":""} onclick="inSelAll(this.checked)" title="전체 선택">`,"현장번호","전체번호","원두","로스터기","로스팅일","받은 날짜","받은 kg","",''],
-    rows.map(({l,r})=>{
+  /* 원두별로 */
+  const beans = [...new Set(all.map(x=>x.l.bean))].sort(beanCmp);
+  if (IN_BEAN && !beans.includes(IN_BEAN)) IN_BEAN = "";
+  const kgOfRows = rs => Math.round(rs.reduce((t,x)=>t+Number(x.l.kg||0),0)*100)/100;
+  const chips = beans.length > 1 ? `<div style="display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line)">` +
+    [`<button class="btn ${!IN_BEAN?"primary":""}" style="height:32px" onclick="setInBean('')">전체 ${all.length}</button>`,
+     ...beans.map(b=>{ const rs = all.filter(x=>x.l.bean===b); return `<button class="btn ${IN_BEAN===b?"primary":""}" style="height:32px" onclick="setInBean('${b.replace(/'/g,"\\'")}')"><b>${b}</b> ${rs.length} <span style="opacity:.75;font-size:11.5px">· ${fmt(kgOfRows(rs))}kg</span></button>`; })].join("") + `</div>` : "";
+  let chipBox = $("inBeanChips");
+  if (!chipBox) { chipBox = document.createElement("div"); chipBox.id = "inBeanChips"; $("inTbl").closest(".panel-b").before(chipBox); }
+  chipBox.innerHTML = chips;
+  const shown = IN_BEAN ? [IN_BEAN] : beans;
+  const one = shown.length === 1;
+  const body = [];
+  shown.forEach(b=>{
+    const rs = all.filter(x=>x.l.bean===b), open = one || IN_OPEN.has(b);
+    const selN = rs.filter(x=>IN_SEL.has(x.l.id)).length;
+    const days = [...new Set(rs.map(x=>x.l.roast_date))].sort();
+    const roasters = [...new Set(rs.map(x=>x.r.roaster).filter(Boolean))];
+    body.push(`<tr style="background:#EEF1F8;cursor:pointer" onclick="if(event.target.closest('input,button'))return;inFold('${b.replace(/'/g,"\\'")}')">
+      <td class="c"><input type="checkbox" ${selN && selN===rs.length?"checked":""} onclick="inSelBean('${b.replace(/'/g,"\\'")}',this.checked)" title="이 원두 전부 선택"></td>
+      <td colspan="3" class="l"><span style="display:inline-block;width:16px">${open?"▾":"▸"}</span><b style="font-size:16px">${b}</b> <span class="hint" style="padding:0;font-size:11px">${mmsCodeOf(b)||""}</span>
+        <span class="tag warn" style="margin-left:6px">${rs.length}배치</span>${selN?` <span class="tag">${selN}개 선택</span>`:""}</td>
+      <td class="c">${roasters.map(x=>`<span class="tag">${x}</span>`).join(" ")||"—"}</td>
+      <td class="c" style="font-size:12.5px">${days.map(d=>d.slice(5).replace("-","/")).join(" · ")}</td>
+      <td></td><td><b style="font-size:15px">${fmt(kgOfRows(rs))}</b> kg</td>
+      <td class="c" colspan="2"><button class="btn primary" style="height:32px" onclick="takeBean('${b.replace(/'/g,"\\'")}')">이 원두 전부 받음</button></td></tr>`);
+    if (!open) return;
+    rs.forEach(({l,r})=>{
       const m = { roast_date:l.roast_date, batch:nos[l.id], bean:l.bean };
       const ind = l.in_date || today();
-      return `<tr class="wait" ${IN_SEL.has(l.id)?'style="background:#EAF0FF"':""}>
+      body.push(`<tr class="wait" ${IN_SEL.has(l.id)?'style="background:#EAF0FF"':""}>
         <td class="c"><input type="checkbox" ${IN_SEL.has(l.id)?"checked":""} onclick="inSel('${l.id}',this.checked)"></td>
-        <td class="c" title="${l.bean} · ${l.roast_date} ${nos[l.id]}번 배치">
-          <b style="font-size:19px;letter-spacing:-.5px">${batchShort(m)}</b></td>
-        <td class="c"><b>${batchFull(m)}</b><br>
-          <span class="hint" style="padding:0;font-size:11px">${batchNo(m)}</span></td>
-        <td class="l"><b>${l.bean}</b> <span class="hint" style="padding:0;font-size:11px">${mmsCodeOf(l.bean)||""}</span></td>
+        <td class="c" title="${l.bean} · ${l.roast_date} ${nos[l.id]}번 배치"><b style="font-size:17px;letter-spacing:-.5px">${batchShort(m)}</b></td>
+        <td class="c" style="font-size:12px">${batchFull(m)}</td>
+        <td class="l hint" style="padding-left:8px;font-size:11.5px">${l.bean}</td>
         <td class="c">${r.roaster?`<span class="tag">${r.roaster}</span>`:"—"}</td>
-        <td class="c"><input type="date" data-f="ln-${l.id}-d" value="${l.roast_date}"
-          onchange="setLine('${l.id}','roast_date',this.value)"></td>
-        <td class="c"><input type="date" data-f="ln-${l.id}-i" value="${ind}" min="${l.roast_date}" style="${ind!==l.roast_date?"font-weight:800;color:var(--blue-600,#2348d8)":""}"
-          onchange="setLine('${l.id}','in_date',this.value)">${ind!==l.roast_date?`<br><span class="hint" style="padding:0;font-size:10.5px">로스팅 ${l.roast_date.slice(5)} → 받음 ${ind.slice(5)}</span>`:""}</td>
-        <td><input class="cntin" type="text" inputmode="decimal" data-f="ln-${l.id}-k"
-          value="${l.kg ?? ""}" placeholder="받은 kg" oninput="setLine('${l.id}','kg',this.value)"></td>
-        <td class="c"><button class="btn primary" onclick="takeLine('${l.id}')">받음</button>
-          <button class="btn" onclick="takeHold('${l.id}')" title="받되 바로 보류 — 검사 결과를 기다릴 때">보류로</button></td>
-        <td class="c"><button class="btn danger" onclick="dropLine('${l.id}')" title="이 배치는 안 나왔습니다">취소</button></td></tr>`;
-    }),
-    rows.length ? `<td colspan="7" class="c">합 계 · ${rows.length}배치</td>
-      <td><b>${fmt(rows.reduce((t,x)=>t+Number(x.l.kg||0),0))}</b></td><td colspan="2"></td>` : null);
+        <td class="c"><input type="date" data-f="ln-${l.id}-d" value="${l.roast_date}" style="height:32px" onchange="setLine('${l.id}','roast_date',this.value)"></td>
+        <td class="c"><input type="date" data-f="ln-${l.id}-i" value="${ind}" min="${l.roast_date}" style="height:32px;${ind!==l.roast_date?"font-weight:800;color:var(--blue-600,#2348d8)":""}" onchange="setLine('${l.id}','in_date',this.value)"></td>
+        <td><input class="cntin" type="text" inputmode="decimal" data-f="ln-${l.id}-k" style="height:32px" value="${l.kg ?? ""}" placeholder="받은 kg" oninput="setLine('${l.id}','kg',this.value)"></td>
+        <td class="c" style="white-space:nowrap"><button class="btn primary" style="height:32px" onclick="takeLine('${l.id}')">받음</button>
+          <button class="btn" style="height:32px" onclick="takeHold('${l.id}')" title="받되 바로 보류 — 검사 결과를 기다릴 때">보류로</button></td>
+        <td class="c"><button class="btn danger" style="height:32px" onclick="dropLine('${l.id}')" title="이 배치는 안 나왔습니다">취소</button></td></tr>`);
+    });
+  });
+  const vis = all.filter(x=>shown.includes(x.l.bean));
+  tbl("inTbl", [`<input type="checkbox" ${vis.length && vis.every(x=>IN_SEL.has(x.l.id))?"checked":""} onclick="${IN_BEAN?`inSelBean('${IN_BEAN.replace(/'/g,"\\'")}',this.checked)`:"inSelAll(this.checked)"}" title="전체 선택">`,"현장번호","전체번호","원두","로스터기","로스팅일","받은 날짜","받은 kg","",''],
+    body,
+    vis.length ? `<td colspan="7" class="c">합 계 · ${shown.length>1?`${shown.length}개 원두 · `:""}${vis.length}배치 ${!one?`<button class="btn" style="height:26px;padding:0 8px;font-size:11.5px;margin-left:6px" onclick="IN_OPEN=new Set(${JSON.stringify(shown).replace(/"/g,"&quot;")});renderIn()">모두 펼치기</button> <button class="btn" style="height:26px;padding:0 8px;font-size:11.5px" onclick="IN_OPEN=new Set();renderIn()">모두 접기</button>`:""}</td>
+      <td><b>${fmt(kgOfRows(vis))}</b></td><td colspan="2"></td>` : null);
 }
 /* 치는 중에는 화면에만 둡니다 */
 function setLine(id, k, v){
