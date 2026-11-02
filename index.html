@@ -1269,8 +1269,18 @@
   </div>
   <div class="body">
     <h2 class="page">출고<small id="asof-ship"></small></h2>
-    <div class="guide"><b>검수가 끝난 것만 여기 올라옵니다.</b> 출고처별로 모아 두었으니 실제로 내보낸 건에 [출고 완료]를 누르면 완제품 재고에서 빠집니다.</div>
+    <div class="guide"><b>검수가 끝난 것만 여기 올라옵니다.</b> 출고처별로 모아 두었으니 출고장으로 옮긴 건에 [출고 완료]를 누르면 <b>출고장 재고(CFE)로 들어갑니다</b> (제조일자별) · 그날 주문 수량은 아래 <b>[오늘 출고 확정]</b>에서 오래된 제조일자부터 뺍니다.</div>
     <div id="shBoard"></div>
+    <div class="panel" id="yardPanel">
+      <div class="panel-h">출고장 재고 (CFE) · 오늘 출고 확정 <span class="r hint" id="yardInfo"></span></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line)">
+        <b>출고일</b><input type="date" id="yardDay" style="height:34px" onchange="renderYard()">
+        <label class="hint" style="padding:0;margin-left:8px">CFE 상미기한 <input type="number" id="yardShelf" min="1" style="width:60px;height:30px" onchange="setYardShelf(this.value)"> 일</label>
+        <span style="flex:1"></span>
+        <button class="btn primary" style="height:36px;font-weight:800" onclick="yardDispatch()">오늘 출고 확정</button></div>
+      <div class="panel-b"><table id="yardTbl"></table></div>
+      <div id="yardHist" style="padding:6px 14px 12px"></div>
+    </div>
     <div class="panel">
       <div class="panel-h">출고 완료 내역</div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line)">
@@ -6901,6 +6911,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-02", "CFE = 출고장 재고 (제조일자별 · 상미기한) · 오늘 출고 확정", "[출고 완료] = 출고장 입고 → 출고장 재고(CFE)에 제조일자별 묶음으로 쌓임 · 출고 화면 [출고장 재고 · 오늘 출고 확정]: 품목마다 출고장 재고 · 제조일자별(오래된 것부터, D-N/상미 초과) · 그날 입고 · 주문(생산계획) · 이미 나감 · 나갈 수량(고칠 수 있음) · 확정 후 남음(모자라면 −) → [오늘 출고 확정] 오래된 제조일자부터 뺌 · 확정 취소 · CFE 상미기한(일) 설정 / 재고 세기 CFE: 앱 재고 = 출고장 재고 · 출고장 입고 · 당일 출고 예정 · 남을 재고 · 오래된 제조일자 · 반영하면 출고장 재고를 센 값으로 — 서버 073 SQL 필요"],
   ["2026-11-02", "결재 · 날짜별 전체 초기화", "왼쪽 메뉴 [결재]: 날짜를 고르고 [미리보기] 로 지울 것(작업지시·실적·검수·출고·주문 집계·받은 원두 배치·로스팅 계획·부자재/완제품 수기 수불·부적합)을 센 뒤 — 총 관리자는 [초기화] (\"초기화\" 입력 · 재고 되돌림) · 다른 계정은 [결재 요청] (사유) → 총 관리자가 결재함에서 [승인](바로 실행) / [반려](사유) · 요청자는 [요청 취소] · 대기 건수는 메뉴에 빨간 숫자 · 전부 변경이력에 남음 — 서버 072 SQL 필요"],
   ["2026-11-02", "재고 세기 — 날짜별 입력 · 날짜별 초기화", "센 날짜마다 입력이 따로 저장 — 날짜를 바꾸면 그날 적은 값이 보이고 새 날짜는 빈 칸에서 시작 · 장부에 반영한 값은 그 날짜에 \"반영함 N (장부 M → N) · 시각 · 누가\" 로 남음 · [입력 지우기] → [이 날짜 입력 초기화] (고른 날짜만 · 장부·다른 날짜는 그대로) · 이 기기에 45일치 보관"],
   ["2026-11-02", "재고 세기 CFE — 들어옴 · 나감 · 출고 예정 · 남을 재고", "CFE 완제품 표에 센 날짜 기준 [들어옴(검수 완료)] · [나감(출고)] · [출고 예정(생산계획 주문 − 이미 출고)] · [남을 재고 = 센 수량(없으면 앱 재고) − 출고 예정] — 모자라면 −N 빨간 표시와 \"N개 부족\" · 위 카드에 부족 품목 수 · [남은 재고 계산] 버튼으로 켜고 끔"],
@@ -18412,24 +18423,26 @@ async function shipDone(id){
   if (!(await requireUser())) return;
   const o = ordById(id); if(!o) return;
   const p = prodById(o.product_id); if(!p) return;
-  if (!(await ask(`${chName(ordShipCh(o))} · ${p.name} ${fmt(o.qty_done)}EA 출고 완료로 처리합니다.\n완제품 재고에서 빠집니다.`,
+  if (!(await ask(`${chName(ordShipCh(o))} · ${p.name} ${fmt(o.qty_done)}EA 출고 완료로 처리합니다.\n출고장 재고(CFE)로 들어갑니다 — 제조일자 ${mfgDateOf(o)||"—"}.`,
     {title:"출고 완료", yes:"출고"}))) return;
   const r = await mesShipOrder({ order_id:id, idem:`ship-${id}-${uid()}` });
-  await mesTell(r, `${chName(ordShipCh(o))} 출고 완료`);
+  if (r && r.ok) { yardLocalIn(o); await loadYard(); }
+  await mesTell(r, `${chName(ordShipCh(o))} 출고 완료 — 출고장 재고로`);
 }
 /* 나눈 출고의 한 부분 — 표시만 해 두고, 마지막 부분이 나갈 때 지시 전체를 출고(재고 차감)한다 */
 async function shipPart(id, ch, quiet){
   if (!quiet && !(await requireUser())) return { ok:false };
   const o = ordById(id); if (!o) return { ok:false };
   const ps = shipParts(o);
-  if (ps.length <= 1) { if (quiet) return mesShipOrder({ order_id:id, idem:`ship-${id}-${uid()}` }); return shipDone(id); }
+  if (ps.length <= 1) { if (quiet) { const r0 = await mesShipOrder({ order_id:id, idem:`ship-${id}-${uid()}` }); if (r0 && r0.ok) yardLocalIn(o); return r0; } return shipDone(id); }
   const pt = ps.find(x=>x.ch===ch); if (!pt) return { ok:false };
   const left = ps.filter(x=>!x.shipped_at && x !== pt);
   if (!quiet && !(await ask(`${chName(ch)} · ${o.product_name||prodById(o.product_id)?.name||""} ${fmt(pt.qty)}개 출고 완료로 처리합니다.` +
-      (left.length ? `\n\n남은 출고: ${left.map(x=>`${chName(x.ch)} ${fmt(x.qty)}개`).join(" · ")}\n(완제품 재고는 남은 출고까지 끝나면 ${fmt(shipQtyOf(o))}개가 한 번에 빠집니다)` : `\n\n마지막 출고처 — 완제품 재고에서 ${fmt(shipQtyOf(o))}개가 빠집니다.`),
+      (left.length ? `\n\n남은 출고: ${left.map(x=>`${chName(x.ch)} ${fmt(x.qty)}개`).join(" · ")}\n(출고장 재고에는 남은 출고까지 끝나면 ${fmt(shipQtyOf(o))}개가 한 번에 들어갑니다)` : `\n\n마지막 출고처 — 출고장 재고로 ${fmt(shipQtyOf(o))}개가 들어갑니다.`),
       { title:"출고 완료", yes:"출고" }))) return { ok:false };
   if (!left.length) {
     const r = await mesShipOrder({ order_id:id, idem:`ship-${id}-${uid()}` });
+    if (r && r.ok) { yardLocalIn(o); if (!quiet) await loadYard(); }
     if (!quiet) await mesTell(r, `${chName(ch)} 출고 완료 — 전부 나감`);
     return r;
   }
@@ -18442,10 +18455,10 @@ async function shipRun(items, title){
   if (!(await requireUser())) return;
   if (!items.length) return toast("출고할 것이 없습니다");
   const q = items.reduce((t,x)=>t+x.qty,0);
-  if (!(await ask(`${title}\n\n${items.slice(0,12).map(x=>`· ${chName(x.ch)} — ${x.name} ${fmt(x.qty)}개 (${x.serial||""})`).join("\n")}${items.length>12?`\n… 외 ${items.length-12}건`:""}\n\n합계 ${items.length}건 · ${fmt(q)}개 — 완제품 재고에서 빠집니다.`, { title:"전량 출고", yes:"전부 출고" }))) return;
+  if (!(await ask(`${title}\n\n${items.slice(0,12).map(x=>`· ${chName(x.ch)} — ${x.name} ${fmt(x.qty)}개 (${x.serial||""})`).join("\n")}${items.length>12?`\n… 외 ${items.length-12}건`:""}\n\n합계 ${items.length}건 · ${fmt(q)}개 — 출고장 재고(CFE)로 들어갑니다.`, { title:"전량 출고", yes:"전부 출고" }))) return;
   const busy = setBusy(`출고 중… (${items.length}건)`); const fail = [];
   for (const x of items) { const r = await shipPart(x.id, x.ch, true); if (!r || !r.ok) fail.push(`${x.name} ${x.serial||""} — ${r?.message||"실패"}`); }
-  busy(); quickRender(); try { renderShip(); } catch(_){}
+  busy(); await loadYard(); quickRender(); try { renderShip(); } catch(_){}
   if (fail.length) return ask(`${items.length - fail.length}건 출고 · ${fail.length}건 못 함\n\n${fail.join("\n")}`, { title:"전량 출고", yes:"확인", only:true });
   toast(`전량 출고 완료 — ${items.length}건 · ${fmt(q)}개`);
 }
@@ -18913,6 +18926,86 @@ function renderQc(){
 }
 
 /* ══ 출고 ══ */
+/* ══ 출고장 재고 (CFE) — Lee 2026-11-02 "출고는 출고장에서 입고된 것 · 출고 예정은 당일 생산계획에 나가는 것 · CFE 상미기한" ══
+   [출고 완료] → 제조일자별 묶음(cfe_lots, 서버 073 트리거) · [오늘 출고 확정] → 그날 주문 수량을 오래된 제조일자부터 뺌(cfe_outs) */
+var YARD_LOTS = [], YARD_OUTS = [], YARD_OK = null;
+async function loadYard(){
+  if (!sb) { YARD_OK = true; return; }
+  try {
+    const since = (()=>{ const d = new Date(); d.setDate(d.getDate()-120); return ymdLocal(d); })();
+    const [a, b] = await Promise.all([ sb.from(tb("cfe_lots")).select("*").or(`left_qty.gt.0,in_date.gte.${since}`).limit(5000),
+                                       sb.from(tb("cfe_outs")).select("*").gte("out_date", since).limit(5000) ]);
+    if (a.error) throw a.error; if (b.error) throw b.error;
+    YARD_LOTS = a.data || []; YARD_OUTS = b.data || []; YARD_OK = true;
+  } catch(e){ YARD_OK = "missing"; }
+}
+const yardQty = pid => YARD_LOTS.filter(l=>l.product_id===pid).reduce((t,l)=>t+Number(l.left_qty||0),0);
+const yardLotsOf = pid => YARD_LOTS.filter(l=>l.product_id===pid && Number(l.left_qty) > 0).sort((a,b)=>String(a.mfg_date||"9").localeCompare(String(b.mfg_date||"9")) || String(a.at).localeCompare(String(b.at)));
+const yardOutQty = (pid, d) => YARD_OUTS.filter(x=>x.product_id===pid && x.out_date===d && x.kind==="dispatch" && !x.cancelled_at).reduce((t,x)=>t+Number(x.qty||0),0);
+const yardInQty = (pid, d) => YARD_LOTS.filter(l=>l.product_id===pid && l.in_date===d && l.src==="ship").reduce((t,l)=>t+Number(l.qty||0),0);
+const yardShelfDays = () => Math.max(1, Math.round(Number(SETTINGS["cfe.shelf_days"]) || 0)) || null;
+function setYardShelf(v){ const n = Math.round(numOf(v)); if (!(n > 0)) return; saveSetting("cfe.shelf_days", n); renderYard(); try { renderCount(); } catch(_){} }
+function yardAge(d){ if (!d) return null; return Math.floor((new Date(today()) - new Date(d))/86400000); }
+function yardShelfTag(d){ const a = yardAge(d); if (a == null) return ""; const L = yardShelfDays(); if (!L) return `<span class="hint" style="padding:0;font-size:10.5px">제조 ${a}일째</span>`;
+  const left = L - a; return `<span class="tag ${left<0?"bad":left<=Math.max(2,Math.round(L*0.2))?"warn":"ok"}" style="font-size:10.5px">${left<0?`상미 초과 ${-left}일`:`D-${left}`}</span>`; }
+/* 로컬(서버 없음) 모드 — 출고 완료 때 묶음을 만든다 */
+function yardLocalIn(o){ if (sb) return; YARD_LOTS.push({ id:uid(), product_id:o.product_id, product_name:o.product_name, order_id:o.id, serial:o.serial, mfg_date:mfgDateOf(o)||o.work_date, in_date:today(), qty:Number(o.qty_done||0), left_qty:Number(o.qty_done||0), src:"ship", at:nowISO(), by_name:CURRENT_USER }); }
+function yardTakeLocal(pid, q, d, batch, kind, note){ let left = q; for (const l of yardLotsOf(pid)) { if (left <= 0) break; const t = Math.min(Number(l.left_qty), left); l.left_qty = Number(l.left_qty) - t; left -= t;
+    YARD_OUTS.push({ id:uid(), batch_id:batch, out_date:d, product_id:pid, product_name:l.product_name, lot_id:l.id, serial:l.serial, mfg_date:l.mfg_date, qty:t, kind, note, by_name:CURRENT_USER, at:nowISO() }); } return left; }
+function yardRows(d){
+  const pids = new Set([...YARD_LOTS.filter(l=>Number(l.left_qty)>0).map(l=>l.product_id), ...DB.tallies.filter(t=>t.date===d).map(t=>t.product_id), ...YARD_OUTS.filter(x=>x.out_date===d).map(x=>x.product_id)]);
+  return [...pids].map(pid=>prodById(pid)).filter(Boolean).sort(prodCmp).map(p=>{
+    const order = hasTally(p.id, d) ? Number(tallyQty(p.id, undefined, d)||0) : 0, out = yardOutQty(p.id, d);
+    const plan = Math.max(0, Math.round(order - out)), have = yardQty(p.id);
+    return { p, order, out, plan, have, lots:yardLotsOf(p.id), inQ:yardInQty(p.id, d) }; });
+}
+var YARD_EDIT = {};
+function renderYard(){
+  if (!$("yardTbl")) return;
+  const d = $("yardDay")?.value || today(); if ($("yardDay") && !$("yardDay").value) $("yardDay").value = d;
+  if ($("yardShelf") && document.activeElement !== $("yardShelf")) $("yardShelf").value = yardShelfDays() || "";
+  if (YARD_OK === "missing") { $("yardTbl").innerHTML = `<tbody><tr><td class="c bad" style="padding:16px">서버에 073 SQL 을 실행해야 출고장 재고를 쓸 수 있습니다</td></tr></tbody>`; return; }
+  const rows = yardRows(d);
+  const short = rows.filter(r=>r.plan > r.have).length;
+  if ($("yardInfo")) $("yardInfo").innerHTML = `출고장 ${fmt(rows.reduce((t,r)=>t+r.have,0))}개 · ${d.slice(5).replace("-","/")} 나갈 것 ${fmt(rows.reduce((t,r)=>t+r.plan,0))}개${short?` · <b class="bad">모자람 ${short}품목</b>`:""}`;
+  tbl("yardTbl", ["품목","출고장 재고","제조일자별 (오래된 것부터 나감)",`${d.slice(5).replace("-","/")} 입고`,"주문","이미 나감","나갈 수량","확정 후 남음"],
+    rows.map(r=>{ const k = `${d}|${r.p.id}`; const q = YARD_EDIT[k] != null ? YARD_EDIT[k] : r.plan; const after = r.have - q;
+      return `<tr><td class="l"><b>${r.p.name}</b><br><span class="hint" style="padding:0;font-size:11px">${r.p.code||""}</span></td>
+        <td><b style="font-size:15px">${fmt(r.have)}</b></td>
+        <td class="l" style="font-size:12px">${r.lots.length ? r.lots.slice(0,6).map(l=>`<span style="display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;border:1px solid var(--line);border-radius:6px">${l.mfg_date?l.mfg_date.slice(5).replace("-","/"):"—"}${l.serial?` · ${l.serial}`:""} <b>${fmt(l.left_qty)}</b> ${yardShelfTag(l.mfg_date)}</span>`).join("") + (r.lots.length>6?` 외 ${r.lots.length-6}`:"") : '<span class="hint" style="padding:0">없음</span>'}</td>
+        <td>${r.inQ?`<span style="color:var(--ok);font-weight:700">+${fmt(r.inQ)}</span>`:"—"}</td>
+        <td>${r.order?fmt(r.order):"—"}</td><td>${r.out?fmt(r.out):"—"}</td>
+        <td><input type="text" inputmode="numeric" value="${q}" style="width:76px;height:32px;text-align:right;font-weight:700" onchange="YARD_EDIT['${k}']=Math.max(0,Math.round(numOf(this.value)));renderYard()"></td>
+        <td class="${after<0?"bad":""}"><b>${after<0?`−${fmt(-after)}`:fmt(after)}</b>${after<0?`<br><span class="tag bad" style="font-size:10.5px">${fmt(-after)}개 모자람</span>`:""}</td></tr>`; }));
+  if (!rows.length) $("yardTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">출고장 재고도, 그날 주문도 없습니다</td></tr></tbody>`;
+  /* 그날 확정한 묶음 — 취소 가능 */
+  const bs = {}; YARD_OUTS.filter(x=>x.out_date===d && x.kind==="dispatch").forEach(x=>{ (bs[x.batch_id] = bs[x.batch_id] || []).push(x); });
+  if ($("yardHist")) $("yardHist").innerHTML = Object.keys(bs).length ? `<b>${d.slice(5).replace("-","/")} 출고 확정</b> ` + Object.entries(bs).map(([b,xs])=>{ const c = xs.some(x=>x.cancelled_at);
+      return `<div style="margin-top:4px;font-size:12.5px">${dtFull(xs[0].at)} ${xs[0].by_name||""} — ${[...new Set(xs.map(x=>x.product_name))].length}품목 ${fmt(xs.reduce((t,x)=>t+Number(x.qty||0),0))}개 ${c?'<span class="tag">취소됨</span>':`<button class="btn" style="height:26px;padding:0 8px;font-size:11.5px" onclick="yardUndo('${b}')">확정 취소</button>`}
+        <span class="hint" style="padding:0">${xs.slice(0,8).map(x=>`${x.product_name} ${x.mfg_date?x.mfg_date.slice(5):""} ${fmt(x.qty)}`).join(" · ")}</span></div>`; }).join("") : "";
+}
+async function yardDispatch(){
+  if (!(await requireUser())) return;
+  const d = $("yardDay")?.value || today();
+  const items = yardRows(d).map(r=>({ r, q: YARD_EDIT[`${d}|${r.p.id}`] != null ? YARD_EDIT[`${d}|${r.p.id}`] : r.plan })).filter(x=>x.q > 0);
+  if (!items.length) return toast("나갈 수량이 없습니다 — 주문 집계를 확인하거나 수량을 적으세요");
+  const sh = items.filter(x=>x.q > x.r.have);
+  if (!(await ask(`${d} 출고 확정 — 오래된 제조일자부터 뺍니다.\n\n${items.slice(0,14).map(x=>`· ${x.r.p.name} ${fmt(x.q)}개${x.q>x.r.have?` (출고장 ${fmt(x.r.have)} — ${fmt(x.q-x.r.have)}개 모자람)`:""}`).join("\n")}${items.length>14?`\n… 외 ${items.length-14}`:""}\n\n합계 ${fmt(items.reduce((t,x)=>t+x.q,0))}개${sh.length?`\n※ 모자란 ${sh.length}품목은 있는 만큼만 빠집니다`:""}`, { title:"오늘 출고 확정", yes:"확정" }))) return;
+  const batch = uid();
+  const r = await rpc("cfe_dispatch", { p_date:d, p_items:items.map(x=>({ product_id:x.r.p.id, qty:x.q })), p_note:null, p_user_name:CURRENT_USER }, () => {
+    const short = []; items.forEach(x=>{ const s0 = yardTakeLocal(x.r.p.id, x.q, d, batch, "dispatch", null); if (s0 > 0) short.push({ product_id:x.r.p.id, short:s0 }); }); return { ok:true, short }; });
+  if (!r || r.ok === false) return ask(r?.message || "확정하지 못했습니다" + (/cfe_dispatch|schema cache|function/i.test(r?.message||"") ? "\n\n서버에 073 SQL 을 실행하세요" : ""), { title:"출고 확정", yes:"확인", only:true });
+  items.forEach(x=>delete YARD_EDIT[`${d}|${x.r.p.id}`]);
+  await loadYard(); renderYard(); try { renderCount(); } catch(_){}
+  toast(`출고 확정 — ${items.length}품목${(r.short||[]).length?` · 모자람 ${(r.short||[]).length}품목`:""}`);
+}
+async function yardUndo(batch){
+  if (!(await requireUser())) return;
+  if (!(await ask("이 출고 확정을 취소하고 출고장 재고로 되돌립니다.", { title:"확정 취소", yes:"취소하기", no:"닫기" }))) return;
+  const r = await rpc("cfe_dispatch_undo", { p_batch:batch, p_user_name:CURRENT_USER }, () => { YARD_OUTS.filter(x=>x.batch_id===batch && !x.cancelled_at).forEach(x=>{ const l = YARD_LOTS.find(y=>y.id===x.lot_id); if (l) l.left_qty = Number(l.left_qty) + Number(x.qty); x.cancelled_at = nowISO(); }); return { ok:true }; });
+  if (!r || r.ok === false) return toast(r?.message || "취소하지 못했습니다");
+  await loadYard(); renderYard(); try { renderCount(); } catch(_){} toast("출고 확정을 취소했습니다");
+}
 var SH_DAY = "";
 const ymdLocal = t => { if (!t) return ""; const d = new Date(t); if (isNaN(d)) return String(t).slice(0,10); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 function shDayGo(){ const v = $("shDay")?.value; SH_DAY = v || "all"; renderShip(); }
@@ -18920,6 +19013,8 @@ function shDaySet(d){ if (d === "all") SH_DAY = "all"; else if (d === 0) SH_DAY 
   else { const base = (SH_DAY && SH_DAY !== "all") ? SH_DAY : today(); const t = new Date(base + "T00:00:00"); t.setDate(t.getDate() + d); SH_DAY = ymdLocal(t); }
   renderShip(); }
 function renderShip(){
+  if (YARD_OK === null) { YARD_OK = false; loadYard().then(()=>{ renderYard(); try { renderCount(); } catch(_){} }); }
+  try { renderYard(); } catch(e){ console.warn(e); }
   const ready = DB.orders.filter(o=>o.status==="검수완료");
   /* ★ 2026-11-02 출고 완료 내역 — 날짜로 조회 (기본 오늘) */
   const SD = SH_DAY || today();
@@ -20013,7 +20108,7 @@ function cntRows(){
   const D = cntDraft(), q = ($("cntFind")?.value || "").trim();
   if (cntType === "cfe")
     return DB.products.filter(p=>(!p.off || Number(p.cfe||0)!==0) && (!q || p.name.includes(q) || (p.code||"").includes(q)))
-      .map(p=>({ key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 남음":""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:Number(p.cfe||0), act:D.cfe[p.id] ?? null, off:!!p.off, done:D.done.cfe[p.id] || null }))
+      .map(p=>({ key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 남음":""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:(YARD_OK === true ? yardQty(p.id) : Number(p.cfe||0)), act:D.cfe[p.id] ?? null, off:!!p.off, done:D.done.cfe[p.id] || null }))
       .sort((a,b)=>(a.off?1:0)-(b.off?1:0));
   return matsOf(cntKind).filter(M=>!q || (M.name||"").includes(q) || (M.code||"").includes(q))
     .map(M=>({ key:M.id, name:M.name, sub:[M.kind, M.spec].filter(Boolean).join(" · "), pack:Math.max(1, Math.round(Number(M.pack_qty)||1)),
@@ -20032,7 +20127,7 @@ function renderCount(){
   $("cntTypeBtn").innerHTML = [["mat","부자재 · 라벨"],["cfe","CFE 완제품"]].map(([v,t])=>`<button class="btn ${cntType===v?"primary":""}" onclick="setCntType('${v}')">${t}</button>`).join(" ");
   const kinds = {}; DB.materials.forEach(M=>{ kinds[M.kind]=(kinds[M.kind]||0)+1; });
   $("cntKindBtn").innerHTML = cntType === "mat" ? [["","전체"],...MAT_KINDS.filter(k=>kinds[k]).map(k=>[k,`${k} ${kinds[k]}`])].map(([v,t])=>`<button class="btn ${cntKind===v?"primary":""}" style="height:28px;padding:0 9px;font-size:12px" onclick="setCntKind('${v}')">${t}</button>`).join(" ") : "";
-  $("cntTitle").innerHTML = cntType === "cfe" ? `CFE 완제품 (EA) <span class="r"><button class="btn ${CNT_FLOW?"primary":""}" style="height:30px" onclick="CNT_FLOW=!CNT_FLOW;renderCount()" title="센 날짜의 검수 입고 · 출고 · 생산계획 출고 예정을 보고, 출고 예정을 뺀 남을 재고를 계산">${CNT_FLOW?"✓ ":""}남은 재고 계산 (출고 예정 차감)</button></span>` : `부자재 · 라벨${cntKind?` — ${cntKind}`:""}`;
+  $("cntTitle").innerHTML = cntType === "cfe" ? `CFE 완제품 (EA) — 출고장 재고 <span class="r"><button class="btn ${CNT_FLOW?"primary":""}" style="height:30px" onclick="CNT_FLOW=!CNT_FLOW;renderCount()" title="센 날짜의 출고장 입고 · 당일 출고 예정(생산계획)을 보고, 출고 예정을 뺀 남을 재고를 계산">${CNT_FLOW?"✓ ":""}남은 재고 계산 (출고 예정 차감)</button></span>` : `부자재 · 라벨${cntKind?` — ${cntKind}`:""}`;
   $("cntCards").innerHTML = `
     <div class="card"><div class="lb">항목</div><div class="vl">${rows.length}</div></div>
     <div class="card ${ent.length?"green":""}"><div class="lb">${cntDayOf()===today()?"오늘":cntDayOf().slice(5).replace("-","/")} 입력함</div><div class="vl">${ent.length} <small>/ ${rows.length}${rows.filter(r=>r.done).length?` · 반영 ${rows.filter(r=>r.done).length}`:""}</small></div></div>
@@ -20040,28 +20135,31 @@ function renderCount(){
   if (cntType === "mat") { const g = matDupGroups(); if (g.length) $("cntCards").innerHTML += `<div class="card red" style="cursor:pointer" onclick="goTo('base','label');setTimeout(mergeDupMaterials,300)" title="같은 자재가 여러 줄 — 눌러서 하나로 통합"><div class="lb">같은 자재가 여러 줄</div><div class="vl">${g.length} <small>묶음 · 눌러서 정리</small></div></div>`; }
   $("cntApplyBtn").style.display = diffs.length ? "" : "none";
   $("cntApplyBtn").textContent = `차이 전체 반영${diffs.length?` ${diffs.length}건`:""}`;
-  /* ★ 2026-11-02 CFE — 그날 검수에서 들어온 것 · 출고로 나간 것 · 생산계획 출고 예정을 빼고 남을 재고 (Lee "필요수량을 차감해서 부족하면 −") */
+  /* ★ 2026-11-02 CFE = 출고장 재고 — 그날 출고장 입고([출고 완료]) · 당일 출고 예정(생산계획 주문 − 이미 확정한 것) · 남을 재고 · 가장 오래된 제조일자 (Lee) */
+  if (cntType === "cfe" && YARD_OK === null) { YARD_OK = false; loadYard().then(()=>renderCount()); }
   const CD = cntDayOf(), flow = cntType === "cfe" && CNT_FLOW;
   const F = {};
   if (flow) {
     rows.forEach(r=>{ const pid = r.key;
-      const inQ  = DB.orders.filter(o=>o.product_id===pid && ["검수완료","출고완료"].includes(o.status) && ymdLocal(o.qc_at)===CD).reduce((t,o)=>t+Number(o.qty_done||0),0);
-      const outQ = DB.orders.filter(o=>o.product_id===pid && o.status==="출고완료" && ymdLocal(o.ship_at)===CD).reduce((t,o)=>t+Number(o.qty_done||0),0);
+      const inQ = YARD_OK === true ? yardInQty(pid, CD) : DB.orders.filter(o=>o.product_id===pid && o.status==="출고완료" && ymdLocal(o.ship_at)===CD).reduce((t,o)=>t+Number(o.qty_done||0),0);
       const tally = (typeof hasTally === "function" && hasTally(pid, CD)) ? Number(tallyQty(pid, undefined, CD)||0) : 0;
+      const outQ = YARD_OK === true ? yardOutQty(pid, CD) : 0;
       const plan = Math.max(0, Math.round(tally - outQ));
       const base = r.act != null ? r.act : r.app;
-      F[pid] = { inQ, outQ, tally, plan, left: base - plan, base: r.act != null ? "센 수량" : "앱 재고" }; });
+      const old = YARD_OK === true ? yardLotsOf(pid)[0] : null;
+      F[pid] = { inQ, outQ, tally, plan, left: base - plan, base: r.act != null ? "센 수량" : "출고장 재고", old }; });
   }
   const shortN = flow ? rows.filter(r=>F[r.key] && F[r.key].left < 0).length : 0;
   if (flow) $("cntCards").innerHTML += `<div class="card ${shortN?"red":"green"}"><div class="lb">${CD.slice(5).replace("-","/")} 출고 예정 빼면 부족</div><div class="vl">${shortN} <small>품목</small></div></div>`;
-  const cntHead = flow ? ["No","품목","앱 재고",`들어옴 <span class="hint" style="padding:0;font-size:10.5px">검수 ${CD.slice(5).replace("-","/")}</span>`,`나감 <span class="hint" style="padding:0;font-size:10.5px">출고</span>`,`출고 예정 <span class="hint" style="padding:0;font-size:10.5px">생산계획</span>`,"남을 재고","실제 (센 수량)","차이","", ""] : ["No","품목","앱 재고","실제 (센 수량)","차이","", ""];
+  const cntHead = flow ? ["No","품목", YARD_OK === true ? "출고장 재고" : "앱 재고",`출고장 입고 <span class="hint" style="padding:0;font-size:10.5px">${CD.slice(5).replace("-","/")}</span>`,`당일 출고 예정 <span class="hint" style="padding:0;font-size:10.5px">생산계획</span>`,"남을 재고","오래된 제조일자","실제 (센 수량)","차이","", ""] : ["No","품목","앱 재고","실제 (센 수량)","차이","", ""];
   tbl("cntSheet", cntHead,
     rows.map((r,i)=>{
       const has = r.act != null, d = has ? r.act - r.app : 0;
       const f = F[r.key];
-      const flowCells = !flow ? "" : `<td>${f.inQ?`<b style="color:var(--ok)">+${fmt(f.inQ)}</b>`:"—"}</td><td>${f.outQ?`<b>−${fmt(f.outQ)}</b>`:"—"}</td>
-        <td>${f.plan?`<b>${fmt(f.plan)}</b>${f.tally!==f.plan?`<br><span class="hint" style="padding:0;font-size:10.5px">주문 ${fmt(f.tally)} − 출고 ${fmt(f.outQ)}</span>`:""}`:"—"}</td>
-        <td class="${f.left<0?"bad":""}" title="${f.base} − 출고 예정"><b style="font-size:15px">${f.left<0?`−${fmt(-f.left)}`:fmt(f.left)}</b>${f.left<0?`<br><span class="tag bad" style="font-size:10.5px">${fmt(-f.left)}개 부족</span>`:""}</td>`;
+      const flowCells = !flow ? "" : `<td>${f.inQ?`<b style="color:var(--ok)">+${fmt(f.inQ)}</b>`:"—"}</td>
+        <td>${f.plan?`<b>${fmt(f.plan)}</b>${f.outQ?`<br><span class="hint" style="padding:0;font-size:10.5px">주문 ${fmt(f.tally)} − 확정 ${fmt(f.outQ)}</span>`:""}`:(f.tally?`<span class="hint" style="padding:0">다 나감</span>`:"—")}</td>
+        <td class="${f.left<0?"bad":""}" title="${f.base} − 당일 출고 예정"><b style="font-size:15px">${f.left<0?`−${fmt(-f.left)}`:fmt(f.left)}</b>${f.left<0?`<br><span class="tag bad" style="font-size:10.5px">${fmt(-f.left)}개 부족</span>`:""}</td>
+        <td class="c" style="font-size:12px">${f.old ? `${f.old.mfg_date ? f.old.mfg_date.slice(5).replace("-","/") : "—"} <b>${fmt(f.old.left_qty)}</b><br>${yardShelfTag(f.old.mfg_date)}` : "—"}</td>`;
       const inCell = r.pack > 1
         ? `<span class="cwrap"><input type="text" inputmode="numeric" class="cin" id="cb-${r.key}" data-f="cb:${r.key}" placeholder="0" value="${has?Math.floor(r.act/r.pack):""}" oninput="setCntPack('${r.key}',this.value,${r.pack})"><small>묶음(${r.pack})</small>
              + <input type="text" inputmode="numeric" class="cin" id="cp-${r.key}" data-f="cp:${r.key}" placeholder="0" value="${has?r.act%r.pack:""}" oninput="setCntPiece('${r.key}',${r.pack})"><small>${r.unit}</small>
@@ -20075,7 +20173,7 @@ function renderCount(){
         <td class="${!has?"":d===0?"ok":d<0?"bad":"warn"}">${has ? (d===0?"일치":(d>0?"+":"")+fmt(d)) : ""}</td>
         <td class="c"><button class="btn" style="height:34px;min-width:40px;font-size:15px" title="앱 재고와 같음" onclick="setCntOne('${r.key}','${r.app}')">=</button></td>
         <td class="c">${has && d ? `<button class="btn primary" style="height:34px" onclick="cntApplyOne('${r.key}')">반영</button>` : ""}</td></tr>`; }),
-    rows.length ? `<td colspan="2" class="c">합 계 · ${rows.length}항목</td><td><b>${fmt(rows.reduce((s,r)=>s+r.app,0))}</b></td>${flow?`<td>+${fmt(rows.reduce((t,r)=>t+F[r.key].inQ,0))}</td><td>−${fmt(rows.reduce((t,r)=>t+F[r.key].outQ,0))}</td><td>${fmt(rows.reduce((t,r)=>t+F[r.key].plan,0))}</td><td class="${shortN?"bad":""}">부족 ${shortN}</td>`:""}<td>${ent.length?`<b>${fmt(ent.reduce((s,r)=>s+r.act,0))}</b>`:""}</td><td colspan="3"></td>` : null);
+    rows.length ? `<td colspan="2" class="c">합 계 · ${rows.length}항목</td><td><b>${fmt(rows.reduce((s,r)=>s+r.app,0))}</b></td>${flow?`<td>+${fmt(rows.reduce((t,r)=>t+F[r.key].inQ,0))}</td><td>${fmt(rows.reduce((t,r)=>t+F[r.key].plan,0))}</td><td class="${shortN?"bad":""}">부족 ${shortN}</td><td></td>`:""}<td>${ent.length?`<b>${fmt(ent.reduce((s,r)=>s+r.act,0))}</b>`:""}</td><td colspan="3"></td>` : null);
 }
 /* 마이너스 CFE 재고 — 어떤 수불로 이렇게 됐는지 */
 async function negWhy(pid){
@@ -20104,6 +20202,15 @@ async function negFix(pid){
 const cntDayOf = () => { const v = $("cntDay")?.value; return v && v <= today() ? v : today(); };
 async function cntApplyRow(r, why){
   const d = Math.round((r.act - r.app)*1000)/1000;
+  if (cntType === "cfe" && YARD_OK === true) {
+    /* ★ 출고장 재고를 센 값으로 — 많으면 묶음(제조일자 = 센 날짜) 추가 · 적으면 오래된 것부터 뺌 */
+    const res = await rpc("cfe_yard_count", { p_product_id:r.key, p_counted:Number(r.act), p_date:cntDayOf(), p_mfg:null, p_note:cntNoteOf(why, "재고 세기 반영"), p_user_name:CURRENT_USER }, () => {
+      const dd = Number(r.act) - yardQty(r.key);
+      if (dd > 0) YARD_LOTS.push({ id:uid(), product_id:r.key, product_name:r.name, mfg_date:cntDayOf(), in_date:cntDayOf(), qty:dd, left_qty:dd, src:"count", at:nowISO(), by_name:CURRENT_USER });
+      else if (dd < 0) yardTakeLocal(r.key, -dd, cntDayOf(), uid(), "count", "재고 세기"); return { ok:true }; });
+    if (res && res.ok) { if (sb) await loadYard(); if (why && d) logAudit(`출고장 재고 실측 차이 — ${why.reason}`, r.name, `${d>0?"+":""}${fmt(d)}EA → ${fmt(r.act)}EA${why.note?` · ${why.note}`:""}`); }
+    return res;
+  }
   if (cntType === "cfe") {
     const res = await mesCountProductStock({ product_id:r.key, counted:Number(r.act), date:cntDayOf(), note:cntNoteOf(why, "재고 세기 반영"), idem:`cnt-${r.key}-${uid()}` });
     if (res && res.ok && why && d) logAudit(/오출고/.test(why.reason) ? "완제품 오출고 (재고 세기)" : `완제품 실측 차이 — ${why.reason}`, r.name, `${d>0?"+":""}${fmt(d)}EA → ${fmt(r.act)}EA${why.note?` · ${why.note}`:""}`);
