@@ -5526,6 +5526,25 @@ async function mesFreeBatch(a){
     });
 }
 
+/* ★ 2026-11-03 배치 잔량 로스 (075 SQL) — 그 배치에서 kg 만큼 "로스(손실)" 로 뺌 */
+async function mesLossBatch(a){
+  return rpc("loss_batch", { p_mms_id:a.mms_id, p_kg:a.kg ?? null, p_note:a.note||null, p_idempotency:a.idem }, () => {
+    const hit = idemHit(a.idem); if (hit) return hit;
+    const m = DB.mms.find(x => x.id === a.mms_id); if (!m) return MES_ERR("no_batch","배치를 찾을 수 없습니다");
+    const kg = Math.round(Number(a.kg ?? m.stock_kg)*1000)/1000;
+    if (!(kg > 0)) return MES_ERR("bad_qty","로스로 뺄 kg 가 없습니다");
+    if (kg > Number(m.stock_kg||0) + 0.0005) return MES_ERR("over", `남은 ${fmt(m.stock_kg)} kg 보다 많습니다`);
+    return localTx(T => {
+      const after = Math.max(0, Math.round((Number(m.stock_kg||0) - kg)*1000)/1000);
+      const u = T.add("usages", { id:uid(), use_date:today(), bean:m.bean, mms_id:m.id, batch_code:batchLabel(m), roast_date:m.roast_date,
+        batch:Number(m.batch)||0, batch_full:batchFull(m), kg, reason:"로스(손실)", note:a.note || "배치 잔량 로스", user:CURRENT_USER||"(미지정)", at:nowISO(), cancelled_at:null });
+      save("usages", u);
+      putMove(T, { kind:"원두", ref_type:"usage", ref_id:m.id, mms_id:m.id, bean:m.bean, qty:-kg, unit:"kg", reason:"로스(손실)", note:a.note, move_date:today(), user_name:CURRENT_USER });
+      T.upd(m, { stock_kg:after }); save("mms", m);
+      const r = { ok:true, kg, before:Number(m.stock_kg)+kg, after }; idemPut(T, a.idem, "loss_batch", m.id, r); return r;
+    });
+  });
+}
 async function mesScrapBatch(a){
   return rpc("scrap_batch",
     { p_mms_id:a.mms_id, p_reason:a.reason||null, p_idempotency:a.idem },
@@ -6915,6 +6934,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-03", "배치 잔량 로스 처리 (075 SQL)", "로스팅 › 상미기한 표에 체크칸 + 줄마다 [로스 처리] · 고르면 위에 [고른 N배치 로스 처리] — 배치마다 부적합(다시 포장할 원두) 남길 kg 를 적으면 그만큼은 배치에 남기고 나머지만 로스(손실) · 부적합은 로스가 아님 · 수불·사용이력에 로스(손실)로 남고 거기서 취소 가능"],
   ["2026-11-03", "받은 배치 — + 배치 추가", "받은 배치 위 [+ 배치 추가] · 원두마다 [+ 배치 추가] — 원두·로스팅일·번호(다음 번호 자동)·kg(평소 kg 자동)·받은 날을 칸에 적고 [맞추기] · [+ 줄 추가] 로 여러 줄 · 받기 전 줄이 있으면 그 줄로, 없으면 계획 1배치 만들어 받음 · 이미 있는 번호면 kg 고침"],
   ["2026-11-03", "배치 kg 작음 표시 — 원두마다 평소 kg 기준", "전에는 원두 상관없이 15kg 미만이면 빨간 표시 → 싱글 오리진(엘 모리또 8.76kg 등)도 걸림 · 이제 그 원두의 평소 1배치 kg (받은 날마다 가장 큰 배치의 중앙값)와 로스팅 계획의 1배치 kg 중 큰 값의 절반보다 작을 때만 표시 · \"N배치 평소보다 작음 (보통 58kg)\" · 받기 확인창·입고 확인 칸·로스팅 계획·이카운트 표 미리보기 모두 같은 기준"],
   ["2026-11-03", "받은 배치 — 이카운트 표로 한 번에", "받은 배치 위 [📋 이카운트 표로 한 번에] — 창고이동현황 줄을 복사해 붙여넣거나 캡처 사진을 넣으면 원두(품목코드 MMS·품목명) · 로스팅일·배치번호(적요 11/02-3) · kg(수량) · 받은 날(일자)을 읽어 미리보기 → 칸마다 고칠 수 있음 → [맞추기]: 이미 받은 배치는 kg 고침 · 받기 전 줄은 그 번호·kg 로 받기 · 계획에 없으면 1배치 만들어 받기"],
@@ -9592,18 +9612,19 @@ function renderRoast(){
     liveAll.forEach(m=>{ const st = shelfState(m.roast_date); cnt[st]++; kg[st] += Number(m.stock_kg||0); });
     const LBL = { bad:"초과", warn:"임박", ok:"여유" };
     if ($("shelfBtn")) $("shelfBtn").innerHTML = `<button class="btn ${!SHELF_VIEW?"primary":""}" onclick="SHELF_VIEW='';renderRoast()">전체 ${liveAll.length}</button> ` +
-      ["bad","warn","ok"].map(k=>`<button class="btn ${SHELF_VIEW===k?"primary":""}" style="${k==="bad"&&cnt.bad?"color:var(--bad);font-weight:800":""}" onclick="SHELF_VIEW='${k}';renderRoast()">${LBL[k]} ${cnt[k]} <span class="hint" style="padding:0;font-size:11px">${fmt(Math.round(kg[k]*10)/10)}kg</span></button>`).join(" ");
+      (SHELF_SEL.size ? `<button class="btn" style="color:var(--bad);font-weight:800;border-color:var(--bad)" onclick="lossBatches([...SHELF_SEL])">고른 ${SHELF_SEL.size}배치 로스 처리</button> <button class="btn" onclick="SHELF_SEL.clear();renderRoast()">선택 풀기</button> ` : "") + ["bad","warn","ok"].map(k=>`<button class="btn ${SHELF_VIEW===k?"primary":""}" style="${k==="bad"&&cnt.bad?"color:var(--bad);font-weight:800":""}" onclick="SHELF_VIEW='${k}';renderRoast()">${LBL[k]} ${cnt[k]} <span class="hint" style="padding:0;font-size:11px">${fmt(Math.round(kg[k]*10)/10)}kg</span></button>`).join(" ");
     const rows = liveAll.filter(m=>!SHELF_VIEW || shelfState(m.roast_date)===SHELF_VIEW)
       .sort((a,b)=>daysLeft(a.roast_date)-daysLeft(b.roast_date) || beanCmp(a.bean,b.bean) || Number(a.batch)-Number(b.batch));
     $("shelfWrap").style.display = "";
-    tbl("shelfTbl", ["현장번호","배치","원두","로스팅일","재고(kg)","경과","잔여","상태","보류"],
+    tbl("shelfTbl", [`<input type="checkbox" onchange="shelfSelAll(this.checked)" ${rows.length && rows.every(m=>SHELF_SEL.has(m.id))?"checked":""}>`,"현장번호","배치","원두","로스팅일","재고(kg)","경과","잔여","상태","보류","잔량"],
       rows.map(m=>{ const st=shelfState(m.roast_date);
-        return `<tr class="${isHeld(m)?"heldrow":""}"><td class="c"><b style="font-size:15px">${batchShort(m)}</b></td><td class="l">${batchLabel(m)}</td><td class="l"><b>${m.bean}</b></td><td class="c">${m.roast_date}</td>
+        return `<tr class="${isHeld(m)?"heldrow":""}${SHELF_SEL.has(m.id)?" selrow":""}"><td class="c"><input type="checkbox" ${SHELF_SEL.has(m.id)?"checked":""} onchange="shelfSel('${m.id}',this.checked)"></td><td class="c"><b style="font-size:15px">${batchShort(m)}</b></td><td class="l">${batchLabel(m)}</td><td class="l"><b>${m.bean}</b></td><td class="c">${m.roast_date}</td>
           <td>${fmt(m.stock_kg)}</td><td class="c">D+${ageDays(m.roast_date)}</td>
           <td class="c ${st}">${shelfLabel(m.roast_date)}</td>
           <td class="c">${st==="bad"?'<span class="tag bad">초과 — 사용금지·처리</span>':st==="warn"?'<span class="tag warn">임박 — 먼저 사용</span>':'<span class="tag ok">여유</span>'}</td>
-          <td class="c">${isHeld(m)?`<span class="tag bad">${m.hold_why||"보류"}</span>`:`<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}</td></tr>`; }),
-      rows.length ? `<td colspan="4" class="c">합 계 · ${rows.length}배치</td><td><b>${fmt(Math.round(rows.reduce((t,m)=>t+Number(m.stock_kg||0),0)*100)/100)}</b></td><td colspan="4"></td>` : null);
+          <td class="c">${isHeld(m)?`<span class="tag bad">${m.hold_why||"보류"}</span>`:`<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}</td>
+          <td class="c"><button class="btn" style="color:var(--bad)" onclick="lossBatches(['${m.id}'])" title="남은 원두를 로스로 — 부적합(재포장) kg 는 남길 수 있음">로스 처리</button></td></tr>`; }),
+      rows.length ? `<td colspan="5" class="c">합 계 · ${rows.length}배치</td><td><b>${fmt(Math.round(rows.reduce((t,m)=>t+Number(m.stock_kg||0),0)*100)/100)}</b></td><td colspan="5"></td>` : null);
     if (!rows.length) $("shelfTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">${SHELF_VIEW?`${LBL[SHELF_VIEW]} 배치가 없습니다`:"남은 배치가 없습니다"}</td></tr></tbody>`; }
 
   const need = beanNeeds();
@@ -11146,6 +11167,54 @@ async function freeBatch(id){
   await mesTell(r, `${m.bean} ${batchShort(m)} 보류 해제 — 바로 쓸 수 있습니다`);
 }
 /* 보류한 배치를 폐기 — 재고에서 빼고 기타사용(폐기)으로 남긴다 */
+/* ★ 2026-11-03 배치 잔량 로스 처리 (Lee "코스트코 작업 뒤 남은 원두 — 로스가 되어야 하는데 남아 있어")
+   부적합은 로스가 아니다 — 다시 포장할 원두라 그 배치에 남김 (이물 있는 것만 빼면 그냥 원두) · 나머지만 로스 */
+var SHELF_SEL = new Set();
+function shelfSel(id, on){ on ? SHELF_SEL.add(id) : SHELF_SEL.delete(id); renderRoast(); }
+function shelfSelAll(on){ const vis = DB.mms.filter(m=>Number(m.stock_kg)>0 && (!SHELF_VIEW || shelfState(m.roast_date)===SHELF_VIEW)); vis.forEach(m=> on ? SHELF_SEL.add(m.id) : SHELF_SEL.delete(m.id)); renderRoast(); }
+async function lossBatches(ids){
+  if (!(await requireUser())) return;
+  const ms = ids.map(id=>DB.mms.find(x=>x.id===id)).filter(m=>m && Number(m.stock_kg)>0);
+  if (!ms.length) return toast("남은 원두가 있는 배치가 없습니다");
+  const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const res = await new Promise(done=>{
+    const wrap = document.createElement("div");
+    wrap.style.cssText = "position:fixed;inset:0;background:rgba(15,20,40,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px";
+    wrap.innerHTML = `<div style="background:#fff;border-radius:16px;width:min(820px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="padding:16px 20px 6px"><div style="font-size:18px;font-weight:800">배치 잔량 로스 처리</div>
+        <div class="hint" style="padding:4px 0 0;line-height:1.6">남은 원두를 로스로 뺍니다. <b>부적합(다시 포장할 원두)은 로스가 아닙니다</b> — 그 kg 를 적으면 배치에 남기고 나머지만 로스로 잡습니다.</div></div>
+      <div style="overflow:auto;flex:1 1 auto;padding:0 16px 8px"><table style="width:100%"><thead><tr><th>배치</th><th>원두</th><th>로스팅일</th><th>남은 kg</th><th>부적합(재포장)<br>남길 kg</th><th>로스 kg</th></tr></thead><tbody>
+      ${ms.map((m,i)=>`<tr><td class="c"><b>${batchShort(m)}</b></td><td class="l">${esc(m.bean)}</td><td class="c">${m.roast_date}</td><td>${fmt(m.stock_kg)}</td>
+        <td class="c"><input type="text" inputmode="decimal" class="lbNg" data-i="${i}" value="0" style="width:80px;text-align:right"></td><td class="lbLoss" data-i="${i}" style="color:var(--bad);font-weight:800">${fmt(m.stock_kg)}</td></tr>`).join("")}
+      </tbody><tfoot><tr><td colspan="3" class="c">합 계 · ${ms.length}배치</td><td><b>${fmt(Math.round(ms.reduce((t,m)=>t+Number(m.stock_kg||0),0)*1000)/1000)}</b></td><td id="lbNgSum"></td><td id="lbLossSum" style="color:var(--bad);font-weight:800"></td></tr></tfoot></table></div>
+      <div style="padding:6px 20px 0"><input type="text" id="lbNote" placeholder="메모 (예: 코스트코 작업 뒤 자투리 · 잔량 이월 세팅 전)" style="width:100%;height:36px"></div>
+      <div style="padding:10px 20px 16px;display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="lbNo">닫기</button><button class="btn danger" id="lbGo">로스 처리</button></div></div>`;
+    document.body.appendChild(wrap);
+    const calc = ()=>{ let ng = 0, lo = 0;
+      wrap.querySelectorAll(".lbNg").forEach(el=>{ const m = ms[+el.dataset.i], st = Number(m.stock_kg)||0;
+        const n = Math.min(st, Math.max(0, Math.round(numOf(el.value)*1000)/1000 || 0)), l = Math.round((st - n)*1000)/1000; ng += n; lo += l;
+        wrap.querySelector(`.lbLoss[data-i="${el.dataset.i}"]`).textContent = fmt(l); });
+      $("lbNgSum").textContent = ng ? fmt(Math.round(ng*1000)/1000) : ""; $("lbLossSum").textContent = fmt(Math.round(lo*1000)/1000);
+      $("lbGo").textContent = `${fmt(Math.round(lo*1000)/1000)}kg 로스 처리`; $("lbGo").disabled = !(lo > 0); };
+    wrap.querySelectorAll(".lbNg").forEach(el=>el.oninput = calc); calc();
+    $("lbNo").onclick = ()=>{ wrap.remove(); done(null); };
+    $("lbGo").onclick = ()=>{ const out = [...wrap.querySelectorAll(".lbNg")].map(el=>{ const m = ms[+el.dataset.i], st = Number(m.stock_kg)||0;
+        const ng = Math.min(st, Math.max(0, Math.round(numOf(el.value)*1000)/1000 || 0)); return { m, ng, loss:Math.round((st-ng)*1000)/1000 }; });
+      const note = String($("lbNote").value||"").trim(); wrap.remove(); done({ out, note }); };
+  });
+  if (!res) return;
+  const busy = setBusy("로스 처리 중…"); let ok = 0, kg = 0; const fail = [];
+  for (const x of res.out) {
+    if (!(x.loss > 0)) continue;
+    const note = [res.note || "배치 잔량 로스", x.ng > 0 ? `부적합(재포장) ${fmt(x.ng)}kg 남김` : ""].filter(Boolean).join(" · ");
+    const r = await mesLossBatch({ mms_id:x.m.id, kg:x.loss, note, idem:`lb-${x.m.id}-${uid()}` });
+    if (r && r.ok !== false) { ok++; kg += x.loss; SHELF_SEL.delete(x.m.id); }
+    else fail.push(`${batchShort(x.m)} ${r?.message||""}`);
+  }
+  busy(); if (sb) await reloadDB({ silent:true }); renderAll();
+  if (fail.length && /loss_batch|schema cache|function/i.test(fail.join(" "))) return ask("서버에 075_loss_batch.sql 을 먼저 실행해 주세요 (배치 잔량 로스 기능).", { title:"로스 처리", yes:"확인", only:true });
+  toast(`${ok}배치 · ${fmt(Math.round(kg*1000)/1000)}kg 로스 처리${fail.length?` · 못 한 것 ${fail.length}: ${fail.slice(0,2).join(", ")}`:""} — 수불·사용이력에서 취소할 수 있습니다`);
+}
 async function scrapBatch(id){
   if (!(await requireUser())) return;
   const m = DB.mms.find(x=>x.id===id); if(!m) return;
