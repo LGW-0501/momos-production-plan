@@ -6934,6 +6934,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-03", "작업지시 날짜 = 생산계획 날짜 (076 SQL)", "작업지시를 만들 때 작업지시 화면 날짜(보통 오늘)가 아니라 생산계획 집계 날짜로 만듦 · 그날 집계가 없는데 대기 지시가 있으면 \"계획과 다른 대기 지시 — 빠질 것\" (전부 지우자는 띠) 대신 \"11/02 계획으로 만든 것 같습니다 [지시를 11/02 로 옮기기]\" — 시작 안 한 대기 지시만 옮기고 작업일·WO 번호도 그 날짜로"],
   ["2026-11-03", "배치 잔량 로스 처리 (075 SQL)", "로스팅 › 상미기한 표에 체크칸 + 줄마다 [로스 처리] · 고르면 위에 [고른 N배치 로스 처리] — 배치마다 부적합(다시 포장할 원두) 남길 kg 를 적으면 그만큼은 배치에 남기고 나머지만 로스(손실) · 부적합은 로스가 아님 · 수불·사용이력에 로스(손실)로 남고 거기서 취소 가능"],
   ["2026-11-03", "받은 배치 — + 배치 추가", "받은 배치 위 [+ 배치 추가] · 원두마다 [+ 배치 추가] — 원두·로스팅일·번호(다음 번호 자동)·kg(평소 kg 자동)·받은 날을 칸에 적고 [맞추기] · [+ 줄 추가] 로 여러 줄 · 받기 전 줄이 있으면 그 줄로, 없으면 계획 1배치 만들어 받음 · 이미 있는 번호면 kg 고침"],
   ["2026-11-03", "배치 kg 작음 표시 — 원두마다 평소 kg 기준", "전에는 원두 상관없이 15kg 미만이면 빨간 표시 → 싱글 오리진(엘 모리또 8.76kg 등)도 걸림 · 이제 그 원두의 평소 1배치 kg (받은 날마다 가장 큰 배치의 중앙값)와 로스팅 계획의 1배치 kg 중 큰 값의 절반보다 작을 때만 표시 · \"N배치 평소보다 작음 (보통 58kg)\" · 받기 확인창·입고 확인 칸·로스팅 계획·이카운트 표 미리보기 모두 같은 기준"],
@@ -17544,8 +17545,50 @@ function planOrderDiff(d){
   });
   return { d, gone, changed, many, n: gone.length + changed.length + many.length };
 }
+/* ★ 2026-11-03 생산계획(집계) 날짜와 다른 날로 만들어진 작업지시 (Lee "11월 2일 생산계획인데 11월 3일로 잡혔어")
+   그날 집계가 없는데 대기 지시가 있고, 가까운 날 집계의 품목과 겹치면 → 그 계획 날짜로 옮기자고 한다 (지우자고 하지 않음) */
+function planDayOfOrders(d){
+  const wait = ordsOf(d).filter(o=>o.status === "대기"); if (!wait.length || talliesOf(d).length) return null;
+  const pids = new Set(wait.map(o=>o.product_id));
+  const days = [...new Set(DB.tallies.map(t=>t.date))].filter(x=>x && x !== d && Math.abs(new Date(x) - new Date(d)) <= 7*86400000)
+    .map(x=>{ const tp = new Set(talliesOf(x).map(t=>t.product_id)); const hit = [...pids].filter(id=>tp.has(id)).length; return { x, hit }; })
+    .filter(z=>z.hit >= Math.max(1, pids.size*0.6)).sort((a,b)=>b.hit - a.hit || Math.abs(new Date(a.x)-new Date(d)) - Math.abs(new Date(b.x)-new Date(d)));
+  return days[0] ? { to:days[0].x, n:wait.length } : null;
+}
+async function mesMoveOrders(a){
+  return rpc("move_orders_date", { p_ids:a.ids, p_to:a.to, p_idempotency:a.idem }, () => {
+    const hit = idemHit(a.idem); if (hit) return hit;
+    return localTx(T => { let n = 0, skip = 0;
+      a.ids.forEach(id=>{ const o = DB.orders.find(x=>x.id===id); if (!o) return; if (o.status !== "대기") { skip++; return; }
+        const no = /^WO-\d{8}-/.test(o.order_no||"") ? `WO-${a.to.replace(/-/g,"")}-${o.order_no.slice(12)}` : o.order_no;
+        T.upd(o, { work_date:a.to, order_no: DB.orders.some(x=>x.order_no===no) ? o.order_no : no }); save("orders", o); n++; });
+      const r = { ok:true, moved:n, skipped:skip }; idemPut(T, a.idem, "move_orders_date", null, r); return r; });
+  });
+}
+async function moveOrdersDate(from, to){
+  if (!(await requireUser())) return;
+  if (!can("plan")) return deny("plan");
+  const wait = ordsOf(from).filter(o=>o.status === "대기"), started = ordsOf(from).length - wait.length;
+  if (!wait.length) return toast("옮길 대기 지시가 없습니다");
+  const v = await askText(`${from} 작업지시 ${wait.length}건 (아직 시작 안 한 것)을 생산계획 날짜로 옮깁니다.${started?`\n이미 시작·완료한 ${started}건은 그대로 둡니다.`:""}\n\n옮길 날짜 (생산계획 집계 날짜)`, to || tallyDay(), "작업지시 날짜 옮기기");
+  if (v === null) return; const dd = String(v).trim().replace(/[./]/g,"-");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dd)) return toast("날짜를 2026-11-02 처럼 적어 주세요");
+  if (dd === from) return toast("같은 날짜입니다");
+  const busy = setBusy("옮기는 중…");
+  const r = await mesMoveOrders({ ids:wait.map(o=>o.id), to:dd, idem:`mvo-${from}-${dd}-${uid()}` }); busy();
+  if (!r || r.ok === false) {
+    if (/move_orders_date|schema cache|function/i.test(r?.message||"")) return ask("서버에 076_move_orders_date.sql 을 먼저 실행해 주세요.", { title:"작업지시 날짜 옮기기", yes:"확인", only:true });
+    return ask(r?.message || "옮기지 못했습니다", { title:"작업지시 날짜 옮기기", yes:"확인", only:true });
+  }
+  logAudit("작업지시 작업일 옮김", `${from} → ${dd}`, `${r.moved}건`);
+  if (sb) await reloadDB({ silent:true });
+  if ($("wkDate")) $("wkDate").value = dd; if ($("woDate")) $("woDate").value = dd;
+  renderAll(); toast(`작업지시 ${r.moved}건 → ${dd}${r.skipped?` · 시작한 ${r.skipped}건은 그대로`:""} — 현장 작업 작업일을 ${dd} 로 맞췄습니다`);
+}
 function planSyncBar(d){
   if (!can("plan")) return "";
+  const H = planDayOfOrders(d);
+  if (H) return `<span class="tag warn" style="font-size:12.5px">${d.slice(5).replace("-","/")} 에는 생산계획(집계)이 없는데 대기 지시 ${H.n}건 — ${H.to.slice(5).replace("-","/")} 계획으로 만든 것 같습니다</span> <button class="btn primary" style="height:28px" onclick="moveOrdersDate('${d}','${H.to}')">지시를 ${H.to.slice(5).replace("-","/")} 로 옮기기</button>`;
   const D = planOrderDiff(d); if (!D.n) return "";
   return `<span class="tag warn" style="font-size:12.5px">계획과 다른 대기 지시 ${D.n}건${D.gone.length?` · 빠질 것 ${D.gone.length}`:""}${D.changed.length?` · 수량 바꿀 것 ${D.changed.length}`:""}${D.many.length?` · 손으로 볼 것 ${D.many.length}`:""}</span> <button class="btn primary" style="height:28px" onclick="syncOrdersToPlan('${D.d}')">현장 지시 계획에 맞추기</button>`;
 }
@@ -17668,7 +17711,9 @@ async function makeOrders(){
     `배분 수량이 계획보다 많습니다.\n\n${overs.slice(0,4).map(r=>`· ${r.p.name} — 계획 ${fmt(r.ea)} / 배분 ${fmt(r.ea + r.overEa)}`).join("\n")}\n\n적은 대로 지시를 낼까요?`,
     {title:"계획 초과", yes:"그대로 지시"}))) return;
 
-  const d = $("woDate")?.value || today();
+  /* ★ 2026-11-03 작업지시는 생산계획(집계) 날짜로 만든다 — 전에는 작업지시 화면 날짜(보통 오늘)로 만들어 계획 날짜와 어긋났다 */
+  const d = tallyDay();
+  if ($("woDate") && $("woDate").value && $("woDate").value !== d) toast(`생산계획 날짜 ${d} 로 작업지시를 만듭니다`);
   // 라벨이 모자라면 먼저 알려준다 — 현장에서 멈추는 것보다 낫다
   const needL = {};
   draft.forEach(x=>{ const L = labelOf(x.p, x.label_id); if (!L) return;
