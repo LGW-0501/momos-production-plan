@@ -6915,6 +6915,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-03", "받은 배치 — 이카운트 표로 한 번에", "받은 배치 위 [📋 이카운트 표로 한 번에] — 창고이동현황 줄을 복사해 붙여넣거나 캡처 사진을 넣으면 원두(품목코드 MMS·품목명) · 로스팅일·배치번호(적요 11/02-3) · kg(수량) · 받은 날(일자)을 읽어 미리보기 → 칸마다 고칠 수 있음 → [맞추기]: 이미 받은 배치는 kg 고침 · 받기 전 줄은 그 번호·kg 로 받기 · 계획에 없으면 1배치 만들어 받기"],
+  ["2026-11-03", "배치번호 고치기 — 받기 전 · 배치 재고 · 로스팅 계획 저장 오류", "입고 확인 줄마다 [번호] 칸 — 받기 전에 그날 몇 번째 배치인지 바꿈 (이미 받은 번호·겹치는 번호는 막음) · 배치 재고 표에 [번호] (안 쓴 배치) · 받은 배치 카드의 [번호 바꾸기] 그대로 / 로스팅 계획 표를 고치고 저장하면 permission denied for table momos_roasting 나던 것 → 서버 함수로 저장 (입고 kg 는 입고 확인·받은 배치에서)"],
   ["2026-11-02", "받은 배치 kg — 한 번에 저장", "kg 칸을 여러 개 고치면 (바뀐 칸은 주황) 위에 [바뀐 kg N개 한 번에 저장] — 한 번 확인하고 전부 저장 · 칸마다 [고치기] 도 그대로"],
   ["2026-11-02", "받은 배치 — 배치번호 바꾸기", "받은 배치 카드의 번호 아래 [번호 바꾸기] — 그날 몇 번째 배치인지 고침 (같은 원두·같은 로스팅일에 이미 있는 번호는 막음 · 아직 안 쓴 배치만 · 받은 kg·받은 날은 그대로) · 그 배치로 잡힌 대기 작업지시가 있으면 알려 줌"],
   ["2026-11-02", "받은 배치 — 원두별로", "받은 배치 칸을 원두별로: 위 원두 버튼(배치 수·kg) — 누르면 그 원두만 · 원두마다 요약 줄(배치 수 · 합계 kg · 번호 범위 · 15kg 미만 배치 수 · [이 원두 kg 한 번에] · [이 원두 받기 되돌리기]) — 누르면 카드 펼침"],
@@ -9668,7 +9670,7 @@ function renderRoast(){
   if ($("todayInT")) $("todayInT").textContent = inDay === today() ? "오늘 받은 배치" : `${inDay.slice(5).replace("-","/")} 받은 배치`;
   const todayIn = DB.mms.filter(m=>m.in_date===inDay && Number(m.stock_kg)>0);
   if ($("unrcvAllBtn")) { const nU = DB.mms.filter(m=>m.in_date===inDay && batchUntouched(m)).length;
-    $("unrcvAllBtn").innerHTML = `<button class="btn primary" id="rkSaveAll" style="height:30px;margin-left:8px;background:var(--ok);border-color:var(--ok);${Object.keys(RK_DIRTY).length?"":"display:none"}" onclick="rkSaveAll()">바뀐 kg ${Object.keys(RK_DIRTY).length}개 한 번에 저장</button>` + (nU ? `<button class="btn primary" style="height:30px;margin-left:8px" onclick="fixReceivedKgBean('${inDay}')">원두별 kg 한 번에</button>` : "") + (nU ? `<button class="btn" style="height:30px;color:var(--bad);font-weight:800;margin-left:6px" onclick="unreceiveAll('${inDay}')">받기 전부 되돌리기 ${nU}</button>` : ""); }
+    $("unrcvAllBtn").innerHTML = `<button class="btn" style="height:30px;margin-left:8px;font-weight:800;border-color:var(--pri,#2b50d8);color:var(--pri,#2b50d8)" onclick="openEcIn('${inDay}')" title="이카운트 창고이동현황 표를 복사해서 붙여넣거나 캡처 사진을 넣으면 배치번호·kg 를 한 번에 맞춤">📋 이카운트 표로 한 번에</button><button class="btn primary" id="rkSaveAll" style="height:30px;margin-left:8px;background:var(--ok);border-color:var(--ok);${Object.keys(RK_DIRTY).length?"":"display:none"}" onclick="rkSaveAll()">바뀐 kg ${Object.keys(RK_DIRTY).length}개 한 번에 저장</button>` + (nU ? `<button class="btn primary" style="height:30px;margin-left:8px" onclick="fixReceivedKgBean('${inDay}')">원두별 kg 한 번에</button>` : "") + (nU ? `<button class="btn" style="height:30px;color:var(--bad);font-weight:800;margin-left:6px" onclick="unreceiveAll('${inDay}')">받기 전부 되돌리기 ${nU}</button>` : ""); }
   /* ★ 2026-11-02 원두별로 (Lee "원두별로 볼 수 있게") — 위 버튼으로 원두 하나만 · 원두마다 요약 줄(누르면 펼침) */
   const card = m=>`<div class="nb${isHeld(m)?" held":""}">
          <div class="no" style="display:flex;flex-direction:column;align-items:center;gap:4px">${batchShort(m)}${batchUntouched(m) ? `<button class="btn" style="height:24px;padding:0 6px;font-size:11px;font-weight:600" onclick="fixBatchNo('${m.id}')">번호 바꾸기</button>` : ""}</div>
@@ -9706,7 +9708,7 @@ function renderRoast(){
       offLive.map(m=>{ const b = beanInfo(m.bean), st = shelfState(m.roast_date);
         return `<tr style="opacity:.75"><td class="l"><b>${batchLabel(m)}</b></td><td class="c"><b>${batchShort(m)}</b></td><td class="l">${m.bean} <span class="tag">사용 중단</span></td>
           <td class="c">${m.roast_date}</td><td><b>${fmt(m.stock_kg)}</b></td><td class="c">${b?.end_date||"—"}</td><td class="c ${st}">${shelfLabel(m.roast_date)}</td>
-          <td class="c" style="white-space:nowrap"><button class="btn" onclick="holdBatch('${m.id}')">보류</button> <button class="btn" onclick="fixBatchQty('${m.id}')">수정</button>${can("base")?` <button class="btn" style="color:var(--bad)" onclick="delBatchOne('${m.id}')">삭제</button>`:""}${b?` <button class="btn" onclick="toggleBeanOff('${b.id}')">원두 다시 사용</button>`:""}</td></tr>`; }),
+          <td class="c" style="white-space:nowrap"><button class="btn" onclick="holdBatch('${m.id}')">보류</button> <button class="btn" onclick="fixBatchQty('${m.id}')">수정</button>${batchUntouched(m)?` <button class="btn" onclick="fixBatchNo('${m.id}')" title="배치번호 바꾸기">번호</button>`:""}${can("base")?` <button class="btn" style="color:var(--bad)" onclick="delBatchOne('${m.id}')">삭제</button>`:""}${b?` <button class="btn" onclick="toggleBeanOff('${b.id}')">원두 다시 사용</button>`:""}</td></tr>`; }),
       `<td colspan="4" class="c">합 계 · ${offLive.length}배치</td><td>${fmt(offLive.reduce((s,m)=>s+Number(m.stock_kg||0),0))}</td><td colspan="3"></td>`); }
   const planRs = planRows(); planBatches(planRs);
   const resv = {};
@@ -11256,7 +11258,8 @@ function pendingNos(lines){
     if (used[key] == null)
       used[key] = DB.mms.filter(m=>m.bean===l.bean && m.roast_date===l.roast_date)
         .reduce((mx,m)=>Math.max(mx, Number(m.batch)||0), 0);
-    no[l.id] = ++used[key];
+    if (Number(l.batch_no) > 0) { no[l.id] = Number(l.batch_no); used[key] = Math.max(used[key], Number(l.batch_no)); }
+    else no[l.id] = ++used[key];
   });
   return no;
 }
@@ -11312,7 +11315,8 @@ function renderIn(){
       const ind = l.in_date || today();
       body.push(`<tr class="wait" ${IN_SEL.has(l.id)?'style="background:#EAF0FF"':""}>
         <td class="c"><input type="checkbox" ${IN_SEL.has(l.id)?"checked":""} onclick="inSel('${l.id}',this.checked)"></td>
-        <td class="c" title="${l.bean} · ${l.roast_date} ${nos[l.id]}번 배치"><b style="font-size:17px;letter-spacing:-.5px">${batchShort(m)}</b></td>
+        <td class="c" title="${l.bean} · ${l.roast_date} ${nos[l.id]}번 배치"><b style="font-size:17px;letter-spacing:-.5px">${batchShort(m)}</b>
+          <div style="font-size:11px;margin-top:2px">번호 <input type="number" min="1" max="99" value="${nos[l.id]}" style="width:46px;height:24px;font-size:12px;text-align:center" title="그날 몇 번째 배치인지 — 바꾸면 배치번호가 바뀜" onchange="setLineNo('${l.id}',this.value)"></div></td>
         <td class="c" style="font-size:12px">${batchFull(m)}</td>
         <td class="l hint" style="padding-left:8px;font-size:11.5px">${l.bean}</td>
         <td class="c">${r.roaster?`<span class="tag">${r.roaster}</span>`:"—"}</td>
@@ -11329,6 +11333,17 @@ function renderIn(){
     body,
     vis.length ? `<td colspan="7" class="c">합 계 · ${shown.length>1?`${shown.length}개 원두 · `:""}${vis.length}배치 ${!one?`<button class="btn" style="height:26px;padding:0 8px;font-size:11.5px;margin-left:6px" onclick="IN_OPEN=new Set(${JSON.stringify(shown).replace(/"/g,"&quot;")});renderIn()">모두 펼치기</button> <button class="btn" style="height:26px;padding:0 8px;font-size:11.5px" onclick="IN_OPEN=new Set();renderIn()">모두 접기</button>`:""}</td>
       <td><b>${fmt(kgOfRows(vis))}</b></td><td colspan="2"></td>` : null);
+}
+/* ★ 2026-11-03 받기 전 배치 줄의 배치번호 바꾸기 (Lee "배치번호 수정은 여기서 안 되네") */
+async function setLineNo(id, v){
+  if (!(await requireUser())) return;
+  const l = DB.roast_lines.find(x=>x.id===id); if (!l) return;
+  const no = Math.round(numOf(v)); if (!(no > 0 && no < 100)) { renderIn(); return toast("1 ~ 99 사이 숫자로"); }
+  if (DB.mms.some(m=>m.bean===l.bean && m.roast_date===l.roast_date && Number(m.batch)===no)) { renderIn(); return toast(`${l.bean} ${l.roast_date} 의 ${no}번 배치는 이미 받았습니다`); }
+  if (DB.roast_lines.some(x=>x.id!==id && !x.done && x.bean===l.bean && x.roast_date===l.roast_date && Number(x.batch_no)===no)) { renderIn(); return toast(`받을 배치 중 ${no}번이 이미 있습니다`); }
+  const r = await mesEditRoastLine({ line_id:id, patch:{ batch_no:no }, idem:`rl-no-${id}-${uid()}` });
+  if (!r || r.ok === false) { renderIn(); return toast(r?.message || "바꾸지 못했습니다"); }
+  l.batch_no = no; renderIn(); toast(`${l.bean} → ${no}번 배치 (${batchShort({ roast_date:l.roast_date, batch:no })})`);
 }
 /* 치는 중에는 화면에만 둡니다 */
 function setLine(id, k, v){
@@ -11506,6 +11521,151 @@ async function fixReceivedKgBean(day, bean){
   for (const m of ms) { if (Math.abs(kg - Number(m.in_kg ?? m.stock_kg)) < 0.005) { ok++; continue; } const r = await reReceive(m, kg); if (r && r.ok !== false) ok++; else fail++; }
   busy(); if (sb) await reloadDB({ silent:true }); renderAll();
   toast(`${b} ${ok}배치 → ${fmt(kg)}kg${fail?` · 못 한 것 ${fail}`:""}`);
+}
+/* ★ 2026-11-03 이카운트 창고이동현황 → 받은 배치 한 번에 (Lee "여기서도 한번에 입력 … 이런 걸 넣으면 인식")
+   표를 복사해 붙여넣거나(가장 정확) 캡처 사진을 넣으면 줄마다 원두 · 로스팅일 · 배치번호(적요 11/02-3) · kg(수량) 을 읽어
+   ① 이미 받은 배치 → kg 다르면 고침  ② 받기 전 배치 줄 → 그 번호·kg 로 받음  ③ 계획에 없으면 → 계획 1배치 만들어 받음 */
+function ecBeanOf(line){
+  const code = (String(line).match(/MMS\d{4}/i)||[])[0];
+  if (code) { const r = (typeof BEAN_MASTER!=="undefined"?BEAN_MASTER:[]).find(x=>String(x[0]).toUpperCase()===code.toUpperCase());
+    if (r) return (DB.beans.some(b=>b.name===r[2]) ? r[2] : matchBean(r[2])) || r[2]; }
+  const nm = (String(line).match(/원두\s*([^\t\d][^\t]*?)(?=\t|\s{2,}|\s+\d+[.,]\d|$)/)||[])[1];
+  return (nm && matchBean(nm)) || matchBean(String(line).replace(/\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2}|[\d.,]+|로스팅공장|원두포장공장|반제품|창고/g," ")) || "";
+}
+function ecParse(txt, inDay){
+  const out = [];
+  String(txt||"").split(/\r?\n/).forEach(raw=>{
+    const line = raw.replace(/ /g," ").trim(); if (!line || /계\s*$|품목코드|합계/.test(line) && !/\d+\s*\/\s*\d+\s*-\s*\d+/.test(line)) return;
+    const memo = [...line.matchAll(/(\d{1,2})\s*\/\s*(\d{1,2})\s*[-–~]\s*(\d{1,2})(?!\d|\s*\/)/g)].pop();   // 적요는 줄 끝쪽
+    if (!memo) return;
+    const dt = (line.match(/(20\d{2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})/)||[]);
+    const inD = dt[1] ? `${dt[1]}-${String(dt[2]).padStart(2,"0")}-${String(dt[3]).padStart(2,"0")}` : inDay;
+    let y = Number(inD.slice(0,4)); const mo = Number(memo[1]), da = Number(memo[2]);
+    if (mo > Number(inD.slice(5,7)) + 1) y--;                                     // 12월 로스팅 → 1월 입고
+    const rd = `${y}-${String(mo).padStart(2,"0")}-${String(da).padStart(2,"0")}`;
+    const before = line.slice(0, memo.index).replace(/(20\d{2})\s*[\/.\-]\s*\d{1,2}\s*[\/.\-]\s*\d{1,2}\s*-?\s*\d*/,"");
+    const nums = [...before.matchAll(/(?<![\w\/])(\d{1,3}(?:,\d{3})*(?:\.\d+)?)(?![\w\/])/g)].map(x=>({ s:x[1], v:Number(x[1].replace(/,/g,"")) }));
+    const kgC = nums.filter(x=>/\.\d/.test(x.s) && x.v > 0 && x.v < 200);
+    const kg = (kgC[0] || nums.find(x=>x.v > 0 && x.v < 200 && !/^0\d/.test(x.s)) || {}).v;
+    out.push({ bean:ecBeanOf(line), rd, no:Number(memo[3]), kg:kg ? Math.round(kg*100)/100 : 0, inD, raw:line });
+  });
+  return out;
+}
+function ecPlan(rows){
+  const usedLine = new Set();
+  return rows.map(r=>{
+    if (!r.bean) return { ...r, act:"skip", why:"원두를 못 찾음" };
+    if (!(r.kg > 0)) return { ...r, act:"skip", why:"kg 를 못 읽음" };
+    if (!(r.no > 0 && r.no < 100)) return { ...r, act:"skip", why:"배치번호를 못 읽음" };
+    const m = DB.mms.find(x=>x.bean===r.bean && x.roast_date===r.rd && Number(x.batch)===r.no);
+    if (m) { const cur = Number(m.in_kg ?? m.stock_kg);
+      if (Math.abs(cur - r.kg) < 0.005) return { ...r, act:"same", m, why:"이미 같음" };
+      return { ...r, act:"fix", m, why:`받음 ${fmt(cur)} → ${fmt(r.kg)}kg${batchUntouched(m)?"":" (이미 씀 → 잔량 실측)"}` }; }
+    const open = DB.roast_lines.filter(l=>!l.done && l.bean===r.bean && !usedLine.has(l.id));
+    const l = open.find(l=>l.roast_date===r.rd && Number(l.batch_no)===r.no) || open.find(l=>l.roast_date===r.rd && !(Number(l.batch_no)>0))
+      || open.find(l=>l.roast_date===r.rd) || open.sort((a,b)=>Math.abs(new Date(a.roast_date)-new Date(r.rd))-Math.abs(new Date(b.roast_date)-new Date(r.rd)))[0];
+    if (l) { usedLine.add(l.id); return { ...r, act:"recv", l, why:`받기 전 줄로 받음${l.roast_date!==r.rd?` (계획 ${l.roast_date.slice(5)} → ${r.rd.slice(5)})`:""}` }; }
+    return { ...r, act:"new", why:"계획에 없음 → 1배치 만들어 받음" };
+  });
+}
+async function openEcIn(inDay){
+  if (!(await requireUser())) return;
+  const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const wrap = document.createElement("div"); wrap.id = "ecInDlg";
+  wrap.style.cssText = "position:fixed;inset:0;background:rgba(15,20,40,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px";
+  wrap.innerHTML = `<div style="background:#fff;border-radius:16px;width:min(1000px,100%);max-height:94vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="padding:16px 20px 6px"><div style="font-size:18px;font-weight:800">이카운트 표로 받은 배치 한 번에</div>
+      <div class="hint" style="padding:4px 0 0;line-height:1.6">이카운트 <b>창고이동현황</b>에서 줄을 드래그해 <b>복사(Ctrl+C)</b> → 아래 칸에 <b>붙여넣기(Ctrl+V)</b> · 또는 캡처 사진을 붙여넣거나 [사진 넣기]<br>
+      적요 <b>11/02-3</b> = 11월 2일 로스팅 3번 배치 · 수량 = kg · 받은 날 = 일자 (없으면 ${inDay})</div></div>
+    <div style="padding:0 20px 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <textarea id="ecTxt" placeholder="여기에 붙여넣기 (표 복사 또는 캡처 사진)" style="flex:1 1 520px;height:110px;font-size:13px;font-family:inherit"></textarea>
+      <div style="display:flex;flex-direction:column;gap:6px"><label class="btn" style="height:34px;display:flex;align-items:center">📷 사진 넣기<input type="file" accept="image/*" id="ecImg" style="display:none"></label>
+        <button class="btn primary" id="ecRead" style="height:34px">읽기</button></div>
+    </div>
+    <div id="ecOcr" class="hint" style="padding:0 20px"></div>
+    <div style="overflow:auto;flex:1 1 auto;padding:0 16px 8px"><table style="width:100%"><thead><tr><th><input type="checkbox" id="ecAll" checked></th><th>원두</th><th>로스팅일</th><th>번호</th><th>kg</th><th>받은 날</th><th>할 일</th></tr></thead><tbody id="ecRows"><tr><td colspan="7" class="c hint">붙여넣으면 여기 나옵니다</td></tr></tbody></table></div>
+    <div style="padding:10px 20px 16px;display:flex;gap:8px;justify-content:flex-end;align-items:center"><span id="ecSum" class="hint" style="margin-right:auto;padding:0"></span>
+      <button class="btn" id="ecClose">닫기</button><button class="btn primary" id="ecGo" disabled>맞추기</button></div></div>`;
+  document.body.appendChild(wrap);
+  let plan = [];
+  const beans = DB.beans.map(b=>b.name).filter(Boolean).sort(beanCmp);
+  const ACT = { fix:["warn","kg 고침"], recv:["ok","받기"], new:["ok","새로 받기"], same:["","같음"], skip:["bad","건너뜀"] };
+  const draw = ()=>{
+    const tb = $("ecRows");
+    if (!plan.length) { tb.innerHTML = `<tr><td colspan="7" class="c hint">읽은 줄이 없습니다 — 적요(11/02-3) 가 들어간 줄을 붙여넣으세요</td></tr>`; $("ecGo").disabled = true; $("ecSum").textContent=""; return; }
+    tb.innerHTML = plan.map((r,i)=>`<tr style="${r.act==="skip"||r.act==="same"?"opacity:.6":""}">
+      <td class="c"><input type="checkbox" data-i="${i}" class="ecChk" ${r.act==="skip"||r.act==="same"?"":"checked"} ${r.act==="skip"||r.act==="same"?"disabled":""}></td>
+      <td><select data-i="${i}" data-k="bean" class="ecEd" style="min-width:150px;max-width:220px"><option value="">— 원두 —</option>${(r.bean && !beans.includes(r.bean) ? [r.bean, ...beans] : beans).map(b=>`<option ${b===r.bean?"selected":""}>${esc(b)}</option>`).join("")}</select></td>
+      <td><input type="date" data-i="${i}" data-k="rd" class="ecEd" value="${r.rd}"></td>
+      <td><input type="number" data-i="${i}" data-k="no" class="ecEd" value="${r.no}" style="width:56px;text-align:center"></td>
+      <td><input type="number" step="0.01" data-i="${i}" data-k="kg" class="ecEd" value="${r.kg||""}" style="width:80px;text-align:right${r.kg>0&&r.kg<15?";color:var(--bad);font-weight:800":""}"></td>
+      <td><input type="date" data-i="${i}" data-k="inD" class="ecEd" value="${r.inD}"></td>
+      <td><span class="tag ${ACT[r.act][0]}">${ACT[r.act][1]}</span> <span class="hint" style="padding:0;font-size:11.5px">${esc(r.why)}</span></td></tr>`).join("");
+    tb.querySelectorAll(".ecEd").forEach(el=>el.onchange=()=>{ const i=+el.dataset.i, k=el.dataset.k; const r={ ...plan[i] }; delete r.m; delete r.l;
+      r[k] = k==="no" ? Math.round(numOf(el.value)) : k==="kg" ? Math.round(numOf(el.value)*100)/100 : el.value; plan[i] = r;
+      plan = ecPlan(plan.map(x=>{ const y={...x}; delete y.m; delete y.l; return y; })); draw(); });
+    tb.querySelectorAll(".ecChk").forEach(el=>el.onchange=sum);
+    sum();
+  };
+  const sum = ()=>{ const n = [...document.querySelectorAll(".ecChk:checked")].length; const c = k=>plan.filter(r=>r.act===k).length;
+    $("ecSum").innerHTML = `${plan.length}줄 · kg 고침 ${c("fix")} · 받기 ${c("recv")} · 새로 ${c("new")} · 같음 ${c("same")}${c("skip")?` · <b class="bad">건너뜀 ${c("skip")}</b>`:""}`;
+    $("ecGo").disabled = !n; $("ecGo").textContent = n ? `${n}줄 맞추기` : "맞추기"; };
+  const read = ()=>{ plan = ecPlan(ecParse($("ecTxt").value, inDay)); draw(); };
+  const doImg = async file=>{
+    const info = $("ecOcr"); info.innerHTML = "<b>사진 글자 읽는 중…</b> (처음 한 번은 오래 걸립니다)";
+    try { const T = await loadOCR(); const img = await loadImg(URL.createObjectURL(file)); const cv = prepShot(img);
+      const w = await T.createWorker("kor+eng", 1); const { data } = await w.recognize(cv); await w.terminate();
+      const txt = fixNums(ocrToTable(data)).replace(/(\d)\s*\.\s*(\d)/g,"$1.$2");
+      $("ecTxt").value = txt; read();
+      info.innerHTML = `사진에서 ${plan.length}줄 읽음 — <b>숫자·번호를 꼭 확인</b>하세요 (표 복사가 더 정확합니다)`;
+    } catch(e){ info.innerHTML = `<b class="bad">사진을 읽지 못했습니다</b> — 표를 복사해서 붙여넣어 주세요`; }
+  };
+  $("ecTxt").addEventListener("paste", e=>{ const f = [...(e.clipboardData?.items||[])].find(x=>x.type.startsWith("image/"))?.getAsFile();
+    if (f) { e.preventDefault(); doImg(f); } else setTimeout(read, 0); });
+  $("ecImg").onchange = e=>{ const f = e.target.files[0]; if (f) doImg(f); };
+  $("ecRead").onclick = read;
+  $("ecAll").onchange = e=>{ document.querySelectorAll(".ecChk:not(:disabled)").forEach(c=>c.checked = e.target.checked); sum(); };
+  $("ecClose").onclick = ()=>wrap.remove();
+  $("ecGo").onclick = async ()=>{
+    const pick = [...document.querySelectorAll(".ecChk:checked")].map(c=>plan[+c.dataset.i]).filter(r=>r && r.act!=="skip" && r.act!=="same");
+    if (!pick.length) return;
+    wrap.style.display = "none";
+    const r = await ecApply(pick);
+    if (r === null) { wrap.style.display = "flex"; return; }
+    wrap.remove();
+  };
+  setTimeout(()=>$("ecTxt").focus(), 50);
+}
+async function ecApply(pick){
+  if (!(await ask(`${pick.length}줄을 맞춥니다:\n\n${pick.slice(0,18).map(r=>`· ${r.bean} ${r.rd.slice(5)} ${r.no}번  ${fmt(r.kg)}kg — ${r.why}`).join("\n")}${pick.length>18?`\n… 외 ${pick.length-18}줄`:""}`, { title:"이카운트 표로 한 번에", yes:`${pick.length}줄 맞추기`, no:"뒤로" }))) return null;
+  const busy = setBusy(`맞추는 중… (${pick.length}줄)`); let ok = 0; const fail = [];
+  for (const r of pick) {
+    try {
+      let res;
+      if (r.act === "fix") res = await reReceive(r.m, r.kg);
+      else {
+        let lid = r.l?.id;
+        if (r.act === "new") {
+          const before = new Set(DB.roast_lines.map(x=>x.id));
+          const up = await mesUpsertRoast({ id:null, patch:{ plan_date:r.rd, bean:r.bean, plan_kg:r.kg, batch_kg:r.kg, batches:1, note:"이카운트 표로 받음" }, idem:`ec-new-${uid()}` });
+          if (!up || up.ok === false) { fail.push(`${r.bean} ${r.no}번 (계획 못 만듦)`); continue; }
+          if (sb) { try { await reloadDB({ silent:true }); } catch(_){} }
+          lid = (DB.roast_lines.find(x=>!before.has(x.id) && !x.done && x.bean===r.bean) || {}).id;
+          if (!lid) { fail.push(`${r.bean} ${r.no}번 (줄 없음)`); continue; }
+        }
+        const l = DB.roast_lines.find(x=>x.id===lid) || r.l;
+        const patch = { kg:r.kg, batch_no:r.no, ...(l && l.roast_date!==r.rd ? { roast_date:r.rd } : {}) };
+        await mesEditRoastLine({ line_id:lid, patch, idem:`ec-ed-${lid}-${uid()}` });
+        if (l) Object.assign(l, patch);
+        res = await mesReceiveLine({ line_id:lid, kg:r.kg, batch_no:r.no, roast_date:r.rd, in_date:r.inD, idem:`ec-rc-${lid}-${uid()}` });
+      }
+      if (res && res.ok !== false) ok++; else fail.push(`${r.bean} ${r.no}번 (${res?.message||"실패"})`);
+    } catch(e){ fail.push(`${r.bean} ${r.no}번`); }
+  }
+  busy(); if (sb) await reloadDB({ silent:true }); renderAll();
+  if (fail.length) ask(`${ok}줄 맞춤 · 못 한 것 ${fail.length}줄\n\n${fail.slice(0,15).join("\n")}`, { title:"이카운트 표로 한 번에", yes:"확인", only:true });
+  else toast(`${ok}줄 맞춤`);
+  return ok;
 }
 /* ★ 2026-11-02 그날 받은 배치를 한 번에 받기 전으로 (Lee "이거 전부 되돌리기 할 수 있게") — 원두별로 골라서 */
 async function unreceiveAll(day, onlyBean){
@@ -14201,7 +14361,15 @@ async function baseSave(){
   const nmTxt = Object.entries(names).slice(0,8).map(([n,c])=>`· ${n||"(이름 없음)"} ${c}칸`).join("\n");
   if (!(await ask(`${list.length}건을 저장하시겠습니까?\n\n${nmTxt}${Object.keys(names).length>8?`\n… 외 ${Object.keys(names).length-8}줄`:""}`, { title:"기준정보 저장", yes:"저장" }))) return;
   let n = 0;
-  list.forEach(x=>{ const row = DB[x.t]?.find(r=>r.id===x.id); if (!row) return; applyCellChange(x.t, row, x.k, x.v, x.was); n++; });
+  /* ★ 2026-11-03 로스팅 계획은 표에 바로 못 쓴다 (permission denied for momos_roasting) — 서버 함수(upsert_roast_plan)로 */
+  const rp = {}, rskip = [];
+  list.filter(x=>x.t==="roasting").forEach(x=>{ if (ROAST_EDITABLE.includes(x.k)) (rp[x.id] = rp[x.id] || {})[x.k] = x.v; else rskip.push(x); });
+  for (const [id, patch] of Object.entries(rp)) {
+    const r = await mesUpsertRoast({ id, patch, idem:`rp-base-${id}-${uid()}` });
+    if (r && r.ok !== false) n += Object.keys(patch).length; else toast(`로스팅 계획 저장 실패 — ${r?.message||""}`);
+  }
+  if (rskip.length) toast(`입고(kg) 는 여기서 고치지 않습니다 — 입고 확인 · 받은 배치의 kg 칸에서 고치세요`);
+  list.filter(x=>x.t!=="roasting").forEach(x=>{ const row = DB[x.t]?.find(r=>r.id===x.id); if (!row) return; applyCellChange(x.t, row, x.k, x.v, x.was); n++; });
   for (const k in BASE_PEND) delete BASE_PEND[k];
   logAudit("기준정보 저장", `${n}건`, Object.keys(names).slice(0,5).join(", "));
   renderAll(); baseSaveBarUpdate(); toast(`${n}건 저장했습니다`);
