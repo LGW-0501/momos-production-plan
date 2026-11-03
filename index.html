@@ -6934,6 +6934,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-03", "현장 작업 — 이카운트 표로 생산 완료 한 번에", "현장 작업 위 [📋 이카운트 표로 생산 완료] — 생산입고 표를 복사해 붙여넣거나 캡처 사진 → 줄마다 품목(CFE 코드·품목명)·일련번호(적요 11/01-08 → 0108 · 배치코드)·만든 수량을 읽고 대기/생산중 지시를 찾음(일련번호 → 그 작업일 → 가까운 날) → 미리보기에서 품목·번호·수량 고칠 수 있음 → [N건 생산 완료]: 시작 → 완료(원두 차감·로스·봉투 LOT 기록) → 검수로"],
   ["2026-11-03", "작업지시 날짜 = 생산계획 날짜 (076 SQL)", "작업지시를 만들 때 작업지시 화면 날짜(보통 오늘)가 아니라 생산계획 집계 날짜로 만듦 · 그날 집계가 없는데 대기 지시가 있으면 \"계획과 다른 대기 지시 — 빠질 것\" (전부 지우자는 띠) 대신 \"11/02 계획으로 만든 것 같습니다 [지시를 11/02 로 옮기기]\" — 시작 안 한 대기 지시만 옮기고 작업일·WO 번호도 그 날짜로"],
   ["2026-11-03", "배치 잔량 로스 처리 (075 SQL)", "로스팅 › 상미기한 표에 체크칸 + 줄마다 [로스 처리] · 고르면 위에 [고른 N배치 로스 처리] — 배치마다 부적합(다시 포장할 원두) 남길 kg 를 적으면 그만큼은 배치에 남기고 나머지만 로스(손실) · 부적합은 로스가 아님 · 수불·사용이력에 로스(손실)로 남고 거기서 취소 가능"],
   ["2026-11-03", "받은 배치 — + 배치 추가", "받은 배치 위 [+ 배치 추가] · 원두마다 [+ 배치 추가] — 원두·로스팅일·번호(다음 번호 자동)·kg(평소 kg 자동)·받은 날을 칸에 적고 [맞추기] · [+ 줄 추가] 로 여러 줄 · 받기 전 줄이 있으면 그 줄로, 없으면 계획 1배치 만들어 받음 · 이미 있는 번호면 kg 고침"],
@@ -11625,7 +11626,7 @@ function ecParse(txt, inDay){
   const out = [];
   String(txt||"").split(/\r?\n/).forEach(raw=>{
     const line = raw.replace(/ /g," ").trim(); if (!line || /계\s*$|품목코드|합계/.test(line) && !/\d+\s*\/\s*\d+\s*-\s*\d+/.test(line)) return;
-    const memo = [...line.matchAll(/(\d{1,2})\s*\/\s*(\d{1,2})\s*[-–~]\s*(\d{1,2})(?!\d|\s*\/)/g)].pop();   // 적요는 줄 끝쪽
+    const memo = [...line.matchAll(/(?<![\d\/])(\d{1,2})\s*\/\s*(\d{1,2})\s*[-–~]\s*(\d{1,2})(?!\d|\s*\/)/g)].pop();   // 적요는 줄 끝쪽 (일자 2026/11/02 -25 는 빼고)
     if (!memo) return;
     const dt = (line.match(/(20\d{2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})/)||[]);
     const inD = dt[1] ? `${dt[1]}-${String(dt[2]).padStart(2,"0")}-${String(dt[3]).padStart(2,"0")}` : inDay;
@@ -18522,6 +18523,135 @@ function alreadyDone(o, mine){
                              : `검수가 이미 끝났습니다 — 실제 수량이 다르면 관리자가 생산실적 화면에서 [수정] 하세요.`),
     { title:"이미 생산 완료된 지시", yes:"확인", only:true });
 }
+/* ★ 2026-11-03 이카운트 표로 생산 완료 한 번에 (Lee "현장 작업도 이카운트 표로 한 번에 — 이전에 생산한 것들")
+   줄마다 품목(CFE 코드·품목명) · 수량 · 일련번호(적요 11/01-08 · 0108 · 배치코드) · 일자 → 대기/생산중 지시를 찾아 그 수량으로 생산 완료 */
+function ecDoneParse(txt, day){
+  const out = [];
+  String(txt||"").split(/\r?\n/).forEach(raw=>{
+    const line = raw.replace(/ /g," ").trim(); if (!line || /품목코드|합계|\s계\s*$/.test(line)) return;
+    const code = (line.match(/CFE\d{3,4}[A-Z]?/i)||[])[0];
+    let p = code ? DB.products.find(x=>String(x.code||"").toUpperCase()===code.toUpperCase()) : null;
+    const cells = line.split(/\t|\s{2,}/).map(c=>c.trim()).filter(Boolean);
+    let nameCell = cells.find(c=>/(원두|드립|콜드|\d+\s*(kg|g)\b)/i.test(c) && /[가-힣]/.test(c) && !/공장|창고/.test(c));
+    if (!p && nameCell) p = matchProduct(nameCell.replace(/\[.*?\]/g,"")) || null;
+    if (!p) { const c2 = cells.filter(c=>/[가-힣]/.test(c) && !/공장|창고/.test(c)); for (const c of c2) { p = matchProduct(c); if (p) { nameCell = c; break; } } }
+    const dt = line.match(/(20\d{2})\s*[\/.\-]\s*(\d{1,2})\s*[\/.\-]\s*(\d{1,2})/);
+    const d = dt ? `${dt[1]}-${String(dt[2]).padStart(2,"0")}-${String(dt[3]).padStart(2,"0")}` : day;
+    let sn = ""; const bc = line.match(/-(\d{2})(\d{2})(\d{2})(\d{2})(?!\d)/); const memo = [...line.matchAll(/(?<![\d\/])(\d{1,2})\s*\/\s*(\d{1,2})\s*[-–~]\s*(\d{1,2})(?!\d|\s*\/)/g)].pop();
+    if (bc) sn = bc[3] + bc[4]; else if (memo) sn = String(memo[2]).padStart(2,"0") + String(memo[3]).padStart(2,"0");
+    else { const s4 = cells.slice(-2).map(c=>c.match(/^(\d{4})$/)).find(Boolean); if (s4) sn = s4[1]; }
+    const after = nameCell ? cells.slice(cells.indexOf(nameCell)+1) : cells.slice(cells.findIndex(c=>code && c.toUpperCase().includes(code.toUpperCase()))+1);
+    const qc = after.find(c=>/^\d{1,3}(,\d{3})*$|^\d+$/.test(c) && !/^0\d{3}$/.test(c));
+    const qty = qc ? Number(qc.replace(/,/g,"")) : 0;
+    if (!p && !qty) return;
+    out.push({ pid:p?.id || "", d, sn, qty, raw:line });
+  });
+  return out;
+}
+function ecDonePlan(rows, day){
+  const used = new Set();
+  return rows.map(r=>{
+    const p = prodById(r.pid);
+    if (!p) return { ...r, act:"skip", why:"품목을 못 찾음" };
+    if (!(r.qty > 0)) return { ...r, act:"skip", why:"수량을 못 읽음" };
+    const open = DB.orders.filter(o=>o.product_id===p.id && (o.status==="대기" || o.status==="생산중") && !(o.log_id && DB.logs.some(l=>l.id===o.log_id)) && !used.has(o.id));
+    const near = (a,b)=>Math.abs(new Date(a.work_date)-new Date(r.d)) - Math.abs(new Date(b.work_date)-new Date(r.d)) || String(a.work_date).localeCompare(String(b.work_date)) || (a.priority||0)-(b.priority||0);
+    const o = (r.sn && open.filter(o=>String(o.serial||"")===r.sn).sort(near)[0]) || open.filter(o=>o.work_date===day).sort(near)[0] || open.sort(near)[0];
+    if (!o) { const done = DB.orders.find(o=>o.product_id===p.id && r.sn && String(o.serial||"")===r.sn && o.log_id);
+      return { ...r, act:"skip", why: done ? `이미 완료 (${o2n(done)})` : "남은 지시 없음" }; }
+    used.add(o.id);
+    return { ...r, act:"done", o, why:`${o.work_date.slice(5)} ${o2n(o)} · 지시 ${fmt(o.qty_plan)}개${r.sn && String(o.serial||"")!==r.sn?` · 일련번호 ${o.serial||"—"} (표 ${r.sn})`:""}${o.status==="생산중"?" · 생산중":""}` };
+  });
+}
+const o2n = o => String(o.order_no||"").replace(/^WO-\d{8}-/,"#") || (o.serial||"");
+async function openEcDone(day){
+  if (!(await requireUser())) return;
+  if (!can("plan")) return deny("plan");
+  const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const wrap = document.createElement("div");
+  wrap.style.cssText = "position:fixed;inset:0;background:rgba(15,20,40,.45);z-index:9999;display:flex;align-items:center;justify-content:center;padding:12px";
+  wrap.innerHTML = `<div style="background:#fff;border-radius:16px;width:min(1040px,100%);max-height:94vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+    <div style="padding:16px 20px 6px"><div style="font-size:18px;font-weight:800">이카운트 표로 생산 완료 한 번에</div>
+      <div class="hint" style="padding:4px 0 0;line-height:1.6">이카운트 <b>생산입고</b> 표에서 줄을 드래그해 <b>복사(Ctrl+C)</b> → 아래에 <b>붙여넣기(Ctrl+V)</b> · 캡처 사진도 됩니다<br>
+      품목 = CFE 코드·품목명 · 수량 = 만든 개수 · 일련번호 = 적요(11/01-08 → 0108 · 0108 · 배치코드) · 지시는 일련번호 → ${day} → 가까운 날 순으로 찾습니다</div></div>
+    <div style="padding:0 20px 8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <textarea id="edTxt" placeholder="여기에 붙여넣기 (표 복사 또는 캡처 사진)" style="flex:1 1 560px;height:110px;font-size:13px;font-family:inherit"></textarea>
+      <div style="display:flex;flex-direction:column;gap:6px"><label class="btn" style="height:34px;display:flex;align-items:center">📷 사진 넣기<input type="file" accept="image/*" id="edImg" style="display:none"></label>
+        <button class="btn primary" id="edRead" style="height:34px">읽기</button></div></div>
+    <div id="edOcr" class="hint" style="padding:0 20px"></div>
+    <div style="overflow:auto;flex:1 1 auto;padding:0 16px 8px"><table style="width:100%"><thead><tr><th><input type="checkbox" id="edAll" checked></th><th>품목</th><th>일련번호</th><th>만든 수량</th><th>찾은 지시</th></tr></thead><tbody id="edRows"><tr><td colspan="5" class="c hint">붙여넣으면 여기 나옵니다</td></tr></tbody></table></div>
+    <div style="padding:10px 20px 16px;display:flex;gap:8px;justify-content:flex-end;align-items:center"><span id="edSum" class="hint" style="margin-right:auto;padding:0"></span>
+      <button class="btn" id="edClose">닫기</button><button class="btn primary" id="edGo" disabled>생산 완료</button></div></div>`;
+  document.body.appendChild(wrap);
+  let plan = [];
+  const prods = [...DB.products].sort((a,b)=>natCmp(codeOrd(a.code), codeOrd(b.code)) || natCmp(a.name,b.name));
+  const strip = x=>{ const y = { ...x }; delete y.o; return y; };
+  const draw = ()=>{
+    const tb = $("edRows");
+    if (!plan.length) { tb.innerHTML = `<tr><td colspan="5" class="c hint">읽은 줄이 없습니다</td></tr>`; $("edGo").disabled = true; $("edSum").textContent = ""; return; }
+    tb.innerHTML = plan.map((r,i)=>`<tr style="${r.act==="skip"?"opacity:.6":""}">
+      <td class="c"><input type="checkbox" class="edChk" data-i="${i}" ${r.act==="done"?"checked":"disabled"}></td>
+      <td><select class="edEd" data-i="${i}" data-k="pid" style="min-width:220px;max-width:300px"><option value="">— 품목 —</option>${prods.map(p=>`<option value="${p.id}" ${p.id===r.pid?"selected":""}>${esc(p.code?p.code+" ":"")}${esc(p.name)}</option>`).join("")}</select></td>
+      <td><input class="edEd" data-i="${i}" data-k="sn" value="${esc(r.sn)}" style="width:70px;text-align:center"></td>
+      <td><input type="number" class="edEd" data-i="${i}" data-k="qty" value="${r.qty||""}" style="width:80px;text-align:right"></td>
+      <td style="white-space:normal;line-height:1.4"><span class="tag ${r.act==="done"?"ok":"bad"}">${r.act==="done"?"완료":"건너뜀"}</span> <span class="hint" style="padding:0;font-size:11.5px">${esc(r.why)}</span></td></tr>`).join("");
+    tb.querySelectorAll(".edEd").forEach(el=>el.onchange=()=>{ const i=+el.dataset.i, k=el.dataset.k; plan[i] = strip(plan[i]);
+      plan[i][k] = k==="qty" ? Math.round(numOf(el.value)) : String(el.value).trim(); plan = ecDonePlan(plan.map(strip), day); draw(); });
+    tb.querySelectorAll(".edChk").forEach(el=>el.onchange=sum); sum(); };
+  const sum = ()=>{ const ck = [...document.querySelectorAll(".edChk:checked")].map(c=>plan[+c.dataset.i]);
+    const sk = plan.filter(r=>r.act==="skip").length;
+    $("edSum").innerHTML = `${plan.length}줄 · 완료할 것 ${ck.length}줄 · ${fmt(ck.reduce((t,r)=>t+r.qty,0))}개${sk?` · <b class="bad">건너뜀 ${sk}</b>`:""}`;
+    $("edGo").disabled = !ck.length; $("edGo").textContent = ck.length ? `${ck.length}건 생산 완료` : "생산 완료"; };
+  const read = ()=>{ plan = ecDonePlan(ecDoneParse($("edTxt").value, day), day); draw(); };
+  const doImg = async file=>{ const info = $("edOcr"); info.innerHTML = "<b>사진 글자 읽는 중…</b> (처음 한 번은 오래 걸립니다)";
+    try { const T = await loadOCR(); const img = await loadImg(URL.createObjectURL(file)); const cv = prepShot(img);
+      const w = await T.createWorker("kor+eng", 1); const { data } = await w.recognize(cv); await w.terminate();
+      $("edTxt").value = fixNums(ocrToTable(data)); read(); info.innerHTML = `사진에서 ${plan.length}줄 읽음 — <b>품목·수량을 꼭 확인</b>하세요 (표 복사가 더 정확합니다)`;
+    } catch(e){ info.innerHTML = `<b class="bad">사진을 읽지 못했습니다</b> — 표를 복사해서 붙여넣어 주세요`; } };
+  $("edTxt").addEventListener("paste", e=>{ const f = [...(e.clipboardData?.items||[])].find(x=>x.type.startsWith("image/"))?.getAsFile();
+    if (f) { e.preventDefault(); doImg(f); } else setTimeout(read, 0); });
+  $("edImg").onchange = e=>{ const f = e.target.files[0]; if (f) doImg(f); };
+  $("edRead").onclick = read;
+  $("edAll").onchange = e=>{ document.querySelectorAll(".edChk:not(:disabled)").forEach(c=>c.checked = e.target.checked); sum(); };
+  $("edClose").onclick = ()=>wrap.remove();
+  $("edGo").onclick = async ()=>{
+    const pick = [...document.querySelectorAll(".edChk:checked")].map(c=>plan[+c.dataset.i]).filter(r=>r && r.act==="done");
+    if (!pick.length) return;
+    wrap.style.display = "none";
+    const ok = await ecDoneApply(pick);
+    if (ok === null) { wrap.style.display = "flex"; return; }
+    wrap.remove();
+  };
+  setTimeout(()=>$("edTxt").focus(), 50);
+}
+async function ecDoneApply(pick){
+  if (!(await ask(`${pick.length}건을 생산 완료합니다 (검수로 넘어감):\n\n${pick.slice(0,18).map(r=>`· ${prodById(r.pid)?.name||""} ${r.sn||""} — ${fmt(r.qty)}개 (${r.why.split(" · ")[0]})`).join("\n")}${pick.length>18?`\n… 외 ${pick.length-18}건`:""}\n\n원두는 지시 배치에서 빠지고 로스도 기록됩니다.`, { title:"이카운트 표로 생산 완료", yes:`${pick.length}건 완료`, no:"뒤로" }))) return null;
+  const busy = setBusy(`생산 완료 중… (${pick.length}건)`); let ok = 0; const fail = [];
+  for (const r of pick) {
+    const o = ordById(r.o.id), p = prodById(r.pid); const nm = `${p?.name||""} ${r.sn||o?.serial||""}`;
+    try {
+      if (!o || !p) { fail.push(`${nm} (지시 없음)`); continue; }
+      if (!o.serial) { const sn = r.sn || makeSerial(o.work_date); const er = await mesEditOrder({ order_id:o.id, patch:{ serial:sn }, idem:`sn-${o.id}-${uid()}` }); if (er && er.ok) o.serial = sn; }
+      const was = o.status, note0 = o.note || "";
+      if (o.status === "대기") { const st = await mesStartWork({ order_id:o.id, worker:CURRENT_USER, worker_id:currentWorkerId(), idem:`sw-${o.id}-${uid()}` });
+        if (!st || st.ok === false) { fail.push(`${nm} (시작 못 함 — ${st?.message||""})`); continue; } }
+      if (o.paused_at) { try { await resumeWork(o.id, true); } catch(_){} }
+      const ng = Number(o.qty_ng||0);
+      const LZ = autoLoss(o, p, r.qty, 0, { input: needKg(p, r.qty + ng) });
+      const res = await mesFinishWork({ order_id:o.id, good:r.qty, ng, ng_type:null, input_kg:LZ.batchKg, worker:CURRENT_USER, worker_id:currentWorkerId(), idem:`ecd-${o.id}-${uid()}` });
+      if (!res || res.ok === false) { fail.push(`${nm} (${res?.message||"실패"})`);
+        if (was === "대기") { try { await mesStopWork({ order_id:o.id, reason:note0, idem:`ecd-stop-${o.id}-${uid()}` }); } catch(_){} }   // 시작만 해 놓고 남지 않게 되돌림
+        continue; }
+      ok++;
+      if (!res.replayed) { ordLotOnFinish(ordById(o.id) || o, r.qty + ng).catch(()=>{}); const lid = res.log_id || o.log_id; if (lid) recordLoss(lid, LZ).catch(()=>{}); }
+    } catch(e){ fail.push(`${nm} (${e?.message||"오류"})`); }
+  }
+  busy(); if (sb) await reloadDB({ silent:true }); renderAll();
+  logAudit("이카운트 표로 생산 완료", "", `${ok}건${fail.length?` · 실패 ${fail.length}`:""}`);
+  if (fail.length) ask(`${ok}건 생산 완료 · 못 한 것 ${fail.length}건\n\n${fail.slice(0,15).join("\n")}`, { title:"이카운트 표로 생산 완료", yes:"확인", only:true });
+  else toast(`${ok}건 생산 완료 — 검수로 넘어갔습니다`);
+  return ok;
+}
 async function finishWork(id){
   if (!(await requireUser())) return;
   const o = ordById(id); if(!o) return;
@@ -19322,6 +19452,7 @@ function renderWork(){
   const mixedAll = all.filter(o=>isMixedOrder(o) && o.status==="대기");
   const canEdit = can("plan") && all.some(o=>o.status==="대기");
   $("wkMachBtn").innerHTML = planSyncBar(d) +
+    (can("plan") ? `<button class="btn" style="font-weight:800;border-color:var(--pri,#2b50d8);color:var(--pri,#2b50d8)" onclick="openEcDone($('wkDate').value||today())" title="이카운트 생산입고 표를 복사해 붙여넣으면 이미 생산한 지시를 한 번에 완료">📋 이카운트 표로 생산 완료</button>` : "") +
     (canEdit ? `<button class="btn ${wkLabelEdit?"primary":""}" onclick="setWkLabelEdit()">라벨 바꾸기</button>` : "") +
     (canEdit ? `<button class="btn" onclick="sortOrdersBySpec($('wkDate').value||today())"
        title="기계마다 규격순으로 순서를 한 번에 다시 매깁니다">규격순 정렬 (${specDir()==="asc"?"100g→1kg":"1kg→100g"})</button>` : "") +
