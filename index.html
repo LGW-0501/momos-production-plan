@@ -6934,6 +6934,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-03", "재고 세기 CFE — 센 날짜 기준 재고", "센 날짜를 지난 날로 고르면 그 날까지 만든(제조일자) 묶음만 보임 (11/01 제조분이 10/30 에 보이던 것 고침) · 그 날 뒤에 나간 수량은 다시 더해서 그날 남아 있던 수량으로 · 제조일자별 칸·여유분도 같은 기준"],
   ["2026-11-03", "현장 작업 — 이카운트 표로 생산 완료 한 번에", "현장 작업 위 [📋 이카운트 표로 생산 완료] — 생산입고 표를 복사해 붙여넣거나 캡처 사진 → 줄마다 품목(CFE 코드·품목명)·일련번호(적요 11/01-08 → 0108 · 배치코드)·만든 수량을 읽고 대기/생산중 지시를 찾음(일련번호 → 그 작업일 → 가까운 날) → 미리보기에서 품목·번호·수량 고칠 수 있음 → [N건 생산 완료]: 시작 → 완료(원두 차감·로스·봉투 LOT 기록) → 검수로"],
   ["2026-11-03", "작업지시 날짜 = 생산계획 날짜 (076 SQL)", "작업지시를 만들 때 작업지시 화면 날짜(보통 오늘)가 아니라 생산계획 집계 날짜로 만듦 · 그날 집계가 없는데 대기 지시가 있으면 \"계획과 다른 대기 지시 — 빠질 것\" (전부 지우자는 띠) 대신 \"11/02 계획으로 만든 것 같습니다 [지시를 11/02 로 옮기기]\" — 시작 안 한 대기 지시만 옮기고 작업일·WO 번호도 그 날짜로"],
   ["2026-11-03", "배치 잔량 로스 처리 (075 SQL)", "로스팅 › 상미기한 표에 체크칸 + 줄마다 [로스 처리] · 고르면 위에 [고른 N배치 로스 처리] — 배치마다 부적합(다시 포장할 원두) 남길 kg 를 적으면 그만큼은 배치에 남기고 나머지만 로스(손실) · 부적합은 로스가 아님 · 수불·사용이력에 로스(손실)로 남고 거기서 취소 가능"],
@@ -19777,6 +19778,18 @@ async function yardUndo(batch){
 }
 /* ★ 필요분 / 여유분 (Lee "어제 포장한 게 전부 여유분 · 실수했을 때 여유분으로 옮기는 작업") — 서버 074 */
 const yardBufQty = pid => YARD_LOTS.filter(l=>l.product_id===pid && l.is_buf).reduce((t,l)=>t+Number(l.left_qty||0),0);
+/* ★ 2026-11-03 센 날짜 기준 출고장 재고 (Lee "11월 1일에 생산한 건데 10월 30일에도 재고가 있다고 떠")
+   그 날까지 들어온 묶음만 · 남은 수량 = 지금 남은 것 + 그 날 뒤에 나간 것 (취소된 것 빼고) */
+function yardLotsAt(pid, d){
+  if (!d || d >= today()) return yardLotsOf(pid);
+  return YARD_LOTS.filter(l=>l.product_id===pid && String(l.mfg_date || l.in_date || ymdLocal(l.at) || "") <= d)   // 그 날까지 만든 것만 (나중에 몰아서 넣은 것도 제조일자 기준)
+    .map(l=>{ const later = YARD_OUTS.filter(x=>x.lot_id===l.id && !x.cancelled_at && String(x.out_date||"") > d).reduce((t,x)=>t+Number(x.qty||0),0);
+      return { ...l, left_qty: Number(l.left_qty||0) + later }; })
+    .filter(l=>l.left_qty > 0)
+    .sort((a,b)=>String(a.mfg_date||"9").localeCompare(String(b.mfg_date||"9")) || String(a.at).localeCompare(String(b.at)));
+}
+const yardQtyAt = (pid, d) => yardLotsAt(pid, d).reduce((t,l)=>t+Number(l.left_qty||0),0);
+const yardBufQtyAt = (pid, d) => yardLotsAt(pid, d).filter(l=>l.is_buf).reduce((t,l)=>t+Number(l.left_qty||0),0);
 async function yardMark(lotId, qty, buf){
   const r = await rpc("cfe_mark_buffer", { p_lot_id:lotId, p_qty:qty, p_buf:buf, p_user_name:CURRENT_USER }, () => {
     const l = YARD_LOTS.find(x=>x.id===lotId); if (!l) return { ok:false, message:"묶음 없음" };
@@ -20925,7 +20938,7 @@ function cntRows(){
   const D = cntDraft(), q = ($("cntFind")?.value || "").trim();
   if (cntType === "cfe")
     return DB.products.filter(p=>(!p.off || Number(p.cfe||0)!==0) && (!q || p.name.includes(q) || (p.code||"").includes(q)))
-      .map(p=>({ key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 남음":""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:(YARD_OK === true ? yardQty(p.id) : Number(p.cfe||0)), act:D.cfe[p.id] ?? null, off:!!p.off, done:D.done.cfe[p.id] || null }))
+      .map(p=>({ key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 남음":""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:(YARD_OK === true ? yardQtyAt(p.id, cntDayOf()) : Number(p.cfe||0)), act:D.cfe[p.id] ?? null, off:!!p.off, done:D.done.cfe[p.id] || null }))
       .sort((a,b)=>(a.off?1:0)-(b.off?1:0));
   return matsOf(cntKind).filter(M=>!q || (M.name||"").includes(q) || (M.code||"").includes(q))
     .map(M=>({ key:M.id, name:M.name, sub:[M.kind, M.spec].filter(Boolean).join(" · "), pack:Math.max(1, Math.round(Number(M.pack_qty)||1)),
@@ -20963,12 +20976,12 @@ function renderCount(){
       const outQ = YARD_OK === true ? yardOutQty(pid, CD) : 0;
       const plan = Math.max(0, Math.round(tally - outQ));
       const base = r.act != null ? r.act : r.app;
-      const old = YARD_OK === true ? yardLotsOf(pid)[0] : null;
+      const old = YARD_OK === true ? yardLotsAt(pid, CD)[0] : null;
       /* 제조일자별로 묶어 오래된 날짜부터 (예: 10/29 9개 · 10/30 100개) */
-      const byDate = []; if (YARD_OK === true) yardLotsOf(pid).forEach(l=>{ const k = l.mfg_date || ""; let g = byDate.find(x=>x.d===k);
+      const byDate = []; if (YARD_OK === true) yardLotsAt(pid, CD).forEach(l=>{ const k = l.mfg_date || ""; let g = byDate.find(x=>x.d===k);
         if (!g) { g = { d:k, q:0, buf:0 }; byDate.push(g); } g.q += Number(l.left_qty||0); if (l.is_buf) g.buf += Number(l.left_qty||0); });
       byDate.sort((a,b)=>String(a.d||"9").localeCompare(String(b.d||"9")));
-      F[pid] = { inQ, outQ, tally, plan, left: base - plan, base: r.act != null ? "센 수량" : "출고장 재고", old, byDate, buf: YARD_OK === true ? yardBufQty(pid) : 0 }; });
+      F[pid] = { inQ, outQ, tally, plan, left: base - plan, base: r.act != null ? "센 수량" : "출고장 재고", old, byDate, buf: YARD_OK === true ? yardBufQtyAt(pid, CD) : 0 }; });
   }
   const shortN = flow ? rows.filter(r=>F[r.key] && F[r.key].left < 0).length : 0;
   if (flow) $("cntCards").innerHTML += `<div class="card ${shortN?"red":"green"}"><div class="lb">${CD.slice(5).replace("-","/")} 출고 예정 빼면 부족</div><div class="vl">${shortN} <small>품목</small></div></div>`;
