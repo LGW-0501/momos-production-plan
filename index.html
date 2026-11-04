@@ -1425,6 +1425,16 @@
       <div id="apPrev" style="padding:0 16px 14px"></div>
     </div>
     <div class="panel">
+      <div class="panel-h">시점 되돌리기 <span class="r hint">저장해 둔 시점으로 운영 기록 전체를 되돌립니다 — 되돌리기 전에도 자동으로 한 번 저장됩니다</span></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:12px 16px">
+        <input type="text" id="snNote" placeholder="메모 (예: 11/04 로스팅 바로잡기 전)" style="height:36px;font-size:14px;flex:1 1 260px">
+        <button class="btn primary" style="height:36px" onclick="snapTakeNow()">지금 시점 저장</button>
+        <button class="btn" style="height:36px" onclick="loadSnaps(true)">새로고침</button>
+      </div>
+      <div class="hint" style="padding:0 16px 8px">바로잡기·전부 되돌리기·이카운트 표로 한 번에·날짜별 초기화 같은 큰 작업 전에는 저절로 저장됩니다 (자동 저장은 최근 40개) · 기준정보(품목·원두·설비·사용자)·변경이력은 되돌리지 않습니다</div>
+      <div class="panel-b"><table id="snTbl"></table></div>
+    </div>
+    <div class="panel">
       <div class="panel-h">결재함 <span class="r" id="apTabs"></span></div>
       <div class="panel-b"><table id="apTbl"></table></div>
     </div>
@@ -6934,6 +6944,10 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-04", "날짜별 보유량 — 원두 고르면 로스팅일·배치번호·지금 남은 kg", "원두 하나를 고르면 줄마다 \"11/02 로스팅 · 3번 [0203]\" · 전체번호 · 입고 kg · 지금 남음 kg(다 쓴 배치는 \"다 씀\") · 남은 배치가 위, 로스팅일 순 · 머리칸에 지금 남은 배치 수·kg 합"],
+  ["2026-11-04", "시점 되돌리기 (077 SQL)", "결재 화면 › [시점 되돌리기] — [지금 시점 저장](메모) · 저장본 목록(시각·종류·메모·줄 수) · 총 관리자 [이 시점으로 되돌리기](\"되돌리기\" 입력 확인) · 운영 기록 전체(로스팅·배치·작업지시·실적·검수·출고·재고 세기·출고장·집계·설정)를 그 시점 그대로 복원, 기준정보·변경이력은 그대로 · 되돌리기 직전 상태도 저절로 저장 → 되돌린 것도 되돌림 · 큰 작업(바로잡기·전부 받음·받기 전부 되돌리기·이카운트 표로 한 번에·로스 처리·지시 날짜 옮기기·계획에 맞추기·날짜별 초기화) 전에 자동 저장(최근 40개)"],
+  ["2026-11-04", "1배치 kg 가 너무 클 때도 표시 (전체 kg 가 한 배치에)", "로스팅 계획·입고 확인에서 1배치 kg 가 평소의 1.6배를 넘으면 빨간 \"전체 kg 가 들어간 듯\" · [받음] 때 한 번 확인 · 로스팅 계획 붙여넣기도 적은 kg 가 평소 1배치보다 훨씬 크면 × 배치수 하지 않음"],
+  ["2026-11-04", "1배치 kg 바로잡기 — 되돌리기 · 엉뚱하게 불어나는 것 막음", "로스팅 계획 위 [바로잡기 되돌리기 (날짜)] — 마지막 바로잡기의 계획 kg·받을 배치 줄 kg·받기 되돌린 배치(같은 번호·kg·받은 날로 다시 받음)·지운 작업지시(그대로 다시 만듦)를 전부 되돌림 (이 기기에 저장 · 한 번) / 계획(kg)이 평소 1배치의 1.6배 넘으면(219kg × 32 = 7,007kg 처럼) 자동으로 고치지 않고 손으로 고치라고 알림"],
   ["2026-11-03", "재고 세기 CFE — 센 날짜 기준 재고", "센 날짜를 지난 날로 고르면 그 날까지 포장(생산 완료)한 묶음만 보임 — 제조일자(라벨)는 원두 로스팅일이라 기준이 아님 (11/01 제조분이 10/30 에 보이던 것 고침) · 그 날 뒤에 나간 수량은 다시 더해서 그날 남아 있던 수량으로 · 제조일자별 칸·여유분도 같은 기준"],
   ["2026-11-03", "현장 작업 — 이카운트 표로 생산 완료 한 번에", "현장 작업 위 [📋 이카운트 표로 생산 완료] — 생산입고 표를 복사해 붙여넣거나 캡처 사진 → 줄마다 품목(CFE 코드·품목명)·일련번호(적요 11/01-08 → 0108 · 배치코드)·만든 수량을 읽고 대기/생산중 지시를 찾음(일련번호 → 그 작업일 → 가까운 날) → 미리보기에서 품목·번호·수량 고칠 수 있음 → [N건 생산 완료]: 시작 → 완료(원두 차감·로스·봉투 LOT 기록) → 검수로"],
   ["2026-11-03", "작업지시 날짜 = 생산계획 날짜 (076 SQL)", "작업지시를 만들 때 작업지시 화면 날짜(보통 오늘)가 아니라 생산계획 집계 날짜로 만듦 · 그날 집계가 없는데 대기 지시가 있으면 \"계획과 다른 대기 지시 — 빠질 것\" (전부 지우자는 띠) 대신 \"11/02 계획으로 만든 것 같습니다 [지시를 11/02 로 옮기기]\" — 시작 안 한 대기 지시만 옮기고 작업일·WO 번호도 그 날짜로"],
@@ -9572,11 +9586,17 @@ function beanTypKg(bean){
 function planPerOfLine(l){ const r = l && DB.roasting.find(x=>x.id===l.plan_id); if (!r) return 0; const n = Math.max(1, Math.round(Number(r.batches)||1)); return Number(r.plan_kg||0)/n; }
 function batchExpKg(bean, planPer){ return Math.max(beanTypKg(bean), Number(planPer)||0); }
 function isSmallBatch(bean, kg, planPer){ const e = batchExpKg(bean, planPer); kg = Number(kg)||0; return e > 0 && kg > 0 && kg < e*0.5; }
+/* ★ 2026-11-04 1배치 kg 가 평소의 1.6배를 넘으면 "전체 kg 를 1배치에 넣은 것" 으로 의심 (219kg 같은 것) */
+function isBigBatch(bean, kg){ const t = beanTypKg(bean); kg = Number(kg)||0; return t > 0 && kg > t * 1.6; }
 function mmsSmall(m){ return isSmallBatch(m.bean, m.in_kg ?? m.stock_kg, planPerOfLine(DB.roast_lines.find(x=>x.mms_id===m.id))); }
 const roastBadPer = () => DB.roasting.filter(r=>{ const n = Math.max(1, Math.round(Number(r.batches)||1)); return n > 1 && Number(r.plan_kg) > 0 && isSmallBatch(r.bean, Number(r.plan_kg)/n, 0); });
 async function fixRoastPerBatch(){
   if (!(await requireUser())) return;
-  const bad = roastBadPer(); if (!bad.length) return toast("바로잡을 로스팅 계획이 없습니다");
+  const bad0 = roastBadPer(); if (!bad0.length) return toast("바로잡을 로스팅 계획이 없습니다");
+  /* ★ 2026-11-04 계획(kg)이 1배치 kg 로 보기에 너무 크면(평소 1배치의 1.6배 넘음) 손대지 않는다 — 219kg × 32 = 7,007kg 처럼 엉뚱하게 불어난 일 (Lee "자기 멋대로 움직이네") */
+  const odd = bad0.filter(r=>{ const t = beanTypKg(r.bean); return t > 0 && Number(r.plan_kg) > t * 1.6; });
+  const bad = bad0.filter(r=>!odd.includes(r));
+  if (!bad.length) return ask(`바로잡을 계획 ${odd.length}건은 계획(kg)이 1배치 kg 로 보기엔 너무 큽니다 (평소 1배치의 1.6배 넘음) — 자동으로 고치지 않습니다.\n\n${odd.map(r=>`· ${r.plan_date} ${r.bean} — 계획 ${fmt(r.plan_kg)}kg · 배치 ${r.batches}개 · 평소 1배치 ${fmt(beanTypKg(r.bean))}kg`).join("\n")}\n\n로스팅 계획 표에서 1배치(kg)·배치 수를 손으로 고쳐 주세요.`, { title:"로스팅 1배치 kg 바로잡기", yes:"확인", only:true });
   const info = bad.map(r=>{ const n = Math.max(1, Math.round(Number(r.batches)||1)), per = Number(r.plan_kg);
     const ls = DB.roast_lines.filter(l=>l.plan_id===r.id && l.done && l.mms_id).map(l=>DB.mms.find(m=>m.id===l.mms_id)).filter(Boolean);
     return { r, n, per, got:ls, used:ls.filter(m=>!batchUntouched(m)) }; });
@@ -9585,7 +9605,16 @@ async function fixRoastPerBatch(){
   if (!(await ask(`계획(kg)에 1배치 kg 를 적어 배치마다 아주 작게 잡힌 로스팅 계획 ${bad.length}건을 바로잡습니다:\n\n` +
     info.map(x=>`· ${x.r.plan_date} ${x.r.bean} — ${fmt(x.per)}kg ÷ ${x.n}배치 = ${fmt(Math.round(x.per/x.n*100)/100)}kg → 1배치 ${fmt(x.per)}kg × ${x.n} = ${fmt(x.per*x.n)}kg${x.got.length?` (받은 배치 ${x.got.length}개 → 받기 전으로 되돌림${x.used.length?` · 이미 쓴 ${x.used.length}개는 그대로`:""})`:""}`).join("\n") +
     (ords.length ? `\n\n그 배치로 잘게 나뉜 대기 작업지시 ${ords.length}건도 지웁니다 (생산계획에서 다시 만드세요).` : "") +
-    `\n\n끝나면 입고 확인에 배치가 다시 나옵니다 — 저울 kg 을 확인하고 [받음] 하세요.`, { title:"로스팅 1배치 kg 바로잡기", yes:"바로잡기", danger:true }))) return;
+    (odd.length ? `\n\n(계획(kg)이 너무 큰 ${odd.length}건은 건드리지 않습니다: ${odd.map(r=>`${r.bean} ${fmt(r.plan_kg)}kg`).join(", ")} — 손으로 고치세요)` : "") +
+    `\n\n끝나면 입고 확인에 배치가 다시 나옵니다 — 저울 kg 을 확인하고 [받음] 하세요.\n잘못됐으면 [바로잡기 되돌리기] 로 전부 되돌릴 수 있습니다.`, { title:"로스팅 1배치 kg 바로잡기", yes:"바로잡기", danger:true }))) return;
+  /* ★ 되돌리기용 스냅샷 — 계획 kg · 줄 kg · 받은 배치(번호·kg·받은 날) · 지울 작업지시 */
+  const snap = { at:nowISO(), by:CURRENT_USER||"",
+    plans: info.map(x=>({ id:x.r.id, bean:x.r.bean, plan_date:x.r.plan_date, plan_kg:Number(x.r.plan_kg), batches:x.r.batches })),
+    lines: info.flatMap(x=>DB.roast_lines.filter(l=>l.plan_id===x.r.id && !l.done).map(l=>({ id:l.id, kg:Number(l.kg||0) }))),
+    received: info.flatMap(x=>x.got.filter(m=>batchUntouched(m)).map(m=>{ const l = DB.roast_lines.find(y=>y.mms_id===m.id); return l ? { line_id:l.id, kg:Number(m.in_kg ?? m.stock_kg), batch_no:Number(m.batch)||null, roast_date:m.roast_date, in_date:m.in_date||null, bean:m.bean } : null; }).filter(Boolean)),
+    orders: ords.map(o=>({ ...o })) };
+  roastFixSnapSave(snap);
+  await autoSnap(`1배치 kg 바로잡기 전 (${bad.length}건)`);
   const busy = setBusy("바로잡는 중…"); let undone = 0, fail = [];
   for (const x of info) {
     for (const m of x.got) { if (!batchUntouched(m)) continue; const ok = await unreceiveBatch(m.id, { quiet:true }); if (ok) undone++; else fail.push(batchFull(m)); }
@@ -9599,6 +9628,40 @@ async function fixRoastPerBatch(){
   busy(); if (sb) await reloadDB({ silent:true });
   renderAll(); setInBean(""); 
   ask(`바로잡았습니다 — 계획 ${bad.length}건 · 받기 되돌림 ${undone}배치${delN?` · 작업지시 ${delN}건 지움`:""}${fail.length?`\n\n못 한 것: ${fail.join(", ")}`:""}\n\n입고 확인에서 배치마다 저울 kg 을 확인하고 [받음] → 생산계획에서 작업지시를 다시 만드세요.`, { title:"로스팅 1배치 kg 바로잡기", yes:"확인", only:true });
+}
+/* ★ 2026-11-04 [1배치 kg 바로잡기] 되돌리기 (Lee "되돌리기 기능 있을까?") — 마지막 바로잡기 한 번만 (이 기기에 저장) */
+const ROAST_FIX_KEY = "roastFixUndo";
+var ROAST_FIX_SNAP = null;
+function roastFixSnapSave(snap){ ROAST_FIX_SNAP = snap; try { localStorage.setItem(ROAST_FIX_KEY, JSON.stringify(snap)); } catch(_){} }
+function roastFixSnapLoad(){ if (ROAST_FIX_SNAP) return ROAST_FIX_SNAP; try { ROAST_FIX_SNAP = JSON.parse(localStorage.getItem(ROAST_FIX_KEY) || "null"); } catch(_){ ROAST_FIX_SNAP = null; } return ROAST_FIX_SNAP; }
+function roastFixSnapClear(){ ROAST_FIX_SNAP = null; try { localStorage.removeItem(ROAST_FIX_KEY); } catch(_){} }
+async function undoRoastFix(){
+  if (!(await requireUser())) return;
+  const S = roastFixSnapLoad(); if (!S) return toast("되돌릴 바로잡기가 없습니다");
+  const when = dtFull ? dtFull(S.at) : S.at;
+  if (!(await ask(`${when} 에 한 [1배치 kg 바로잡기] 를 되돌립니다:\n\n` +
+    `· 로스팅 계획 ${S.plans.length}건 — 계획(kg)을 전 값으로 (${S.plans.slice(0,5).map(x=>`${x.bean} ${fmt(x.plan_kg)}kg`).join(", ")}${S.plans.length>5?` 외 ${S.plans.length-5}`:""})\n` +
+    `· 받을 배치 줄 ${S.lines.length}개 — kg 전 값으로\n` +
+    `· 받기 되돌린 배치 ${S.received.length}개 — 같은 번호·kg·받은 날로 다시 받음\n` +
+    `· 지운 작업지시 ${S.orders.length}건 — 다시 만듦 (품목·수량·배치·일련번호 그대로)\n\n` +
+    `바로잡기 뒤에 손으로 고치거나 새로 받은 것이 있으면 그 줄은 건너뜁니다.`, { title:"바로잡기 되돌리기", yes:"되돌리기", danger:true }))) return;
+  await autoSnap("바로잡기 되돌리기 전");
+  const busy = setBusy("되돌리는 중…"); const fail = []; let nP = 0, nL = 0, nR = 0, nO = 0;
+  for (const x of S.plans) { const r = await mesUpsertRoast({ id:x.id, patch:{ plan_kg:x.plan_kg, ...(x.batches != null ? { batches:x.batches } : {}) }, idem:`rp-undo-${x.id}-${uid()}` }); if (r && r.ok !== false) nP++; else fail.push(`계획 ${x.bean}: ${r?.message||""}`); }
+  for (const x of S.lines) { const l = DB.roast_lines.find(y=>y.id===x.id); if (!l || l.done) continue;
+    const r = await mesEditRoastLine({ line_id:x.id, patch:{ kg:x.kg }, idem:`rl-undo-${x.id}-${uid()}` }); if (r && r.ok !== false) { l.kg = x.kg; nL++; } else fail.push(`줄 kg: ${r?.message||""}`); }
+  for (const x of S.received) { const l = DB.roast_lines.find(y=>y.id===x.line_id); if (!l || l.done) continue;
+    if (x.batch_no) { try { await mesEditRoastLine({ line_id:x.line_id, patch:{ kg:x.kg, batch_no:x.batch_no, ...(x.roast_date ? { roast_date:x.roast_date } : {}) }, idem:`rl-undo2-${x.line_id}-${uid()}` }); } catch(_){} }
+    const r = await mesReceiveLine({ line_id:x.line_id, kg:x.kg, batch_no:x.batch_no, roast_date:x.roast_date, in_date:x.in_date || undefined, idem:`rc-undo-${x.line_id}-${uid()}` });
+    if (r && r.ok !== false) nR++; else fail.push(`${x.bean} ${x.batch_no||""}번 받기: ${r?.message||""}`); }
+  const byDay = {}; S.orders.forEach(o=>{ (byDay[o.work_date] = byDay[o.work_date] || []).push(o); });
+  for (const [d, list] of Object.entries(byDay)) {
+    const draft = list.filter(o=>!DB.orders.some(x=>x.id===o.id)).map(o=>({ product_id:o.product_id, product_name:o.product_name, product_code:o.product_code||"", product_spec:o.product_spec ?? null, qty:Number(o.qty_plan)||0, channel:o.channel||"일반", machine:o.machine||"", machine_id:o.machine_id||null, serial:o.serial||"", serial_full:o.serial_full||"", batch_plan:o.batch_plan||"", label_packs:o.label_packs ?? null, label_id:o.label_id||"", batch_seq:o.batch_seq ?? null, batch_of:o.batch_of ?? null, pack_type:o.pack_type }));
+    if (!draft.length) continue;
+    const r = await mesCreateOrders({ work_date:d, draft, idem:`mko-undo-${d}-${uid()}` }); if (r && r.ok) nO += r.made || draft.length; else fail.push(`작업지시 ${d}: ${r?.message||""}`); }
+  busy(); roastFixSnapClear(); logAudit("1배치 kg 바로잡기 되돌림", S.at, `계획 ${nP} · 줄 ${nL} · 다시 받음 ${nR} · 작업지시 ${nO}${fail.length?` · 실패 ${fail.length}`:""}`);
+  if (sb) await reloadDB({ silent:true }); renderAll();
+  ask(`되돌렸습니다 — 계획 ${nP}건 · 줄 kg ${nL}개 · 다시 받음 ${nR}배치 · 작업지시 ${nO}건${fail.length?`\n\n못 한 것:\n${fail.slice(0,10).join("\n")}`:""}`, { title:"바로잡기 되돌리기", yes:"확인", only:true });
 }
 var ROAST_DAY = "";
 function roastDayGo(){ const v = $("roastDay")?.value; ROAST_DAY = v || "all"; renderRoast(); }
@@ -9655,7 +9718,9 @@ function renderRoast(){
   if ($("roastDayInfo")) { const dn = rs.filter(r=>r.done).length, old = rs.filter(r=>!r.done && (r.plan_date||today()) < RD).length;
     $("roastDayInfo").innerHTML = RD === "all" ? `전체 ${rsAll.length}줄` : `${RD.slice(5).replace("-","/")} — ${rs.length}줄 (입고완료 ${dn} · 받기 전 ${rs.length-dn}${old?` · 지난 날짜 미입고 ${old}`:""}) · 입고 ${fmt(Math.round(rs.reduce((t,r)=>t+Number(r.received_kg||0),0)*100)/100)}kg`; }
   const waitN = rsAll.filter(r=>!r.done).length;
-  if ($("roastFix")) { const nb = roastBadPer().length; $("roastFix").innerHTML = nb ? `<button class="btn" style="color:var(--bad);font-weight:800;margin-right:6px" onclick="fixRoastPerBatch()" title="계획(kg)에 1배치 kg 를 적어 배치마다 작게 잡힌 계획">1배치 kg 바로잡기 ${nb}건</button>` : ""; }
+  if ($("roastFix")) { const nb = roastBadPer().length, S = roastFixSnapLoad();
+    $("roastFix").innerHTML = (nb ? `<button class="btn" style="color:var(--bad);font-weight:800;margin-right:6px" onclick="fixRoastPerBatch()" title="계획(kg)에 1배치 kg 를 적어 배치마다 작게 잡힌 계획">1배치 kg 바로잡기 ${nb}건</button>` : "")
+      + (S ? `<button class="btn" style="font-weight:800;margin-right:6px" onclick="undoRoastFix()" title="마지막 바로잡기(${String(S.at).slice(5,16).replace("T"," ")})를 전부 되돌립니다">바로잡기 되돌리기 (${String(S.at).slice(5,10).replace("-","/")})</button>` : ""); }
   if ($("roastWait")) $("roastWait").innerHTML = waitN
     ? `<span class="tag warn">입고 대기 ${waitN}건</span>`
     : `<span class="tag ok">입고 대기 없음</span>`;
@@ -9681,7 +9746,8 @@ function renderRoast(){
       <td>${(()=>{ const per = Math.round(Number(r.plan_kg||0)/n*100)/100;
         return `<input type="text" inputmode="decimal" value="${Number(r.plan_kg)>0?per:""}" placeholder="1배치 kg" style="width:84px;text-align:right" ${r.done?"disabled":""} onchange="setRoastPer('${r.id}',this.value)">` +
           (n > 1 && Number(r.plan_kg) > 0 ? `<br><span class="hint" style="padding:0;font-size:10.5px">× ${n}배치 = ${fmt(Math.round(Number(r.plan_kg)*100)/100)}kg</span>` : "") +
-          (per > 0 && isSmallBatch(r.bean, per, 0) ? `<br><span class="tag bad" style="font-size:10.5px">1배치 ${fmt(per)}kg — 평소 ${fmt(beanTypKg(r.bean))}kg 확인</span>` : ""); })()}</td>
+          (per > 0 && isSmallBatch(r.bean, per, 0) ? `<br><span class="tag bad" style="font-size:10.5px">1배치 ${fmt(per)}kg — 평소 ${fmt(beanTypKg(r.bean))}kg 확인</span>` : "") +
+          (per > 0 && isBigBatch(r.bean, per) ? `<br><span class="tag bad" style="font-size:10.5px">1배치 ${fmt(per)}kg? — 평소 ${fmt(beanTypKg(r.bean))}kg · 전체 kg 가 들어간 듯</span>` : ""); })()}</td>
       <td>${inp("roasting",r.id,"received_kg",r.received_kg,"number",'step="0.5"')}</td>
       <td><input type="number" min="1" value="${n}" style="width:64px;text-align:right" ${r.done?"disabled":""} onchange="setRoastBatches('${r.id}',this.value)"></td>
       <td class="l" style="white-space:normal;line-height:1.7">${
@@ -11206,6 +11272,7 @@ async function lossBatches(ids){
       const note = String($("lbNote").value||"").trim(); wrap.remove(); done({ out, note }); };
   });
   if (!res) return;
+  await autoSnap(`배치 잔량 로스 처리 전 (${res.out.length}배치)`);
   const busy = setBusy("로스 처리 중…"); let ok = 0, kg = 0; const fail = [];
   for (const x of res.out) {
     if (!(x.loss > 0)) continue;
@@ -11413,7 +11480,7 @@ function renderIn(){
         <td class="c">${r.roaster?`<span class="tag">${r.roaster}</span>`:"—"}</td>
         <td class="c"><input type="date" data-f="ln-${l.id}-d" value="${l.roast_date}" style="height:32px" onchange="setLine('${l.id}','roast_date',this.value)"></td>
         <td class="c"><input type="date" data-f="ln-${l.id}-i" value="${ind}" min="${l.roast_date}" style="height:32px;${ind!==l.roast_date?"font-weight:800;color:var(--blue-600,#2348d8)":""}" onchange="setLine('${l.id}','in_date',this.value)"></td>
-        <td><input class="cntin" type="text" inputmode="decimal" data-f="ln-${l.id}-k" style="height:32px;${isSmallBatch(l.bean, l.kg, planPerOfLine(l))?"border-color:var(--bad);color:var(--bad);font-weight:800":""}" value="${l.kg ?? ""}" placeholder="받은 kg" oninput="setLine('${l.id}','kg',this.value)" title="${isSmallBatch(l.bean, l.kg, planPerOfLine(l))?`평소 1배치 약 ${fmt(batchExpKg(l.bean, planPerOfLine(l)))}kg 보다 많이 작습니다 — 저울 값으로 고치세요`:""}"></td>
+        <td><input class="cntin" type="text" inputmode="decimal" data-f="ln-${l.id}-k" style="height:32px;${isSmallBatch(l.bean, l.kg, planPerOfLine(l)) || isBigBatch(l.bean, l.kg)?"border-color:var(--bad);color:var(--bad);font-weight:800":""}" value="${l.kg ?? ""}" placeholder="받은 kg" oninput="setLine('${l.id}','kg',this.value)" title="${isSmallBatch(l.bean, l.kg, planPerOfLine(l))?`평소 1배치 약 ${fmt(batchExpKg(l.bean, planPerOfLine(l)))}kg 보다 많이 작습니다 — 저울 값으로 고치세요`:isBigBatch(l.bean, l.kg)?`평소 1배치 약 ${fmt(beanTypKg(l.bean))}kg 보다 훨씬 큽니다 — 전체 kg 가 들어간 듯 · 저울 값으로 고치세요`:""}"></td>
         <td class="c" style="white-space:nowrap"><button class="btn primary" style="height:32px" onclick="takeLine('${l.id}')">받음</button>
           <button class="btn" style="height:32px" onclick="takeHold('${l.id}')" title="받되 바로 보류 — 검사 결과를 기다릴 때">보류로</button></td>
         <td class="c"><button class="btn danger" style="height:32px" onclick="dropLine('${l.id}')" title="이 배치는 안 나왔습니다">취소</button></td></tr>`);
@@ -11461,7 +11528,8 @@ async function takeLine(id){
   const kg = Number(l.kg)||0;
   if (kg <= 0) return toast("받은 kg 을 먼저 적으세요");
   if (isSmallBatch(l.bean, kg, planPerOfLine(l)) && !TAKE_SMALL_OK.has(l.plan_id) && !(await ask(`${l.bean} 한 배치가 ${fmt(kg)}kg 입니다.\n\n이 원두는 보통 한 배치 약 ${fmt(batchExpKg(l.bean, planPerOfLine(l)))}kg 입니다. 로스팅 계획의 "계획(kg)" 에 배치 수나 다른 숫자를 적은 것 같으면 [취소] 하고 받은 kg 을 고치세요.\n(이대로 받으면 작업지시가 이 kg 기준으로 아주 잘게 나뉩니다)`, { title:"배치 kg 확인", yes:"이대로 받기", no:"취소" }))) return;
-  TAKE_SMALL_OK.add(l.plan_id);
+  if (isBigBatch(l.bean, kg) && !TAKE_SMALL_OK.has("big:"+l.plan_id) && !(await ask(`${l.bean} 한 배치가 ${fmt(kg)}kg 입니다.\n\n이 원두는 보통 한 배치 약 ${fmt(beanTypKg(l.bean))}kg 입니다. 그날 전체 kg 가 한 배치에 들어간 것 같으면 [취소] 하고 로스팅 계획의 1배치(kg)·배치 수를 고치세요.\n(이대로 받으면 이 계획의 다른 배치는 다시 묻지 않습니다)`, { title:"배치 kg 가 너무 큽니다", yes:"이대로 받음", no:"취소", danger:true }))) return;
+  TAKE_SMALL_OK.add(l.plan_id); TAKE_SMALL_OK.add("big:"+l.plan_id);
   const inD = l.in_date || today();
   if (l.roast_date && inD < l.roast_date) return toast(`받은 날짜(${inD})가 로스팅일(${l.roast_date})보다 앞설 수 없습니다`);
   const res = await mesReceiveLine({ line_id:id, kg, batch_no:(l.batch_no ?? null),
@@ -11742,6 +11810,7 @@ async function openEcIn(inDay, preBean){
 }
 async function ecApply(pick){
   if (!(await ask(`${pick.length}줄을 맞춥니다:\n\n${pick.slice(0,18).map(r=>`· ${r.bean} ${r.rd.slice(5)} ${r.no}번  ${fmt(r.kg)}kg — ${r.why}`).join("\n")}${pick.length>18?`\n… 외 ${pick.length-18}줄`:""}`, { title:"이카운트 표로 한 번에", yes:`${pick.length}줄 맞추기`, no:"뒤로" }))) return null;
+  await autoSnap(`이카운트 표로 받은 배치 한 번에 전 (${pick.length}줄)`);
   const busy = setBusy(`맞추는 중… (${pick.length}줄)`); let ok = 0; const fail = [];
   for (const r of pick) {
     try {
@@ -11789,6 +11858,7 @@ async function unreceiveAll(day, onlyBean){
   const ords = DB.orders.filter(o=>o.status==="대기" && !(Number(o.qty_done)>0) && batchParts(o.batch_plan).some(b=>keys.has(b.full + "|" + (prodById(o.product_id)?.bean||""))));
   if (!(await ask(`${pick.join(" · ")} — ${list.length}배치를 받기 전으로 되돌립니다.\n배치와 입고 수불이 없어지고, 입고 확인에 "받을 배치" 로 다시 나옵니다 (kg 를 고쳐서 다시 [받음]).` +
       (ords.length ? `\n\n이 배치로 잡힌 대기 작업지시 ${ords.length}건도 지웁니다 (생산계획에서 다시 만드세요).` : ""), { title:"받기 전부 되돌리기", yes:`${list.length}배치 되돌리기`, danger:true }))) return;
+  await autoSnap(`받기 전부 되돌리기 전 (${list.length}배치)`);
   const busy = setBusy(`되돌리는 중… (${list.length}배치)`); let ok = 0, fail = [];
   for (const m of list) { const r = await unreceiveBatch(m.id, { quiet:true }); if (r === true) ok++; else fail.push(batchFull(m)); }
   let delN = 0; for (const o of ords) { const r = await mesDeleteOrder({ order_id:o.id, idem:`od-unr-${o.id}-${uid()}` }); if (r && r.ok) delN++; }
@@ -11856,6 +11926,7 @@ async function takeAll(){
   if (!(await ask(`${rows.length}개 배치 · 합계 ${fmt(rows.reduce((t,x)=>t+Number(x.l.kg),0))}kg 을 받습니다.\n\n` +
     `${list.join("\n")}${rows.length>12?`\n… 외 ${rows.length-12}개`:""}\n\n` +
     `kg 이 다른 배치는 먼저 고쳐 두세요.`, {title:"전부 받기", yes:"전부 받음"}))) return;
+  await autoSnap(`전부 받음 전 (${rows.length}배치)`);
   for (const { l } of rows) await takeLine(l.id);
   toast(`${rows.length}개 배치 입고 완료`);
 }
@@ -13650,8 +13721,13 @@ function holdHistData(){
     /* 그 원두를 배치별로 — 어느 배치가 언제 들어와서 언제 다 썼는지 */
     const per = days.map(D=>stockAsOf(D).filter(x=>x.m.bean===one));
     const ids = [...new Set(per.flatMap(a=>a.map(x=>x.m.id)))];
-    rows = sortBatches(DB.mms.filter(m=>ids.includes(m.id))).map(m=>({ name:`${batchShort(m)} 배치`, sub:`${batchFull(m)} · 입고 ${fmt(m.in_kg ?? "")}kg`, batch:true,
-      vals: per.map(a=>{ const x = a.find(y=>y.m.id===m.id); return x ? Math.round(x.kg*100)/100 : 0; }) }));
+    /* ★ 2026-11-04 로스팅일 · 배치번호 · 지금 남은 kg 가 바로 보이게 (Lee "남은 원두 즉 날짜와 배치번호가 보였으면") — 남은 게 있는 배치가 위, 로스팅일 순 */
+    rows = DB.mms.filter(m=>ids.includes(m.id))
+      .sort((a,b)=>((Number(b.stock_kg)>0)-(Number(a.stock_kg)>0)) || String(a.roast_date).localeCompare(String(b.roast_date)) || Number(a.batch)-Number(b.batch))
+      .map(m=>{ const left = Math.round(Number(m.stock_kg||0)*100)/100; return {
+        name:`<span style="font-size:14.5px">${String(m.roast_date||"").slice(5).replace("-","/")} 로스팅 · <b>${Number(m.batch)||"?"}번</b></span> <span class="tag" style="font-size:11px">${batchShort(m)}</span>${isHeld(m)?` <span class="tag bad" style="font-size:10.5px">보류</span>`:""}`,
+        sub:`${batchFull(m)} · 입고 ${fmt(m.in_kg ?? "")}kg · ${left > 0 ? `<b style="color:var(--ok)">지금 남음 ${fmt(left)}kg</b>` : `<span style="color:var(--soft)">다 씀</span>`}`, batch:true, left,
+        vals: per.map(a=>{ const x = a.find(y=>y.m.id===m.id); return x ? Math.round(x.kg*100)/100 : 0; }) }; });
   } else if (type === "mms") {
     const per = days.map(D=>{ const m = {}; stockAsOf(D).forEach(x=>{ m[x.m.bean] = (m[x.m.bean]||0) + x.kg; }); return m; });
     const beans = [...new Set(per.flatMap(m=>Object.keys(m)))].sort(beanCmp);
@@ -13694,7 +13770,8 @@ function renderHoldHist(){
     if (monthly) return `<span title="${D} 마감">${d.getFullYear()!==new Date(today()).getFullYear()?String(d.getFullYear()).slice(2)+"년 ":""}${d.getMonth()+1}월<br><span style="font-weight:500;font-size:10.5px;color:var(--soft)">${D===today()?"오늘":"말일"}</span></span>`;
     return `<span title="${D}">${d.getMonth()+1}/${d.getDate()}<br><span style="font-weight:500;font-size:10.5px;color:${d.getDay()===0?"var(--bad)":"var(--soft)"}">${WD_[d.getDay()]}</span></span>`; })];
   const oneB = $("hsBean")?.value || "";
-  if (oneB) head[0] = `<a href="javascript:void 0" onclick="$('hsBean').value='';renderHoldHist()">← 원두 전체</a> · ${oneB}`;
+  if (oneB) { const live = rows.filter(r=>r.left > 0), lk = Math.round(live.reduce((t,r)=>t+r.left,0)*100)/100;
+    head[0] = `<a href="javascript:void 0" onclick="$('hsBean').value='';renderHoldHist()">← 원두 전체</a> · ${oneB}${$("hsType")?.value==="mms" ? `<br><span style="font-weight:500;font-size:11px;color:var(--soft)">지금 남은 배치 ${live.length}개 · ${fmt(lk)}kg</span>` : ""}`; }
   tbl("hsTbl", head, rows.map(r=>`<tr${r.off?' style="opacity:.6"':""}><td class="l" style="white-space:nowrap">${r.bean?`<a href="javascript:void 0" title="배치별로 보기" onclick="$('hsBean').value=${JSON.stringify(r.bean).replace(/"/g,"&quot;")};renderHoldHist()" style="font-weight:800;color:inherit;text-decoration:underline dotted">${r.name}</a>`:`<b>${r.name}</b>`}${r.sub?`<br><span class="hint" style="padding:0;font-size:10.5px">${r.sub}</span>`:""}</td>${
       r.vals.map((v,i)=>{ const d = i ? Math.round((v - r.vals[i-1])*100)/100 : 0;
         return `<td style="text-align:right;${d>0?"color:var(--ok);font-weight:700;":d<0?"color:var(--bad);font-weight:700;":""}${v<0?"background:#FFF1F0;":""}${i===r.vals.length-1?"font-weight:800;background:#F7F8FB;":""}" title="${days[i]} · ${fmt(v)}${r.u||unit}${i?` · ${monthly?"지난달":"전날"} 대비 ${d>0?"+":""}${fmt(d)}`:""}">${Math.abs(v)<.005?'<span style="color:var(--soft)">0</span>':fmt(v)}</td>`; }).join("")}</tr>`),
@@ -17360,7 +17437,7 @@ async function applyPaste(){
       if (mode==="roast") {
         const RS = roastPasteInfo({ ...r, bean });
         const res = await mesUpsertRoast({ id:null,
-          patch:{ plan_date:RS.date, bean, plan_kg:((RS.batches||1) > 1 && Number(r.qty)/(RS.batches||1) < 15 ? Math.round(Number(r.qty)*(RS.batches||1)*100)/100 : r.qty), batches:RS.batches || 1, ...(RS.rname ? { roaster:RS.rname } : {}), ...(RS.cap > 0 ? { batch_kg:RS.cap } : {}) },
+          patch:{ plan_date:RS.date, bean, plan_kg:((RS.batches||1) > 1 && Number(r.qty)/(RS.batches||1) < 15 && !(beanTypKg(bean) > 0 && Number(r.qty) > beanTypKg(bean)*1.6) ? Math.round(Number(r.qty)*(RS.batches||1)*100)/100 : r.qty)   /* ★ 2026-11-04 적은 kg 가 평소 1배치보다 훨씬 크면 전체 kg 로 본다 — × 배치수 안 함 */, batches:RS.batches || 1, ...(RS.rname ? { roaster:RS.rname } : {}), ...(RS.cap > 0 ? { batch_kg:RS.cap } : {}) },
           idem:`rq-p-${bean}-${uid()}` });
         if (!res || !res.ok) { closePaste(); renderAll();
           return toast(res?.message || "로스팅 계획을 등록하지 못했습니다"); }
@@ -17576,6 +17653,7 @@ async function moveOrdersDate(from, to){
   if (v === null) return; const dd = String(v).trim().replace(/[./]/g,"-");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dd)) return toast("날짜를 2026-11-02 처럼 적어 주세요");
   if (dd === from) return toast("같은 날짜입니다");
+  await autoSnap(`작업지시 날짜 옮기기 전 (${from} → ${dd})`);
   const busy = setBusy("옮기는 중…");
   const r = await mesMoveOrders({ ids:wait.map(o=>o.id), to:dd, idem:`mvo-${from}-${dd}-${uid()}` }); busy();
   if (!r || r.ok === false) {
@@ -17606,6 +17684,7 @@ async function syncOrdersToPlan(d){
     (D.many.length ? `손으로 봐야 할 품목 ${D.many.length} (대기 지시가 여러 장이라 어디를 고칠지 못 정함):\n${D.many.map(x=>`· ${x.p.name} — 계획과 ${x.diff>0?"+":""}${fmt(x.diff)}EA 차이, 대기 ${x.n}장`).join("\n")}\n\n` : "") +
     `이미 시작한 지시는 건드리지 않습니다.`;
   if (!(await ask(msg, { title:"현장 지시 계획에 맞추기", yes:"맞추기", danger:!!D.gone.length }))) return;
+  await autoSnap(`현장 지시 계획에 맞추기 전 (${D.n}건)`);
   let ok = 0; const fail = [];
   for (const o of D.gone) { const r = await mesDeleteOrder({ order_id:o.id, idem:`od-${o.id}-${uid()}` }); if (r && r.ok) ok++; else fail.push(`${nm(o)} — ${r?.message||"오류"}`); }
   for (const x of D.changed) { const r = await mesEditOrder({ order_id:x.o.id, patch:{ qty_plan:x.to }, idem:`oq-${x.o.id}-${uid()}` }); if (r && r.ok) { x.o.qty_plan = x.to; ok++; } else fail.push(`${nm(x.o)} — ${r?.message||"오류"}`); }
@@ -18627,6 +18706,7 @@ async function openEcDone(day){
 }
 async function ecDoneApply(pick){
   if (!(await ask(`${pick.length}건을 생산 완료합니다 (검수로 넘어감):\n\n${pick.slice(0,18).map(r=>`· ${prodById(r.pid)?.name||""} ${r.sn||""} — ${fmt(r.qty)}개 (${r.why.split(" · ")[0]})`).join("\n")}${pick.length>18?`\n… 외 ${pick.length-18}건`:""}\n\n원두는 지시 배치에서 빠지고 로스도 기록됩니다.`, { title:"이카운트 표로 생산 완료", yes:`${pick.length}건 완료`, no:"뒤로" }))) return null;
+  await autoSnap(`이카운트 표로 생산 완료 전 (${pick.length}건)`);
   const busy = setBusy(`생산 완료 중… (${pick.length}건)`); let ok = 0; const fail = [];
   for (const r of pick) {
     const o = ordById(r.o.id), p = prodById(r.pid); const nm = `${p?.name||""} ${r.sn||o?.serial||""}`;
@@ -20479,6 +20559,7 @@ async function apRun(){
   if (!(await ask(`${d} 의 기록을 전부 지웁니다.\n\n${apSummary(pv)}\n\n되돌릴 수 없습니다.`, { title:"날짜별 전체 초기화", yes:"계속", danger:true }))) return;
   const t = await askText(`확인을 위해 "초기화" 라고 적어 주세요`, "", "초기화 확인"); if (t === null) return;
   if (String(t).trim() !== "초기화") return toast("초기화하지 않았습니다");
+  await autoSnap(`${d} 날짜별 전체 초기화 전`);
   const busy = setBusy(`${d} 초기화 중…`);
   const r = await rpc("admin_purge_date", { p_date:d, p_confirm:"초기화", p_dry:false, p_user_name:CURRENT_USER }, () => ({ ok:false, message:"서버 연결이 필요합니다" }));
   busy();
@@ -20515,8 +20596,69 @@ async function apCancel(id){
   await loadApprovals(true); toast("요청을 취소했습니다");
 }
 function setApView(v){ AP_VIEW = v; renderApprove(); }
+/* ★ 2026-11-04 시점 되돌리기 (077 SQL) — Lee "시간대로 되돌리기 같은 거 있으면 좋겠어" */
+var SNAPS = [], SNAPS_LOADED = false;
+async function mesSnapTake(note, kind){
+  if (!sb) return { ok:false, message:"서버 연결이 필요합니다" };
+  return rpc("snapshot_take", { p_note:note || null, p_kind:kind || "manual", p_user_name:CURRENT_USER }, null, { quiet:true });
+}
+/* 큰 작업 전에 저절로 — 실패해도 작업은 막지 않는다 (077 이 없으면 조용히 넘어감) */
+async function autoSnap(note){
+  if (!sb) return;
+  try { const r = await mesSnapTake(note, "auto"); if (r && r.ok) { SNAPS_LOADED = false; toast(`되돌릴 수 있게 지금 시점을 저장했습니다 (결재 › 시점 되돌리기)`); } } catch(_){}
+}
+async function loadSnaps(show){
+  if (!sb) { SNAPS = []; SNAPS_LOADED = "local"; if (show) renderSnaps(); return; }
+  const r = await rpc("snapshot_list", {}, null, { quiet:true });
+  if (Array.isArray(r)) { SNAPS = r; SNAPS_LOADED = true; }
+  else SNAPS_LOADED = /snapshot_list|schema cache|function/i.test(r?.message||"") ? "missing" : true;
+  renderSnaps();
+}
+async function snapTakeNow(){
+  if (!(await requireUser())) return;
+  const note = String($("snNote")?.value || "").trim();
+  const busy = setBusy("시점 저장 중…"); const r = await mesSnapTake(note || `${CURRENT_USER||""} 수동 저장`, "manual"); busy();
+  if (!r || r.ok === false) return ask(/snapshot_take|schema cache|function/i.test(r?.message||"") ? "서버에 077_snapshots.sql 을 먼저 실행해 주세요." : (r?.message || "저장하지 못했습니다"), { title:"시점 저장", yes:"확인", only:true });
+  if ($("snNote")) $("snNote").value = ""; toast(`지금 시점을 저장했습니다 — ${fmt(r.rows)}줄`); loadSnaps(true);
+}
+async function snapRestore(id){
+  if (!(await requireUser())) return;
+  if (!isSystemAdmin()) return ask("총 관리자만 되돌릴 수 있습니다.", { title:"시점 되돌리기", yes:"확인", only:true });
+  const S = SNAPS.find(x=>x.id===id); if (!S) return;
+  const when = dtFull(S.taken_at);
+  if (!(await ask(`${when} 시점으로 되돌립니다${S.note?` — ${S.note}`:""}.\n\n그 뒤에 입력한 것(생산 완료·검수·출고·입고·재고 세기·로스팅 계획 등 운영 기록 전부)이 그 시점 상태로 돌아갑니다 — ${fmt(S.row_count)}줄.\n기준정보(품목·원두·설비·사용자)와 변경이력은 그대로입니다.\n\n되돌리기 전에 지금 상태를 먼저 저장하므로, 잘못 돌렸으면 다시 되돌릴 수 있습니다.`, { title:"시점 되돌리기", yes:"되돌리기", danger:true }))) return;
+  const t = await askText(`확인을 위해 "되돌리기" 라고 적어 주세요`, "", "되돌리기 확인"); if (t === null) return;
+  if (String(t).trim() !== "되돌리기") return toast("되돌리지 않았습니다");
+  const busy = setBusy("되돌리는 중… (잠시 걸립니다)");
+  const r = await rpc("snapshot_restore", { p_id:id, p_user_name:CURRENT_USER }, null, { quiet:true }); busy();
+  if (!r || r.ok === false) return ask(r?.message || "되돌리지 못했습니다", { title:"시점 되돌리기", yes:"확인", only:true });
+  if (sb) { await reloadDB({ silent:true }); try { await loadYard(); } catch(_){} }
+  renderAll(); loadSnaps(true);
+  ask(`${when} 시점으로 되돌렸습니다 — ${fmt(r.rows)}줄${(r.skipped||[]).length?`\n(없는 표 건너뜀: ${r.skipped.join(", ")})`:""}\n\n되돌리기 직전 상태도 "되돌리기 전" 으로 저장돼 있습니다.`, { title:"시점 되돌리기", yes:"확인", only:true });
+}
+async function snapDelete(id){
+  if (!(await requireUser())) return;
+  const S = SNAPS.find(x=>x.id===id); if (!S) return;
+  if (!(await ask(`${dtFull(S.taken_at)} 저장본을 지웁니다${S.note?` — ${S.note}`:""}.`, { title:"저장본 지우기", yes:"지우기", danger:true }))) return;
+  const r = await rpc("snapshot_delete", { p_id:id }, null, { quiet:true });
+  if (!r || r.ok === false) return toast(r?.message || "지우지 못했습니다");
+  loadSnaps(true);
+}
+function renderSnaps(){
+  if (!$("snTbl")) return;
+  const sys = isSystemAdmin();
+  if (SNAPS_LOADED === "missing") { $("snTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px"><span class="bad">서버에 077_snapshots.sql 을 실행해야 시점 되돌리기를 쓸 수 있습니다</span></td></tr></tbody>`; return; }
+  if (SNAPS_LOADED === "local") { $("snTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">서버에 연결돼야 쓸 수 있습니다</td></tr></tbody>`; return; }
+  const K = { manual:["", "손으로 저장"], auto:["warn", "자동"], pre_restore:["ok", "되돌리기 전"] };
+  tbl("snTbl", ["저장 시각","종류","메모","줄 수","저장한 사람",""],
+    SNAPS.map(S=>{ const k = K[S.kind] || ["", S.kind]; return `<tr><td class="c" style="white-space:nowrap"><b>${dtFull(S.taken_at)}</b></td><td class="c"><span class="tag ${k[0]}">${k[1]}</span></td>
+      <td class="l">${(S.note||"").replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</td><td>${fmt(S.row_count)}</td><td class="c">${S.by_name||"—"}</td>
+      <td class="c" style="white-space:nowrap">${sys ? `<button class="btn primary" style="height:30px" onclick="snapRestore('${S.id}')">이 시점으로 되돌리기</button> <button class="btn" style="height:30px;color:var(--bad)" onclick="snapDelete('${S.id}')">지우기</button>` : `<span class="hint" style="padding:0">총 관리자만</span>`}</td></tr>`; }), null);
+  if (!SNAPS.length) $("snTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">저장된 시점이 없습니다 — [지금 시점 저장] 을 누르거나, 큰 작업을 하면 저절로 저장됩니다</td></tr></tbody>`;
+}
 function renderApprove(){
   if (!$("apTbl")) return;
+  if (!SNAPS_LOADED) { SNAPS_LOADED = "loading"; loadSnaps(true); } else renderSnaps();
   if (!AP_LOADED) { loadApprovals(true); }
   if ($("apDate") && !$("apDate").value) $("apDate").value = today();
   const sys = isSystemAdmin();
