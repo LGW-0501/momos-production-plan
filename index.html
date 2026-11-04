@@ -1622,6 +1622,12 @@
     </div>
     </div>
     <div class="subpane" id="pp-buf">
+      <div class="panel">
+        <div class="panel-h">원두별 전체 생산값 → 출고 계획분 → 남는 원두 → 여유분 <span class="r hint" id="bufBeanInfo"></span></div>
+        <div class="hint">받은 원두(쓸 수 있는 배치 잔량)에서 <b>오늘 출고 계획분(집계)</b>에 드는 원두를 빼고, <b>남는 원두</b>로만 여유분을 만듭니다 — 여유분 때문에 로스팅을 더 하지 않습니다.
+          만들 수 있는 여유분 = 남는 원두 ÷ 품목 표준투입(로스율 포함) · 여유분 설정이 있는 품목은 설정 수량까지만.</div>
+        <div class="panel-b" style="overflow-x:auto"><table id="bufBeanTbl"></table></div>
+      </div>
       <div class="panel" id="bufPanel">
         <div class="panel-h">여유분 — 품목별 · 요일별 수량 <span class="r hint" id="bufState"></span></div>
         <div class="hint">예) 에스쇼콜라 1kg — <b>월 100 · 수 50</b> 이라고 적으면, 월요일 생산계획에 100개 · 수요일 생산계획에 50개가 여유분으로 더해집니다.<br>
@@ -6945,6 +6951,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-04", "여유분 — 원두별 전체 생산값 → 출고분 → 남는 원두 · 못 만든 지시 취소", "생산계획 › 여유분 탭 위에 원두별 표: 받은 원두(쓸 수 있는 배치) → 출고 계획분(집계에 드는 kg·EA) → 남는 원두 → 여유분(설정·실제 만듦·못 채움) → 여유분 뒤 남는 원두 → 더 만들 수 있는 개수 / 현장 작업·작업지시 위에 \"지난 날짜에 못 만든 대기 지시 N건 — 출고는 지나갔으니 여유분\" 띠 + [취소하고 원두 오늘 계획으로] — 취소하면 원두는 배치에 그대로 남아 오늘 계획·여유분에 쓰임"],
   ["2026-11-04", "로스팅 계획 표 — 받기 전 계획만 · 입고완료 줄은 접음", "로스팅 계획·입고 등록 표는 받기 전 계획만 보이고, 입고 끝난 줄은 [입고완료 N줄 보기] 로 펼침 (받은 배치는 아래 \"받은 배치\" 칸이 보여 주므로 두 번 안 보이게) · 입고완료 줄의 생길 배치번호가 그날 그 원두 배치 전부(19개씩)로 나오던 것 → 그 줄로 받은 배치만"],
   ["2026-11-04", "날짜별 보유량 — 원두 고르면 로스팅일·배치번호·지금 남은 kg", "원두 하나를 고르면 줄마다 \"11/02 로스팅 · 3번 [0203]\" · 전체번호 · 입고 kg · 지금 남음 kg(다 쓴 배치는 \"다 씀\") · 남은 배치가 위, 로스팅일 순 · 머리칸에 지금 남은 배치 수·kg 합"],
   ["2026-11-04", "시점 되돌리기 (077 SQL)", "결재 화면 › [시점 되돌리기] — [지금 시점 저장](메모) · 저장본 목록(시각·종류·메모·줄 수) · 총 관리자 [이 시점으로 되돌리기](\"되돌리기\" 입력 확인) · 운영 기록 전체(로스팅·배치·작업지시·실적·검수·출고·재고 세기·출고장·집계·설정)를 그 시점 그대로 복원, 기준정보·변경이력은 그대로 · 되돌리기 직전 상태도 저절로 저장 → 되돌린 것도 되돌림 · 큰 작업(바로잡기·전부 받음·받기 전부 되돌리기·이카운트 표로 한 번에·로스 처리·지시 날짜 옮기기·계획에 맞추기·날짜별 초기화) 전에 자동 저장(최근 40개)"],
@@ -12815,8 +12822,49 @@ function gotoBuf(){
 }
 let bufShowAll = true;                  // 기본: 전체 품목이 보인다 (끄면 적용한 품목만)
 function setBufShowAll(v){ bufShowAll = v; renderBufPanel(); }
+/* ★ 2026-11-04 원두별 전체 생산값 (Lee "로스팅 요청분에서 출고되는 값을 빼고 남은 원두로 여유재고를 만들어야") */
+function bufBeanRows(d){
+  d = d || tallyDay();
+  const ps = PRODS().filter(p=>p.bean);
+  const beans = [...new Set([...ps.map(p=>p.bean), ...DB.mms.filter(m=>Number(m.stock_kg)>0).map(m=>m.bean)])].filter(Boolean).sort(beanCmp);
+  const cap = bufCapMap(d);
+  return beans.map(b=>{
+    const have = Math.round(mmsByBean(b)*100)/100;
+    const held = Math.round(DB.mms.filter(m=>m.bean===b && isHeld(m)).reduce((s,m)=>s+Number(m.stock_kg||0),0)*100)/100;
+    const mine = ps.filter(p=>p.bean===b);
+    let shipKg = 0, shipEa = 0; const shipParts = [];
+    mine.forEach(p=>{ const n = p.id in planEA ? 0 : planNeedRaw(p, d); if (n > 0) { const k = needKg(p, n); shipKg += k; shipEa += n; shipParts.push(`${p.name} ${fmt(n)}`); } });
+    shipKg = Math.round(shipKg*100)/100;
+    const left = Math.round((have - shipKg)*100)/100;
+    let bufEa = 0, bufKg = 0, cut = 0; const bufParts = [];
+    mine.forEach(p=>{ const want = bufEA(p, d); if (!(want > 0)) return; const ea = cap[p.id] ?? 0; bufEa += ea; bufKg += needKg(p, ea); if (want > ea) cut += want - ea; bufParts.push(`${p.name} ${fmt(ea)}${want>ea?`/${fmt(want)}`:""}`); });
+    bufKg = Math.round(bufKg*100)/100;
+    const rest = Math.round((left - bufKg)*100)/100;
+    /* 여유분 설정이 없어도 "남는 원두로 몇 개까지" — 그 원두의 가장 큰 규격 품목 기준 */
+    const main = mine.slice().sort((a,b)=>Number(b.std_g||0)-Number(a.std_g||0))[0];
+    const g = main ? Number(main.std_g||0)/1000*(1+lossPctOf(main)/100) : 0;
+    const canEa = g > 0 && rest > 0 ? Math.floor(rest/g + 0.0001) : 0;
+    return { b, have, held, shipKg, shipEa, shipParts, left, bufEa, bufKg, cut, bufParts, rest, main, canEa };
+  }).filter(r=>r.have > 0 || r.shipKg > 0 || r.bufEa > 0);
+}
+function renderBufBean(){
+  if (!$("bufBeanTbl")) return;
+  const d = tallyDay(), rows = bufBeanRows(d);
+  if ($("bufBeanInfo")) $("bufBeanInfo").textContent = `${d} 기준 · 원두 ${rows.length}`;
+  tbl("bufBeanTbl", ["원두","받은 원두 (쓸 수 있음)","출고 계획분 (집계)","남는 원두","여유분 (설정·만듦)","여유분 뒤 남는 원두","더 만들 수 있음"],
+    rows.map(r=>`<tr><td class="l"><b>${r.b}</b>${r.held?`<br><span class="hint" style="padding:0;font-size:10.5px">보류 ${fmt(r.held)}kg 제외</span>`:""}</td>
+      <td><b>${fmt(r.have)}</b> kg</td>
+      <td style="${r.shipKg>r.have?"color:var(--bad);font-weight:800":""}">${r.shipKg?`${fmt(r.shipKg)} kg <span class="hint" style="padding:0;font-size:10.5px">· ${fmt(r.shipEa)}EA</span>`:"—"}${r.shipParts.length?`<br><span class="hint" style="padding:0;font-size:10.5px">${r.shipParts.slice(0,3).join(" · ")}${r.shipParts.length>3?` 외 ${r.shipParts.length-3}`:""}</span>`:""}</td>
+      <td style="${r.left<0?"color:var(--bad);font-weight:800":"font-weight:700"}">${fmt(r.left)} kg${r.left<0?` <span class="tag bad" style="font-size:10.5px">원두 부족</span>`:""}</td>
+      <td>${r.bufEa?`<b>${fmt(r.bufEa)}</b> EA · ${fmt(r.bufKg)} kg`:"—"}${r.cut?` <span class="tag warn" style="font-size:10.5px">${fmt(r.cut)}개 못 채움</span>`:""}${r.bufParts.length?`<br><span class="hint" style="padding:0;font-size:10.5px">${r.bufParts.slice(0,3).join(" · ")}</span>`:""}</td>
+      <td>${fmt(Math.max(0,r.rest))} kg</td>
+      <td>${r.main && r.canEa>0 ? `<span class="tag buf">${r.main.name} 약 ${fmt(r.canEa)}개</span>` : "—"}</td></tr>`),
+    rows.length ? `<td class="c">합 계</td><td><b>${fmt(Math.round(rows.reduce((t,r)=>t+r.have,0)*100)/100)}</b> kg</td><td>${fmt(Math.round(rows.reduce((t,r)=>t+r.shipKg,0)*100)/100)} kg</td><td><b>${fmt(Math.round(rows.reduce((t,r)=>t+r.left,0)*100)/100)}</b> kg</td><td>${fmt(rows.reduce((t,r)=>t+r.bufEa,0))} EA · ${fmt(Math.round(rows.reduce((t,r)=>t+r.bufKg,0)*100)/100)} kg</td><td>${fmt(Math.round(rows.reduce((t,r)=>t+Math.max(0,r.rest),0)*100)/100)} kg</td><td></td>` : null);
+  if (!rows.length) $("bufBeanTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">쓸 수 있는 원두가 없습니다</td></tr></tbody>`;
+}
 function renderBufPanel(){
   if (!$("bufTbl")) return;
+  try { renderBufBean(); } catch(e){ console.warn(e); }
   const c = bufCfg(), edit = can("plan") || can("base"), d = tallyDay(), today = dowOf(d);
   if ($("bufShelf")) $("bufShelf").textContent = SHELF_LIFE_DAYS;
   if ($("bufState")) $("bufState").innerHTML = (!sb ? "로컬 모드"
@@ -17675,6 +17723,34 @@ async function moveOrdersDate(from, to){
   if ($("wkDate")) $("wkDate").value = dd; if ($("woDate")) $("woDate").value = dd;
   renderAll(); toast(`작업지시 ${r.moved}건 → ${dd}${r.skipped?` · 시작한 ${r.skipped}건은 그대로`:""} — 현장 작업 작업일을 ${dd} 로 맞췄습니다`);
 }
+/* ★ 2026-11-04 지난 날짜에 못 만든 대기 지시 (Lee "전날에 생산이 안 된 원두는 취소할 수 있게 — 어차피 여유분이니 다음날 새 계획으로")
+   출고는 이미 나갔으니 남은 대기 지시는 전부 여유분 — 취소하면 원두는 배치에 그대로 남아 오늘 계획에 쓰인다 */
+function staleOrders(d){
+  d = d || today();
+  return DB.orders.filter(o=>o.status==="대기" && o.work_date && o.work_date < d && !(Number(o.qty_done)>0) && !/^\[반려 삭제/.test(String(o.note||"")));
+}
+function staleOrdersBar(d){
+  if (!can("plan")) return "";
+  const list = staleOrders(d); if (!list.length) return "";
+  const days = [...new Set(list.map(o=>o.work_date))].sort();
+  const ea = list.reduce((t,o)=>t+Number(o.qty_plan||0),0);
+  return `<span class="tag warn" style="font-size:12.5px">${days.map(x=>x.slice(5).replace("-","/")).join("·")} 에 못 만든 대기 지시 ${list.length}건 · ${fmt(ea)}EA — 출고는 지나갔으니 여유분</span> <button class="btn" style="height:28px;color:var(--bad);font-weight:800" onclick="cancelStaleOrders('${d}')">취소하고 원두 오늘 계획으로</button> `;
+}
+async function cancelStaleOrders(d){
+  if (!(await requireUser())) return;
+  if (!can("plan")) return deny("plan");
+  const list = staleOrders(d); if (!list.length) return toast("지난 날짜 대기 지시가 없습니다");
+  const nm = o => `${o.work_date.slice(5)} ${o.product_name||prodById(o.product_id)?.name||""} ${fmt(o.qty_plan)}EA${o.serial?` · ${o.serial}`:""}`;
+  const kg = list.reduce((t,o)=>{ const p = prodById(o.product_id); return t + (p ? needKg(p, Number(o.qty_plan||0)) : 0); }, 0);
+  if (!(await ask(`지난 날짜에 못 만든 대기 지시 ${list.length}건을 취소합니다 (원두 약 ${fmt(Math.round(kg*10)/10)}kg 은 배치에 그대로 — 오늘 계획·여유분에 씁니다):\n\n${list.slice(0,12).map(o=>"· "+nm(o)).join("\n")}${list.length>12?`\n… 외 ${list.length-12}건`:""}\n\n이미 시작한 지시는 건드리지 않습니다.`, { title:"못 만든 지시 취소", yes:`${list.length}건 취소`, danger:true }))) return;
+  await autoSnap(`못 만든 지시 취소 전 (${list.length}건)`);
+  const busy = setBusy("취소 중…"); let ok = 0; const fail = [];
+  for (const o of list) { const r = await mesDeleteOrder({ order_id:o.id, idem:`od-stale-${o.id}-${uid()}` }); if (r && r.ok) ok++; else fail.push(`${nm(o)} — ${r?.message||""}`); }
+  busy(); logAudit("못 만든 지시 취소", d, `${ok}건 · 여유분으로`);
+  if (sb) await reloadDB({ silent:true }); renderAll();
+  if (fail.length) return ask(`${ok}건 취소 · ${fail.length}건 실패\n\n${fail.slice(0,8).join("\n")}`, { title:"못 만든 지시 취소", yes:"확인", only:true });
+  toast(`${ok}건 취소 — 원두는 배치에 남아 오늘 계획에 들어갑니다 (생산계획 › 여유분 탭에서 확인)`);
+}
 function planSyncBar(d){
   if (!can("plan")) return "";
   const H = planDayOfOrders(d);
@@ -19542,7 +19618,7 @@ function renderWork(){
   /* 기계 고르는 버튼 — 현장은 자기 기계만 본다 */
   const mixedAll = all.filter(o=>isMixedOrder(o) && o.status==="대기");
   const canEdit = can("plan") && all.some(o=>o.status==="대기");
-  $("wkMachBtn").innerHTML = planSyncBar(d) +
+  $("wkMachBtn").innerHTML = staleOrdersBar(d) + planSyncBar(d) +
     (can("plan") ? `<button class="btn" style="font-weight:800;border-color:var(--pri,#2b50d8);color:var(--pri,#2b50d8)" onclick="openEcDone($('wkDate').value||today())" title="이카운트 생산입고 표를 복사해 붙여넣으면 이미 생산한 지시를 한 번에 완료">📋 이카운트 표로 생산 완료</button>` : "") +
     (canEdit ? `<button class="btn ${wkLabelEdit?"primary":""}" onclick="setWkLabelEdit()">라벨 바꾸기</button>` : "") +
     (canEdit ? `<button class="btn" onclick="sortOrdersBySpec($('wkDate').value||today())"
