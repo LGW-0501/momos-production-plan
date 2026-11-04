@@ -1732,7 +1732,8 @@
         <button class="btn" style="height:34px" onclick="roastDaySet(0)">오늘</button>
         <button class="btn" style="height:34px" onclick="roastDaySet(1)">다음날 ▶</button>
         <button class="btn" style="height:34px" onclick="roastDaySet('all')">전체</button>
-        <span class="hint" style="padding:0" id="roastDayInfo"></span></div>
+        <span class="hint" style="padding:0" id="roastDayInfo"></span>
+        <span id="roastDoneBtn"></span></div>
       <div class="selbar" id="selBar-roasting"></div>
       <div class="panel-b"><table id="roastTbl"></table></div>
     </div>
@@ -6944,6 +6945,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-04", "로스팅 계획 표 — 받기 전 계획만 · 입고완료 줄은 접음", "로스팅 계획·입고 등록 표는 받기 전 계획만 보이고, 입고 끝난 줄은 [입고완료 N줄 보기] 로 펼침 (받은 배치는 아래 \"받은 배치\" 칸이 보여 주므로 두 번 안 보이게) · 입고완료 줄의 생길 배치번호가 그날 그 원두 배치 전부(19개씩)로 나오던 것 → 그 줄로 받은 배치만"],
   ["2026-11-04", "날짜별 보유량 — 원두 고르면 로스팅일·배치번호·지금 남은 kg", "원두 하나를 고르면 줄마다 \"11/02 로스팅 · 3번 [0203]\" · 전체번호 · 입고 kg · 지금 남음 kg(다 쓴 배치는 \"다 씀\") · 남은 배치가 위, 로스팅일 순 · 머리칸에 지금 남은 배치 수·kg 합"],
   ["2026-11-04", "시점 되돌리기 (077 SQL)", "결재 화면 › [시점 되돌리기] — [지금 시점 저장](메모) · 저장본 목록(시각·종류·메모·줄 수) · 총 관리자 [이 시점으로 되돌리기](\"되돌리기\" 입력 확인) · 운영 기록 전체(로스팅·배치·작업지시·실적·검수·출고·재고 세기·출고장·집계·설정)를 그 시점 그대로 복원, 기준정보·변경이력은 그대로 · 되돌리기 직전 상태도 저절로 저장 → 되돌린 것도 되돌림 · 큰 작업(바로잡기·전부 받음·받기 전부 되돌리기·이카운트 표로 한 번에·로스 처리·지시 날짜 옮기기·계획에 맞추기·날짜별 초기화) 전에 자동 저장(최근 40개)"],
   ["2026-11-04", "1배치 kg 가 너무 클 때도 표시 (전체 kg 가 한 배치에)", "로스팅 계획·입고 확인에서 1배치 kg 가 평소의 1.6배를 넘으면 빨간 \"전체 kg 가 들어간 듯\" · [받음] 때 한 번 확인 · 로스팅 계획 붙여넣기도 적은 kg 가 평소 1배치보다 훨씬 크면 × 배치수 하지 않음"],
@@ -9663,7 +9665,7 @@ async function undoRoastFix(){
   if (sb) await reloadDB({ silent:true }); renderAll();
   ask(`되돌렸습니다 — 계획 ${nP}건 · 줄 kg ${nL}개 · 다시 받음 ${nR}배치 · 작업지시 ${nO}건${fail.length?`\n\n못 한 것:\n${fail.slice(0,10).join("\n")}`:""}`, { title:"바로잡기 되돌리기", yes:"확인", only:true });
 }
-var ROAST_DAY = "";
+var ROAST_DAY = "", ROAST_SHOW_DONE = false;
 function roastDayGo(){ const v = $("roastDay")?.value; ROAST_DAY = v || "all"; renderRoast(); }
 function roastDaySet(d){ if (d === "all") ROAST_DAY = "all"; else if (d === 0) ROAST_DAY = today();
   else { const base = (ROAST_DAY && ROAST_DAY !== "all") ? ROAST_DAY : today(); const t = new Date(base + "T00:00:00"); t.setDate(t.getDate() + d);
@@ -9717,6 +9719,10 @@ function renderRoast(){
   const rs = RD === "all" ? rsAll : rsAll.filter(r=>(r.plan_date||today()) === RD || (!r.done && RD === today() && (r.plan_date||today()) < RD));
   if ($("roastDayInfo")) { const dn = rs.filter(r=>r.done).length, old = rs.filter(r=>!r.done && (r.plan_date||today()) < RD).length;
     $("roastDayInfo").innerHTML = RD === "all" ? `전체 ${rsAll.length}줄` : `${RD.slice(5).replace("-","/")} — ${rs.length}줄 (입고완료 ${dn} · 받기 전 ${rs.length-dn}${old?` · 지난 날짜 미입고 ${old}`:""}) · 입고 ${fmt(Math.round(rs.reduce((t,r)=>t+Number(r.received_kg||0),0)*100)/100)}kg`; }
+  /* ★ 2026-11-04 입고완료된 계획은 기본으로 접는다 (Lee "두 개 차이가 뭐야 · 합쳐지지도 않고 복잡") — 받은 배치는 아래 "받은 배치" 칸이 보여 주므로 이 표는 받기 전 계획만 */
+  const doneN = rs.filter(r=>r.done).length;
+  if ($("roastDoneBtn")) $("roastDoneBtn").innerHTML = doneN ? `<button class="btn ${ROAST_SHOW_DONE?"primary":""}" style="height:34px" onclick="ROAST_SHOW_DONE=!ROAST_SHOW_DONE;renderRoast()" title="입고 끝난 계획 줄 — 받은 배치는 아래 '받은 배치' 칸에 있습니다">${ROAST_SHOW_DONE?"입고완료 줄 접기":`입고완료 ${doneN}줄 보기`}</button>` : "";
+  if (!ROAST_SHOW_DONE) rs.splice(0, rs.length, ...rs.filter(r=>!r.done));
   const waitN = rsAll.filter(r=>!r.done).length;
   if ($("roastFix")) { const nb = roastBadPer().length, S = roastFixSnapLoad();
     $("roastFix").innerHTML = (nb ? `<button class="btn" style="color:var(--bad);font-weight:800;margin-right:6px" onclick="fixRoastPerBatch()" title="계획(kg)에 1배치 kg 를 적어 배치마다 작게 잡힌 계획">1배치 kg 바로잡기 ${nb}건</button>` : "")
@@ -9727,6 +9733,7 @@ function renderRoast(){
 
   if (sortState("roastTbl")) rs.splice(0, rs.length, ...sorted("roastTbl", rs));
   SHOWN.roasting = rs.map(r=>r.id);
+  const roastEmptyMsg = !rs.length && doneN && !ROAST_SHOW_DONE ? `${RD==="all"?"":RD.slice(5).replace("-","/")+" "}계획 ${doneN}줄은 전부 입고 끝 — 받은 배치는 아래 [받은 배치] 칸에 있습니다 · 계획 줄을 보려면 [입고완료 ${doneN}줄 보기]` : "";
   tbl("roastTbl", [selAllBox("roasting"),"로스팅일","원두","1배치(kg)","입고(kg)","배치수","생길 배치번호","상태","",""],
     rs.map((r,i)=>{
       const kg = Number(r.received_kg) || Number(r.plan_kg) || 0;
@@ -9735,7 +9742,9 @@ function renderRoast(){
       const start = DB.mms.filter(m=>m.bean===r.bean && m.roast_date===d)
         .reduce((mx,m)=>Math.max(mx,Number(m.batch)||0), r.done ? 0 : 0);
       // 이미 받은 건은 실제 배치를, 아직이면 생길 번호를 보여준다
-      const mine = r.done ? DB.mms.filter(m=>m.bean===r.bean && m.roast_date===d) : [];
+      /* 이 계획 줄로 받은 배치만 (전에는 그날 그 원두 배치가 전부 나와 줄마다 19개씩 보였다) */
+      const mineIds = new Set(DB.roast_lines.filter(l=>l.plan_id===r.id && l.done && l.mms_id).map(l=>l.mms_id));
+      const mine = r.done ? (mineIds.size ? DB.mms.filter(m=>mineIds.has(m.id)) : DB.mms.filter(m=>m.bean===r.bean && m.roast_date===d)) : [];
       const nos = r.done
         ? mine.map(m=>batchNo(m))
         : Array.from({length:Math.min(n,6)}, (_,k)=>batchNo({roast_date:d, batch:start+k+1}));
@@ -9760,6 +9769,7 @@ function renderRoast(){
       <td class="c">${r.done?"":`<button class="btn" onclick="gotoIn()">위에서 받기</button>`}</td>
       <td class="c"><button class="btn danger" onclick="delRow('roasting','${r.id}')">삭제</button></td></tr>`;
     }));
+  if (roastEmptyMsg) { const tb = $("roastTbl").querySelector("tbody"); if (tb) tb.innerHTML = `<tr><td colspan="10" class="c hint" style="padding:18px">${roastEmptyMsg}</td></tr>`; }
 
   selBar("roasting");
   renderIn();                         // 받을 배치 줄을 계획에서 펼친다
