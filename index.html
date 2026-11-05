@@ -782,6 +782,20 @@
     .panel{margin-bottom:12px;}
     .guide{font-size:12px; padding:10px 12px;}
     [id^="ecInDlg"] textarea, #edTxt, #ecTxt{height:90px; font-size:12.5px;}
+    /* 페이지 자체는 옆으로 안 넘어가게 — 넓은 표는 그 표 안에서만 옆으로 민다 */
+    html, body{overflow-x:hidden; max-width:100vw;}
+    .body, .screen, .main{max-width:100vw; overflow-x:hidden;}
+    .panel{max-width:100%;}
+    .panel-b{max-width:100%; overflow-x:auto;}
+    /* 버튼만 있는 도구 줄(조회 조건 아닌 것)은 한 줄에 두 개씩 */
+    body .cond:not(:has(> label)), body.mobile .cond:not(:has(> label)){display:flex; flex-wrap:wrap; gap:6px; padding:10px 12px;}
+    body .cond:not(:has(> label)) .btn, body.mobile .cond:not(:has(> label)) .btn{flex:1 1 calc(50% - 6px); grid-column:auto; height:36px; font-size:12.5px; padding:0 8px; white-space:normal; line-height:1.2;}
+    body .cond:not(:has(> label)) > span, body.mobile .cond:not(:has(> label)) > span{flex:1 1 100%; grid-column:auto; display:flex; flex-wrap:wrap; gap:5px; min-width:0;}
+    body .cond:not(:has(> label)) > span .btn, body.mobile .cond:not(:has(> label)) > span .btn{flex:0 1 auto;}
+    body .cond:not(:has(> label)) > span.hint, body.mobile .cond:not(:has(> label)) > span.hint{display:block;}
+    body .cond:not(:has(> label)) > span[style*="margin-left:auto"], body.mobile .cond:not(:has(> label)) > span[style*="margin-left:auto"]{display:none;}
+    body .cond:not(:has(> label)) input[type=number], body.mobile .cond:not(:has(> label)) input[type=number]{width:56px; height:36px; grid-column:auto;}
+    body .cond:not(:has(> label)) input[type=text], body.mobile .cond:not(:has(> label)) input[type=text]{flex:1 1 100%; height:36px; grid-column:auto;}
   }
   /* ══ 휴대폰 ══ */
   .navScrim{display:none;}
@@ -6983,6 +6997,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-05", "휴대폰 — 페이지가 옆으로 넘어가지 않게 · 버튼 줄 두 개씩", "휴대폰에서 페이지 전체가 옆으로 밀리던 것 → 넓은 표만 그 표 안에서 옆으로 (첫 칸 고정) · 부자재·품목 등 버튼만 있는 도구 줄은 한 줄에 두 개씩"],
   ["2026-11-05", "휴대폰 — 화면 비율 70·80% 추가 · 모바일 간편 보기", "계정 메뉴 › 글자 크기에 70% · 80% (표가 잘리면 줄여서 한 화면에 더) · 휴대폰 폭에서 버튼·표·띠·태그를 작고 촘촘하게 (패널 머리 버튼은 두 개씩 한 줄, 주 버튼은 한 줄 전체) · 업데이트 띠·이름 선택 경고 작게 · 표는 옆으로 밀어서 보고 첫 칸 고정"],
   ["2026-11-04", "여유분 — 원두별 전체 생산값 → 출고분 → 남는 원두 · 못 만든 지시 취소", "생산계획 › 여유분 탭 위에 원두별 표: 받은 원두(쓸 수 있는 배치) → 출고 계획분(집계에 드는 kg·EA) → 남는 원두 → 여유분(설정·실제 만듦·못 채움) → 여유분 뒤 남는 원두 → 더 만들 수 있는 개수 / 현장 작업·작업지시 위에 \"지난 날짜에 못 만든 대기 지시 N건 — 출고는 지나갔으니 여유분\" 띠 + [취소하고 원두 오늘 계획으로] — 취소하면 원두는 배치에 그대로 남아 오늘 계획·여유분에 쓰임"],
   ["2026-11-04", "로스팅 계획 표 — 받기 전 계획만 · 입고완료 줄은 접음", "로스팅 계획·입고 등록 표는 받기 전 계획만 보이고, 입고 끝난 줄은 [입고완료 N줄 보기] 로 펼침 (받은 배치는 아래 \"받은 배치\" 칸이 보여 주므로 두 번 안 보이게) · 입고완료 줄의 생길 배치번호가 그날 그 원두 배치 전부(19개씩)로 나오던 것 → 그 줄로 받은 배치만"],
