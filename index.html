@@ -17391,8 +17391,13 @@ function preview(){
   const SPEC = [[/1\s*[kKqQ][gG9]|^1[,.]?000|^11?[0O]9$/i,1000],[/500|5[0O]{2}9?/,500],[/200|2[0O]{2}9?/,200],[/100|1[0O]{2}9?/,100]];
   const TOTAL_RE = /총?\s*합\s*계|총\s*수\s*량|소\s*계|^합계|^계$|총수량/;
   let map=null, hi=-1;
-  L.forEach((cols,i)=>{ if(map) return;
+  /* ★ 2026-11-08 — 코드 열이 있는 머리글(SKU코드·품목코드)이 먼저 보이면 표 형식(원두명 × 규격)으로 보지 않는다.
+       플토 마스터파일의 "15000 · 2500" 같은 금액이 500g 로 읽혀 표 형식으로 잘못 잡혔다 (Lee "코드 인식 못하는데") */
+  const H0 = detectHeader(L);
+  const codeHdr = !!(H0.hdr && H0.hdr.idx.code >= 0);
+  if (!codeHdr) L.forEach((cols,i)=>{ if(map) return;
     const m={}; cols.forEach((c,j)=>{ if(!c||c.length>6) return;
+      if (/^\d+$/.test(c) && !["100","200","500","1000"].includes(c)) return;     // 순수 숫자는 규격 값(100·200·500·1000)일 때만
       for (const [re,g] of SPEC) if (re.test(c)) { m[j]=g; break; } });
     if (Object.keys(m).length>=2) { map=m; hi=i; } });
 
