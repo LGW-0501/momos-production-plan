@@ -1600,6 +1600,7 @@
     <button class="subtab" data-p="order">기계별 작업 순서</button>
     <button class="subtab" data-p="mat">부자재 · 라벨</button>
     <button class="subtab" data-p="buf">여유분</button>
+    <button class="subtab" data-p="grind">분쇄</button>
   </div>
   <div class="body">
     <h2 class="page">생산계획<small id="asof-plan"></small></h2>
@@ -1628,6 +1629,24 @@
       <div class="panel-h">집계 입력 내역 <span class="r hint">넣은 순서대로 · 지우면 계획이 바로 줄어듭니다</span></div>
       <div class="selbar" id="selBar-tallies"></div>
       <div class="panel-b"><table id="tallyLog"></table></div>
+    </div>
+    </div>
+    <div class="subpane" id="pp-grind">
+    <div class="panel">
+      <div class="panel-h">분쇄 집계 <span id="grindSum"></span>
+        <span class="r">
+          <label style="color:var(--soft);font-size:12px;font-weight:700">날짜</label>
+          <input type="date" id="grindDateIn" onchange="setGrindDate(this.value)">
+          <button class="btn primary" onclick="openPaste('tally')" title="플토 엑셀(마스터파일·출고지시서)을 올리면 CFE0002A~E 같은 분쇄 SKU 가 여기에 쌓입니다">엑셀로 넣기 (집계와 같이)</button>
+          <button class="btn" onclick="addGrindRow()">직접 추가</button>
+          <button class="btn" onclick="csvGrind()">엑셀 다운로드</button></span></div>
+      <div class="hint"><b>분쇄 SKU(CFE0002A 핸드드립 · B 커피메이커 · C 가정용더치 · D 모카포트 · E 가정용에스프레소)는 생산은 홀빈 품목으로 잡히고</b>, 갈아야 할 수량만 여기에 따로 쌓입니다 —
+        플토 엑셀의 <span class="tag">분쇄 집계</span> 시트와 같은 표입니다. 집계·출고지시서·계획EA 붙여넣기 때 자동으로 들어옵니다 (날짜·차수별로 쌓이고 덮어쓰지 않음).</div>
+      <div class="panel-b"><table id="grindTbl"></table></div>
+    </div>
+    <div class="panel">
+      <div class="panel-h">분쇄 입력 내역 <span class="r hint">넣은 순서대로 · 지우면 위 표가 바로 줄어듭니다</span></div>
+      <div class="panel-b"><table id="grindLog"></table></div>
     </div>
     </div>
     <div class="subpane" id="pp-grid">
@@ -3900,7 +3919,9 @@ function effSpeed(m, p){
    ⑤ 저장소 (Supabase / 로컬)
    ══════════════════════════════════════════════════════════════ */
 const TABLES = ["products","beans","bom","mms","machines","workers","roasters","bean_roasters","roasting","roast_lines","holds","materials","material_moves","material_tasks","bom_sets","labels","label_moves","orders","logs","consumptions","pqc","events","counts","usages","adjust","audit","perms","rework","rework_in","tallies","stock_moves","idempotency_keys","order_events","shipments","qc_rejections","migration_checks","ng_adjustments","material_task_reverts",
-   "log_amendments","search_aliases","app_users","order_workers"];
+   "log_amendments","search_aliases","app_users","order_workers","grind_tallies"];
+/* ★ 2026-11-08 서버에 아직 없을 수 있는 표 — 없으면 빈 표로 두고 로그인은 계속한다 (000_install_all.sql 의 "분쇄 집계" 절을 실행하면 생긴다) */
+const OPTIONAL_TABLES = ["grind_tallies"]; let MISSING_TABLES = [];
 let sb = null, dbMode = "local";
 let DEV_OK = false, DEV_NAME = "", IS_ADMIN_SESSION = false, CONN_ERR = "";
 async function initDB(){
@@ -6953,7 +6974,7 @@ document.addEventListener("keydown", e=>{
     if (t) { t.focus({ preventScroll:false }); try { t.select(); } catch(_){} } }, 0);   // … 다시 그린 뒤 그 칸을 잡는다
 });
 /* ══ 즐겨찾기 ★ — 자주 가는 화면(탭까지)을 왼쪽 메뉴 맨 위에 둔다. 이 기기가 기억한다. ══ */
-const PLAN_TAB_NAME = { tally:"집계", grid:"기계 배분", order:"작업 순서", mat:"부자재·라벨", buf:"여유분" };
+const PLAN_TAB_NAME = { tally:"집계", grid:"기계 배분", order:"작업 순서", mat:"부자재·라벨", buf:"여유분", grind:"분쇄" };
 function favList(){ try { return JSON.parse(localStorage.getItem("momos.favs") || "[]") || []; } catch(_){ return []; } }
 function saveFavs(a){ try { localStorage.setItem("momos.favs", JSON.stringify(a)); } catch(_){} renderFavs(); updateFavBtn(); }
 function curCtx(){
@@ -6999,6 +7020,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-08", "생산계획 › 분쇄 탭 · 분쇄 SKU 는 홀빈 품목으로", "CFE0002A~E(핸드드립·커피메이커·가정용더치·모카포트·가정용에스프레소) 같은 분쇄 SKU 는 생산은 전부 홀빈 품목으로 잡고, 어떤 원두·용량을 어떤 분쇄도로 몇 개 갈지는 새 [생산계획 › 분쇄] 탭에 따로 쌓습니다 (플토 '분쇄 집계' 시트와 같은 표 — 용량별 총수량 · 원두×용량×분쇄도 · 입력 내역·삭제·엑셀 다운로드). 집계·출고지시서·계획EA 붙여넣기 때 자동으로 들어오고 [직접 추가]도 됩니다. 서버 표 momos_grind_tallies 가 필요합니다 — 000_install_all.sql 끝의 '분쇄 집계' 절 실행 (없으면 빨간 표시만 뜨고 나머지는 그대로 됩니다). 날짜별 초기화(admin_purge_date)에도 포함."],
   ["2026-11-08", "엑셀 넣기 — CFE 코드로 먼저 매칭 · 플토 출고지시서 파일 그대로", "출고지시서·집계·계획EA·CFE 붙여넣기에서 코드 열(SKU코드·품목코드)이 있으면 이름보다 코드로 먼저 품목을 찾습니다. CFE0002A~E(분쇄)·CFE0004F(사업자)·CFE0002MK(컬리)처럼 끝 글자가 붙은 코드는 기본 코드 품목을 찾아 분쇄도·사업자·컬리 품목이 있으면 그쪽, 없으면 기본 품목에 합산하고 표시합니다. DRB·CBB·STI·CSU·GDS·SET 등 원두 외 코드는 자동으로 빼고 [걸러 뺀 줄 보기]에 모읍니다. 미등록 CFE 코드는 이름에서 해석해 그 코드로 새 품목을 만들고, 이름으로만 잡힌 품목에 코드가 비어 있으면 저장 때 채웁니다. 엑셀 파일에 시트가 여러 장이면 모드에 맞는 시트(출고지시서·집계는 '마스터파일' → '출고지시서')를 자동으로 고르고 [시트]에서 바꿀 수 있습니다. 머리글은 앞 15줄 안에서 찾습니다."],
   ["2026-11-06", "이름 — Momos 생산계획", "브라우저 탭·홈 화면 이름·로그인 화면·상단 이름이 \"Momos 생산계획\" 으로 (전: 모모스커피 생산관리 MES)"],
   ["2026-11-05", "휴대폰 — 페이지가 옆으로 넘어가지 않게 · 버튼 줄 두 개씩", "휴대폰에서 페이지 전체가 옆으로 밀리던 것 → 넓은 표만 그 표 안에서 옆으로 (첫 칸 고정) · 부자재·품목 등 버튼만 있는 도구 줄은 한 줄에 두 개씩"],
@@ -8222,6 +8244,73 @@ function renderTally(){
   if ($("tallyRoundBtn")) $("tallyRoundBtn").innerHTML = rounds.map(r=>
     `<button class="btn danger" onclick="clearRound('${r}')">${r} 지우기</button>`).join(" ");
 }
+
+/* ══ 분쇄 집계 (★ 2026-11-08 — Lee "프로그램에 추가로 분쇄 시트를 추가해줄래") ══
+   플토 '분쇄 집계' 시트와 같은 표: 원두명 × 용량 × 분쇄도 × 수량. 분쇄 SKU(CFE…A~E) 줄은 생산은 홀빈 품목으로, 갈 수량은 여기로. */
+const GRIND_ORDER = ["핸드드립","커피메이커","더치","모카포트","에스프레소"];
+let grindDate = "";
+const grindDay = () => grindDate || tallyDay();
+function setGrindDate(v){ grindDate = v || ""; renderGrind(); }
+function putGrind(p, grind, qty, round, d, sku){
+  const n = Math.round(numOf(qty)); if (!p || !grind || !n) return null;
+  if (!Array.isArray(DB.grind_tallies)) DB.grind_tallies = [];
+  const day = d || tallyDay(), rd = round || tallyRound;
+  const old = DB.grind_tallies.find(t=>t.date===day && t.round===rd && t.product_id===p.id && t.grind===grind);
+  if (old) { old.qty = Math.round(Number(old.qty||0) + n); old.at = nowISO(); old.user = CURRENT_USER || old.user; save("grind_tallies", old); return old; }
+  const row = { id:uid(), date:day, round:rd, product_id:p.id, product_code:p.code||"", product_name:p.name||"", bean:p.bean||"", spec_g:Number(p.spec_g)||null,
+    sku_code:sku||"", grind, qty:n, note:"", user:CURRENT_USER||"", at:nowISO() };
+  DB.grind_tallies.push(row); save("grind_tallies", row); return row;
+}
+/* 붙여넣기(pGrind)에 모인 분쇄 줄을 한 번에 — 같은 품목·분쇄도는 합쳐서 */
+function saveGrinds(day, round){
+  if (!pGrind.length) return 0;
+  if (MISSING_TABLES.includes("grind_tallies")) { toast("분쇄 집계 표(momos_grind_tallies)가 서버에 없어 분쇄 수량은 저장하지 못했습니다 — 000_install_all.sql 의 '분쇄 집계' 절을 실행하세요"); return 0; }
+  const agg = {};
+  pGrind.forEach(g=>{ const k = `${g.p.id}|${g.grind}`; if (!agg[k]) agg[k] = { ...g, qty:0 }; agg[k].qty += Number(g.qty)||0; });
+  let n = 0; Object.values(agg).forEach(g=>{ if (putGrind(g.p, g.grind, g.qty, round, day, g.code)) n++; });
+  pGrind = []; return n;
+}
+function delGrind(id){ if (!Array.isArray(DB.grind_tallies)) return; DB.grind_tallies = DB.grind_tallies.filter(x=>x.id!==id); del("grind_tallies", id); renderGrind(); }
+async function addGrindRow(){
+  if (!can("plan")) return deny("plan");
+  const prods = DB.products.filter(p=>!p.off).slice().sort(prodCodeCmp);
+  const pid = await ask("분쇄할 품목(홀빈)을 고르세요", { title:"분쇄 직접 추가", choices:[...prods.slice(0,60).map(p=>({ v:p.id, label:`${p.code?p.code+" ":""}${p.name}` })), { v:null, label:"취소" }] });
+  if (!pid) return;
+  const g = await ask("분쇄도", { title:"분쇄도", choices:[...GRIND_ORDER.map(x=>({ v:x, label:x, cls:"primary" })), { v:null, label:"취소" }] }); if (!g) return;
+  const q = await askText("수량(EA)", "1", "수량"); if (q === null || !(Number(q) > 0)) return;
+  putGrind(prodById(pid), g, Number(q), tallyRound, grindDay(), ""); renderGrind();
+}
+function renderGrind(){
+  if (!$("grindTbl")) return;
+  const d = grindDay(); if ($("grindDateIn") && $("grindDateIn").value !== d) $("grindDateIn").value = d;
+  const rows = (DB.grind_tallies||[]).filter(t=>t.date===d);
+  const missing = MISSING_TABLES.includes("grind_tallies");
+  /* 용량별 총수량 (플토 분쇄 수량표 위쪽) */
+  const specs = [100,200,500,1000];
+  const bySpec = {}; rows.forEach(r=>{ const sg = Number(r.spec_g)||0; bySpec[sg] = (bySpec[sg]||0) + Number(r.qty||0); });
+  $("grindSum").innerHTML = `<span class="hint" style="padding:0 0 0 8px">${d} · ${specs.map(g=>`${specLabel(g)} <b>${fmt(bySpec[g]||0)}</b>`).join(" · ")} · 합계 <b>${fmt(rows.reduce((t,r)=>t+Number(r.qty||0),0))}</b>EA</span>` +
+    (missing ? ` <span class="tag bad" title="000_install_all.sql 의 '분쇄 집계' 절을 Supabase SQL Editor 에서 실행하세요">서버 표 없음 — 저장 안 됨</span>` : "");
+  /* 원두 × 용량 × 분쇄도 */
+  const key = r => `${r.product_id}`;
+  const prods = {}; rows.forEach(r=>{ const k = key(r); if (!prods[k]) prods[k] = { p: prodById(r.product_id), name:r.product_name, bean:r.bean, spec:Number(r.spec_g)||0, code:r.product_code, g:{}, tot:0 };
+    prods[k].g[r.grind] = (prods[k].g[r.grind]||0) + Number(r.qty||0); prods[k].tot += Number(r.qty||0); });
+  const list = Object.values(prods).sort((a,b)=>prodCodeCmp(a.p||{code:a.code,name:a.name}, b.p||{code:b.code,name:b.name}));
+  const grinds = GRIND_ORDER.filter(g=>rows.some(r=>r.grind===g)).concat([...new Set(rows.map(r=>r.grind))].filter(g=>!GRIND_ORDER.includes(g)));
+  if (!list.length) { $("grindTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">${d} 분쇄 집계가 없습니다 — 플토 엑셀을 [엑셀로 넣기]로 올리면 분쇄 SKU 줄이 여기에 쌓입니다</td></tr></tbody>`; $("grindLog").innerHTML = ""; return; }
+  tbl("grindTbl", ["CFE코드","원두","용량",...grinds,"총수량"],
+    list.map(x=>`<tr><td class="l">${x.code||"—"}</td><td class="l"><b>${x.bean||x.name}</b></td><td class="c">${x.spec?specLabel(x.spec):"—"}</td>` +
+      grinds.map(g=>`<td>${x.g[g]?fmt(x.g[g]):""}</td>`).join("") + `<td><b>${fmt(x.tot)}</b></td></tr>`).join("") +
+    `<tr style="background:#F7F8FB"><td class="l" colspan="3"><b>합계</b></td>${grinds.map(g=>`<td><b>${fmt(list.reduce((t,x)=>t+(x.g[g]||0),0))}</b></td>`).join("")}<td><b>${fmt(list.reduce((t,x)=>t+x.tot,0))}</b></td></tr>`);
+  const log = rows.slice().sort((a,b)=>String(a.at).localeCompare(String(b.at)));
+  tbl("grindLog", ["No","차수","품목","분쇄도","SKU","수량(EA)","넣은 사람","넣은 시각",""],
+    log.map((t,i)=>`<tr><td class="rowno">${i+1}</td><td class="c">${t.round||""}</td><td class="l">${t.product_name||""}</td><td class="c">${t.grind}</td><td class="l">${t.sku_code||""}</td><td>${fmt(t.qty)}</td><td class="c">${t.user||""}</td><td class="c">${String(t.at||"").slice(5,16).replace("T"," ")}</td>
+      <td class="c">${can("plan") ? `<button class="btn danger" onclick="delGrind('${t.id}')">삭제</button>` : ""}</td></tr>`).join(""));
+}
+function csvGrind(){
+  const d = grindDay(), rows = (DB.grind_tallies||[]).filter(t=>t.date===d);
+  csv(`분쇄집계_${d}`, ["일자","차수","CFE코드","품목명","원두","용량","분쇄도","SKU","수량"],
+    rows.map(t=>[d, t.round||"", t.product_code||"", t.product_name||"", t.bean||"", t.spec_g?specLabel(Number(t.spec_g)):"", t.grind, t.sku_code||"", t.qty]));
+}
 function csvTally(){
   const d = tallyDay(), rounds = roundsOf(d);
   csv(`집계_${d}`, ["일자","CFE코드","품목명",...rounds,"집계합계","이미만든수량","남은계획"],
@@ -8241,7 +8330,7 @@ function setPlanCompact(v){
 function renderPlan(){
   document.body.classList.toggle("plancompact", isCompact());
   if (!document.querySelector("#s-plan .subpane.on") || document.querySelector("#s-plan .subpane.on").id !== "pp-"+planTab) setPlanTab(planTab);
-  renderTally(); renderBufPanel();
+  renderTally(); renderBufPanel(); renderGrind();
   const rows = planRows(), pool = allocate(rows);
   lastPlanRows = rows;
   planBatches(rows);
@@ -16025,7 +16114,7 @@ async function fetchTable(t){
   const out = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await sb.from(tb(t)).select("*").range(from, from + 999);
-    if (error) throw error;
+    if (error) { if (OPTIONAL_TABLES.includes(t)) { if (!MISSING_TABLES.includes(t)) MISSING_TABLES.push(t); console.warn(`[MES] 표 ${tb(t)} 없음 — 빈 표로 둠`, error.message); return out; } throw error; }
     out.push(...data);
     if (data.length < 1000) break;
   }
@@ -16314,10 +16403,8 @@ function resolveCode(code){
   const base = productByCode("CFE"+m[1]);
   if (!base) return { p:null };                      // 기본 코드도 없음 → 이름으로
   const grind = CFE_SUFFIX_GRIND[suf];
-  if (grind) {
-    const g = findExactProduct(base.bean, base.spec_g, grind, prodVariant(base.name));
-    return g ? { p:g, how:`코드 매칭 (${grind})` } : { p:base, how:`분쇄 ${grind} → 홀빈 품목에 합산`, warn:true };
-  }
+  /* ★ 분쇄 SKU 는 전부 홀빈 품목으로 (Lee 2026-11-08 "cfe 분쇄 옵션 된 상품도 모든 홀빈 상품으로") — 분쇄도·수량은 [생산계획 › 분쇄] 표에 따로 쌓는다 */
+  if (grind) return { p:base, how:`분쇄 ${grind} → 홀빈 (분쇄 탭에 기록)`, grind };
   if (suf === "F") {
     const biz = DB.products.find(p=>beanNrm(p.bean)===beanNrm(base.bean) && Number(p.spec_g)===Number(base.spec_g) && prodVariant(p.name)==="사업자전용");
     return biz ? { p:biz, how:"코드 매칭 (사업자)" } : { p:base, how:"사업자(F) → 일반 품목에 합산", warn:true };
@@ -16592,7 +16679,7 @@ function openPaste(mode){
   $("pText").focus();
 }
 function closePaste(){ $("overlay").style.display="none"; $("pText").value=""; $("pPrev").innerHTML=""; $("pApply").style.display="none"; pRows=[];
-  $("pOcr").innerHTML=""; $("pShot").style.display="none"; $("pShot").innerHTML=""; pWB = null; pSheetName = ""; pSkip = []; $("pSheetWrap").style.display="none"; $("pSheet").innerHTML=""; }
+  $("pOcr").innerHTML=""; $("pShot").style.display="none"; $("pShot").innerHTML=""; pWB = null; pSheetName = ""; pSkip = []; pGrind = []; $("pSheetWrap").style.display="none"; $("pSheet").innerHTML=""; }
 /* ══ 엑셀 파일의 시트 고르기 (★ 2026-11-08) ══
    플토 출고지시서 파일처럼 시트가 여러 장이면 — 모드에 맞는 시트를 먼저 고른다.
    품목 모드(출고지시서·집계·계획EA·CFE)는 '마스터파일'(SKU코드·주문수량) → '출고지시서' 순으로,
@@ -16837,7 +16924,7 @@ function qtyChoices(cols){
   cols.forEach((c,i)=>{ const t=String(c||"").trim(); if (t) out.push({ i, t }); });
   return out;
 }
-let pHdr = null, pSkip = [];
+let pHdr = null, pSkip = [], pGrind = [];
 /* 앞 15줄 안에서 머리글을 찾는다 (★ 2026-11-08 플토 출고지시서는 6번째 줄이 머리글 — 전에는 6줄까지만 봤다) */
 function detectHeader(L){
   for (let i=0;i<Math.min(L.length,15);i++){
@@ -17120,7 +17207,7 @@ async function previewBiz(){
   preview();
 }
 function preview(){
-  pRows = []; pHdr = null; pSkip = [];
+  pRows = []; pHdr = null; pSkip = []; pGrind = [];
   const mode = $("pMode").value;
   $("pHelp").textContent = HELP[mode] || "";
   const L = lines();
@@ -17426,7 +17513,7 @@ function preview(){
     pRows = Object.values(agg);
   } else {     // 세로 형식
     const D = detectHeader(L); pHdr = D.hdr; applyQtyPick();
-    pSkip = [];                                                      // ★ 2026-11-08 코드로 걸러 뺀 줄 (원두 완제품 아님 · 코드만 있고 이름 없음)
+    pSkip = []; pGrind = [];                                         // ★ 2026-11-08 코드로 걸러 뺀 줄 · 분쇄 SKU 줄 (원두 완제품 아님 · 코드만 있고 이름 없음)
     (pHdr ? L.slice(D.start) : L).forEach(all=>{
       let nameRaw="", qty=null, code="";
       if (pHdr) { const h = hdrRow(all); nameRaw = h.nameRaw; qty = h.qty; code = h.code;
@@ -17448,7 +17535,9 @@ function preview(){
       if (code) {
         const R = resolveCode(code);
         if (R.skip) { pSkip.push({ code, nameRaw, qty, why:R.why }); return; }
-        if (R.p) { pRows.push({ nameRaw: nameRaw || code, qty, p:R.p, mk:null, near:null, code, viaCode:true, how:R.how, warnHow:R.warn }); return; }
+        if (R.p) {
+          if (R.grind && qty != null) pGrind.push({ p:R.p, grind:R.grind, qty:Number(qty)||0, code:codeKey(code) });
+          pRows.push({ nameRaw: nameRaw || code, qty, p:R.p, mk:null, near:null, code, viaCode:true, how:R.how, warnHow:R.warn, grind:R.grind }); return; }
         if (!nameRaw) { pSkip.push({ code, nameRaw, qty, why:"코드 미등록 · 이름 없음 — 기준정보에 코드 등록 필요" }); return; }
       }
       if (!nameRaw || TOTAL_RE.test(nameRaw.replace(/\s+/g,"")) || /품목명|상품명/.test(nameRaw)) return;
@@ -17486,12 +17575,13 @@ function preview(){
         `</div>`; })() : "") +
     (pSheetName ? `<div class="hint" style="padding:0 0 6px">시트 <b>${pSheetName}</b> 에서 읽음 — 다른 시트면 위 [시트]에서 바꾸세요</div>` : "") +
     (()=>{ const nCode = pRows.filter(r=>r.viaCode && !r.warnHow).length, nFold = pRows.filter(r=>r.warnHow).length, nNewC = pRows.filter(r=>!r.p && r.mk && r.code).length;
-      return (nCode||nFold||nNewC||pSkip.length) ? `<div class="hint" style="padding:0 0 6px"><b>코드 매칭</b> ${nCode}건${nFold?` · <span class="warn">끝 글자 코드 → 기본 품목 합산 ${nFold}건</span>`:""}${nNewC?` · <span class="warn">미등록 CFE 코드 → 새 품목 ${nNewC}건</span>`:""}${pSkip.length?` · 원두 외 제외 ${pSkip.filter(x=>!/미등록/.test(x.why)).length}건${pSkip.some(x=>/미등록/.test(x.why))?` · <span class="bad">코드만 있고 이름 없음 ${pSkip.filter(x=>/미등록/.test(x.why)).length}건</span>`:""}`:""}</div>` : ""; })() +
+      const nG = pGrind.length, gQ = pGrind.reduce((t,g)=>t+g.qty,0);
+      return (nCode||nFold||nNewC||pSkip.length||nG) ? `<div class="hint" style="padding:0 0 6px"><b>코드 매칭</b> ${nCode}건${nG?` · <b>분쇄 SKU ${nG}줄 ${fmt(gQ)}EA → 홀빈 품목에 합산 · [생산계획 › 분쇄] 에 기록</b>`:""}${nFold?` · <span class="warn">끝 글자 코드 → 기본 품목 합산 ${nFold}건</span>`:""}${nNewC?` · <span class="warn">미등록 CFE 코드 → 새 품목 ${nNewC}건</span>`:""}${pSkip.length?` · 원두 외 제외 ${pSkip.filter(x=>!/미등록/.test(x.why)).length}건${pSkip.some(x=>/미등록/.test(x.why))?` · <span class="bad">코드만 있고 이름 없음 ${pSkip.filter(x=>/미등록/.test(x.why)).length}건</span>`:""}`:""}</div>` : ""; })() +
     `<table><thead><tr><th>입력 품목명</th><th>매칭 품목</th><th>분쇄도</th><th>수량</th><th>상태</th></tr></thead><tbody>` +
     pRows.map(r=>`<tr><td class="l">${r.code?`<b>${r.code}</b> `:""}${r.nameRaw===r.code?"":r.nameRaw}</td><td class="l">${r.p?.name||(r.mk?r.mk.name:"")||"—"}${r.how?`<br><span class="hint" style="padding:0;font-size:10.5px">${r.how}</span>`:""}</td>
       <td class="c">${r.p?.grind||r.mk?.grind||"—"}</td><td>${r.qty??"—"}${r.dup>1?` <span class="hint" style="padding:0;font-size:11px">(${r.dup}줄 합산)</span>`:""}</td>
       <td class="c">${r.qty==null ? '<span class="tag bad">수량없음</span>'
-        : r.viaCode ? (r.warnHow ? '<span class="tag warn">기본 품목 합산</span>' : '<span class="tag ok">코드 매칭</span>')
+        : r.viaCode ? (r.warnHow ? '<span class="tag warn">기본 품목 합산</span>' : r.grind ? '<span class="tag ok">코드 매칭 · 분쇄</span>' : '<span class="tag ok">코드 매칭</span>')
         : r.p ? (r.near ? `<span class="tag warn">비슷한 이름 ${r.near}%</span>` : '<span class="tag ok">반영</span>')
         : r.mk ? (r.mk.near ? `<span class="tag warn">비슷한 이름 ${r.mk.near}%</span>` : `<span class="tag warn">신규 등록${r.code?" (코드)":""}</span>`)
         : '<span class="tag bad">미매칭</span>'}</td></tr>`).join("") +
@@ -17725,7 +17815,9 @@ async function applyPaste(){
     pRows.forEach(r=>{ if (r.qty==null) return;
       const p = ensureProduct(r); if (!p) return;
       putTally(p, r.qty, rd, d); qty += Math.round(numOf(r.qty)); n++; });
+    const gN = saveGrinds(d, rd);
     if (mkP) logAudit("품목 자동등록", `${mkP}건`, "집계 붙여넣기로 신규 품목 생성 (안전재고 0)");
+    if (gN) logAudit("분쇄 집계", `${d} ${rd}`, `${gN}줄`);
     logAudit("집계 입력", `${d} ${rd}`, `${n}품목 ${fmt(qty)}EA`);
     closePaste(); renderAll(); go("plan");
     const tot = tallyProds(d).reduce((t,p)=>t+tallyQty(p.id,undefined,d),0);
@@ -17756,6 +17848,7 @@ async function applyPaste(){
       channel:ch, ship_date:d || today(), note:"엑셀 붙여넣기", idem:`sd-${uid()}` });
     if (!r || !r.ok) { renderAll(); return toast(r?.message || "출고하지 못했습니다"); }
     if (mkP) logAudit("품목 자동등록", `${mkP}건`, "엑셀 붙여넣기로 신규 품목 생성 (안전재고 0)");
+    const gN = saveGrinds(d || today(), "출고"); if (gN) logAudit("분쇄 집계", `${d || today()} 출고`, `${gN}줄`);
     closePaste(); renderAll(); go("ship");
     return toast(`${ch} · ${r.count}개 품목 출고${mkMsg()} — 수불에 남았습니다`);
   }
@@ -17763,6 +17856,7 @@ async function applyPaste(){
   if (mode === "plan") {
     pRows.forEach(r=>{ if (r.qty==null) return;
       const p = ensureProduct(r); if (!p) return; planEA[p.id] = r.qty; n++; });
+    const gN = saveGrinds(tallyDay(), "계획"); if (gN) logAudit("분쇄 집계", `${tallyDay()} 계획`, `${gN}줄`);
     if (mkP) logAudit("품목 자동등록", `${mkP}건`, "엑셀 붙여넣기로 신규 품목 생성 (안전재고 0)");
     closePaste(); renderAll(); go("plan");
     return toast(`${n}개 품목 계획EA 반영${mkMsg()}`);
