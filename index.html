@@ -8319,17 +8319,17 @@ function renderGrind(){
       bySku[k].qty += Number(r.qty||0); if (r.round) bySku[k].rounds.add(r.round); });
     const sl = Object.values(bySku).sort((a,b)=>natCmp(a.sku,b.sku));
     tbl("grindSku", ["SKU코드","SKU상품명 (마스터파일)","분쇄도","→ 홀빈 품목","CFE코드","차수","수량(EA)"],
-      sl.map(x=>`<tr><td class="l"><b>${x.sku}</b></td><td class="l">${x.name||"—"}</td><td class="c"><span class="tag">${x.grind}</span></td><td class="l">${x.prod}</td><td class="l">${x.code||"—"}</td><td class="c">${[...x.rounds].join("·")}</td><td><b>${fmt(x.qty)}</b></td></tr>`).join("") +
-      `<tr style="background:#F7F8FB"><td class="l" colspan="6"><b>합계</b></td><td><b>${fmt(sl.reduce((t,x)=>t+x.qty,0))}</b></td></tr>`);
+      sl.map(x=>`<tr><td class="l"><b>${x.sku}</b></td><td class="l">${x.name||"—"}</td><td class="c"><span class="tag">${x.grind}</span></td><td class="l">${x.prod}</td><td class="l">${x.code||"—"}</td><td class="c">${[...x.rounds].join("·")}</td><td><b>${fmt(x.qty)}</b></td></tr>`),
+      `<td class="l" colspan="6"><b>합계</b></td><td><b>${fmt(sl.reduce((t,x)=>t+x.qty,0))}</b></td>`);
   }
   tbl("grindTbl", ["CFE코드","원두","용량",...grinds,"총수량"],
     list.map(x=>`<tr><td class="l">${x.code||"—"}</td><td class="l"><b>${x.bean||x.name}</b></td><td class="c">${x.spec?specLabel(x.spec):"—"}</td>` +
-      grinds.map(g=>`<td>${x.g[g]?fmt(x.g[g]):""}</td>`).join("") + `<td><b>${fmt(x.tot)}</b></td></tr>`).join("") +
-    `<tr style="background:#F7F8FB"><td class="l" colspan="3"><b>합계</b></td>${grinds.map(g=>`<td><b>${fmt(list.reduce((t,x)=>t+(x.g[g]||0),0))}</b></td>`).join("")}<td><b>${fmt(list.reduce((t,x)=>t+x.tot,0))}</b></td></tr>`);
+      grinds.map(g=>`<td>${x.g[g]?fmt(x.g[g]):""}</td>`).join("") + `<td><b>${fmt(x.tot)}</b></td></tr>`),
+    `<td class="l" colspan="3"><b>합계</b></td>${grinds.map(g=>`<td><b>${fmt(list.reduce((t,x)=>t+(x.g[g]||0),0))}</b></td>`).join("")}<td><b>${fmt(list.reduce((t,x)=>t+x.tot,0))}</b></td>`);
   const log = rows.slice().sort((a,b)=>String(a.at).localeCompare(String(b.at)));
   tbl("grindLog", ["No","차수","품목","분쇄도","SKU","수량(EA)","넣은 사람","넣은 시각",""],
     log.map((t,i)=>`<tr><td class="rowno">${i+1}</td><td class="c">${t.round||""}</td><td class="l">${t.product_name||""}</td><td class="c">${t.grind}</td><td class="l">${t.sku_code||""}</td><td>${fmt(t.qty)}</td><td class="c">${t.user||""}</td><td class="c">${String(t.at||"").slice(5,16).replace("T"," ")}</td>
-      <td class="c">${can("plan") ? `<button class="btn danger" onclick="delGrind('${t.id}')">삭제</button>` : ""}</td></tr>`).join(""));
+      <td class="c">${can("plan") ? `<button class="btn danger" onclick="delGrind('${t.id}')">삭제</button>` : ""}</td></tr>`));
 }
 function csvGrind(){
   const d = grindDay(), rows = (DB.grind_tallies||[]).filter(t=>t.date===d);
