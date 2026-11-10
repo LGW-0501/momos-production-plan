@@ -68,6 +68,14 @@
     html[data-theme="dark"] #personalLoginGate input{ background:var(--bg); border-color:var(--line-2); }
   }
   *{margin:0;padding:0;box-sizing:border-box;}
+  /* ★ 2026-11-10 엑셀 넣기 미리보기 — 긴 품목명이 옆 칸 위로 겹치지 않게 줄바꿈 */
+  #pPrev table{width:100%; table-layout:fixed;}
+  #pPrev th, #pPrev td{padding-left:8px; padding-right:8px;}
+  #pPrev th:nth-child(1), #pPrev td:nth-child(1){width:38%;} #pPrev th:nth-child(2), #pPrev td:nth-child(2){width:27%;}
+  #pPrev th:nth-child(3), #pPrev td:nth-child(3){width:8%;} #pPrev th:nth-child(4), #pPrev td:nth-child(4){width:12%;}
+  #pPrev td:nth-child(4), #pPrev td:nth-child(5), #pPrev tfoot td{white-space:normal; height:auto;}
+  #pPrev td.l{white-space:normal; word-break:keep-all; overflow-wrap:anywhere; line-height:1.4; padding-top:9px; padding-bottom:9px; height:auto; text-align:left;}
+  #pPrev details table{table-layout:auto;} #pPrev details th, #pPrev details td{width:auto !important;}
   html{height:100%;}
   body{min-height:100vh; min-height:100dvh;
     font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
@@ -7057,6 +7065,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-10", "원두 이름을 엑셀 이름으로 정리", "엑셀 넣기 미리보기에서, 등록된 원두 이름이 엑셀과 띄어쓰기만 다르면('포 르 톤 카 투 아 이' ↔ '포르톤 카투아이') 위에 안내와 [원두 이름 엑셀 이름으로 정리] 버튼이 뜹니다. 누르면 원두 이름과 함께 품목·MMS 배치·로스팅·수불·실측 등 연결된 기록의 원두 이름도 한 번에 바뀌고 변경이력에 남습니다. 기준정보 권한 필요 · 서버에 rename_bean 필요(000_install_all.sql 재실행)."],
+  ["2026-11-10", "조회·생산분석 — 주는 월요일 시작 · 기간 버튼 날짜 하루 밀림 수정", "[이번 주]는 월요일부터 오늘까지, [지난주]는 지난 월요일~일요일입니다 (전에는 일요일 시작). [이번 달]·[지난달]이 하루 앞 날짜(전달 말일)부터 잡히던 것과 아침 9시 전에 [오늘]이 어제로 잡히던 것을 고쳤습니다. 생산분석의 주·월 기간도 같이 고쳤습니다."],
+  ["2026-11-10", "엑셀 넣기 — 품목명은 엑셀에 적힌 그대로 · 미리보기 겹침 수정", "코드가 있는 줄은 엑셀(마스터파일) 상품명에서 [분쇄안함] 같은 옵션만 떼고 그대로 품목명으로 씁니다 — 전에 사진 인식으로 등록된 원두 이름을 따라 '포 르 톤 카 투 아 이' 처럼 띄어쓰기가 들어가던 것을 막았습니다. 이미 띄어쓰기가 들어간 채 등록된 품목은 저장 때 엑셀 이름으로 바로잡습니다(띄어쓰기만 다른 경우). 미리보기 표에서 긴 이름이 옆 칸 위로 겹치던 것을 줄바꿈으로 고쳤습니다."],
   ["2026-11-10", "다크 모드", "오른쪽 위 ☾ 버튼으로 어두운 화면을 켜고 끕니다. 계정 메뉴(오른쪽 위 동그라미) › 화면 테마에서 자동(기기 설정 따름) · 밝게 · 어둡게를 고를 수 있습니다. 이 기기에만 저장됩니다. 인쇄(라벨·작업지시서)는 항상 밝은 색 그대로 나옵니다."],
   ["2026-11-08", "분쇄 — 왼쪽 메뉴에 화면으로 · 마스터파일 분쇄 옵션 SKU별 표", "생산계획 안의 탭이 아니라 왼쪽 메뉴 [분쇄](생산실적 아래) 화면으로 옮겼습니다. ① 분쇄 수량표(용량별 총수량 · 원두×용량×분쇄도) ② 마스터파일 분쇄 옵션 — SKU별(플토 SKU코드·상품명 그대로 · 어느 홀빈 품목으로 잡혔는지 · 차수 · 수량) ③ 입력 내역. 기본 코드가 미등록인 원두의 분쇄 SKU(CFE1535A 등)도 분쇄 품목을 새로 만들지 않고 홀빈 품목(CFE1535)으로 만들어 잡고 분쇄도만 여기에 남깁니다. 서버 표에 sku_name 칸 추가 (000_install_all.sql 재실행)."],
   ["2026-11-08", "생산계획 › 분쇄 탭 · 분쇄 SKU 는 홀빈 품목으로", "CFE0002A~E(핸드드립·커피메이커·가정용더치·모카포트·가정용에스프레소) 같은 분쇄 SKU 는 생산은 전부 홀빈 품목으로 잡고, 어떤 원두·용량을 어떤 분쇄도로 몇 개 갈지는 새 [생산계획 › 분쇄] 탭에 따로 쌓습니다 (플토 '분쇄 집계' 시트와 같은 표 — 용량별 총수량 · 원두×용량×분쇄도 · 입력 내역·삭제·엑셀 다운로드). 집계·출고지시서·계획EA 붙여넣기 때 자동으로 들어오고 [직접 추가]도 됩니다. 서버 표 momos_grind_tallies 가 필요합니다 — 000_install_all.sql 끝의 '분쇄 집계' 절 실행 (없으면 빨간 표시만 뜨고 나머지는 그대로 됩니다). 날짜별 초기화(admin_purge_date)에도 포함."],
@@ -16466,6 +16477,46 @@ function beanByCode(code){
    ① 등록된 코드와 똑같으면 그 품목  ② 끝 글자만 다르면 기본 코드(CFE0002)의 품목을 찾아 — 같은 원두·규격에 그 분쇄도 품목이 있으면 그것, 없으면 기본 품목에 합산(표시)
    ③ CFE 가 아닌 코드(DRB 드립백 · CBB/CBC 콜드브루 · STI 스틱 · CSU 캡슐 · GDS/ETC 기물 · SET 세트 · TEB 티백)는 원두 완제품이 아니므로 뺀다
    ④ CFE 인데 기본 코드도 없으면 null — 이름에서 해석해 새 품목(코드 포함)을 만든다 */
+/* ★ 2026-11-10 — 엑셀(왼쪽)에 적힌 이름을 그대로 쓴다 (Lee "띄어쓰기 왜 하는지 모르겠네 왼쪽을 조금 더 잘 읽었으면")
+   전에 사진 인식으로 등록된 원두 이름("포 르 톤 카 투 아 이")을 따라 품목명에 띄어쓰기가 들어갔다.
+   코드가 있는 줄은 마스터파일 상품명에서 [옵션]만 떼고 그대로 품목명으로 쓴다 — "원두 파나마 로스 라호네스 포르톤 카투아이 내추럴 500g" */
+function cleanSkuName(raw){
+  let t = String(raw||"").replace(/[\[(].*?[\])]/g, " ").replace(/(\d)\s*(KG|Kg|kG)\b/g, "$1kg").replace(/(\d)\s*G\b/g, "$1g").replace(/\s+/g, " ").trim();
+  if (t && !/^원두\s/.test(t)) t = "원두 " + t;
+  return t;
+}
+/* ★ 2026-11-10 원두 이름도 엑셀 이름으로 (Lee "응 원두 이름도 엑셀 이름으로 정리해줘")
+   등록된 원두 이름과 엑셀의 원두 이름이 띄어쓰기만 다르면 pBeanFix 에 모아 두고, 미리보기의 [원두 이름 정리] 버튼으로 한 번에 바꾼다 (서버 rename_bean — 연결된 기록까지) */
+let pBeanFix = {};
+function noteBeanFix(regBean, cleanName, rawName){
+  if (!regBean || !cleanName || prodVariant(rawName||"")) return;
+  const xb = cleanName.replace(/^원두\s+/, "").replace(SPEC_RE, " ").replace(/\s+/g, " ").trim();
+  if (!xb || xb === regBean || beanNrm(xb) !== beanNrm(regBean)) return;
+  if (!DB.beans.some(b=>b.name===regBean) || DB.beans.some(b=>b.name===xb)) return;
+  pBeanFix[regBean] = xb;
+}
+async function renameBeansFromPaste(){
+  const list = Object.entries(pBeanFix); if (!list.length) return;
+  if (sb && !can("base")) return deny("base");
+  if (!(await ask(`원두 이름 ${list.length}종을 엑셀에 적힌 이름으로 바꿉니다.\n품목 · MMS 배치 · 로스팅 · 수불 등 연결된 기록의 원두 이름도 같이 바뀝니다.\n\n${list.slice(0,12).map(([o,n])=>`${o}\n  → ${n}`).join("\n")}${list.length>12?`\n… 외 ${list.length-12}종`:""}`, { title:"원두 이름 정리", yes:"바꾸기" }))) return;
+  let ok = 0; const fails = [];
+  for (const [o, n] of list) {
+    const res = await rpc("rename_bean", { p_old:o, p_new:n, p_user_name:CURRENT_USER||null }, ()=>({ ok:true }), { quiet:true });
+    if (!res || res.ok === false) { fails.push(`${o}: ${res?.message || "실패"}`); continue; }
+    /* 화면에 있는 데이터도 바로 같은 이름으로 */
+    Object.keys(DB).forEach(k=>{ if (!Array.isArray(DB[k])) return;
+      DB[k].forEach(r=>{ if (!r || typeof r !== "object") return;
+        if (k === "beans") { if (r.name === o) r.name = n; }
+        else if (r.bean === o) { r.bean = n; if (k === "products" && typeof r.name === "string" && r.name.includes(o)) r.name = r.name.replace(o, n); } }); });
+    if (!sb) { DB.beans.filter(b=>b.name===n).forEach(b=>save("beans", b)); DB.products.filter(x=>x.bean===n).forEach(x=>save("products", x)); }
+    ok++;
+  }
+  if (ok) logAudit("원두 이름 정리", `${ok}종`, "엑셀 이름으로 (띄어쓰기)");
+  renderAll(); preview();
+  if (fails.length) await ask(`${ok}종 바꿈 · ${fails.length}종 실패\n\n${fails.slice(0,8).join("\n")}\n\n"function … does not exist" 가 보이면 000_install_all.sql 을 다시 실행하세요 (끝의 '원두 이름 바꾸기' 절).`, { title:"원두 이름 정리", yes:"확인", only:true });
+  else toast(`원두 이름 ${ok}종을 엑셀 이름으로 바꿨습니다`);
+}
+const nameKey = n => String(n||"").replace(/[\[(].*?[\])]/g, "").replace(/\s+/g, "").toLowerCase();
 const CFE_SUFFIX_GRIND = { A:"핸드드립", B:"커피메이커", C:"더치", D:"모카포트", E:"에스프레소" };
 const CFE_RE = /^CFE(\d{3,5})([A-Z]{0,2})$/;
 function resolveCode(code){
@@ -17285,7 +17336,7 @@ async function previewBiz(){
   preview();
 }
 function preview(){
-  pRows = []; pHdr = null; pSkip = []; pGrind = [];
+  pRows = []; pHdr = null; pSkip = []; pGrind = []; pBeanFix = {};
   const mode = $("pMode").value;
   $("pHelp").textContent = HELP[mode] || "";
   const L = lines();
@@ -17591,7 +17642,7 @@ function preview(){
     pRows = Object.values(agg);
   } else {     // 세로 형식
     const D = detectHeader(L); pHdr = D.hdr; applyQtyPick();
-    pSkip = []; pGrind = [];                                         // ★ 2026-11-08 코드로 걸러 뺀 줄 · 분쇄 SKU 줄 (원두 완제품 아님 · 코드만 있고 이름 없음)
+    pSkip = []; pGrind = []; pBeanFix = {};                          // ★ 2026-11-08 코드로 걸러 뺀 줄 · 분쇄 SKU 줄 (원두 완제품 아님 · 코드만 있고 이름 없음)
     (pHdr ? L.slice(D.start) : L).forEach(all=>{
       let nameRaw="", qty=null, code="";
       if (pHdr) { const h = hdrRow(all); nameRaw = h.nameRaw; qty = h.qty; code = h.code;
@@ -17616,7 +17667,10 @@ function preview(){
         if (R.skip) { pSkip.push({ code, nameRaw, qty, why:R.why }); return; }
         if (R.p) {
           if (R.grind && qty != null) pGrind.push({ p:R.p, grind:R.grind, qty:Number(qty)||0, code:codeKey(code), name:nameRaw });
-          pRows.push({ nameRaw: nameRaw || code, qty, p:R.p, mk:null, near:null, code, viaCode:true, how:R.how, warnHow:R.warn, grind:R.grind }); return; }
+          const cl = (!R.warn && nameRaw) ? cleanSkuName(nameRaw) : "";
+          const rn = (cl && R.p.name !== cl && nameKey(R.p.name) === nameKey(cl)) ? cl : "";
+          if (cl && !R.grind) noteBeanFix(R.p.bean, cl, nameRaw); else if (cl && R.grind) noteBeanFix(R.p.bean, cl, "");
+          pRows.push({ nameRaw: nameRaw || code, qty, p:R.p, mk:null, near:null, code, viaCode:true, how:[R.how, rn?"이름 띄어쓰기 정리":""].filter(Boolean).join(" · "), warnHow:R.warn, grind:R.grind, rename:rn }); return; }
         if (!nameRaw) { pSkip.push({ code, nameRaw, qty, why:"코드 미등록 · 이름 없음 — 기준정보에 코드 등록 필요" }); return; }
       }
       if (!nameRaw || TOTAL_RE.test(nameRaw.replace(/\s+/g,"")) || /품목명|상품명/.test(nameRaw)) return;
@@ -17636,8 +17690,12 @@ function preview(){
         if (p) near = d.near; else if (d.spec && d.bean) mk = d;
       }
       /* 코드는 있는데 이름으로만 잡혔으면 — 그 품목에 코드가 비어 있을 때만 저장 때 코드를 채운다 (다른 코드가 이미 있으면 그대로) */
-      const row = { nameRaw, qty, p, mk, near, code, grind:gr, sku:skuRaw,
-        how: [ gr ? `분쇄 ${gr} → 홀빈 (분쇄 탭에 기록)` : "", (code && !p && mk) ? "코드 미등록 → 새 홀빈 품목 (코드 포함)" : (code && p && !p.code) ? "이름 매칭 · 코드 새로 채움" : "" ].filter(Boolean).join(" · ") };
+      const cl = (code && CFE_RE.test(codeKey(code))) ? cleanSkuName(nameRaw) : "";
+      if (cl && mk) mk = { ...mk, name: cl };                                   // 새 품목 이름 = 엑셀에 적힌 그대로
+      const rn = (cl && p && p.name !== cl && nameKey(p.name) === nameKey(cl)) ? cl : "";
+      if (cl && !near && !(mk && mk.near)) noteBeanFix((p || mk || {}).bean, cl, nameRaw);
+      const row = { nameRaw, qty, p, mk, near, code, grind:gr, sku:skuRaw, rename:rn,
+        how: [ rn ? "이름 띄어쓰기 정리" : "", gr ? `분쇄 ${gr} → 홀빈 (분쇄 탭에 기록)` : "", (code && !p && mk) ? "코드 미등록 → 새 홀빈 품목 (코드 포함)" : (code && p && !p.code) ? "이름 매칭 · 코드 새로 채움" : "" ].filter(Boolean).join(" · ") };
       if (gr && qty != null && (p || mk)) pGrind.push({ p, row, grind:gr, qty:Number(qty)||0, code:codeKey(skuRaw||""), name:skuName });
       pRows.push(row);
     });
@@ -17648,6 +17706,7 @@ function preview(){
       if (agg[k] && r.qty!=null) { agg[k].qty = (Number(agg[k].qty)||0) + Number(r.qty); agg[k].dup = (agg[k].dup||1) + 1;
         if (r.warnHow) { agg[k].warnHow = true; agg[k].how = [...new Set([agg[k].how, r.how].filter(Boolean))].join(" · "); } }
       else if (!agg[k]) { agg[k] = {...r}; order.push(k); }
+      if (agg[k] && r.rename && !agg[k].rename) agg[k].rename = r.rename;
     });
     pRows = order.map(k=>agg[k]);
   }
@@ -17668,8 +17727,10 @@ function preview(){
     (()=>{ const nCode = pRows.filter(r=>r.viaCode && !r.warnHow).length, nFold = pRows.filter(r=>r.warnHow).length, nNewC = pRows.filter(r=>!r.p && r.mk && r.code).length;
       const nG = pGrind.length, gQ = pGrind.reduce((t,g)=>t+g.qty,0);
       return (nCode||nFold||nNewC||pSkip.length||nG) ? `<div class="hint" style="padding:0 0 6px"><b>코드 매칭</b> ${nCode}건${nG?` · <b>분쇄 SKU ${nG}줄 ${fmt(gQ)}EA → 홀빈 품목에 합산 · [생산계획 › 분쇄] 에 기록</b>`:""}${nFold?` · <span class="warn">끝 글자 코드 → 기본 품목 합산 ${nFold}건</span>`:""}${nNewC?` · <span class="warn">미등록 CFE 코드 → 새 품목 ${nNewC}건</span>`:""}${pSkip.length?` · 원두 외 제외 ${pSkip.filter(x=>!/미등록/.test(x.why)).length}건${pSkip.some(x=>/미등록/.test(x.why))?` · <span class="bad">코드만 있고 이름 없음 ${pSkip.filter(x=>/미등록/.test(x.why)).length}건</span>`:""}`:""}</div>` : ""; })() +
+    (Object.keys(pBeanFix).length ? `<div class="hint" style="padding:0 0 8px"><b>등록된 원두 이름 ${Object.keys(pBeanFix).length}종이 엑셀과 띄어쓰기가 다릅니다</b> — ${Object.entries(pBeanFix).slice(0,3).map(([o,n])=>`${o} → <b>${n}</b>`).join(" · ")}${Object.keys(pBeanFix).length>3?" …":""}
+      <button class="btn" style="height:28px;padding:0 10px;font-size:12px;margin-left:6px" onclick="renameBeansFromPaste()">원두 이름 엑셀 이름으로 정리</button></div>` : "") +
     `<table><thead><tr><th>입력 품목명</th><th>매칭 품목</th><th>분쇄도</th><th>수량</th><th>상태</th></tr></thead><tbody>` +
-    pRows.map(r=>`<tr><td class="l">${r.code?`<b>${r.code}</b> `:""}${r.nameRaw===r.code?"":r.nameRaw}</td><td class="l">${r.p?.name||(r.mk?r.mk.name:"")||"—"}${r.how?`<br><span class="hint" style="padding:0;font-size:10.5px">${r.how}</span>`:""}</td>
+    pRows.map(r=>`<tr><td class="l">${r.code?`<b>${r.code}</b> `:""}${r.nameRaw===r.code?"":r.nameRaw}</td><td class="l">${r.rename||r.p?.name||(r.mk?r.mk.name:"")||"—"}${r.how?`<br><span class="hint" style="padding:0;font-size:10.5px">${r.how}</span>`:""}</td>
       <td class="c">${r.p?.grind||r.mk?.grind||"—"}</td><td>${r.qty??"—"}${r.dup>1?` <span class="hint" style="padding:0;font-size:11px">(${r.dup}줄 합산)</span>`:""}</td>
       <td class="c">${r.qty==null ? '<span class="tag bad">수량없음</span>'
         : r.viaCode ? (r.warnHow ? '<span class="tag warn">기본 품목 합산</span>' : r.grind ? '<span class="tag ok">코드 매칭 · 분쇄</span>' : '<span class="tag ok">코드 매칭</span>')
@@ -17843,9 +17904,10 @@ async function applyPaste(){
   /* 목록에 없는 품목·원두를 만들어 돌려줌 */
   let mkP = 0, mkB = 0;
   let mkDenied = 0;
-  let codeFilled = 0;
+  let codeFilled = 0, nameFixed = 0;
   const ensureProduct = r => {
     if (r.p) {
+      if (r.rename && r.p.name !== r.rename && (!sb || can("base"))) { r.p.name = r.rename; save("products", r.p); nameFixed++; }   // ★ 2026-11-10 띄어쓰기 정리
       /* ★ 2026-11-08 이름으로 잡힌 품목에 코드가 비어 있고 붙여넣은 줄에 CFE 코드가 있으면 — 그 코드를 채운다 (다음부터는 코드로 바로 잡힌다) */
       if (r.code && !r.viaCode && !r.p.code && CFE_RE.test(codeKey(r.code)) && !productByCode(r.code) && (!sb || can("base"))) {
         r.p.code = codeKey(r.code); save("products", r.p); codeFilled++;
@@ -17869,7 +17931,7 @@ async function applyPaste(){
     DB.products.push(p); save("products",p); mkP++;
     r.p = p; return p;
   };
-  const mkMsg = () => (mkP ? ` · 신규 품목 ${mkP}건${mkB?`, 신규 원두 ${mkB}건`:""} 등록` : "") + (codeFilled ? ` · CFE 코드 채움 ${codeFilled}건` : "") + (mkDenied ? ` · 목록에 없는 품목 ${mkDenied}건은 건너뜀 (관리자가 기준정보에 먼저 등록)` : "");
+  const mkMsg = () => (mkP ? ` · 신규 품목 ${mkP}건${mkB?`, 신규 원두 ${mkB}건`:""} 등록` : "") + (codeFilled ? ` · CFE 코드 채움 ${codeFilled}건` : "") + (nameFixed ? ` · 품목명 띄어쓰기 정리 ${nameFixed}건` : "") + (mkDenied ? ` · 목록에 없는 품목 ${mkDenied}건은 건너뜀 (관리자가 기준정보에 먼저 등록)` : "");
 
   if (mode==="stock_cfe") {
     actual.cfe = {};
@@ -20521,8 +20583,9 @@ function renderTrace(){
 const FD_TABS = [["prod","생산"],["qc","검수·반려"],["ship","출고"],["bean","원두 배치"],["mat","부자재"],["adj","재고조정"],["loss","로스"],["ng","부적합"],["worker","작업자"],["mach","설비"]];
 let fdTab = "prod"; const FD = { product:"", spec:"", batch:"", lot:"", machine:"", worker:"", status:"", qcby:"", reason:"", handling:"", matkind:"", movekind:"", hour:"" };
 function fdQuickSet(k){
-  const d = new Date(), iso = x => x.toISOString().slice(0,10); let f, t = iso(d);
-  const dow = d.getDay();
+  /* ★ 2026-11-10 주는 월요일 시작 (Lee "월요일 시작이 좋을거 같은데") · 날짜는 한국 시간(ymd) — 전에는 UTC 라 "이번 달"이 전달 말일부터 잡혔다 */
+  const d = new Date(), iso = ymd; let f, t = iso(d);
+  const dow = (d.getDay() + 6) % 7;
   if (k === "today") f = t;
   else if (k === "yday") { const y = new Date(d); y.setDate(d.getDate()-1); f = t = iso(y); }
   else if (k === "7d") { const y = new Date(d); y.setDate(d.getDate()-6); f = iso(y); }
@@ -20671,10 +20734,10 @@ function csvFind(){
 let capaMode = "month";
 function capaSetMode(m){ capaMode = m; capaSetRange(); renderCapa(); }
 function capaSetRange(base){
-  const d = base ? new Date(base) : new Date(); const iso = x => x.toISOString().slice(0,10);
+  const d = base ? new Date(base) : new Date(); const iso = ymd;
   let f, t;
   if (capaMode === "day") { f = t = iso(d); }
-  else if (capaMode === "week") { const w = new Date(d); w.setDate(d.getDate() - d.getDay()); f = iso(w); const e = new Date(w); e.setDate(w.getDate()+6); t = iso(e); }
+  else if (capaMode === "week") { const w = new Date(d); w.setDate(d.getDate() - (d.getDay()+6)%7); f = iso(w); const e = new Date(w); e.setDate(w.getDate()+6); t = iso(e); }
   else if (capaMode === "month") { f = iso(new Date(d.getFullYear(), d.getMonth(), 1)); t = iso(new Date(d.getFullYear(), d.getMonth()+1, 0)); }
   else if (capaMode === "year") { f = `${d.getFullYear()}-01-01`; t = `${d.getFullYear()}-12-31`; }
   else return;
