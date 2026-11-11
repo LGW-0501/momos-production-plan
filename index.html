@@ -68,6 +68,21 @@
     html[data-theme="dark"] #personalLoginGate input{ background:var(--bg); border-color:var(--line-2); }
   }
   *{margin:0;padding:0;box-sizing:border-box;}
+  /* ★ 2026-11-11 현장작업 — 검수 수량 다름(깜빡임) · 검수 대기(흐리게) */
+  @keyframes qflagBlink{ 0%,49%{border-color:var(--bad); box-shadow:0 0 0 4px rgba(217,59,76,.30);} 50%,100%{border-color:transparent; box-shadow:0 0 0 0 rgba(217,59,76,0);} }
+  .wc.qflag{border:3px solid var(--bad); animation:qflagBlink 1s steps(1,end) infinite;}
+  .wc.qflag .hd{background:var(--bad);}
+  .wc.qflag .hd .sub{color:#fff; opacity:.92;}
+  .qflag-grp{border-color:var(--bad);} .qflag-grp .mgrp-h{background:var(--bad-soft);}
+  .qf-nums{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:14px 16px 6px; text-align:center;}
+  .qf-nums span{display:block; font-size:12px; color:var(--soft); font-weight:700;}
+  .qf-nums b{font-size:28px; font-weight:800; color:var(--ink); line-height:1.2;}
+  .qf-nums .df b{color:var(--bad);}
+  .qf-why{padding:0 16px 10px; font-size:13px; color:var(--soft); text-align:center;}
+  .wc.qwait{opacity:.62;} .wc.qwait .hd{background:var(--navy-600);} .wc.qwait .big{padding-bottom:2px;}
+  .qwait-grp .mgrp-h{color:var(--soft);}
+  .qtyflag-qc{border:1.5px solid var(--bad); background:var(--bad-soft); border-radius:8px; padding:8px 10px; margin:6px 0; font-size:13.5px;}
+  @media (prefers-reduced-motion: reduce){ .wc.qflag{animation:none;} }
   /* ★ 2026-11-11 엑셀 넣기 — 큰 넣는 칸 */
   #pDrop{border:2px dashed var(--blue-300); border-radius:14px; background:var(--blue-50); padding:26px 16px; text-align:center; cursor:pointer; transition:background .12s, border-color .12s;}
   #pDrop:hover, #pDrop:focus-visible, #pDrop.over{border-color:var(--blue-600); background:var(--blue-100); outline:none;}
@@ -7081,6 +7096,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-11", "현장작업 — 검수 끝날 때까지 카드 남김 · 수량 다르면 현장 확인", "① 생산 완료한 카드는 현장작업 화면 아래 [검수 대기] 칸에 흐리게 남고, 검수가 끝나면 사라집니다 (그 날짜 화면에만). ② 검수에서 센 수량이 다르면 검수자는 바로 고치지 않고 [현장에 확인 요청]을 겁니다 — 검수는 거기서 멈춥니다. ③ 현장작업 맨 위에 그 카드가 빨간 테두리로 깜빡이며 생산·검수·차이 수량과 사유가 크게 보입니다. 작업자가 [확인]을 눌러야 그 수량으로 생산실적·완제품 재고가 고쳐지고 검수 완료·출고 대기로 넘어갑니다. 수량이 안 맞으면 [검수에 다시 세기 요청]으로 돌려보낼 수 있습니다. 검수 쪽은 [요청 취소], 관리자는 [현장 확인 없이 완료]가 됩니다. 서버 함수 3개 추가(000_install_all.sql 재실행)."],
   ["2026-11-11", "엑셀 넣기 — 큰 넣는 칸 · 이름 표기 MOMOS", "엑셀·사진 넣기 창 위쪽에 '여기에 엑셀 파일을 넣어 주세요' 큰 칸이 생겼습니다. 파일을 끌어다 놓거나 칸을 눌러서 고르면 되고, 넣으면 파일 이름과 함께 초록색으로 바뀝니다. 복사해서 붙여넣는 칸은 그 아래 그대로 있습니다. 앱 이름 표기를 MOMOS 생산계획으로 바꿨습니다."],
   ["2026-11-10", "원두 이름을 엑셀 이름으로 정리", "엑셀 넣기 미리보기에서, 등록된 원두 이름이 엑셀과 띄어쓰기만 다르면('포 르 톤 카 투 아 이' ↔ '포르톤 카투아이') 위에 안내와 [원두 이름 엑셀 이름으로 정리] 버튼이 뜹니다. 누르면 원두 이름과 함께 품목·MMS 배치·로스팅·수불·실측 등 연결된 기록의 원두 이름도 한 번에 바뀌고 변경이력에 남습니다. 기준정보 권한 필요 · 서버에 rename_bean 필요(000_install_all.sql 재실행)."],
   ["2026-11-10", "조회·생산분석 — 주는 월요일 시작 · 기간 버튼 날짜 하루 밀림 수정", "[이번 주]는 월요일부터 오늘까지, [지난주]는 지난 월요일~일요일입니다 (전에는 일요일 시작). [이번 달]·[지난달]이 하루 앞 날짜(전달 말일)부터 잡히던 것과 아침 9시 전에 [오늘]이 어제로 잡히던 것을 고쳤습니다. 생산분석의 주·월 기간도 같이 고쳤습니다."],
@@ -13742,6 +13758,74 @@ const statusOf = l => l.status || (l.received_by ? "approved" : "pending");
    orders.status 는 '생산중' 그대로입니다 — 상태전이를 건드리지 않으려고요.
    (SQL 쪽은 order_qc_state 뷰가 같은 일을 합니다) */
 /* 반려 흐름 — 조치 필요(반려된 생산중) · 재검수 대기(조치 후 다시 올림) · 검수 끝나면 null */
+/* ══ 검수 수량 다름 → 현장 확인 (★ 2026-11-11 — Lee "검수에서 완료가 될 때까지 그 창이 사라지지 않는걸로 · 수량이 다를 경우 … 인지를 시켜줘야") ══
+   ① 생산 완료한 카드는 현장작업 화면 아래 [검수 대기] 칸에 흐리게 남는다 — 검수가 끝나면 사라진다 (그 날짜 화면에만)
+   ② 검수에서 센 수량이 다르면 검수자는 [현장에 확인 요청] 을 건다 (order_events: qc_qty_diff) — 검수는 거기서 멈춘다
+   ③ 현장작업 맨 위에 빨간 테두리로 깜빡이는 카드가 뜬다 → 작업자가 [확인] 을 눌러야 그 수량으로 고쳐지고 검수 완료·출고로 넘어간다 (qc_qty_ack)
+   상태(orders.status)는 '생산완료' 그대로 — 이력만 남긴다. 서버: qc_flag_qty / qc_ack_qty / qc_unflag_qty */
+function qtyFlag(o){
+  if (!o || o.status !== "생산완료") return null;
+  const ev = DB.order_events.filter(e=>e.order_id===o.id && ["qc_qty_diff","qc_qty_ack","qc_qty_cancel","qc_pass","qc_reject","qc_resubmit"].includes(e.event))
+    .sort((a,b)=>(Number(a.seq)||0)-(Number(b.seq)||0) || String(a.at).localeCompare(String(b.at)));
+  const last = ev[ev.length-1]; if (!last || last.event !== "qc_qty_diff") return null;
+  let j = {}; try { j = JSON.parse(last.note || "{}") || {}; } catch(_){}
+  const produced = Number(j.produced ?? o.qty_done) || 0, received = Number(j.received);
+  if (!(received >= 0)) return null;
+  return { produced, received, diff: received - produced, reason: j.reason || "", by: last.user_name || "", at: last.at };
+}
+const QTY_RPC_MISSING = r => /qc_flag_qty|qc_ack_qty|qc_unflag_qty|schema cache|does not exist/i.test(r?.message || "");
+const QTY_RPC_HELP = "서버에 이 기능이 아직 없습니다.\n\nSupabase SQL Editor 에서 000_install_all.sql 을 다시 실행해 주세요 (끝의 '검수 수량 다름 → 현장 확인' 절).";
+/* 검수 — 현장에 확인 요청 */
+async function qcFlagQty(id, rcv){
+  const o = ordById(id); if (!o) return;
+  const d = rcv - Number(o.qty_done||0);
+  const why = await askText(`차이 사유 (짧게 · 비워도 됨)`, d<0 ? "파손 · 덜 담김" : "덜 셈", "현장에 확인 요청");
+  if (why === null) return;
+  const r = await rpc("qc_flag_qty", { p_order_id:id, p_received_qty:rcv, p_reason:String(why).trim()||null, p_user_name:CURRENT_USER||null, p_idempotency:`qfl-${id}-${uid()}` }, () => {
+    if (o.status !== "생산완료") return MES_ERR("bad_status", `생산완료 건만 검수할 수 있습니다 (지금 ${o.status})`);
+    pushEvent(null, o, "생산완료", "생산완료", "qc_qty_diff", JSON.stringify({ produced:Number(o.qty_done||0), received:rcv, reason:String(why).trim()||null }));
+    logAudit("검수 수량 다름 · 현장 확인 요청", o.order_no, `${o.product_name||""} 생산 ${fmt(o.qty_done)} / 검수 ${fmt(rcv)}`);
+    return { ok:true }; }, { quiet:true });
+  if (!r || r.ok === false) { renderAll(); return ask(QTY_RPC_MISSING(r) ? QTY_RPC_HELP : (r?.message || "요청하지 못했습니다"), { title:"현장에 확인 요청", yes:"확인", only:true }); }
+  renderAll(); toast("현장에 확인을 요청했습니다 — 작업자가 [확인]을 누르면 검수 완료로 넘어갑니다");
+}
+/* 검수·현장 — 요청 취소 (다시 세기) */
+async function qcUnflagQty(id, fromFloor){
+  if (!(await requireUser())) return;
+  const o = ordById(id), f = qtyFlag(o); if (!o || !f) return;
+  const note = await askText(fromFloor ? "검수에 전할 말 (예: 다시 세어 보니 100개 맞습니다)" : "취소 사유 (비워도 됨)", "", fromFloor ? "검수에 다시 세기 요청" : "확인 요청 취소");
+  if (note === null) return;
+  const r = await rpc("qc_unflag_qty", { p_order_id:id, p_note:(fromFloor ? "현장: " : "") + (String(note).trim() || (fromFloor ? "다시 세어 주세요" : "요청 취소")), p_user_name:CURRENT_USER||null }, () => {
+    pushEvent(null, o, o.status, o.status, "qc_qty_cancel", (fromFloor ? "현장: " : "") + (String(note).trim() || "요청 취소")); return { ok:true }; }, { quiet:true });
+  if (!r || r.ok === false) { renderAll(); return ask(QTY_RPC_MISSING(r) ? QTY_RPC_HELP : (r?.message || "처리하지 못했습니다"), { title:"확인 요청 취소", yes:"확인", only:true }); }
+  renderAll(); toast(fromFloor ? "검수에 다시 세어 달라고 알렸습니다 — 카드는 [검수 대기]로 돌아갑니다" : "확인 요청을 취소했습니다 — 다시 세어 검수하세요");
+}
+/* 현장 — 확인 → 그 수량으로 고치고 검수 완료 */
+async function ackQty(id){
+  if (!(await requireUser())) return;
+  if (!can("work")) return deny("work");
+  const o = ordById(id), f = qtyFlag(o); if (!o || !f) return;
+  const p = prodById(o.product_id);
+  if (!(await ask(`${p?.name || o.product_name || ""}\n\n생산완료 ${fmt(f.produced)}개\n검수에서 센 수량 ${fmt(f.received)}개\n차이 ${f.diff>0?"+":""}${fmt(f.diff)}개${f.reason?`\n사유: ${f.reason}`:""}\n\n` +
+      `[확인] 을 누르면 ${fmt(f.received)}개로 고쳐지고 검수 완료 — 출고 대기로 넘어갑니다.`, { title:"검수 수량 확인", yes:`확인 — ${fmt(f.received)}개가 맞습니다` }))) return;
+  const r = await rpc("qc_ack_qty", { p_order_id:id, p_user_name:CURRENT_USER||null, p_idempotency:`qak-${id}-${uid()}` }, () => {
+    const l = DB.logs.find(x=>x.id===o.log_id), old = Number(o.qty_done||0), d = f.received - old;
+    pushEvent(null, o, "생산완료", "생산완료", "qc_qty_ack", `현장 확인 ${old} → ${f.received}`);
+    if (d !== 0) {
+      if (l) { l.qty_ea = f.received; l.revision_note = `검수 수량 정정 ${fmt(old)} → ${fmt(f.received)} · 현장 확인 ${CURRENT_USER||""}`; }
+      if (p) { p.cfe = Number(p.cfe||0) + d; save("products", p); }
+      DB.stock_moves.push({ id:uid(), kind:"완제품", ref_type:"log", ref_id:o.log_id, product_id:o.product_id, qty:d, reason:"검수 수량 정정", note:f.reason||"", move_date:today() });
+      o.qty_done = f.received; o.progress_qty = f.received;
+    }
+    o.status = "검수완료"; o.qc_by = f.by || CURRENT_USER; o.qc_at = nowISO(); save("orders", o);
+    if (l) { Object.assign(l, { checked_by:o.qc_by, checked_at:nowISO(), received_qty:f.received, qty_diff:0, received_by:o.qc_by, received_at:nowISO(), status: l.status === "pending" ? "approved" : l.status }); save("logs", l); }
+    pushEvent(null, o, "생산완료", "검수완료", "qc_pass", `수량 정정 ${old} → ${f.received} · 현장 확인 ${CURRENT_USER||""}`);
+    logAudit("검수 완료", o.order_no, `${o.product_name||""} 생산 ${fmt(old)} → 확인 ${fmt(f.received)} · 현장 확인`);
+    return { ok:true }; }, { quiet:true });
+  if (!r || r.ok === false) { renderAll(); return ask(QTY_RPC_MISSING(r) ? QTY_RPC_HELP : (r?.message || "처리하지 못했습니다"), { title:"검수 수량 확인", yes:"확인", only:true }); }
+  if (sb) { try { await Promise.all([ pullOrder(id), pullWhere("logs", "id", o.log_id), pullWhere("products", "id", o.product_id) ]); } catch(_){} }
+  renderAll(); toast(`${fmt(f.received)}개로 확인했습니다 — 검수 완료 · 출고 대기로 넘어갑니다`);
+}
 function qcFlow(o){
   if (!o || ["검수완료","출고완료"].includes(o.status)) return null;
   const ev = DB.order_events.filter(e=>e.order_id===o.id && ["qc_reject","qc_resubmit","qc_pass"].includes(e.event))
@@ -19704,9 +19788,13 @@ async function qcDone(id){
   /* ★ 2026-11-01 — 검수에서 센 수량이 다르면 그 수량으로 고쳐서 넘긴다 (Lee "29개 생산 · 검수 28개인데 29개로 출고로 넘어가면 안 됨")
      생산실적 · 지시 · 완제품 재고를 센 수량으로 · 원두 투입은 그대로(로스로 잡힘) · 서버 064 */
   if (d !== 0) {
+    /* ★ 2026-11-11 — 수량이 다르면 바로 고치지 않고 현장에 확인을 요청한다 (Lee "현장이 확인해야 검수 완료")
+         관리자만 현장 확인 없이 바로 고칠 수 있다 (현장이 자리에 없을 때) */
     const pick = await ask(`생산완료 ${fmt(o.qty_done)}개\n검수에서 센 수량 ${fmt(rcv)}개\n차이 ${d>0?"+":""}${fmt(d)}개\n\n` +
-      `[${fmt(rcv)}개로 고치고 검수 완료] — 생산실적 · 완제품 재고 · 출고 수량이 ${fmt(rcv)}개가 됩니다 (변경이력에 남음)`,
-      { title:"⚠ 수량이 다릅니다", choices:[ { label:`${fmt(rcv)}개로 고치고 검수 완료`, v:"fix", cls:"primary" }, { label:"다시 세기", v:null } ] });
+      `[현장에 확인 요청] — 현장작업 화면에 이 카드가 빨갛게 깜빡입니다. 작업자가 [확인]을 누르면 ${fmt(rcv)}개로 고쳐지고 검수 완료·출고 대기로 넘어갑니다.`,
+      { title:"⚠ 수량이 다릅니다", choices:[ { label:"현장에 확인 요청", v:"flag", cls:"primary" },
+        ...(isManager() ? [{ label:`현장 확인 없이 ${fmt(rcv)}개로 고치고 완료 (관리자)`, v:"fix" }] : []), { label:"다시 세기", v:null } ] });
+    if (pick === "flag") return qcFlagQty(id, rcv);
     if (!pick) return;
     const why = await askText(`차이 사유 (짧게 · 비워도 됨)`, d<0 ? "파손 · 덜 담김" : "덜 셈", "수량 정정 사유");
     if (why === null) return;
@@ -19724,6 +19812,24 @@ async function qcDone(id){
   }
   const r = await mesCompleteQc({ order_id:id, received:rcv, idem:`qc-${id}-${uid()}` });
   await mesTell(r, "검수 완료 — 출고 대기로 넘어갑니다");
+}
+/* 관리자 — 현장 확인을 기다리지 않고 검수 수량으로 고쳐 완료 (현장이 자리에 없을 때) */
+async function qcForceFix(id){
+  if (!(await requireUser())) return;
+  if (!isManager()) return toast("관리자만 할 수 있습니다");
+  const o = ordById(id), f = qtyFlag(o); if (!o || !f) return;
+  if (!(await ask(`현장 확인 없이 ${fmt(f.received)}개로 고치고 검수 완료합니다.\n(생산 ${fmt(f.produced)}개 → ${fmt(f.received)}개 · 변경이력에 남음)`, { title:"현장 확인 없이 완료", yes:"완료" }))) return;
+  const r = await rpc("complete_qc_fix", { p_order_id:id, p_received_qty:f.received, p_reason:(f.reason ? f.reason + " · " : "") + "현장 확인 없이(관리자)", p_user_name:CURRENT_USER||null, p_idempotency:`qcf-${id}-${uid()}` }, () => {
+    const l = DB.logs.find(x=>x.id===o.log_id), p = prodById(o.product_id), d = f.received - Number(o.qty_done||0);
+    if (l) { l.qty_ea = f.received; l.revision_note = `검수 수량 정정 ${fmt(o.qty_done)} → ${fmt(f.received)}`; save("logs", l); }
+    if (p) { p.cfe = Number(p.cfe||0) + d; save("products", p); }
+    DB.stock_moves.push({ id:uid(), kind:"완제품", ref_type:"log", ref_id:o.log_id, product_id:o.product_id, qty:d, reason:"검수 수량 정정", note:f.reason||"", move_date:today() });
+    o.qty_done = f.received; o.progress_qty = f.received; save("orders", o);
+    return null; });
+  if (r === null) { const r2 = await mesCompleteQc({ order_id:id, received:f.received, idem:`qc-${id}-${uid()}` }); return mesTell(r2, `${fmt(f.received)}개로 고치고 검수 완료`); }
+  if (!r || r.ok === false) { renderAll(); return toast(r?.message || "처리하지 못했습니다"); }
+  if (sb) { try { await Promise.all([ pullOrder(id), pullWhere("logs", "id", o.log_id), pullWhere("products", "id", o.product_id) ]); } catch(_){} }
+  renderAll(); toast(`${fmt(f.received)}개로 고치고 검수 완료 — 출고 대기로 넘어갑니다`);
 }
 /* 반려 → 조치 → 재검수 를 시간순으로 보여 준다 (이력을 덮어쓰지 않습니다) */
 /* 쓴 배치를 잘못 골랐을 때 — 그 줄 하나만 바꿉니다 (같은 kg).
@@ -20034,6 +20140,10 @@ function renderWork(){
   const redo = d === today() ? DB.orders.filter(o=>o.status==="대기" && o.work_date < d && /^\[반려 삭제/.test(String(o.note||""))) : [];
   const all  = ordsOf(d).concat(redo).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
   const done = ordsOf(d).filter(o=>stIdx(o) >= 2);
+  /* ★ 2026-11-11 — 검수 수량 다름(맨 위 · 깜빡임 · 날짜와 상관없이 확인할 때까지) / 검수 대기(아래 · 흐리게 · 그 날짜만) */
+  const qFlags = DB.orders.filter(o=>qtyFlag(o)).sort((a,b)=>String(qtyFlag(a).at).localeCompare(String(qtyFlag(b).at)));
+  const qFlagIds = new Set(qFlags.map(o=>o.id));
+  const qWait = ordsOf(d).filter(o=>o.status==="생산완료" && !qFlagIds.has(o.id)).sort((a,b)=>String(a.done_at).localeCompare(String(b.done_at)));
 
   /* 기계 순서대로 묶는다 — 기준정보에 없는 설비명(재작업 등)은 뒤에 붙인다 */
   const extra = [...new Set(all.concat(done).map(o=>o.machine||"").filter(Boolean))]
@@ -20058,8 +20168,9 @@ function renderWork(){
   }).join("");
 
   $("wkInfo").innerHTML = all.length
-    ? `할 일 <b>${all.length}</b>건 · 기계 ${groups.length}대${done.length?` · 검수로 넘어간 것 ${done.length}건`:""}`
-    : (done.length ? `오늘 작업이 모두 끝났습니다 (${done.length}건)` : `오늘 받은 작업지시가 없습니다`);
+    ? `할 일 <b>${all.length}</b>건 · 기계 ${groups.length}대${done.length?` · 검수로 넘어간 것 ${done.length}건`:""}${qWait.length?` (검수 대기 <b>${qWait.length}</b>)`:""}`
+    : (done.length ? `오늘 작업이 모두 끝났습니다 (${done.length}건${qWait.length?` · 검수 대기 ${qWait.length}`:""})` : `오늘 받은 작업지시가 없습니다`);
+  if (qFlags.length) $("wkInfo").innerHTML += ` · <b style="color:var(--bad)">⚠ 검수 수량 확인 ${qFlags.length}건</b>`;
 
   /* 기계 고르는 버튼 — 현장은 자기 기계만 본다 */
   const mixedAll = all.filter(o=>isMixedOrder(o) && o.status==="대기");
@@ -20191,7 +20302,37 @@ function renderWork(){
     </div>`}`;
   };
 
-  $("wkCards").innerHTML = rejPanelF() + (shown.length ? shown.map(g=>{
+  const inKind = o => !wkMach || machKind(o.machine||"") === wkMach || (wkMach === "미지정" && !o.machine);
+  /* 맨 위 — 검수 수량 다름 (확인할 때까지 깜빡임) */
+  const qFlagPanel = () => { if (!qFlags.length || wkMach === "반려") return "";
+    return `<div class="mgrp qflag-grp"><div class="mgrp-h" style="color:var(--bad)"><b>⚠ 검수 수량이 다릅니다 — 확인해 주세요</b><span class="tag bad">${qFlags.length}건</span>
+        <span class="r">[확인]을 누르면 검수에서 센 수량으로 고쳐지고 출고로 넘어갑니다 · 누르기 전까지 이 카드는 사라지지 않습니다</span></div>
+      <div class="wcards">${qFlags.map(o=>{ const p = prodById(o.product_id), f = qtyFlag(o);
+        return `<div class="wc qflag">
+          <div class="hd"><div class="nm">${specChip(specOf(o))}${p?.name||o.product_name||"품목 없음"}</div>
+            <div class="sub">${o.machine||"설비 미지정"}${o.serial?` · 일련번호 ${o.serial}`:""}${o.work_date!==d?` · ${o.work_date.slice(5).replace("-","/")} 생산`:""} · 생산 ${o.done_by||"—"}</div></div>
+          <div class="qf-nums">
+            <div><span>생산완료</span><b>${fmt(f.produced)}</b></div>
+            <div><span>검수에서 센 수량</span><b>${fmt(f.received)}</b></div>
+            <div class="df"><span>차이</span><b>${f.diff>0?"+":""}${fmt(f.diff)}</b></div>
+          </div>
+          <div class="qf-why">${f.reason ? `사유: <b>${f.reason}</b> · ` : ""}검수 ${f.by||"—"} · ${dtFull(f.at)}</div>
+          <div class="btns"><button class="go" style="background:var(--bad)" onclick="ackQty('${o.id}')">확인 — ${fmt(f.received)}개가 맞습니다</button></div>
+          <div class="btns sm"><button onclick="qcUnflagQty('${o.id}', true)">수량이 맞지 않습니다 (검수에 다시 세기 요청)</button></div>
+        </div>`; }).join("")}</div></div>`; };
+  /* 맨 아래 — 검수 대기 (흐리게 · 검수가 끝나면 사라진다) */
+  const qWaitShown = wkMach === "반려" ? [] : qWait.filter(inKind);
+  const qWaitPanel = () => !qWaitShown.length ? "" :
+    `<div class="mgrp qwait-grp"><div class="mgrp-h"><b>검수 대기</b><span class="tag">${qWaitShown.length}건</span>
+        <span class="r">생산 완료 → 검수 중 · 검수가 끝나면 여기서 사라집니다 · 수량이 다르면 맨 위에 빨갛게 뜹니다</span></div>
+      <div class="wcards">${qWaitShown.map(o=>{ const p = prodById(o.product_id);
+        return `<div class="wc qwait">
+          <div class="hd"><div class="nm">${specChip(specOf(o))}${p?.name||o.product_name||"품목 없음"}</div>
+            <div class="sub">${o.machine||"설비 미지정"}${o.serial?` · 일련번호 ${o.serial}`:""}</div></div>
+          <div class="big"><b>${fmt(o.qty_done)}</b> <span>개 생산 완료</span></div>
+          <div class="meta">⏳ 검수 대기 · 완료 ${dtFull(o.done_at)}${o.done_by?` · ${o.done_by}`:""}${qcFlow(o)==="재검수 대기"?` · <span class="warn">재검수</span>`:""}</div>
+        </div>`; }).join("")}</div></div>`;
+  $("wkCards").innerHTML = qFlagPanel() + rejPanelF() + (shown.length ? shown.map(g=>{
     const m   = DB.machines.find(x=>x.name===g.name);
     const ea  = g.items.reduce((t,o)=>t+Number(o.qty_plan||0),0);
     const madeEa = g.items.reduce((t,o)=>t+Number(o.qty_done||0),0);
@@ -20217,7 +20358,7 @@ function renderWork(){
   }).join("")
     : (wkMach === "반려" ? "" : `<div class="wempty">${wkMach
         ? `${wkMach} 에 할 작업이 없습니다<br><span>위 탭에서 [전체]를 누르면 다른 기계도 보입니다</span>`
-        : `오늘 할 작업이 없습니다<br><span>관리자가 작업지시를 내리면 기계별로 여기에 카드로 뜹니다</span>`}</div>`));
+        : `오늘 할 작업이 없습니다<br><span>관리자가 작업지시를 내리면 기계별로 여기에 카드로 뜹니다</span>`}</div>`)) + qWaitPanel();
 }
 
 /* ══ 검수 ══ */
@@ -20298,9 +20439,18 @@ function renderQc(){
         <label class="${o.qc&&o.qc[k]?"on":""}">
           <input type="checkbox" data-qk="${k}" ${o.qc&&o.qc[k]?"checked":""} onchange="toggleQC('${o.id}','${k}',this.checked)"> ${label}
         </label>`).join("")}</div>
+      ${(()=>{ const f = qtyFlag(o); if (!f) return "";
+        return `<div class="qtyflag-qc"><b>⏳ 현장 확인 기다리는 중</b> — 생산 ${fmt(f.produced)}개 / 검수 ${fmt(f.received)}개 (차이 ${f.diff>0?"+":""}${fmt(f.diff)})${f.reason?` · ${f.reason}`:""}
+          <span class="hint" style="padding:0;display:block">${dtFull(f.at)} ${f.by} 요청 · 작업자가 현장작업 화면에서 [확인]을 누르면 자동으로 검수 완료됩니다</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <button class="btn" onclick="qcUnflagQty('${o.id}')">요청 취소 (다시 세기)</button>
+            ${isManager() ? `<button class="btn" onclick="qcForceFix('${o.id}')" title="관리자 — 현장이 자리에 없을 때">현장 확인 없이 ${fmt(f.received)}개로 완료</button>` : ""}</div></div>`; })()}
+      ${(()=>{ const c = lastEv(o,"qc_qty_cancel"), dfl = lastEv(o,"qc_qty_diff");
+        return (!qtyFlag(o) && c && dfl && /^현장:/.test(String(c.note||"")) && (Number(c.seq)||0) > (Number(dfl.seq)||0))
+          ? `<div class="qtyflag-qc" style="border-color:#F5A524"><b>↩ 현장에서 다시 세어 달라고 했습니다</b> — ${String(c.note).replace(/^현장:\s*/,"")} <span class="hint" style="padding:0">(${dtFull(c.at)} ${c.user_name||""})</span></div>` : ""; })()}
       <div class="btns">
         <button class="go2" onclick="qcAll('${o.id}')">전부 정상</button>
-        <button class="go" onclick="qcDone('${o.id}')" ${qcOK(o)?"":"disabled data-dis=\"1\""}>검수 완료</button>
+        <button class="go" onclick="qcDone('${o.id}')" ${qtyFlag(o) ? 'disabled data-dis="1" title="현장 확인을 기다리는 중입니다"' : (qcOK(o)?"":"disabled data-dis=\"1\"")}>검수 완료</button>
         <button class="ng" onclick="qcReject('${o.id}')">반려</button>
       </div>
     </div>`;
