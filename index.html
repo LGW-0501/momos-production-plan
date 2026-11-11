@@ -53,18 +53,26 @@
     html[data-theme="dark"]{
       color-scheme:dark;
       --navy-900:#0A1033; --navy-800:#121A4A; --navy-700:#1F2857; --navy-600:#3D4A7A;
-      --blue-600:#4F7FF0; --blue-500:#6A97F7; --blue-300:#7FB2F0; --blue-100:#2A3A66; --blue-50:#1B2640;
-      --bg:#0E111B; --card:#171C2B; --ink:#E6E9F2; --soft:#9AA3B8; --line:#2A3146; --line-2:#3A4360;
-      --ok:#27A877; --ok-soft:#12332A; --warn:#E89A2B; --warn-soft:#3A2C12; --bad:#E5566A; --bad-soft:#3D1A22;
-      --head:#1D2335; --sum:#1D2335;
-      --d-tint:#1D2335; --d-ink:#E6E9F2; --d-soft:#9AA3B8; --d-line:#2A3146; --d-line2:#3A4360;
-      --d-ok-soft:#12332A; --d-warn-soft:#3A2C12; --d-bad-soft:#3D1A22; --d-blue-soft:#1B2640; --d-vio-soft:#2A2148;
+      --blue-600:#5B8BF7; --blue-500:#78A2FA; --blue-300:#8FBDF5; --blue-100:#2C3D6E; --blue-50:#1D2946;
+      --bg:#0E111B; --card:#181E2F; --ink:#F1F3F9; --soft:#B6BED2; --line:#353E58; --line-2:#56617F;
+      --ok:#2FB984; --ok-soft:#143A2F; --warn:#F2A63A; --warn-soft:#43330F; --bad:#F06478; --bad-soft:#47202A;
+      --head:#20273B; --sum:#20273B;
+      --d-tint:#20273B; --d-ink:#F1F3F9; --d-soft:#B6BED2; --d-line:#353E58; --d-line2:#56617F;
+      --d-ok-soft:#143A2F; --d-warn-soft:#43330F; --d-bad-soft:#47202A; --d-blue-soft:#1D2946; --d-vio-soft:#2E2552;
       --d-ok-ink:#6FE0AE; --d-warn-ink:#FFC46B; --d-bad-ink:#FF8A96; --d-vio-ink:#B79CFF;
       --d-vio-line:#4A3A7A; --d-bad-line:#6A2A33;
     }
     html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea{ color:var(--ink); }
     html[data-theme="dark"] ::placeholder{ color:#6C7590; }
     html[data-theme="dark"] .topbar{ border-bottom:1px solid var(--line); }
+    /* ★ 2026-11-11 다크에서 안 보이던 것 — 진행 바 바탕 · 1kg(갈색) 규격 딱지 · 남색 글자 · 남색 버튼 */
+    html[data-theme="dark"] .pbar, html[data-theme="dark"] .rc .cap .bar{ background:#3C4663; }
+    html[data-theme="dark"] .pbar i, html[data-theme="dark"] .rc .cap .bar i{ background:#6FA0FF; }
+    html[data-theme="dark"] .pbar i.ok{ background:#3DD598; }
+    html[data-theme="dark"] .barrow .bar{ background:#6FA0FF; }
+    html[data-theme="dark"] .specb.s1000{ background:#A8683F; } html[data-theme="dark"] .specb.s500{ background:#2F7FD6; }
+    html[data-theme="dark"] .specb.s200{ background:#2A9A60; }  html[data-theme="dark"] .specb.s100{ background:#DB7A1E; }
+    html[data-theme="dark"] .wc .btns button.go2, html[data-theme="dark"] .qcc .btns button.go2{ background:#3A4A8C; border-color:#5466B8; }
     html[data-theme="dark"] #personalLoginGate input{ background:var(--bg); border-color:var(--line-2); }
   }
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -412,7 +420,7 @@
   .np-quick{display:flex; gap:7px; flex-wrap:wrap; padding:12px 14px 0;}
   .np-quick button{flex:1 1 auto; min-width:68px; height:46px; border-radius:10px;
     border:1.5px solid var(--line-2); background:var(--card,#fff); font-size:15px; font-weight:800;
-    color:var(--navy-700,#1E2A4A); cursor:pointer;}
+    color:var(--d-ink,var(--navy-700,#1E2A4A)); cursor:pointer;}
   .np-quick button:active{background:var(--blue-50,#EEF3FF);}
   .np-quick button.set{border-color:var(--blue-600); color:var(--blue-600);}
   .np-keys{display:grid; grid-template-columns:repeat(3,1fr); gap:9px; padding:12px 14px;}
@@ -430,7 +438,7 @@
   .kinfo{border:1.5px solid var(--navy-700,#1E2A4A); border-radius:8px; background:var(--d-tint,#F7F9FF);
     margin:12px 18px 0; padding:8px 11px; font-size:12px; line-height:1.6;}
   .kinfo.miss{border-color:var(--bad); background:var(--d-tint,#FFF5F5);}
-  .kinfo .t{font-size:10.5px; font-weight:800; letter-spacing:.4px; color:var(--navy-700,#1E2A4A);
+  .kinfo .t{font-size:10.5px; font-weight:800; letter-spacing:.4px; color:var(--d-ink,var(--navy-700,#1E2A4A));
     text-transform:none; margin-bottom:3px;}
   .kinfo .t i{font-style:normal; font-weight:700; color:var(--soft);}
   .kinfo .t em{font-style:normal; font-weight:800; color:var(--bad);}
@@ -1326,7 +1334,8 @@
     <span id="wkMachBtn" style="display:flex;gap:6px;flex-wrap:wrap;margin-left:10px"></span>
     <span style="margin-left:auto"></span>
     <span class="stWho" data-st="work"></span>
-    <button class="btn" onclick="renderWork()">새로고침</button>
+    <span class="autoStamp hint" style="padding:0;font-size:12px;white-space:nowrap" title="이 화면은 켜 두면 자동으로 새로 받습니다"></span>
+    <button class="btn" onclick="manualRefresh()">새로고침</button>
   </div>
   <div class="subtabs" id="wkTabs"></div>
   <div class="body">
@@ -1349,7 +1358,8 @@
     <span class="hint" style="padding:0" id="qcInfo"></span>
     <span style="margin-left:auto"></span>
     <span class="stWho" data-st="qc"></span>
-    <button class="btn" onclick="renderQc()">새로고침</button>
+    <span class="autoStamp hint" style="padding:0;font-size:12px;white-space:nowrap" title="이 화면은 켜 두면 자동으로 새로 받습니다"></span>
+    <button class="btn" onclick="manualRefresh()">새로고침</button>
   </div>
   <div class="body">
     <h2 class="page">검수<small id="asof-qc"></small></h2>
@@ -1372,7 +1382,8 @@
     <span class="hint" style="padding:0" id="shInfo"></span>
     <span style="margin-left:auto"></span>
     <span class="stWho" data-st="ship"></span>
-    <button class="btn" onclick="renderShip()">새로고침</button>
+    <span class="autoStamp hint" style="padding:0;font-size:12px;white-space:nowrap" title="이 화면은 켜 두면 자동으로 새로 받습니다"></span>
+    <button class="btn" onclick="manualRefresh()">새로고침</button>
   </div>
   <div class="body">
     <h2 class="page">출고<small id="asof-ship"></small></h2>
@@ -3145,7 +3156,7 @@ const kpi = (cls,k,v,unit,subs)=>`<div class="kpi ${cls}">
 const bucketOf = g => g>=750?1000 : g>=350?500 : g>=150?200 : 100;
 const GRINDS = ["홀빈","에스프레소","모카포트","더치","핸드드립","커피메이커"];
 const CHANNELS = ["일반","컬리","코스트코","네이버","라이브","온라인 외"];
-const CH_COLOR = {"일반":"#1F3A2B","컬리":"#6B4F9E","코스트코":"#2B5F9E","네이버":"#2F9E44","라이브":"#C2503D"};
+const CH_COLOR = {get "일반"(){ return tc("#1F3A2B","#5FBF8F"); },"컬리":"#6B4F9E","코스트코":"#2B5F9E","네이버":"#2F9E44","라이브":"#C2503D"};
 const PQC_TYPES = ["이물질","포장불량","중량오차","라벨오류","기타"];
 /* 생산 외 원두 사용 용도 — 차이의 원인을 남기기 위한 구분 */
 const USE_REASONS = [
@@ -7096,6 +7107,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-11", "자동 새로고침 — 현장작업 · 검수 · 출고 · 대시보드", "화면을 켜 두기만 해도 3초마다 서버에 바뀐 것이 있는지 확인하고, 바뀌었으면 바로 받아 화면에 반영합니다 (10분마다 한 번은 전체). 서버에 live_stamp 함수가 필요합니다(000_install_all.sql 재실행) — 없으면 10초마다 받습니다. 글자를 치고 있거나 창이 떠 있으면 건너뛰어 입력을 밀어내지 않습니다. [새로고침] 버튼 옆에 '자동 새로고침 · 시각'이 보이고, [새로고침] 버튼도 이제 화면만 다시 그리지 않고 서버에서 다시 받습니다."],
+  ["2026-11-11", "다크 모드 — 잘 안 보이던 색 보정", "그래프 막대(갈색)·불량 막대·로스 선·게이지 색을 다크에서는 밝은 색으로 바꿨습니다. 진행 바 바탕과 채움, 1kg(갈색)·500g·200g·100g 규격 딱지, 한글표시사항 제목 글자, [전부 정상] 버튼도 더 잘 보이게 했습니다. 글자·회색 글자·구분선 색을 전체적으로 한 단계 밝게 올렸습니다. 밝은 화면은 그대로입니다."],
   ["2026-11-11", "현장작업 — 검수 끝날 때까지 카드 남김 · 수량 다르면 현장 확인", "① 생산 완료한 카드는 현장작업 화면 아래 [검수 대기] 칸에 흐리게 남고, 검수가 끝나면 사라집니다 (그 날짜 화면에만). ② 검수에서 센 수량이 다르면 검수자는 바로 고치지 않고 [현장에 확인 요청]을 겁니다 — 검수는 거기서 멈춥니다. ③ 현장작업 맨 위에 그 카드가 빨간 테두리로 깜빡이며 생산·검수·차이 수량과 사유가 크게 보입니다. 작업자가 [확인]을 눌러야 그 수량으로 생산실적·완제품 재고가 고쳐지고 검수 완료·출고 대기로 넘어갑니다. 수량이 안 맞으면 [검수에 다시 세기 요청]으로 돌려보낼 수 있습니다. 검수 쪽은 [요청 취소], 관리자는 [현장 확인 없이 완료]가 됩니다. 서버 함수 3개 추가(000_install_all.sql 재실행)."],
   ["2026-11-11", "엑셀 넣기 — 큰 넣는 칸 · 이름 표기 MOMOS", "엑셀·사진 넣기 창 위쪽에 '여기에 엑셀 파일을 넣어 주세요' 큰 칸이 생겼습니다. 파일을 끌어다 놓거나 칸을 눌러서 고르면 되고, 넣으면 파일 이름과 함께 초록색으로 바뀝니다. 복사해서 붙여넣는 칸은 그 아래 그대로 있습니다. 앱 이름 표기를 MOMOS 생산계획으로 바꿨습니다."],
   ["2026-11-10", "원두 이름을 엑셀 이름으로 정리", "엑셀 넣기 미리보기에서, 등록된 원두 이름이 엑셀과 띄어쓰기만 다르면('포 르 톤 카 투 아 이' ↔ '포르톤 카투아이') 위에 안내와 [원두 이름 엑셀 이름으로 정리] 버튼이 뜹니다. 누르면 원두 이름과 함께 품목·MMS 배치·로스팅·수불·실측 등 연결된 기록의 원두 이름도 한 번에 바뀌고 변경이력에 남습니다. 기준정보 권한 필요 · 서버에 rename_bean 필요(000_install_all.sql 재실행)."],
@@ -7440,6 +7453,8 @@ function applyFontScale(){ const v = fontScale(); document.body.style.zoom = v =
 /* ══ 다크 모드 (★ 2026-11-10) ══ 이 기기에만 저장 · 자동(기기 설정 따름) / 밝게 / 어둡게 */
 function themeMode(){ try { return localStorage.getItem("momos.theme") || "auto"; } catch(_){ return "auto"; } }
 const isDark = () => document.documentElement.getAttribute("data-theme") === "dark";
+/* ★ 2026-11-11 그래프·게이지 색 — 다크에서는 밝은 색으로 (Lee "바가 갈색이니깐 안보이더라") · tc(밝은 화면 색, 어두운 화면 색) */
+const tc = (light, dark) => isDark() ? dark : light;
 function applyTheme(redraw){
   const m = themeMode();
   const dark = m === "dark" || (m === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
@@ -7675,7 +7690,7 @@ function gauge(pct, color, nm, de, sub, chips){
   const arc = (a1, a2, col) => { const [x1,y1]=pt(a1,R), [x2,y2]=pt(a2,R);
     return `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${R} ${R} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}"
       fill="none" stroke="${col}" stroke-width="${SW}"/>`; };
-  const segs = [[0,25,"#CFE2FA"],[25,50,"#7FB2F0"],[50,75,"#2E6BE6"],[75,100,"#3D4A7A"]]
+  const segs = [[0,25,tc("#CFE2FA","#34446E")],[25,50,tc("#7FB2F0","#5B7FD0")],[50,75,tc("#2E6BE6","#7FA8FF")],[75,100,tc("#3D4A7A","#C3D4FF")]]
     .map(s=>arc(s[0],s[1],s[2])).join("");
   const ticks = [0,20,40,60,80,100].map(v=>{ const [x,y]=pt(v,R+19);
     return `<text x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="10" fill="#6E7585"
@@ -7789,19 +7804,19 @@ function renderDash(){
   // ── 도넛 게이지 3종 ──
   const planned2 = planRows().reduce((s,r)=>s+r.ea,0);
   const donePct2 = planned2 ? Math.min(100, todayEA/planned2*100) : (todayEA?100:0);
-  $("gProgress").innerHTML = gauge(donePct2, donePct2>=100?"#17A06B":"#1B4FD8",
+  $("gProgress").innerHTML = gauge(donePct2, donePct2>=100?tc("#17A06B","#3DD598"):tc("#1B4FD8","#7FA8FF"),
     donePct2>=100?"계획 달성":"생산 진행 중", `계획 ${fmt(planned2)} EA · 실적 ${fmt(todayEA)} EA`, "완료",
     chip(`건수 ${tl.length}`) + chip(`투입 ${fmt(tl.reduce((s,l)=>s+Number(l.input_kg||0),0))}kg`,"ok"));
 
   const okCnt = PRODS().filter(p=>shortage(p)<=0).length;
   const safePct = PRODS().length ? okCnt/PRODS().length*100 : 0;
-  $("gSafety").innerHTML = gauge(safePct, shorts.length?"#E08A00":"#17A06B",
+  $("gSafety").innerHTML = gauge(safePct, shorts.length?tc("#E08A00","#FFB547"):tc("#17A06B","#3DD598"),
     shorts.length?`${shorts.length}품목 미달`:"전 품목 충족", `전체 ${PRODS().length} · 충족 ${okCnt}`, "충족",
     chip(`부족 ${fmt(shorts.reduce((s,p)=>s+shortage(p),0))} EA`, shorts.length?"bad":"ok"));
 
   const freshB = liveB.filter(m=>shelfState(m.roast_date)==="ok").length;
   const freshPct = liveB.length ? freshB/liveB.length*100 : 0;
-  $("gShelf").innerHTML = gauge(freshPct, shelfN?"#D93B4C":"#17A06B",
+  $("gShelf").innerHTML = gauge(freshPct, shelfN?tc("#D93B4C","#FF7A8A"):tc("#17A06B","#3DD598"),
     shelfN?`${shelfN}배치 임박·초과`:"전 배치 여유", `보유 ${liveB.length}배치 · ${fmt(mmsKg)}kg`, "여유",
     chip(`임박·초과 ${shelfN}`, shelfN?"bad":"ok") + chip(`상미 ${SHELF_LIFE_DAYS}일`));
 
@@ -7863,12 +7878,12 @@ function renderDash(){
   const bs = Object.entries(mmsAgg).sort((a,b)=>b[1]-a[1]);
   draw([
     ["chDaily",{ type:"bar", data:{ labels:days.map(d=>d.slice(5)), datasets:[
-      { type:"bar", label:"생산(EA)", data:days.map(d=>pd[d]||0), backgroundColor:"#3A322C", yAxisID:"y", order:2 },
-      { type:"line", label:"로스(kg)", data:days.map(d=>Math.round((ld[d]||0)*100)/100), borderColor:"#C2410C", backgroundColor:"#C2410C", yAxisID:"y1", tension:.3, order:1 }]},
+      { type:"bar", label:"생산(EA)", data:days.map(d=>pd[d]||0), backgroundColor:tc("#3A322C","#7FA8FF"), yAxisID:"y", order:2 },
+      { type:"line", label:"로스(kg)", data:days.map(d=>Math.round((ld[d]||0)*100)/100), borderColor:tc("#C2410C","#FF9A5C"), backgroundColor:tc("#C2410C","#FF9A5C"), yAxisID:"y1", tension:.3, order:1 }]},
       options:{ responsive:true, maintainAspectRatio:false, scales:{
         y:{beginAtZero:true,title:{display:true,text:"EA"}},
         y1:{beginAtZero:true,position:"right",grid:{drawOnChartArea:false},title:{display:true,text:"kg"}}}}}],
-    ["chMms",{ type:"bar", data:{ labels:bs.map(b=>b[0]), datasets:[{ label:"재고(kg)", data:bs.map(b=>Math.round(b[1]*100)/100), backgroundColor:"#3A322C" }]},
+    ["chMms",{ type:"bar", data:{ labels:bs.map(b=>b[0]), datasets:[{ label:"재고(kg)", data:bs.map(b=>Math.round(b[1]*100)/100), backgroundColor:tc("#3A322C","#7FA8FF") }]},
       options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}}}}],
   ]);
 }
@@ -14397,11 +14412,11 @@ function renderPqc(){
   const wk = Object.keys(byWeek).sort().slice(-12);
   draw([
     ["chPqcDay",{ type:"bar", data:{ labels:days.map(d=>d.slice(5)),
-      datasets:[{ label:"발생(건)", data:days.map(d=>byDay[d]||0), backgroundColor:"#B3261E" }]},
+      datasets:[{ label:"발생(건)", data:days.map(d=>byDay[d]||0), backgroundColor:tc("#B3261E","#FF7A8A") }]},
       options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
         scales:{y:{beginAtZero:true, ticks:{precision:0}}}}}],
     ["chPqcWeek",{ type:"bar", data:{ labels:wk.map(w=>w.slice(5)+" 주"),
-      datasets:[{ label:"주별 발생(건)", data:wk.map(w=>byWeek[w]), backgroundColor:"#D9A441" }]},
+      datasets:[{ label:"주별 발생(건)", data:wk.map(w=>byWeek[w]), backgroundColor:tc("#D9A441","#FFCB66") }]},
       options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
         scales:{y:{beginAtZero:true, ticks:{precision:0}}}}}],
   ]);
@@ -14669,7 +14684,7 @@ function renderLossAvg(logs){
    · 생산 건마다 색 점 — 누르면 [로스]
    · 숫자 표 · 기준 바꾸기는 접어 두고 필요할 때 연다
    ★ 로스 kg 는 lossOf (다음 생산에 넘긴 잔량은 로스가 아님) — 전에는 카드·일별표가 옛 식(투입−표준−잔량)이라 숫자가 서로 달랐다 */
-const LC = { ok:"#2E7D32", bad:"#C62828", open:"#E0A100", none:"#9AA0A6" };
+const LC = { get ok(){ return tc("#2E7D32","#4FD08C"); }, get bad(){ return tc("#C62828","#FF7A8A"); }, get open(){ return tc("#E0A100","#FFC94D"); }, get none(){ return tc("#9AA0A6","#B6BED2"); } };
 const lossIn = l => Number(l.input_kg||0) + Number(l.carried_kg||0);
 const lossPctOfLog = l => { if (l.leftover_to === "next") return null; if (l.loss_pct_actual != null && l.loss_flag && l.loss_flag !== "open") return Number(l.loss_pct_actual);
   const i = lossIn(l); return i > 0 ? Math.round(lossOf(l)/i*10000)/100 : null; };
@@ -16460,6 +16475,110 @@ function startRealtime(){
   /* 로그인 토큰이 갱신되면 실시간 연결에도 알려 준다 */
   try { sb.auth.onAuthStateChange((_e, sess)=>{ if (sess?.access_token && sb.realtime?.setAuth) sb.realtime.setAuth(sess.access_token); }); } catch(_){}
 }
+
+/* ══ 자동 새로고침 (★ 2026-11-11 — Lee "검수는 계속 한 화면만 띄우고 현장에서는 한 화면만 띄우는데 자동 새로고침 기능이 없으면 계속 그 화면이 유지되는거잖아") ══
+   실시간(Realtime)이 기본이지만, 하루 종일 켜 둔 화면은 연결이 조용히 끊기거나 신호를 놓칠 수 있다 → 안전망으로 주기적으로 직접 받아 온다.
+   · 현장작업 · 검수 · 출고 · 대시보드 화면이 떠 있을 때만 · ★ 3초마다 서버의 "변경 도장"(live_stamp — 글자 몇십 개)만 확인하고,
+     도장이 바뀌었을 때만 실제 데이터를 받는다 (Lee "거의 실시간 느낌으로 · 20초 동안 모르는 거잖아") — 빠르면서도 주고받는 양은 아주 작다
+   · 서버에 live_stamp 가 아직 없으면(000_install_all.sql 재실행 전) 10초마다 직접 받는 방식으로 돌아간다 · 1분마다 한 번은 도장과 상관없이 받는다
+   · 최근 이틀 + 진행 중인 작업지시 · 이력(order_events) · 생산실적 · 반려만 가볍게 받는다 — 바뀐 줄만 화면에 반영
+   · 10분마다 한 번은 전체를 다시 받는다 (재고 · 기준정보 등)
+   · 글자를 치고 있거나 창(대화상자)이 떠 있으면 건너뛴다 — 입력 중인 것을 밀어내지 않는다
+   · [새로고침] 버튼도 이제 서버에서 다시 받는다 (전에는 화면만 다시 그렸다) */
+const AUTO_SCREENS = ["work","qc","ship","dash"];
+let AUTO_BUSY = false, AUTO_LAST = 0, AUTO_FULL = Date.now(), AUTO_OK_AT = null, AUTO_MISS = new Set();
+let AUTO_STAMP = null, AUTO_STAMP_OK = null, AUTO_PULL_AT = 0;     // 변경 도장 · 서버에 live_stamp 가 있는지(null=아직 모름) · 마지막으로 실제 데이터를 받은 때
+const AUTO_EVERY = 3000, AUTO_FALLBACK = 10000;
+const autoRowDiff = (cur, row) => { for (const k in row) { const a = cur[k], b = row[k];
+  if (a === b) continue; if (a == null && b == null) continue;
+  if (typeof a === "object" || typeof b === "object") { if (JSON.stringify(a) !== JSON.stringify(b)) return true; continue; }
+  if (String(a) !== String(b)) return true; } return false; };
+async function pullLive(){
+  if (!sb) return 0;
+  const d0 = new Date(); d0.setDate(d0.getDate() - 2);
+  const since = ymd(d0), sinceTs = new Date(Date.now() - 48*3600*1000).toISOString();
+  const jobs = [
+    ["orders",        q => q.or(`status.in.(대기,생산중,생산완료),work_date.gte.${since}`)],
+    ["order_events",  q => q.gte("at", sinceTs)],
+    ["logs",          q => q.gte("work_date", since)],
+    ["qc_rejections", q => q.gte("created_at", sinceTs)],
+  ];
+  const res = await Promise.all(jobs.map(([t, f]) => f(sb.from(tb(t)).select("*")).limit(1000).then(r => [t, r], e => [t, { error:e }])));
+  let changed = 0, failed = 0;
+  for (const [t, r] of res) {
+    if (!r || r.error || !Array.isArray(r.data)) { failed++; continue; }
+    const key = "id";
+    r.data.forEach(row => { const cur = DB[t].find(x => x[key] === row[key]);
+      if (cur && !autoRowDiff(cur, row)) return;
+      try { rtApply(t, cur ? "UPDATE" : "INSERT", row, null); changed++; } catch(_){} });
+    /* 서버에서 지워진 작업지시 — 두 번 연속으로 안 보이면 화면에서도 뺀다 (방금 만든 것을 실수로 지우지 않게 두 번 확인) */
+    if (t === "orders" && r.data.length < 1000) {
+      const got = new Set(r.data.map(x => x.id)), miss = new Set();
+      DB.orders.filter(o => (["대기","생산중","생산완료"].includes(o.status) || String(o.work_date||"") >= since) && !got.has(o.id)).forEach(o => miss.add(o.id));
+      const gone = [...miss].filter(id => AUTO_MISS.has(id));
+      if (gone.length) { DB.orders = DB.orders.filter(o => !gone.includes(o.id)); changed += gone.length; }
+      AUTO_MISS = new Set([...miss].filter(id => !gone.includes(id)));
+    }
+  }
+  if (failed === res.length) return -1;
+  AUTO_OK_AT = new Date();
+  return changed;
+}
+function autoStamp(msg){
+  const t = AUTO_OK_AT ? `${String(AUTO_OK_AT.getHours()).padStart(2,"0")}:${String(AUTO_OK_AT.getMinutes()).padStart(2,"0")}:${String(AUTO_OK_AT.getSeconds()).padStart(2,"0")}` : "";
+  document.querySelectorAll(".autoStamp").forEach(el => { el.innerHTML = msg || (sb ? (t ? `<span class="dot g"></span>자동 새로고침 ${AUTO_STAMP_OK === false ? "10초" : "3초"} · ${t}` : "자동 새로고침 켜짐") : "");
+    el.title = AUTO_STAMP_OK === false ? "서버에 live_stamp 가 없어 10초마다 받고 있습니다 — 000_install_all.sql 을 다시 실행하면 3초마다 확인합니다" : "3초마다 서버에 바뀐 것이 있는지 확인하고, 바뀌었을 때만 새로 받습니다"; });
+}
+const autoBlocked = () => { const a = document.activeElement;
+  const typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== "checkbox" && a.type !== "button";
+  return typing || $("overlay")?.style.display === "block" || ($("dlg") && $("dlg").style.display !== "none"); };
+async function autoTick(force){
+  if (!sb || AUTO_BUSY) return;
+  if (!force) {
+    if (document.hidden || navigator.onLine === false) return;
+    if (!AUTO_SCREENS.includes(curScreen())) return;
+    if (Date.now() - AUTO_LAST < (AUTO_STAMP_OK === false ? AUTO_FALLBACK : AUTO_EVERY) - 200) return;
+  }
+  AUTO_BUSY = true; AUTO_LAST = Date.now();
+  try {
+    if (!force && Date.now() - AUTO_FULL > 600000 && !autoBlocked()) {         // 10분마다 전체
+      AUTO_FULL = Date.now(); await reloadDB({ silent:true }); AUTO_OK_AT = new Date(); AUTO_PULL_AT = Date.now(); autoStamp(); return; }
+    /* ① 변경 도장만 먼저 — 안 바뀌었으면 아무것도 받지 않는다 */
+    let need = force || Date.now() - AUTO_PULL_AT > 60000;
+    if (AUTO_STAMP_OK !== false) {
+      let st = null, err = null;
+      try { const r = await sb.rpc("live_stamp"); st = r.data; err = r.error; } catch(e){ err = e; }
+      if (err) {
+        const m = String(err.message || err);
+        if (/live_stamp|schema cache|does not exist|PGRST202|404/i.test(m)) { AUTO_STAMP_OK = false; need = true; }     // 서버에 아직 없음 → 직접 받는 방식
+        else if (!force) { autoStamp(`<span class="dot r"></span>자동 새로고침 실패 — 인터넷 확인`); return; }
+      } else {
+        AUTO_STAMP_OK = true; AUTO_OK_AT = new Date();
+        if (st !== AUTO_STAMP) { need = true; }
+        if (!need) { autoStamp(); return; }
+        AUTO_STAMP = st;
+      }
+    } else need = true;
+    /* ② 바뀌었으면 받는다 */
+    const n = await pullLive(); AUTO_PULL_AT = Date.now();
+    if (n < 0) { AUTO_STAMP = null; autoStamp(`<span class="dot r"></span>자동 새로고침 실패 — 인터넷 확인`); return; }
+    if (AUTO_MISS.size) AUTO_STAMP = null;        // 지워진 것 같은 지시가 있으면 다음 번(3초 뒤)에 한 번 더 받아 확인한다
+    if (n > 0) liveRender();
+    autoStamp();
+  } catch(e){ console.warn("[MES] 자동 새로고침", e); }
+  finally { AUTO_BUSY = false; }
+}
+async function manualRefresh(){
+  const cur = curScreen();
+  if (!sb) { render(cur); return toast("로컬 모드 — 화면만 새로 그렸습니다 (DB 미연결)"); }
+  autoStamp("받는 중…");
+  await autoTick(true);
+  try { render(cur); } catch(_){}
+  toast(AUTO_OK_AT && Date.now() - AUTO_OK_AT.getTime() < 5000 ? "최신 데이터로 새로 받았습니다" : "새로 받지 못했습니다 — 인터넷 연결을 확인하세요");
+}
+setInterval(()=>autoTick(false), 1000);
+document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) { AUTO_LAST = 0; autoTick(false); } });
+window.addEventListener("online", ()=>{ AUTO_LAST = 0; autoTick(false); });
 
 function csvBeans(){
   csv("원두마스터", ["MMS코드","머신종류","원두명","상태","컬러","품목보고번호","원산지","적요","출시일","종료일",
