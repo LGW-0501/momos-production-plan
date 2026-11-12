@@ -7107,6 +7107,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-13", "현장작업 — [검수 대기] 칸을 위로", "생산 완료 후 검수를 기다리는 카드 칸을 화면 맨 아래에서 위쪽으로 옮겼습니다. 순서: 검수 수량 다름(빨강) → 검수 대기 → 반려 → 기계별 할 일."],
   ["2026-11-11", "자동 새로고침 — 현장작업 · 검수 · 출고 · 대시보드", "화면을 켜 두기만 해도 3초마다 서버에 바뀐 것이 있는지 확인하고, 바뀌었으면 바로 받아 화면에 반영합니다 (10분마다 한 번은 전체). 서버에 live_stamp 함수가 필요합니다(000_install_all.sql 재실행) — 없으면 10초마다 받습니다. 글자를 치고 있거나 창이 떠 있으면 건너뛰어 입력을 밀어내지 않습니다. [새로고침] 버튼 옆에 '자동 새로고침 · 시각'이 보이고, [새로고침] 버튼도 이제 화면만 다시 그리지 않고 서버에서 다시 받습니다."],
   ["2026-11-11", "다크 모드 — 잘 안 보이던 색 보정", "그래프 막대(갈색)·불량 막대·로스 선·게이지 색을 다크에서는 밝은 색으로 바꿨습니다. 진행 바 바탕과 채움, 1kg(갈색)·500g·200g·100g 규격 딱지, 한글표시사항 제목 글자, [전부 정상] 버튼도 더 잘 보이게 했습니다. 글자·회색 글자·구분선 색을 전체적으로 한 단계 밝게 올렸습니다. 밝은 화면은 그대로입니다."],
   ["2026-11-11", "현장작업 — 검수 끝날 때까지 카드 남김 · 수량 다르면 현장 확인", "① 생산 완료한 카드는 현장작업 화면 아래 [검수 대기] 칸에 흐리게 남고, 검수가 끝나면 사라집니다 (그 날짜 화면에만). ② 검수에서 센 수량이 다르면 검수자는 바로 고치지 않고 [현장에 확인 요청]을 겁니다 — 검수는 거기서 멈춥니다. ③ 현장작업 맨 위에 그 카드가 빨간 테두리로 깜빡이며 생산·검수·차이 수량과 사유가 크게 보입니다. 작업자가 [확인]을 눌러야 그 수량으로 생산실적·완제품 재고가 고쳐지고 검수 완료·출고 대기로 넘어갑니다. 수량이 안 맞으면 [검수에 다시 세기 요청]으로 돌려보낼 수 있습니다. 검수 쪽은 [요청 취소], 관리자는 [현장 확인 없이 완료]가 됩니다. 서버 함수 3개 추가(000_install_all.sql 재실행)."],
@@ -20439,11 +20440,11 @@ function renderWork(){
           <div class="btns"><button class="go" style="background:var(--bad)" onclick="ackQty('${o.id}')">확인 — ${fmt(f.received)}개가 맞습니다</button></div>
           <div class="btns sm"><button onclick="qcUnflagQty('${o.id}', true)">수량이 맞지 않습니다 (검수에 다시 세기 요청)</button></div>
         </div>`; }).join("")}</div></div>`; };
-  /* 맨 아래 — 검수 대기 (흐리게 · 검수가 끝나면 사라진다) */
+  /* 검수 대기 (흐리게 · 검수가 끝나면 사라진다) — 빨간 칸 바로 아래, 할 일 카드 위 */
   const qWaitShown = wkMach === "반려" ? [] : qWait.filter(inKind);
   const qWaitPanel = () => !qWaitShown.length ? "" :
     `<div class="mgrp qwait-grp"><div class="mgrp-h"><b>검수 대기</b><span class="tag">${qWaitShown.length}건</span>
-        <span class="r">생산 완료 → 검수 중 · 검수가 끝나면 여기서 사라집니다 · 수량이 다르면 맨 위에 빨갛게 뜹니다</span></div>
+        <span class="r">생산 완료 → 검수 중 · 검수가 끝나면 여기서 사라집니다 · 수량이 다르면 위에 빨갛게 뜹니다</span></div>
       <div class="wcards">${qWaitShown.map(o=>{ const p = prodById(o.product_id);
         return `<div class="wc qwait">
           <div class="hd"><div class="nm">${specChip(specOf(o))}${p?.name||o.product_name||"품목 없음"}</div>
@@ -20451,7 +20452,8 @@ function renderWork(){
           <div class="big"><b>${fmt(o.qty_done)}</b> <span>개 생산 완료</span></div>
           <div class="meta">⏳ 검수 대기 · 완료 ${dtFull(o.done_at)}${o.done_by?` · ${o.done_by}`:""}${qcFlow(o)==="재검수 대기"?` · <span class="warn">재검수</span>`:""}</div>
         </div>`; }).join("")}</div></div>`;
-  $("wkCards").innerHTML = qFlagPanel() + rejPanelF() + (shown.length ? shown.map(g=>{
+  /* ★ 2026-11-13 [검수 대기] 칸을 위로 (Lee "대기 열은 위로 올라 왔으면") — 순서: 수량 다름(빨강) → 검수 대기 → 반려 → 기계별 할 일 */
+  $("wkCards").innerHTML = qFlagPanel() + qWaitPanel() + rejPanelF() + (shown.length ? shown.map(g=>{
     const m   = DB.machines.find(x=>x.name===g.name);
     const ea  = g.items.reduce((t,o)=>t+Number(o.qty_plan||0),0);
     const madeEa = g.items.reduce((t,o)=>t+Number(o.qty_done||0),0);
@@ -20477,7 +20479,7 @@ function renderWork(){
   }).join("")
     : (wkMach === "반려" ? "" : `<div class="wempty">${wkMach
         ? `${wkMach} 에 할 작업이 없습니다<br><span>위 탭에서 [전체]를 누르면 다른 기계도 보입니다</span>`
-        : `오늘 할 작업이 없습니다<br><span>관리자가 작업지시를 내리면 기계별로 여기에 카드로 뜹니다</span>`}</div>`)) + qWaitPanel();
+        : `오늘 할 작업이 없습니다<br><span>관리자가 작업지시를 내리면 기계별로 여기에 카드로 뜹니다</span>`}</div>`));
 }
 
 /* ══ 검수 ══ */
