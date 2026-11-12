@@ -4261,6 +4261,87 @@ async function mesStopWork(a){
 }
 
 /* ── 2. 생산 중 부적합 ─────────────────────────────────────── */
+/* ══ X-ray 부적합 → 원두 바로 빼기 · 선별 후 되돌리기 (★ 2026-11-13) ══
+   Lee "x-ray로 빠진 부적합이 생기면 봉투를 버린게 아니랑 원두가 빠진거 일 수 있잖아 그러면 58kg 을 생산 안되게 해야"
+       → 버린 만큼만 재고에서 빼기 · X-ray면 묻지 않고 바로 · 하던 작업은 계속 · "이물을 거르고 나중에 완료가 되기는 하니깐"
+   · 등록하는 순간 개수 × 규격(kg) 을 쓰던 배치에서 뺀다 (생산 외 사용 "X-ray 이물 선별 대기") — 생산계획·다른 작업에 안 잡힌다
+   · 품질관리에서 [선별 완료] → 되돌릴 kg 만큼 그 배치로 돌아오고, 못 살린 만큼은 폐기로 남는다
+   · 이미 빼 둔 원두라서 그 지시를 생산 완료할 때는 다시 빼지 않는다 (xrayHeldQty) */
+const NG_HOLD_TYPES = ["X-ray 부적합"];
+const isForeignNg = q => ["이물질","X-ray 부적합","이물"].includes(q?.type);
+const pqcOfOrder = o => DB.pqc.filter(q => pqcLive(q) && (q.order_id ? q.order_id === o.id : String(q.note||"").includes(`작업지시 ${o.order_no} `)));
+const xrayHeldQty = o => !o ? 0 : pqcOfOrder(o).filter(q => Number(q.hold_kg) > 0).reduce((t,q)=>t+Number(q.qty||0), 0);
+const xrayHeldKg  = o => !o ? 0 : Math.round(pqcOfOrder(o).filter(q => Number(q.hold_kg) > 0).reduce((t,q)=>t+Number(q.hold_kg||0), 0)*1000)/1000;
+async function mesRegisterNgHold(a){
+  const o = ordById(a.order_id), p = prodById(o?.product_id);
+  const bag = (o && p) ? (orderMms(o, p).find(m=>Number(m.stock_kg) > 0) || null) : null;
+  const kg = bag ? Math.min(Math.round(stdKg(p, a.qty)*1000)/1000, Math.round(Number(bag.stock_kg||0)*1000)/1000) : 0;
+  const r = await rpc("register_ng_hold",
+    { p_order_id:a.order_id, p_qty:a.qty, p_type:a.type, p_mms_id:bag?.id||null, p_kg:kg||null, p_worker_id:currentWorkerId(), p_idempotency:a.idem },
+    () => {
+      const hit = idemHit(a.idem); if (hit) return hit;
+      if (!(Number(a.qty) > 0)) return MES_ERR("bad_qty","수량을 넣어 주세요");
+      if (!o) return MES_ERR("no_order","작업지시를 찾을 수 없습니다");
+      if (!["대기","생산중"].includes(o.status)) return MES_ERR("bad_status", `이미 ${o.status} 상태입니다 — 품질관리에서 등록하세요`);
+      return localTx(T => {
+        const q = T.add("pqc", { id:uid(), date:o.work_date, type:a.type, order_id:o.id,
+          product_id:o.product_id, product_name:o.product_name||"", product_code:o.product_code||"", product_spec:o.product_spec ?? p?.spec_g ?? null,
+          machine:o.machine, qty:Number(a.qty), note:`작업지시 ${o.order_no} · 생산 중 등록`, action:"", worker:CURRENT_USER, created_at:nowISO() });
+        T.upd(o, { qty_ng:Number(o.qty_ng||0) + Number(a.qty), ng_type:a.type || o.ng_type }); save("orders", o);
+        if (bag && kg > 0) {
+          const u = T.add("usages", { id:uid(), use_date:today(), bean:bag.bean, mms_id:bag.id, batch_code:batchLabel(bag), roast_date:bag.roast_date, batch:Number(bag.batch)||0, batch_full:batchFull(bag),
+            kg, reason:"X-ray 이물 선별 대기", note:`작업지시 ${o.order_no} · ${o.product_name||""} ${a.qty}개`, user:CURRENT_USER||"", at:nowISO() });
+          save("usages", u);
+          T.upd(bag, { stock_kg: Math.max(0, Math.round((Number(bag.stock_kg||0) - kg)*1000)/1000) }); save("mms", bag);
+          Object.assign(q, { hold_mms_id:bag.id, hold_usage_id:u.id, hold_kg:kg });
+        }
+        save("pqc", q);
+        logAudit("부적합 등록", o.order_no, `${a.type} ${fmt(a.qty)}EA${kg>0?` · 원두 ${fmt(kg)}kg 뺌`:""}`);
+        const res = { ok:true, pqc_id:q.id, qty:Number(a.qty), hold_kg:kg, hold_mms_id:bag?.id||null };
+        idemPut(T, a.idem, "register_ng_hold", o.id, res); return res;
+      });
+    }, { quiet:true });
+  /* 서버에 아직 함수가 없으면 — 전처럼 부적합만 등록하고 알려 준다 */
+  if (r && r.ok === false && /register_ng_hold|schema cache|does not exist/i.test(r.message||"")) {
+    const r2 = await mesRegisterNg({ ...a, idem:`ng-${a.order_id}-${uid()}` });
+    if (r2 && r2.ok) r2.hold_missing = true;
+    return r2;
+  }
+  if (r && r.ok && sb) { try { await Promise.all([ pullWhere("pqc", "id", r.pqc_id), bag ? pullWhere("mms", "id", bag.id) : null, pullOrder(a.order_id) ]); } catch(_){} }
+  if (r && r.ok) r.bag = bag;
+  return r;
+}
+/* 품질관리 — 선별 완료 → 원두 되돌리기 */
+async function xrayRelease(id){
+  if (!(await requireUser())) return;
+  if (!canPqcAct()) return toast("검수 담당·관리자만 할 수 있습니다");
+  const q = DB.pqc.find(x=>x.id===id); if (!q || !(Number(q.hold_kg) > 0) || q.hold_back_at) return;
+  const m = DB.mms.find(x=>x.id===q.hold_mms_id);
+  const v = await askText(`빼 둔 원두 ${fmt(q.hold_kg)}kg 중 이물을 거르고 다시 쓸 수 있는 kg\n(배치 ${m?batchShort(m):"—"} 로 돌아갑니다 · 나머지는 폐기로 남습니다)`, String(q.hold_kg), "선별 완료 — 원두 되돌리기");
+  if (v === null) return;
+  const back = Math.min(Number(q.hold_kg), Math.max(0, Math.round(numOf(v)*1000)/1000));
+  if (isNaN(back)) return toast("kg 를 숫자로 넣어 주세요");
+  const r = await rpc("xray_release", { p_pqc_id:id, p_back_kg:back, p_note:null, p_user_name:CURRENT_USER||null, p_idempotency:`xr-${id}-${uid()}` }, () => {
+    const scrap = Math.round((Number(q.hold_kg) - back)*1000)/1000;
+    const u = DB.usages.find(x=>x.id===q.hold_usage_id);
+    if (u && !u.cancelled_at) { u.cancelled_at = nowISO(); u.cancelled_by_name = CURRENT_USER||""; u.cancel_reason = "X-ray 선별 완료"; save("usages", u); }
+    if (m) { m.stock_kg = Math.round((Number(m.stock_kg||0) + back)*1000)/1000; save("mms", m); }
+    if (scrap > 0 && m) { const nu = { id:uid(), use_date:today(), bean:m.bean, mms_id:m.id, batch_code:batchLabel(m), roast_date:m.roast_date, batch:Number(m.batch)||0, batch_full:batchFull(m), kg:scrap, reason:"X-ray 이물 폐기", note:u?.note||"", user:CURRENT_USER||"", at:nowISO() }; DB.usages.push(nu); save("usages", nu); }
+    Object.assign(q, { hold_back_kg:back, hold_back_at:nowISO(), hold_back_by:CURRENT_USER||"" }); save("pqc", q);
+    logAudit("X-ray 선별 완료 · 원두 되돌림", q.product_name||"", `${fmt(q.hold_kg)}kg 중 ${fmt(back)}kg 되돌림`);
+    return { ok:true, back_kg:back, scrap_kg:scrap }; }, { quiet:true });
+  if (!r || r.ok === false) { renderAll(); return ask(/xray_release|schema cache|does not exist/i.test(r?.message||"") ? "서버에 이 기능이 아직 없습니다.\n\nSupabase SQL Editor 에서 000_install_all.sql 을 다시 실행해 주세요 (끝의 'X-ray 부적합 → 원두 바로 빼기' 절)." : (r?.message || "처리하지 못했습니다"), { title:"선별 완료", yes:"확인" }); }
+  if (sb) { try { await Promise.all([ pullWhere("pqc", "id", id), pullWhere("mms", "id", q.hold_mms_id), pullWhere("usages", "mms_id", q.hold_mms_id) ]); } catch(_){} }
+  renderAll(); toast(`원두 ${fmt(r.back_kg ?? back)}kg 을 배치로 되돌렸습니다${Number(r.scrap_kg) > 0 ? ` · ${fmt(r.scrap_kg)}kg 폐기` : ""} — 다시 생산에 쓸 수 있습니다`);
+}
+/* 부적합 줄에 붙는 "원두 빼 둠" 표시 */
+function pqcHoldHTML(q){
+  if (!(Number(q.hold_kg) > 0)) return "";
+  const m = DB.mms.find(x=>x.id===q.hold_mms_id), bt = m ? ` · 배치 ${batchShort(m)}` : "";
+  return q.hold_back_at
+    ? `<br><span class="tag ok">선별 완료</span> <span style="font-size:12px">빼 둔 ${fmt(q.hold_kg)}kg 중 <b>${fmt(q.hold_back_kg)}kg 되돌림</b>${Number(q.hold_kg)-Number(q.hold_back_kg) > 0.0005 ? ` · ${fmt(Math.round((Number(q.hold_kg)-Number(q.hold_back_kg))*1000)/1000)}kg 폐기` : ""}${bt} · ${q.hold_back_by||""} ${dtFull(q.hold_back_at)}</span>`
+    : `<br><span class="tag bad">원두 ${fmt(q.hold_kg)}kg 빼 둠</span> <span style="font-size:12px">이물 선별 대기${bt} — 재고·생산계획에서 빠져 있습니다</span>`;
+}
 async function mesRegisterNg(a){
   return rpc("register_ng",
     { p_order_id:a.order_id, p_qty:a.qty, p_type:a.type, p_worker_id:currentWorkerId(), p_idempotency:a.idem },
@@ -7107,6 +7188,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-13", "X-ray 부적합 — 원두 바로 빼기 · 품질관리로 자동 연결", "현장에서 X-ray 부적합을 등록하면 묻지 않고 그 수량만큼의 원두(개수 × 규격)를 쓰던 배치 재고에서 바로 뺍니다 (이물 선별 대기) — 생산계획과 다른 작업에 잡히지 않고, 하던 작업은 계속합니다. 품질관리 › 조치 대기에 '원두 ○kg 빼 둠'으로 뜨고, 이물을 거른 뒤 [선별 완료 · 원두 되돌리기]를 누르면 되돌릴 kg 만큼 그 배치로 돌아와 다시 생산에 쓸 수 있습니다 (못 살린 만큼은 폐기). 이미 빼 둔 원두는 그 지시를 생산 완료할 때 다시 빼지 않습니다. 품질관리의 이물질 집계가 현장의 'X-ray 부적합'·'이물'도 세도록 고쳤고, 왼쪽 메뉴 [품질관리]에 조치 대기 건수가 뜹니다. 서버 함수 2개·칸 추가(000_install_all.sql 재실행)."],
+  ["2026-11-13", "생산 완료 — 생산자를 그때마다 선택 (필수)", "생산 완료 창에서 생산자가 미리 골라져 있지 않습니다. 이름 버튼을 눌러 직접 골라야 하고, 고르지 않으면 [완료]가 되지 않습니다 (빨간 테두리와 안내가 뜹니다). 위쪽 작업자 선택과 상관없이 완료할 때 고른 사람이 생산자로 기록됩니다."],
   ["2026-11-13", "현장작업 — [검수 대기] 칸을 위로", "생산 완료 후 검수를 기다리는 카드 칸을 화면 맨 아래에서 위쪽으로 옮겼습니다. 순서: 검수 수량 다름(빨강) → 검수 대기 → 반려 → 기계별 할 일."],
   ["2026-11-11", "자동 새로고침 — 현장작업 · 검수 · 출고 · 대시보드", "화면을 켜 두기만 해도 3초마다 서버에 바뀐 것이 있는지 확인하고, 바뀌었으면 바로 받아 화면에 반영합니다 (10분마다 한 번은 전체). 서버에 live_stamp 함수가 필요합니다(000_install_all.sql 재실행) — 없으면 10초마다 받습니다. 글자를 치고 있거나 창이 떠 있으면 건너뛰어 입력을 밀어내지 않습니다. [새로고침] 버튼 옆에 '자동 새로고침 · 시각'이 보이고, [새로고침] 버튼도 이제 화면만 다시 그리지 않고 서버에서 다시 받습니다."],
   ["2026-11-11", "다크 모드 — 잘 안 보이던 색 보정", "그래프 막대(갈색)·불량 막대·로스 선·게이지 색을 다크에서는 밝은 색으로 바꿨습니다. 진행 바 바탕과 채움, 1kg(갈색)·500g·200g·100g 규격 딱지, 한글표시사항 제목 글자, [전부 정상] 버튼도 더 잘 보이게 했습니다. 글자·회색 글자·구분선 색을 전체적으로 한 단계 밝게 올렸습니다. 밝은 화면은 그대로입니다."],
@@ -7761,8 +7844,8 @@ function renderDash(){
   const planned = planRows().reduce((s,r)=>s+r.ea,0);
   const donePct = planned ? Math.min(100, todayEA/planned*100) : (todayEA?100:0);
   const pqcToday = PQCL().filter(q=>q.date===today());
-  const foreignToday = pqcToday.filter(q=>q.type==="이물질").reduce((s,q)=>s+Number(q.qty||0),0);
-  const pqcMonth = PQCL().filter(q=>monthKey(q.date)===monthKey(today()) && q.type==="이물질")
+  const foreignToday = pqcToday.filter(isForeignNg).reduce((s,q)=>s+Number(q.qty||0),0);
+  const pqcMonth = PQCL().filter(q=>monthKey(q.date)===monthKey(today()) && isForeignNg(q))
     .reduce((s,q)=>s+Number(q.qty||0),0);
   const chBy = {};
   PRODS().forEach(p=>{ const k=p.channel||"일반"; chBy[k]=(chBy[k]||0)+shortage(p); });
@@ -8614,6 +8697,16 @@ function renderMtLink(){
         <span class="r"><button class="btn primary" onclick="go('mt')">라벨작업 화면으로</button></span>
       </div>`
     : "";
+}
+/* ★ 2026-11-13 왼쪽 메뉴 [품질관리] 에 조치 대기 건수 — 현장에서 등록한 부적합이 넘어온 것을 바로 알 수 있게 */
+function pqcBadge(){
+  const b = document.querySelector('#menu button[data-s="pqc"]'); if (!b) return;
+  const lim = dayAfter(-60);
+  const n = PQCL().filter(q=>(!String(q.action||"").trim() || (Number(q.hold_kg) > 0 && !q.hold_back_at)) && String(q.date||"") >= lim).length;
+  let el = b.querySelector(".badge");
+  if (!n) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement("span"); el.className = "badge"; b.appendChild(el); }
+  el.textContent = n;
 }
 /* 왼쪽 메뉴에 대기 건수 뱃지 */
 function mtBadge(){
@@ -14395,7 +14488,7 @@ function renderPqc(){
   const thisWeek = PQCL().filter(q=>weekKey(q.date)===weekKey(today()));
   const thisMon = PQCL().filter(q=>monthKey(q.date)===monthKey(today()));
   const sum = arr => arr.reduce((s,q)=>s+Number(q.qty||0),0);
-  const fSum = arr => sum(arr.filter(q=>q.type==="이물질"));
+  const fSum = arr => sum(arr.filter(isForeignNg));                       // ★ 2026-11-13 현장의 "X-ray 부적합"·"이물" 도 이물질로 센다
   const monEA = DB.logs.filter(l=>monthKey(l.work_date)===monthKey(today())).reduce((s,l)=>s+Number(l.qty_ea||0),0);
   $("qCards").innerHTML = `
     <div class="card ${fSum(tD)?'red':'green'}"><div class="lb">오늘 이물질</div>
@@ -14433,7 +14526,7 @@ function renderPqc(){
      <td>${fmt(PQCL().filter(q=>monthKey(q.date)===monthKey(today())).reduce((s,q)=>s+Number(q.qty||0),0))}</td>`);
 
   const byM = {}; PQCL().forEach(q=>{ const k=monthKey(q.date);
-    byM[k]=byM[k]||{all:0,f:0}; byM[k].all+=Number(q.qty||0); if(q.type==="이물질") byM[k].f+=Number(q.qty||0); });
+    byM[k]=byM[k]||{all:0,f:0}; byM[k].all+=Number(q.qty||0); if(isForeignNg(q)) byM[k].f+=Number(q.qty||0); });
   tbl("qByMonth", ["월","이물질(건)","전체(건)","생산(EA)","발생률"],
     Object.keys(byM).sort().reverse().map(m=>{
       const ea = DB.logs.filter(l=>monthKey(l.work_date)===m).reduce((s,l)=>s+Number(l.qty_ea||0),0);
@@ -14446,11 +14539,11 @@ function renderPqc(){
   tbl("qTbl", ["일자","구분","품목","공정","수량","내용","조치","담당",""],
     rows.map(q=>{ const p=prodById(q.product_id); const X = !pqcLive(q);
       return `<tr${X?' style="opacity:.5"':""}><td class="c">${q.date}</td>
-        <td class="c"><span class="tag ${q.type==="이물질"?"bad":"warn"}">${q.type}</span></td>
+        <td class="c"><span class="tag ${isForeignNg(q)?"bad":"warn"}">${q.type}</span></td>
         <td class="l">${p?p.name:"—"}</td><td class="c">${q.machine||"—"}</td>
-        <td><b>${fmt(q.qty)}</b></td><td class="l">${q.note||"—"}</td><td class="l" style="font-size:12px">${q.action ? `<b>${pqcActText(q)}</b>${q.action_cause?`<br>원인: ${q.action_cause}`:""}${q.action_note?`<br>${q.action_note}`:""}${q.action_by?`<br><span class="hint" style="padding:0">${q.action_by} ${dtFull(q.action_at)}</span>`:""}` : `<span class="bad">조치 전</span>`}</td>
+        <td><b>${fmt(q.qty)}</b></td><td class="l">${q.note||"—"}${pqcHoldHTML(q)}</td><td class="l" style="font-size:12px">${q.action ? `<b>${pqcActText(q)}</b>${q.action_cause?`<br>원인: ${q.action_cause}`:""}${q.action_note?`<br>${q.action_note}`:""}${q.action_by?`<br><span class="hint" style="padding:0">${q.action_by} ${dtFull(q.action_at)}</span>`:""}` : `<span class="bad">조치 전</span>`}</td>
         <td class="c">${q.worker||"—"}</td>
-        <td class="c" style="white-space:nowrap">${pqcLive(q) && canPqcAct() ? `<button class="btn ${q.action?"":"primary"}" onclick="pqcAct('${q.id}')">${q.action?"조치 수정":"조치 등록"}</button> ` : ""}${(q.action_hist||[]).length?`<button class="btn" onclick="pqcHist('${q.id}')">이력</button> `:""}${pqcLive(q)
+        <td class="c" style="white-space:nowrap">${pqcLive(q) && canPqcAct() && Number(q.hold_kg) > 0 && !q.hold_back_at ? `<button class="btn primary" onclick="xrayRelease('${q.id}')">선별 완료 · 원두 되돌리기</button> ` : ""}${pqcLive(q) && canPqcAct() ? `<button class="btn ${q.action?"":"primary"}" onclick="pqcAct('${q.id}')">${q.action?"조치 수정":"조치 등록"}</button> ` : ""}${(q.action_hist||[]).length?`<button class="btn" onclick="pqcHist('${q.id}')">이력</button> `:""}${pqcLive(q)
           ? `<button class="btn danger" onclick="delPqc('${q.id}')">취소</button>`
           : `<span class="tag">취소</span>`}</td></tr>`; }));
 }
@@ -14515,15 +14608,17 @@ function rejResult(r){
 }
 function renderPqcWork(){
   const lim = dayAfter(-60);
-  const open = PQCL().filter(q=>!String(q.action||"").trim() && String(q.date||"") >= lim)
+  const xHold = q => Number(q.hold_kg) > 0 && !q.hold_back_at;              // 원두를 빼 둔 채 선별을 기다리는 X-ray 건 — 조치를 적었어도 되돌릴 때까지 남는다
+  const open = PQCL().filter(q=>(!String(q.action||"").trim() || xHold(q)) && String(q.date||"") >= lim)
     .sort((a,b)=>String(b.date+(b.created_at||"")).localeCompare(String(a.date+(a.created_at||""))));
   if ($("qOpenWrap")) $("qOpenWrap").style.display = open.length ? "" : "none";
   if ($("qOpenHead")) $("qOpenHead").textContent = `⚠ 부적합 — 조치 대기 ${open.length}건`;
   if ($("qOpen")) tbl("qOpen", ["발생일","구분","품목","공정","수량","내용","등록",""],
-    open.map(q=>`<tr><td class="c">${q.date}</td><td class="c"><span class="tag ${q.type==="이물질"?"bad":"warn"}">${q.type}</span></td>
+    open.map(q=>`<tr><td class="c">${q.date}</td><td class="c"><span class="tag ${isForeignNg(q)?"bad":"warn"}">${q.type}</span></td>
       <td class="l">${prodById(q.product_id)?.name||q.product_name||"—"}</td><td class="c">${q.machine||"—"}</td><td><b>${fmt(q.qty)}</b></td>
-      <td class="l" style="font-size:12px">${q.note||"—"}</td><td class="c" style="font-size:12px">${q.worker||"—"}<br><span class="hint" style="padding:0">${dtFull(q.created_at)}</span></td>
-      <td class="c">${canPqcAct()?`<button class="btn primary" onclick="pqcAct('${q.id}')">조치 등록</button>`:`<span class="hint" style="padding:0">관리자 조치 대기</span>`}</td></tr>`));
+      <td class="l" style="font-size:12px">${q.note||"—"}${pqcHoldHTML(q)}</td><td class="c" style="font-size:12px">${q.worker||"—"}<br><span class="hint" style="padding:0">${dtFull(q.created_at)}</span></td>
+      <td class="c" style="white-space:nowrap">${canPqcAct()?`${Number(q.hold_kg) > 0 && !q.hold_back_at ? `<button class="btn primary" onclick="xrayRelease('${q.id}')">선별 완료 · 원두 되돌리기</button> ` : ""}${String(q.action||"").trim() ? "" : `<button class="btn ${Number(q.hold_kg) > 0 && !q.hold_back_at ? "" : "primary"}" onclick="pqcAct('${q.id}')">조치 등록</button>`}`:`<span class="hint" style="padding:0">관리자 조치 대기</span>`}</td></tr>`));
+  pqcBadge();
   const rj = [...DB.qc_rejections].sort((a,b)=>String(b.created_at||"").localeCompare(String(a.created_at||""))).slice(0,100);
   if ($("qRej")) tbl("qRej", ["반려 일시","단계","품목","일련번호","수량","반려 사유 · 반려자","조치 (재포장 등)","조치자 · 일시","결과",""],
     rj.map(r=>{ const o = ordById(r.order_id); const p = prodById(o?.product_id);
@@ -19169,10 +19264,17 @@ function finishDialog(o, p, ctx){
       <div class="panel-h" style="flex:0 0 auto">생산 완료</div>
       <div style="padding:14px 16px;overflow-y:auto;flex:1 1 auto;min-height:0;line-height:1.55">
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">${esc(p.name)}</div>
-        <div style="display:flex;align-items:center;gap:8px;margin:0 0 10px">
-          <b style="white-space:nowrap">생산자</b>
-          <select id="finWho" style="height:40px;flex:1;font-weight:700;font-size:15px">${(()=>{ const ws = [...new Set([ctx.worker0, ...stationWorkers("work").map(w=>w.name)].filter(Boolean))];
-            return ws.map(n=>`<option ${n===ctx.worker0?"selected":""}>${esc(n)}</option>`).join("") || `<option value="">${esc(ctx.worker0||"(계정)")}</option>`; })()}</select></div>
+        <!-- ★ 2026-11-13 생산자는 완료할 때마다 직접 고른다 — 미리 골라 두지 않는다 · 안 고르면 완료가 안 된다
+             (Lee "처음부터 지정된거 말고 그냥 선택하기가 좋을 거 같은데 왜냐면 그냥 완료 누를거 같아 · 선택안 하면 안 넘어가는 걸로") -->
+        <div id="finWhoBox" style="border:2px solid var(--line-2);border-radius:10px;padding:10px 12px;margin:0 0 12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><b>생산자 선택</b><span class="tag bad" id="finWhoReq">필수</span>
+            <span class="hint" id="finWhoTxt" style="padding:0;margin-left:auto;font-size:12.5px">누가 만들었는지 눌러 주세요</span></div>
+          <input type="hidden" id="finWho" value="">
+          <div id="finWhoList" style="display:flex;flex-wrap:wrap;gap:8px">${(()=>{ const ws = [...new Set(stationWorkers("work").map(w=>w.name).filter(Boolean))];
+            if (!ws.length && ctx.worker0) ws.push(ctx.worker0);
+            return ws.map(n=>`<button type="button" class="btn finWhoBtn" data-who="${esc(n)}" style="height:44px;padding:0 16px;font-size:15px;font-weight:700">${esc(n)}</button>`).join("")
+              || `<span class="hint" style="padding:0">고를 생산자가 없습니다 — 기준정보 › 생산자에서 업무 역할을 "현장 작업자"로 지정해 주세요</span>`; })()}</div>
+        </div>
         <div class="hint" style="padding:0;font-size:12.5px;margin-bottom:12px">
           상자 번호(일련번호) <b>${esc(ctx.serial)}</b> · 봉투 LOT <b id="finLotTxt">${esc(ctx.lot||"—")}</b> <button class="btn" id="finLotBtn" type="button" style="height:28px;padding:0 8px;font-size:12px">LOT 나누기 · 바꾸기</button><br>
           쓴 원두 <b>${esc(ctx.beanText)}</b> — 자동 기록${ctx.carriedText?`<br>${esc(ctx.carriedText)}`:""}
@@ -19225,7 +19327,8 @@ function finishDialog(o, p, ctx){
       const g = num(G), w = [];
       /* ★ 2026-11-02 부적합(생산 중 등록 + 지금 적은 버린 수량)도 원두를 쓴 것 — 정상 + 부적합 만큼 배치에서 뺀다 (Lee "21개 부적합이면 21kg 빠지고 남은 원두로") */
       const ngAll = num(N);                              // 생산 중 등록분이 이미 들어 있는 전체 버린 수량 (서버도 이 값을 최종으로 본다)
-      const auto = needKg(p, g + ngAll), A0 = beanAlloc(o, p, auto);
+      const heldN = Math.min(ngAll, xrayHeldQty(o));     // ★ 2026-11-13 X-ray 로 이미 배치에서 빼 둔 수량 — 완료 때 다시 빼지 않는다
+      const auto = needKg(p, g + ngAll - heldN), A0 = beanAlloc(o, p, auto);
       const lastRow = A0.rows[A0.rows.length-1];
       const autoLeft = lastRow ? lastRow.after : 0;
       /* 손으로 고쳤으면 — 쓴 원두 = 손댄 배치들에 있던 kg − 잔량 원두 */
@@ -19249,7 +19352,7 @@ function finishDialog(o, p, ctx){
       W.textContent = w.join("\n");
       /* ★ 2026-11-01 — 원두는 자동 계산 (Lee "봉지가 아니야 · 얼마나 남았는지 모름 · 여러 배치를 동시에 당김 — 잔량 원두를 자동으로") */
       const BI = ov.querySelector("#finBagInfo");
-      if (BI) BI.innerHTML = `이 생산에 <b>${fmt(use)}kg</b> 씀 <span style="color:var(--soft)">${manual ? `(손으로 고침 · 표준 ${fmt(stdKg(p, g))}kg · 로스 ${fmt(Math.round((use-stdKg(p, g))*1000)/1000)}kg)` : `(자동 · 정상 ${fmt(g)}개${ngAll?` + 부적합 ${fmt(ngAll)}개`:""} · 표준 ${fmt(stdKg(p, g + ngAll))}kg + 로스율 ${lossPctOf(p)}%)`}</span><br>` +
+      if (BI) BI.innerHTML = `이 생산에 <b>${fmt(use)}kg</b> 씀 <span style="color:var(--soft)">${manual ? `(손으로 고침 · 표준 ${fmt(stdKg(p, g))}kg · 로스 ${fmt(Math.round((use-stdKg(p, g))*1000)/1000)}kg)` : `(자동 · 정상 ${fmt(g)}개${ngAll?` + 부적합 ${fmt(ngAll - heldN)}개`:""}${heldN?` · X-ray ${fmt(heldN)}개는 이미 빼 둠`:""} · 표준 ${fmt(stdKg(p, g + ngAll - heldN))}kg + 로스율 ${lossPctOf(p)}%)`}</span><br>` +
         (ngAll ? `<span style="color:var(--bad)">부적합 ${fmt(ngAll)}개${Number(o.qty_ng||0)?` (생산 중 등록 ${fmt(o.qty_ng)}개${ngAll>Number(o.qty_ng)?` + 완료 때 ${fmt(ngAll-Number(o.qty_ng))}개`:ngAll<Number(o.qty_ng)?` → ${fmt(ngAll)}개로 줄임`:""})`:""} → 원두 ${fmt(needKg(p, ngAll))}kg 같이 빠짐</span><br>` : "") +
         AL.rows.map(x=>`<b>${batchShort(x.m)}</b> ${fmt(x.before)}kg − ${fmt(x.take)}kg → 잔량 원두 <b style="color:${x.after>0.0005?"var(--ok)":"var(--soft)"}">${fmt(x.after)}kg</b>${x.first?' <span class="hint" style="padding:0">(지시 배치)</span>':""}`).join("<br>");
       /* 잔량 원두 → 다음 배치로 이월 */
@@ -19285,11 +19388,21 @@ function finishDialog(o, p, ctx){
     if (LB) LB.onclick = async () => { ov.style.visibility = "hidden";
       const r = await openOrderLots(o.id, { target: num(G) + num(N) }); ov.style.visibility = "";
       if (r && r.rows) ov.querySelector("#finLotTxt").textContent = lotRowsText(r.rows); };
+    /* 생산자 고르기 — 누른 사람만 파랗게 */
+    const WB = ov.querySelector("#finWhoBox"), WH = ov.querySelector("#finWho");
+    ov.querySelectorAll(".finWhoBtn").forEach(b=>b.onclick=()=>{
+      WH.value = b.dataset.who;
+      ov.querySelectorAll(".finWhoBtn").forEach(x=>x.classList.toggle("primary", x === b));
+      WB.style.borderColor = "var(--ok)"; ov.querySelector("#finWhoReq").style.display = "none";
+      ov.querySelector("#finWhoTxt").innerHTML = `생산자 <b>${esc(b.dataset.who)}</b>`;
+      if (/생산자/.test(W.textContent)) W.textContent = ""; });
     ov.querySelector("#finOk").onclick = () => {
       const good = num(G), ng = num(N);
+      if (!WH.value) { W.textContent = "생산자를 선택해 주세요 — 선택해야 완료할 수 있습니다"; WB.style.borderColor = "var(--bad)";
+        WB.scrollIntoView({ block:"center", behavior:"smooth" }); WB.animate?.([{transform:"translateX(0)"},{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"translateX(0)"}], { duration:260 }); return; }
       if (good <= 0) { W.textContent = "정상품 수량을 넣어 주세요"; G.focus(); return; }
       const left = 0; if (manual && ctx._use != null) ctx.manualInput = ctx._use;
-      done({ good, ng, ngType: ng > 0 ? T.value : null, leftover: left, inputKg: manual ? ctx._use : null, who: ov.querySelector("#finWho")?.value || ctx.worker0 || "", carry: ctx._carry || null });
+      done({ good, ng, ngType: ng > 0 ? T.value : null, leftover: left, inputKg: manual ? ctx._use : null, who: ov.querySelector("#finWho")?.value || "", carry: ctx._carry || null });
     };
   });
 }
@@ -19501,7 +19614,7 @@ async function finishWork(id){
   /* 봉투 LOT 은 완료가 끝난 뒤 ordLotOnFinish 가 LOT별 사용수량으로 남긴다 */
 
   /* 배치에서 뺄 kg = 표준투입 × 수량 × (1+로스율) — 지시 배치부터, 모자라면 다음 배치 (서버도 같은 순서) · 나머지는 그 배치에 잔량 원두로 */
-  const LZ = autoLoss(o, p, good, 0, { input: F.inputKg != null ? F.inputKg : needKg(p, good + Number(ng||0)) });   // 부적합(생산 중 등록분 포함 전체)도 원두를 씀
+  const LZ = autoLoss(o, p, good, 0, { input: F.inputKg != null ? F.inputKg : needKg(p, good + Math.max(0, Number(ng||0) - xrayHeldQty(o))) });   // 부적합(생산 중 등록분 포함 전체)도 원두를 씀 · X-ray 로 이미 빼 둔 만큼은 제외
   const actualKg = LZ.batchKg;
 
   if (o.paused_at) { const rr = await resumeWork(o.id, true); if (!rr || rr.ok === false) return toast("정지를 풀지 못했습니다 — " + (rr?.message||"")); }
@@ -19853,8 +19966,17 @@ async function ngWork(id){
   const qty = Math.max(0, Number(n)||0); if (!qty) return;
   const type = await ask(`${o.product_name || prodById(o.product_id)?.name || ""} · 버린 것 ${fmt(qty)}개\n\n왜 버렸습니까? 하나를 누르세요`, { title:"부적합 — 왜 버렸나", choices:[ ...NG_TYPES.map(x=>({ v:x, label:ngLabel(x) })), { v:null, label:"취소" } ] });
   if (!type) return;
+  if (NG_HOLD_TYPES.includes(type)) {
+    /* ★ 2026-11-13 X-ray 부적합 — 묻지 않고 그 수량만큼의 원두를 쓰던 배치에서 바로 뺀다 (이물 선별 대기) · 작업은 계속 */
+    const r = await mesRegisterNgHold({ order_id:id, qty, type, idem:`ngh-${id}-${uid()}` });
+    if (r && r.ok && r.hold_missing) { renderAll(); return ask(`버린 것 ${fmt(qty)}개는 기록했습니다 (품질관리 › 조치 대기).\n\n다만 원두를 재고에서 빼지는 못했습니다 — 서버에 이 기능이 아직 없습니다.\nSupabase SQL Editor 에서 000_install_all.sql 을 다시 실행해 주세요.`, { title:"X-ray 부적합", yes:"확인" }); }
+    const kg = Number(r?.hold_kg) || 0;
+    return mesTell(r, kg > 0
+      ? `X-ray 부적합 ${fmt(qty)}개 기록 · 원두 ${fmt(kg)}kg 을 배치${r.bag?` ${batchShort(r.bag)}`:""}에서 뺐습니다 (이물 선별 대기) — 품질관리로 넘어갔습니다`
+      : `X-ray 부적합 ${fmt(qty)}개 기록 — 품질관리로 넘어갔습니다 (뺄 원두 배치를 찾지 못해 재고는 그대로)`);
+  }
   const r = await mesRegisterNg({ order_id:id, qty, type, idem:`ng-${id}-${uid()}` });
-  await mesTell(r, `버린 것 ${fmt(qty)}개 기록했습니다 (${ngLabel(type)})`);
+  await mesTell(r, `버린 것 ${fmt(qty)}개 기록했습니다 (${ngLabel(type)}) — 품질관리 › 조치 대기로 넘어갔습니다`);
 }
 
 /* ── 검수 ── */
