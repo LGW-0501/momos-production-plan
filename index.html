@@ -568,6 +568,12 @@
     color:#C6D0EC; font-size:10px; cursor:pointer;}
   .wc .hd .nm .prib button:hover{background:rgba(255,255,255,.2); color:#fff;}
   .wc .hd .sub,.qcc .hd .sub{font-size:12px; color:#9AA6C9; margin-top:4px;}
+  .wc[draggable="true"] .hd{cursor:grab;}
+  .wc.dragging{opacity:.35;}
+  .wc.dropL{box-shadow:-6px 0 0 0 var(--brand,#2F6BFF);}
+  .wc.dropR{box-shadow:6px 0 0 0 var(--brand,#2F6BFF);}
+  .mgrp.dropG{outline:3px dashed var(--brand,#2F6BFF); outline-offset:-3px;}
+  .xqty button{height:34px; font-weight:800; color:var(--ok); border-color:var(--ok);}
   .wc .big{padding:14px 18px 5px; font-size:15px; color:var(--soft);}
   .wc .big b{font-size:42px; font-weight:800; letter-spacing:-2px; color:var(--ink); font-variant-numeric:tabular-nums;}
   .wc .pbar{margin:0 18px;}
@@ -7224,6 +7230,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-15", "카드 끌어서 옮기기 · 남는 원두만큼 수량 추가", "현장 작업 카드를 마우스로 끌어서 순서를 바꾸거나 다른 설비 칸으로 옮길 수 있습니다(▲▼ 버튼은 그대로). 배치에 원두가 남으면 카드에 [＋N개 추가] 버튼이 나와 목표 수량을 늘립니다 — 같은 배치를 쓰는 다른 지시 몫은 빼고 계산합니다."],
   ["2026-11-15", "작업자 — 미리 고르지 않고 작업할 때마다 묻기", "현장작업·검수·출고 화면 위의 '작업자 — 누가 하나요?' 고르는 칸을 없앴습니다. 대신 작업을 누를 때마다 작업자 선택 창이 떠서 이름을 눌러야 넘어갑니다 — 생산 시작 · 잠깐 멈춤 · 부적합 등록 · 참여 · 검수 수량 확인 · 반려 · 재검수 · 출고 · 라벨작업 시작/완료. 생산 완료와 검수 완료는 전에 넣은 생산자·검수자 선택 그대로입니다. 수량 입력이나 순서 바꾸기처럼 사람을 기록하지 않는 동작은 묻지 않습니다."],
   ["2026-11-15", "검수 — 검수자를 그때마다 선택 (필수) · 현장작업 버튼 2개 정리", "[검수 완료]를 누르면 검수자 선택 창이 뜹니다. 이름을 눌러 골라야 하고, 고르지 않으면 넘어가지 않습니다 — 고른 사람이 검수자로 기록됩니다 (현장작업의 생산자 선택과 같은 방식). 수량이 달라 현장에 확인을 요청할 때도 고른 사람 이름으로 남습니다. 현장작업 화면 위의 [📋 이카운트 표로 생산 완료]·[라벨 바꾸기] 버튼을 뺐습니다."],
   ["2026-11-15", "검수 밀림 — 밀린 것이 위 · 메뉴 숫자 · 현장작업에도 표시", "검수 화면은 밀린 것(오래된 날짜)이 맨 위, 오늘 것이 그 아래에 나옵니다. 왼쪽 메뉴 [검수]에 검수 대기 건수가 빨간 숫자로 뜹니다. 현장작업 화면(오늘)의 [검수 대기] 칸에도 지난 날짜에 생산하고 아직 검수 안 된 건이 'N일 지남' 표시와 함께 보입니다."],
@@ -7769,7 +7776,7 @@ function syncUserUI(){
     cu.title = isSystemAdmin() ? "시스템 관리자 계정 — 실제 작업자를 변경할 수 있습니다" : shared ? "공용 계정 — 본인 이름을 고르세요" : "일반 계정 — 본인 작업자로 고정됩니다";
   }
   const warn = $("userWarn");
-  if (warn) warn.style.display = CURRENT_USER ? "none" : "block";
+  if (warn) warn.style.display = "none";   // ★ 2026-11-15 작업할 때마다 작업자를 묻기 때문에 "상단에서 이름 선택" 빨간 줄은 띄우지 않는다
   const rs = $("roleSel");
   if (rs) {
     rs.value = loginRole();
@@ -20507,6 +20514,82 @@ async function moveOrd(id, dir){
   renderWork(); renderOrder();
   toast(`${o.product_name || prodById(o.product_id)?.name} — ${arr.findIndex(x=>x.id===id)+1}번째`);
 }
+/* ★ 2026-11-15 카드를 마우스로 끌어서 순서 바꾸기 · 다른 설비로 옮기기 (Lee "위치를 마우스로 끌어당겨서 바꿀수있게" · 범위 "둘 다")
+   카드 위에 놓으면 그 카드 앞/뒤, 설비 칸 빈 곳에 놓으면 그 설비 맨 뒤. ▲▼ 버튼은 그대로 둔다(태블릿 터치용). */
+let WK_DRAG = null, WK_DRAG_DIRTY = false;
+function wkDragStart(e, id){ WK_DRAG = id; try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", id); } catch(_){}
+  setTimeout(()=>document.querySelector(`.wc[data-oid="${id}"]`)?.classList.add("dragging"), 0); }
+function wkDragClear(){ document.querySelectorAll(".dropL,.dropR,.dropG,.dragging").forEach(el=>el.classList.remove("dropL","dropR","dropG","dragging")); }
+function wkDragEnd(){ const dirty = WK_DRAG_DIRTY; WK_DRAG = null; WK_DRAG_DIRTY = false; wkDragClear(); if (dirty) renderWork(); }
+function wkSide(e, el){ const r = el.getBoundingClientRect(); return e.clientX < r.left + r.width/2; }
+function wkDragOver(e, el){ if (!WK_DRAG || el.dataset.oid === WK_DRAG) return; e.preventDefault(); e.stopPropagation();
+  const L = wkSide(e, el); el.classList.toggle("dropL", L); el.classList.toggle("dropR", !L);
+  document.querySelectorAll(".dropG").forEach(x=>x.classList.remove("dropG")); }
+function wkGrpOver(e, el){ if (!WK_DRAG) return; e.preventDefault(); el.classList.add("dropG"); }
+async function wkDrop(e, el){ if (!WK_DRAG) return; e.preventDefault(); e.stopPropagation();
+  const id = WK_DRAG, tgt = ordById(el.dataset.oid), before = wkSide(e, el); wkDragEnd();
+  if (tgt && tgt.id !== id) await placeOrd(id, tgt.machine || "", tgt.id, before); }
+async function wkGrpDrop(e, el){ if (!WK_DRAG) return; e.preventDefault();
+  const id = WK_DRAG, mach = el.dataset.mach || ""; wkDragEnd(); await placeOrd(id, mach, null, false); }
+/* id 를 machine 설비의 targetId 앞(before)·뒤에 놓는다. targetId 가 없으면 맨 뒤 */
+async function placeOrd(id, machine, targetId, before){
+  const o = ordById(id); if (!o || !can("plan")) return;
+  if (stIdx(o) >= 2) return toast("이미 생산이 끝난 지시는 옮길 수 없습니다");
+  const from = o.machine || "", moved = from !== machine;
+  if (moved && o.status === "생산중") return toast("생산중인 지시는 다른 설비로 옮길 수 없습니다 — 잠깐 멈춘 뒤에도 설비는 그대로입니다");
+  const matesOf = mc => ordsOf(o.work_date).filter(x=>(x.machine||"")===mc && stIdx(x) < 2 && x.id !== id).sort(byPriority);
+  const arr = matesOf(machine);
+  let at = targetId ? arr.findIndex(x=>x.id===targetId) : -1;
+  at = at < 0 ? arr.length : (before ? at : at + 1);
+  if (!moved) { const cur = ordsOf(o.work_date).filter(x=>(x.machine||"")===machine && stIdx(x) < 2).sort(byPriority).findIndex(x=>x.id===id);
+    if (cur === at) return; }
+  if (moved) {
+    if (!(await ask(`${o.product_name || prodById(o.product_id)?.name || ""} ${fmt(o.qty_plan)}개\n\n${from || "설비 미지정"} → ${machine || "설비 미지정"} 로 옮길까요?`, { title:"설비 옮기기", yes:"옮기기" }))) return;
+    const r = await mesEditOrder({ order_id:id, patch:{ machine }, idem:`om-${id}-${uid()}` });
+    if (!r || !r.ok) return toast(r?.message || "설비를 옮기지 못했습니다");
+    o.machine = machine; const mm = DB.machines.find(m=>m.name===machine); o.machine_id = mm ? mm.id : null;
+  }
+  arr.splice(at, 0, o);
+  const rows = arr.map((x,k)=>({ id:x.id, priority:k+1 }))
+    .concat(moved ? matesOf(from).map((x,k)=>({ id:x.id, priority:k+1 })) : [])
+    .filter(x => Number(ordById(x.id)?.priority) !== x.priority);
+  if (rows.length) {
+    const res = await mesReorderOrders({ rows, idem:`ord-d-${uid()}` });
+    if (!res || !res.ok) { renderWork(); return toast(res?.message || "순서를 바꾸지 못했습니다"); }
+  }
+  renderWork(); renderOrder();
+  toast(`${o.product_name || prodById(o.product_id)?.name} — ${moved ? `${machine || "설비 미지정"} ` : ""}${at+1}번째`);
+}
+/* ★ 2026-11-15 배치에 원두가 남으면 그만큼 목표 수량을 늘린다 (Lee "최대 포장 할 수 있는 숫자가 늘어 났잖아 … 자동으로 계산해서 추가" · [+N개 추가] 버튼)
+   늘릴 수 있는 수 = 이 배치로 만들 수 있는 수 − 이 지시 남은 수 − 같은 배치를 쓰는 다른 대기·생산중 지시의 남은 수 */
+function extraEa(o){
+  const p = prodById(o?.product_id), m = o && ordBatchMms(o);
+  if (!p || !m || !["대기","생산중"].includes(o.status) || isMixedOrder(o) || isHeld(m)) return { n:0, others:0 };
+  const per = needKg(p, 1); if (!(per > 0)) return { n:0, others:0 };
+  const todoOf = x => Math.max(0, Math.round(Number(x.qty_plan||0) - Number(x.qty_done||0)));
+  let othersKg = 0, others = 0;
+  DB.orders.forEach(x=>{ if (x.id === o.id || !["대기","생산중"].includes(x.status)) return;
+    const ps = batchParts(x.batch_plan); if (ps.length !== 1 || ordBatchMms(x) !== m) return;
+    const xp = prodById(x.product_id); if (!xp) return;
+    othersKg += needKg(xp, todoOf(x)); others += todoOf(x); });
+  const left = Number(m.stock_kg||0) - othersKg;
+  return { n: Math.max(0, Math.floor((left + 0.0005) / per) - todoOf(o)), others, m, per };
+}
+async function addExtraQty(id){
+  const o = ordById(id); if (!o || !can("plan")) return;
+  const ex = extraEa(o); if (!(ex.n > 0)) { renderWork(); return toast("늘릴 수 있는 원두가 없습니다"); }
+  const p = prodById(o.product_id), to = Number(o.qty_plan||0) + ex.n;
+  if (!(await ask(`${p?.name || o.product_name || ""}\n\n목표 ${fmt(o.qty_plan)}개 → ${fmt(to)}개 (＋${fmt(ex.n)}개)\n${batchShort(ex.m)} 배치 사용 가능 ${fmt(ex.m.stock_kg)}kg ÷ 1개 ${fmt(ex.per)}kg${ex.others?`\n같은 배치를 쓰는 다른 지시 ${fmt(ex.others)}개 몫은 뺐습니다`:""}`, { title:"남는 원두만큼 수량 늘리기", yes:`＋${fmt(ex.n)}개 추가` }))) return;
+  const patch = { qty_plan: to };
+  const bp = batchParts(o.batch_plan);                    // 지시에 적힌 배치 kg 도 같이 맞춘다
+  if (bp.length === 1 && bp[0].kg > 0) patch.batch_plan = String(o.batch_plan).replace(/([\d.]+)(\s*kg)/i, (_, n, u) => `${Math.round(needKg(p, to)*100)/100}${u}`);
+  const r = await mesEditOrder({ order_id:id, patch, idem:`ox-${id}-${uid()}` });
+  if (!r || !r.ok) return toast(r?.message || "수량을 늘리지 못했습니다");
+  Object.assign(o, patch);
+  logAudit && logAudit("작업지시 수량 늘림(남는 원두)", o.order_no, `＋${ex.n}개 → ${to}개`);
+  renderWork(); renderOrder();
+  toast(`목표 ${fmt(to)}개로 늘렸습니다 (＋${fmt(ex.n)}개)`);
+}
 /* 그 날 그 기계의 지시 순서를 1..n 으로 다시 매긴다 */
 async function renumberOrders(d, machine){
   const rows = ordsOf(d).filter(x=>(x.machine||"")===(machine||""))
@@ -20597,6 +20680,7 @@ function machKind(name){
   return n.replace(/\s*\d+\s*구$/, "").replace(/\(.*?\)/g, "").trim() || n;
 }
 function renderWork(){
+  if (WK_DRAG) { WK_DRAG_DIRTY = true; return; }   // 끄는 중에는 화면을 다시 그리지 않는다 (자동 새로고침이 카드를 지우면 끌기가 끊긴다)
   const d = $("wkDate").value || today();
   if (!$("wkDate").value) $("wkDate").value = d;
   /* ★ 반려 칸 — 반려된 건은 기계 카드에서 빼서 따로 모은다 (날짜와 상관없이, 검수 완료될 때까지) */
@@ -20672,7 +20756,8 @@ function renderWork(){
     const p = prodById(o.product_id);
     const rjd = rejIds.has(o.id);                         // 반려되어 돌아온 카드
     const pct = pctOf(o), run = o.status==="생산중" && !rjd;
-    return `<div class="wc ${run?"run":""}" ${rjd?'style="border:2px solid var(--bad)"':""}>
+    const drg = can("plan") && !rjd && stIdx(o) < 2;       // ★ 2026-11-15 마우스로 끌어서 순서 · 설비 바꾸기
+    return `<div class="wc ${run?"run":""}" ${rjd?'style="border:2px solid var(--bad)"':""} ${drg?`draggable="true" data-oid="${o.id}" ondragstart="wkDragStart(event,'${o.id}')" ondragend="wkDragEnd()" ondragover="wkDragOver(event,this)" ondragleave="this.classList.remove('dropL','dropR')" ondrop="wkDrop(event,this)" title="끌어서 순서를 바꾸거나 다른 설비 칸으로 옮길 수 있습니다"`:""}>
       <div class="hd">
         <div class="nm"><span class="pri">${o.priority||"-"}</span>${specChip(specOf(o))}${p?.name||"품목 없음"}${
           can("plan") ? `<span class="prib">
@@ -20724,7 +20809,7 @@ function renderWork(){
           const per = needKg(p, 1), canEa = per > 0 ? Math.floor((left + 0.0005) / per) : null;
           const todo = Math.max(0, Math.round(Number(o.qty_plan||0) - Number(o.qty_done||0)));
           return `<div><span>배치 무게</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}${ck>0?` <span style="color:var(--ok)">+ 이월 ${fmt(ck)}kg</span>`:""}</b> <span class="hint" style="padding:0">· 사용 가능 <b>${fmt(left)}kg</b>${ck>0?` (← ${from})`:""}${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>
-            ${canEa != null && stIdx(o) < 2 ? `<div><span>만들 수 있는 수량</span><b class="${canEa < todo ? "bad" : ""}">약 ${fmt(canEa)}개</b> <span class="hint" style="padding:0">(이 배치 ${fmt(left)}kg ÷ 1개 ${fmt(per)}kg${Number(o.qty_ng||0)?` · 부적합 ${fmt(o.qty_ng)}개`:""}${canEa < todo ? ` · 남은 ${fmt(todo)}개 중 ${fmt(todo-canEa)}개는 다음 배치에서` : ""})</span></div>` : ""}`; })()}
+            ${canEa != null && stIdx(o) < 2 ? `<div><span>만들 수 있는 수량</span><b class="${canEa < todo ? "bad" : ""}">약 ${fmt(canEa)}개</b> <span class="hint" style="padding:0">(이 배치 ${fmt(left)}kg ÷ 1개 ${fmt(per)}kg${Number(o.qty_ng||0)?` · 부적합 ${fmt(o.qty_ng)}개`:""}${canEa < todo ? ` · 남은 ${fmt(todo)}개 중 ${fmt(todo-canEa)}개는 다음 배치에서` : ""})</span></div>${(()=>{ const ex = extraEa(o); return ex.n > 0 && can("plan") && !rjd ? `<div class="xqty"><span>원두 남음</span><button class="btn" onclick="event.stopPropagation();addExtraQty('${o.id}')" title="이 배치에 남는 원두만큼 목표 수량을 늘립니다${ex.others?` · 같은 배치를 쓰는 다른 지시 ${fmt(ex.others)}개 몫은 뺐습니다`:""}">＋${fmt(ex.n)}개 추가 → 목표 ${fmt(Number(o.qty_plan||0)+ex.n)}개</button></div>` : ""; })()}` : ""}`; })()}
         ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"상자 번호":"일련번호"}</span><b>${o.serial || "완료 때 매겨짐"}</b>${
           canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="쓸 배치(=일련번호)를 직접 고르거나 일련번호를 직접 적습니다">바꾸기</button>` : ""}</div>`}
         ${(()=>{ const rows = ordLotRows(o), al = autoLotOf(o), lot = rows.length ? lotRowsText(rows) : (o.lot || al);
@@ -20814,7 +20899,7 @@ function renderWork(){
     const bund = g.items.reduce((t,o)=>t+labelNeed(prodById(o.product_id), o.qty_plan, ordLabel(o)).bundles, 0);
     const lack = g.items.filter(o=>{
       const x = labelNeed(prodById(o.product_id), o.qty_plan, ordLabel(o)); return x.L && x.short>0; });
-    return `<div class="mgrp ${run?"run":""}">
+    return `<div class="mgrp ${run?"run":""}" data-mach="${String(g.name||"").replace(/"/g,"&quot;")}" ondragover="wkGrpOver(event,this)" ondragleave="this.classList.remove('dropG')" ondrop="wkGrpDrop(event,this)">
       <div class="mgrp-h">
         <b>${g.name || "설비 미지정"}</b>
         ${m ? `<span class="tag">${m.workers!=null&&m.workers!==""?`인원 ${m.workers}명 · `:""}가동 ${m.hours||"—"}h</span>` : ""}
