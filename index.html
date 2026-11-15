@@ -3775,11 +3775,24 @@ function mfgDateOf(o){
   const c = String(o?.batch_plan||"").match(/(\d{8})/);
   return c ? `20${c[1].slice(0,2)}-${c[1].slice(2,4)}-${c[1].slice(4,6)}` : "";
 }
+/* ★ 2026-11-15 — 한글표시사항의 중요한 값(컬러 · 품목보고번호 · 원산지)이 없으면 현장 카드에 빨갛게 보이고 작업을 막는다
+   (Lee "색상 품목보고번호 이런 중요한 거 없으면 빨간색으로 표시 되게끔 · 작업이 안되게끔") — 기준정보 › 원두에서 채우면 바로 풀린다 */
+function labelMiss(beanName){
+  const b = beanInfo(beanName);
+  if (!b) return ["원두 마스터 미등록"];
+  const m = []; if (!b.color) m.push("컬러"); if (!b.report_no) m.push("품목보고번호"); if (!b.compose) m.push("원산지");
+  return m;
+}
+async function labelBlocked(o){
+  const p = prodById(o?.product_id); const miss = p ? labelMiss(p.bean) : [];
+  if (!miss.length) return false;
+  await ask(`${p.name}\n\n한글표시사항에 들어갈 값이 없어 작업할 수 없습니다.\n\n없는 것: ${miss.join(" · ")}\n\n관리자에게 알려 주세요 — 기준정보 › 원두 › "${p.bean}" 에 값을 넣으면 바로 작업할 수 있습니다.`, { title:"⛔ 한글표시사항 없음", yes:"확인" });
+  return true;
+}
 const kv = (k, v, bad) => `<span>${k}</span><b class="${bad?"bad":""}">${v || "—"}</b>`;
 function kInfoHTML(beanName, o, opt){
   const b = beanInfo(beanName);
   const mfg = (opt && opt.mfg) || mfgDateOf(o);
-  if (!b && isFloor()) return "";            // 현장에는 관리자용 경고를 보이지 않는다 (등록은 관리자가)
   if (!b) return `<div class="kinfo miss">
     <div class="t">한글표시사항</div>
     <div class="bad"><b>"${beanName||"원두 미지정"}" 이(가) 원두 마스터에 없습니다</b> —
@@ -3791,9 +3804,11 @@ function kInfoHTML(beanName, o, opt){
   if (!mfg)          miss.push("제조일자");
   const lot = (o && ordLotRows(o).length ? ordLotRows(o).map(x=>x.lot).join("·") : "") || (o && o.lot) || (opt && opt.lot) || (o && o.product_id ? autoLotOf(o) : "") || "";
   if (!lot)          miss.push("봉투 LOT");
-  return `<div class="kinfo ${miss.length && !isFloor()?"miss":""}">
+  const must = miss.filter(x=>["컬러","품목보고번호","원산지"].includes(x));      // 이 셋이 없으면 현장에서도 빨갛게 (작업 막힘)
+  const red = must.length || (miss.length && !isFloor());
+  return `<div class="kinfo ${red?"miss":""}">
     <div class="t">한글표시사항${b.mms_code?` <i>${b.mms_code}</i>`:""}${
-      miss.length && !isFloor()?` <em>${miss.join(" · ")} 없음</em>`:""}</div>
+      red?` <em>${(isFloor()?must:miss).join(" · ")} 없음${must.length?" — 작업 불가":""}</em>`:""}</div>
     <div>${kv("컬러", b.color, !b.color)}${kv("품목보고번호", b.report_no, !b.report_no)}</div>
     <div class="wide">${kv("원산지", b.compose, !b.compose)}</div>
     <div>${kv("제조일자", mfg, !mfg)}${kv("일련번호", (o&&o.serial)||(opt&&opt.serial))}</div>
@@ -7188,6 +7203,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-15", "CFE 코드 자동 · 한글표시사항 없으면 작업 막기", "① 집계·출고지시서를 넣을 때 임시 코드(에두완-1K-WB 같은 것)인 품목에 진짜 CFE 코드가 자동으로 들어갑니다 — 줄에 코드가 있으면 그 코드로, 코드 열이 없는 표라도 올린 엑셀 파일 안의 [코드 ↔ 상품명]을 기억해 두었다가 이름으로 찾아 넣습니다. 미리보기의 [CFE 코드 N개 채우기]로 이번에 안 넣는 품목까지 한 번에 채울 수 있습니다. ② 현장작업 카드에서 컬러·품목보고번호·원산지가 없으면 한글표시사항 칸이 빨갛게 '작업 불가'로 뜨고, [생산 시작]·[생산 완료]가 막힙니다. 기준정보 › 원두에서 값을 넣으면 바로 풀립니다."],
   ["2026-11-13", "X-ray 부적합 — 원두 바로 빼기 · 품질관리로 자동 연결", "현장에서 X-ray 부적합을 등록하면 묻지 않고 그 수량만큼의 원두(개수 × 규격)를 쓰던 배치 재고에서 바로 뺍니다 (이물 선별 대기) — 생산계획과 다른 작업에 잡히지 않고, 하던 작업은 계속합니다. 품질관리 › 조치 대기에 '원두 ○kg 빼 둠'으로 뜨고, 이물을 거른 뒤 [선별 완료 · 원두 되돌리기]를 누르면 되돌릴 kg 만큼 그 배치로 돌아와 다시 생산에 쓸 수 있습니다 (못 살린 만큼은 폐기). 이미 빼 둔 원두는 그 지시를 생산 완료할 때 다시 빼지 않습니다. 품질관리의 이물질 집계가 현장의 'X-ray 부적합'·'이물'도 세도록 고쳤고, 왼쪽 메뉴 [품질관리]에 조치 대기 건수가 뜹니다. 서버 함수 2개·칸 추가(000_install_all.sql 재실행)."],
   ["2026-11-13", "생산 완료 — 생산자를 그때마다 선택 (필수)", "생산 완료 창에서 생산자가 미리 골라져 있지 않습니다. 이름 버튼을 눌러 직접 골라야 하고, 고르지 않으면 [완료]가 되지 않습니다 (빨간 테두리와 안내가 뜹니다). 위쪽 작업자 선택과 상관없이 완료할 때 고른 사람이 생산자로 기록됩니다."],
   ["2026-11-13", "현장작업 — [검수 대기] 칸을 위로", "생산 완료 후 검수를 기다리는 카드 칸을 화면 맨 아래에서 위쪽으로 옮겼습니다. 순서: 검수 수량 다름(빨강) → 검수 대기 → 반려 → 기계별 할 일."],
@@ -16832,6 +16848,37 @@ async function renameBeansFromPaste(){
   if (fails.length) await ask(`${ok}종 바꿈 · ${fails.length}종 실패\n\n${fails.slice(0,8).join("\n")}\n\n"function … does not exist" 가 보이면 000_install_all.sql 을 다시 실행하세요 (끝의 '원두 이름 바꾸기' 절).`, { title:"원두 이름 정리", yes:"확인", only:true });
   else toast(`원두 이름 ${ok}종을 엑셀 이름으로 바꿨습니다`);
 }
+/* ══ CFE 코드 자동으로 (★ 2026-11-15 — Lee "집계 넣을때 cfe 코드 자동으로 들어가게") ══
+   품목을 이름으로 만들면 코드가 "에두완-1K-WB" 처럼 임시로 매겨진다 (makeCode). 이것을 진짜 CFE 코드로 바꾼다.
+   ① 붙여넣은 줄에 CFE 코드가 있으면 — 임시 코드인 품목에 그 코드를 넣는다 (전에는 코드가 비어 있을 때만 넣어서 한 번도 안 들어갔다)
+   ② 엑셀 파일을 올리면 파일 안 모든 시트에서 [코드 ↔ 상품명] 을 읽어 기억해 둔다 (이 기기에 저장) — 코드 열이 없는 집계 표를 넣어도 이름으로 코드를 찾아 넣는다
+   ③ 미리보기의 [CFE 코드 N개 채우기] — 이번 집계에 없는 품목까지 한 번에 */
+const isAutoCode = p => !p || !p.code || (!CFE_RE.test(codeKey(p.code)) && (/[가-힣]/.test(p.code) || /^[^-]+-[\d.]+[KG]-[A-Z]{2}(-\d+)?$/i.test(p.code)));
+let pCodeMap = (()=>{ try { return JSON.parse(localStorage.getItem("momos.cfeMap") || "{}") || {}; } catch(_){ return {}; } })();
+function learnCodes(sheets){
+  let n = 0;
+  Object.values(sheets||{}).forEach(rows=>{
+    let hm = null, start = 0;
+    for (let i=0;i<Math.min(rows.length,15);i++){ const m = headerMap(rows[i].map(c=>String(c??"").trim())); if (m && m.code>=0 && m.name>=0) { hm = m; start = i+1; break; } }
+    if (!hm) return;
+    for (let i=start;i<rows.length;i++){ const r = rows[i]; const k = codeKey(r[hm.code]); const m = k && k.match(CFE_RE);
+      if (!m || m[2]) continue;                                   // 홀빈 기본 코드만 (끝 글자 A~E·F·MK 는 제외)
+      const nm = cleanSkuName(r[hm.name]); if (!nm) continue;
+      const key = nameKey(nm); if (pCodeMap[key] !== k) { pCodeMap[key] = k; n++; } }
+  });
+  if (n) { try { localStorage.setItem("momos.cfeMap", JSON.stringify(pCodeMap)); } catch(_){} }
+  return n;
+}
+const codeForProduct = p => { if (!p) return ""; const c = pCodeMap[nameKey(p.name)] || ""; const ex = c && productByCode(c); return (c && (!ex || ex.id === p.id)) ? c : ""; };
+const codeFillList = () => DB.products.filter(p=>!p.off && isAutoCode(p) && codeForProduct(p));
+async function fillCodesFromFile(){
+  if (sb && !can("base")) return deny("base");
+  const list = codeFillList(); if (!list.length) return toast("채울 CFE 코드가 없습니다");
+  if (!(await ask(`임시 코드(예: 에두완-1K-WB)인 품목 ${list.length}개에 CFE 코드를 넣습니다.\n\n${list.slice(0,10).map(p=>`${p.code||"(없음)"} → ${codeForProduct(p)}  ${p.name}`).join("\n")}${list.length>10?`\n… 외 ${list.length-10}개`:""}`, { title:"CFE 코드 채우기", yes:"채우기" }))) return;
+  let n = 0; list.forEach(p=>{ const c = codeForProduct(p); if (!c) return; p.code = c; save("products", p); n++; });
+  logAudit("CFE 코드 채움", `${n}건`, "엑셀의 코드·상품명으로");
+  renderAll(); preview(); toast(`품목 ${n}개에 CFE 코드를 넣었습니다`);
+}
 const nameKey = n => String(n||"").replace(/[\[(].*?[\])]/g, "").replace(/\s+/g, "").toLowerCase();
 const CFE_SUFFIX_GRIND = { A:"핸드드립", B:"커피메이커", C:"더치", D:"모카포트", E:"에스프레소" };
 const CFE_RE = /^CFE(\d{3,5})([A-Z]{0,2})$/;
@@ -17197,6 +17244,7 @@ $("pFile").addEventListener("change", async e=>{
            전에는 무조건 첫 시트만 읽어 '이카운트 판매입력' 처럼 이름이 비어 있는 시트가 들어갔다 */
       pWB = { names: wb.SheetNames.slice(), sheets: {} };
       wb.SheetNames.forEach(nm=>{ pWB.sheets[nm] = XLSX.utils.sheet_to_json(wb.Sheets[nm], { header:1, defval:"", blankrows:false, raw:false, dateNF:"yyyy-mm-dd" }); });
+      try { learnCodes(pWB.sheets); } catch(_){}                     // ★ 2026-11-15 파일의 [코드 ↔ 상품명] 을 기억해 둔다
       const pick = pickSheetFor($("pMode").value);
       const sel = $("pSheet"); sel.innerHTML = pWB.names.map(nm=>`<option value="${nm.replace(/"/g,"&quot;")}" ${nm===pick?"selected":""}>${nm} (${pWB.sheets[nm].length}줄)</option>`).join("");
       $("pSheetWrap").style.display = pWB.names.length > 1 ? "" : "none";
@@ -18032,7 +18080,7 @@ function preview(){
       const rn = (cl && p && p.name !== cl && nameKey(p.name) === nameKey(cl)) ? cl : "";
       if (cl && !near && !(mk && mk.near)) noteBeanFix((p || mk || {}).bean, cl, nameRaw);
       const row = { nameRaw, qty, p, mk, near, code, grind:gr, sku:skuRaw, rename:rn,
-        how: [ rn ? "이름 띄어쓰기 정리" : "", gr ? `분쇄 ${gr} → 홀빈 (분쇄 탭에 기록)` : "", (code && !p && mk) ? "코드 미등록 → 새 홀빈 품목 (코드 포함)" : (code && p && !p.code) ? "이름 매칭 · 코드 새로 채움" : "" ].filter(Boolean).join(" · ") };
+        how: [ rn ? "이름 띄어쓰기 정리" : "", gr ? `분쇄 ${gr} → 홀빈 (분쇄 탭에 기록)` : "", (code && !p && mk) ? "코드 미등록 → 새 홀빈 품목 (코드 포함)" : (code && p && isAutoCode(p)) ? "이름 매칭 · CFE 코드 넣음" : (!code && p && isAutoCode(p) && codeForProduct(p)) ? `CFE 코드 넣음 (${codeForProduct(p)})` : "" ].filter(Boolean).join(" · ") };
       if (gr && qty != null && (p || mk)) pGrind.push({ p, row, grind:gr, qty:Number(qty)||0, code:codeKey(skuRaw||""), name:skuName });
       pRows.push(row);
     });
@@ -18047,6 +18095,8 @@ function preview(){
     });
     pRows = order.map(k=>agg[k]);
   }
+  /* ★ 2026-11-15 코드 열이 없는 줄(표 형식 포함) — 기억해 둔 [상품명 → CFE 코드] 로 넣을 코드를 미리 보여 준다 */
+  pRows.forEach(r=>{ if (r.code || !r.p || !isAutoCode(r.p)) return; const c = codeForProduct(r.p); if (c) { r.codeAuto = c; r.how = [...new Set([r.how, `CFE 코드 넣음 (${c})`].filter(Boolean))].join(" · "); } });
   const okN = pRows.filter(r=>(r.p||r.mk) && r.qty!=null).length;
   const mkN2 = pRows.filter(r=>!r.p && r.mk && r.qty!=null).length;
   $("pPrev").innerHTML = qtyPickHTML() +
@@ -18064,6 +18114,8 @@ function preview(){
     (()=>{ const nCode = pRows.filter(r=>r.viaCode && !r.warnHow).length, nFold = pRows.filter(r=>r.warnHow).length, nNewC = pRows.filter(r=>!r.p && r.mk && r.code).length;
       const nG = pGrind.length, gQ = pGrind.reduce((t,g)=>t+g.qty,0);
       return (nCode||nFold||nNewC||pSkip.length||nG) ? `<div class="hint" style="padding:0 0 6px"><b>코드 매칭</b> ${nCode}건${nG?` · <b>분쇄 SKU ${nG}줄 ${fmt(gQ)}EA → 홀빈 품목에 합산 · 왼쪽 메뉴 [분쇄] 에 기록</b>`:""}${nFold?` · <span class="warn">끝 글자 코드 → 기본 품목 합산 ${nFold}건</span>`:""}${nNewC?` · <span class="warn">미등록 CFE 코드 → 새 품목 ${nNewC}건</span>`:""}${pSkip.length?` · 원두 외 제외 ${pSkip.filter(x=>!/미등록/.test(x.why)).length}건${pSkip.some(x=>/미등록/.test(x.why))?` · <span class="bad">코드만 있고 이름 없음 ${pSkip.filter(x=>/미등록/.test(x.why)).length}건</span>`:""}`:""}</div>` : ""; })() +
+    (codeFillList().length ? `<div class="hint" style="padding:0 0 8px"><b>임시 코드(예: 에두완-1K-WB)인 품목 ${codeFillList().length}개에 넣을 CFE 코드를 찾았습니다</b> — 이번에 넣는 품목은 저장할 때 자동으로 들어가고, 나머지도 한 번에 넣으려면
+      <button class="btn" style="height:28px;padding:0 10px;font-size:12px;margin-left:6px" onclick="fillCodesFromFile()">CFE 코드 ${codeFillList().length}개 채우기</button></div>` : "") +
     (Object.keys(pBeanFix).length ? `<div class="hint" style="padding:0 0 8px"><b>등록된 원두 이름 ${Object.keys(pBeanFix).length}종이 엑셀과 띄어쓰기가 다릅니다</b> — ${Object.entries(pBeanFix).slice(0,3).map(([o,n])=>`${o} → <b>${n}</b>`).join(" · ")}${Object.keys(pBeanFix).length>3?" …":""}
       <button class="btn" style="height:28px;padding:0 10px;font-size:12px;margin-left:6px" onclick="renameBeansFromPaste()">원두 이름 엑셀 이름으로 정리</button></div>` : "") +
     `<table><thead><tr><th>입력 품목명</th><th>매칭 품목</th><th>분쇄도</th><th>수량</th><th>상태</th></tr></thead><tbody>` +
@@ -18246,8 +18298,9 @@ async function applyPaste(){
     if (r.p) {
       if (r.rename && r.p.name !== r.rename && (!sb || can("base"))) { r.p.name = r.rename; save("products", r.p); nameFixed++; }   // ★ 2026-11-10 띄어쓰기 정리
       /* ★ 2026-11-08 이름으로 잡힌 품목에 코드가 비어 있고 붙여넣은 줄에 CFE 코드가 있으면 — 그 코드를 채운다 (다음부터는 코드로 바로 잡힌다) */
-      if (r.code && !r.viaCode && !r.p.code && CFE_RE.test(codeKey(r.code)) && !productByCode(r.code) && (!sb || can("base"))) {
-        r.p.code = codeKey(r.code); save("products", r.p); codeFilled++;
+      const cc = (r.code && CFE_RE.test(codeKey(r.code)) && !codeKey(r.code).match(CFE_RE)[2]) ? codeKey(r.code) : codeForProduct(r.p);   // 줄의 코드 → 없으면 기억해 둔 코드
+      if (cc && !r.viaCode && isAutoCode(r.p) && !productByCode(cc) && (!sb || can("base"))) {
+        r.p.code = cc; save("products", r.p); codeFilled++;
       }
       return r.p;
     }
@@ -18260,6 +18313,7 @@ async function applyPaste(){
       const b = { id:uid(), name:r.mk.bean, mms_code:"" }; DB.beans.push(b); save("beans",b); mkB++;
     }
     const p = P(r.mk.bean, r.mk.spec, 0, 0, { code:r.code||"", grind:r.mk.grind, name:r.mk.name });
+    if (!p.code) { const c = pCodeMap[nameKey(p.name)]; if (c && !productByCode(c)) p.code = c; }      // ★ 2026-11-15 코드 열이 없어도 기억해 둔 코드로
     if (!p.code && r.mk.variant) {          // 사업자 품목 — 일반 품목 코드 + F (예: CFE0004 → CFE0004F)
       const g = findExactProduct(r.mk.bean, r.mk.spec, r.mk.grind, "");
       if (g?.code && !DB.products.some(x=>codeKey(x.code)===codeKey(g.code + "F"))) p.code = g.code + "F";
@@ -18766,6 +18820,7 @@ async function startWork(id){
   if (INFLIGHT.has(id)) return;
   if (!(await requireUser())) return;
   const o = ordById(id); if(!o || o.status !== "대기") return;
+  if (await labelBlocked(o)) return;                               // ★ 2026-11-15 컬러·품목보고번호·원산지 없으면 시작 못 함
   const busy = machineBusy(o);
   if (busy) return toast(`${o.machine} 에서 ${busy.map(x=>x.product_name||prodById(x.product_id)?.name).join(", ")} 생산중입니다 — 완료하거나 [작업 중단] 한 뒤 시작하세요`);
   /* ★ 원두가 입고돼 있어야 시작할 수 있다 (Lee 2026-10-30) */
@@ -19589,6 +19644,7 @@ async function finishWork(id){
   if (o.log_id && DB.logs.some(l=>l.id===o.log_id))
     return qcState(o).rejected ? resubmitQc(id) : alreadyDone(o);
   const p = prodById(o.product_id); if(!p) return toast("품목을 찾을 수 없습니다");
+  if (await labelBlocked(o)) return;                               // ★ 2026-11-15 한글표시사항 값이 없으면 완료도 못 함
   const plan = Math.round(Number(o.qty_plan)||0);
   /* 미리 계산해서 보여 주기만 한다 — 지시 수량 기준 (완료 때 실제 수량으로 다시 계산) */
   /* ★ 입고된 원두 봉지(배치) — 없으면 완료할 수 없다 (서버도 원두가 없으면 거절한다) */
