@@ -76,6 +76,14 @@
     html[data-theme="dark"] #personalLoginGate input{ background:var(--bg); border-color:var(--line-2); }
   }
   *{margin:0;padding:0;box-sizing:border-box;}
+  /* ★ 2026-11-15 엑셀 넣기 — CFE 코드 채우기 안내 (눈에 띄게) */
+  .codefill{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:4px 0 12px; padding:14px 16px;
+    border:2px solid var(--warn); border-radius:12px; background:var(--warn-soft);}
+  .codefill .cf-ico{font-size:28px; line-height:1;}
+  .codefill .cf-txt{flex:1 1 320px; min-width:0;}
+  .codefill .cf-txt b{display:block; font-size:16px; font-weight:800; color:var(--ink);}
+  .codefill .cf-txt span{display:block; margin-top:4px; font-size:12.5px; color:var(--soft); line-height:1.5;}
+  .codefill .cf-btn{height:46px; padding:0 22px; font-size:15.5px; font-weight:800; white-space:nowrap; box-shadow:0 2px 10px rgba(27,79,216,.35);}
   /* ★ 2026-11-11 현장작업 — 검수 수량 다름(깜빡임) · 검수 대기(흐리게) */
   @keyframes qflagBlink{ 0%,49%{border-color:var(--bad); box-shadow:0 0 0 4px rgba(217,59,76,.30);} 50%,100%{border-color:transparent; box-shadow:0 0 0 0 rgba(217,59,76,0);} }
   .wc.qflag{border:3px solid var(--bad); animation:qflagBlink 1s steps(1,end) infinite;}
@@ -18114,8 +18122,12 @@ function preview(){
     (()=>{ const nCode = pRows.filter(r=>r.viaCode && !r.warnHow).length, nFold = pRows.filter(r=>r.warnHow).length, nNewC = pRows.filter(r=>!r.p && r.mk && r.code).length;
       const nG = pGrind.length, gQ = pGrind.reduce((t,g)=>t+g.qty,0);
       return (nCode||nFold||nNewC||pSkip.length||nG) ? `<div class="hint" style="padding:0 0 6px"><b>코드 매칭</b> ${nCode}건${nG?` · <b>분쇄 SKU ${nG}줄 ${fmt(gQ)}EA → 홀빈 품목에 합산 · 왼쪽 메뉴 [분쇄] 에 기록</b>`:""}${nFold?` · <span class="warn">끝 글자 코드 → 기본 품목 합산 ${nFold}건</span>`:""}${nNewC?` · <span class="warn">미등록 CFE 코드 → 새 품목 ${nNewC}건</span>`:""}${pSkip.length?` · 원두 외 제외 ${pSkip.filter(x=>!/미등록/.test(x.why)).length}건${pSkip.some(x=>/미등록/.test(x.why))?` · <span class="bad">코드만 있고 이름 없음 ${pSkip.filter(x=>/미등록/.test(x.why)).length}건</span>`:""}`:""}</div>` : ""; })() +
-    (codeFillList().length ? `<div class="hint" style="padding:0 0 8px"><b>임시 코드(예: 에두완-1K-WB)인 품목 ${codeFillList().length}개에 넣을 CFE 코드를 찾았습니다</b> — 이번에 넣는 품목은 저장할 때 자동으로 들어가고, 나머지도 한 번에 넣으려면
-      <button class="btn" style="height:28px;padding:0 10px;font-size:12px;margin-left:6px" onclick="fillCodesFromFile()">CFE 코드 ${codeFillList().length}개 채우기</button></div>` : "") +
+    /* ★ 2026-11-15 눈에 띄게 (Lee "cfe 코드 자동채우기 기능을 더 눈에 튀게") — 노란 상자 + 큰 파란 버튼 */
+    (codeFillList().length ? `<div class="codefill">
+      <div class="cf-ico">🏷</div>
+      <div class="cf-txt"><b>CFE 코드가 없는 품목 ${codeFillList().length}개 — 넣을 코드를 찾았습니다</b>
+        <span>지금은 임시 코드(예: ${codeFillList()[0].code || "에두완-1K-WB"})입니다. 이번에 넣는 품목은 저장할 때 자동으로 들어가고, 버튼을 누르면 나머지까지 한 번에 들어갑니다.</span></div>
+      <button class="btn primary cf-btn" onclick="fillCodesFromFile()">CFE 코드 ${codeFillList().length}개 채우기</button></div>` : "") +
     (Object.keys(pBeanFix).length ? `<div class="hint" style="padding:0 0 8px"><b>등록된 원두 이름 ${Object.keys(pBeanFix).length}종이 엑셀과 띄어쓰기가 다릅니다</b> — ${Object.entries(pBeanFix).slice(0,3).map(([o,n])=>`${o} → <b>${n}</b>`).join(" · ")}${Object.keys(pBeanFix).length>3?" …":""}
       <button class="btn" style="height:28px;padding:0 10px;font-size:12px;margin-left:6px" onclick="renameBeansFromPaste()">원두 이름 엑셀 이름으로 정리</button></div>` : "") +
     `<table><thead><tr><th>입력 품목명</th><th>매칭 품목</th><th>분쇄도</th><th>수량</th><th>상태</th></tr></thead><tbody>` +
