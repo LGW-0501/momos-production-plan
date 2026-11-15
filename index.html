@@ -1437,6 +1437,16 @@
   </div>
   <div class="body">
     <h2 class="page">분쇄<small id="asof-grind"></small></h2>
+    <div id="grindFill"></div>
+    <div class="panel">
+      <div class="panel-h">분쇄량 — 칼날 교체 주기 확인 <span class="r hint">분쇄 집계 수량 × 용량으로 계산한 kg · 주는 월~일</span></div>
+      <div class="cards" id="grindCards"></div>
+      <div class="panel-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;padding:0 14px 14px">
+        <div><div class="hint" style="padding:6px 0"><b>일별</b> · 최근 14일</div><table id="grindDayT"></table></div>
+        <div><div class="hint" style="padding:6px 0"><b>주별</b> · 최근 8주</div><table id="grindWeekT"></table></div>
+        <div><div class="hint" style="padding:6px 0"><b>월별</b> · 최근 6개월</div><table id="grindMonT"></table></div>
+      </div>
+    </div>
     <div class="panel">
       <div class="panel-h">분쇄 수량표 <span id="grindSum"></span></div>
       <div class="hint">A 핸드드립 · B 커피메이커 · C 가정용더치 · D 모카포트 · E 가정용에스프레소 — 집계·출고지시서·계획EA 붙여넣기 때 자동으로 들어옵니다 (날짜·차수별로 쌓이고 덮어쓰지 않음). 기본 코드가 미등록인 원두도 홀빈 품목으로 만들어 잡고 분쇄도만 여기에 남깁니다.</div>
@@ -7211,6 +7221,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-15", "분쇄 — CFE 코드 자동 인식 · 분쇄량(kg) 통계", "① 분쇄 화면의 CFE코드 칸이 임시 코드(파로라-200G-WB)로 나오던 것 — 분쇄 SKU(CFE1535A)에서 끝 글자를 뗀 기본 코드(CFE1535)를 그 홀빈 품목의 코드로 인식해 보여 주고, 화면 위 [CFE 코드 N개 채우기]로 품목에 바로 넣을 수 있습니다. 새로 넣는 분쇄 줄은 저장할 때 자동으로 들어갑니다. ② 분쇄량 통계 추가 — 오늘·이번 주·이번 달·하루 평균 kg, 일별(14일)·주별(8주)·월별(6개월) 표. [칼날 교체일 적기]로 날짜를 적으면 그날부터 간 kg 누적을 보여 줍니다."],
   ["2026-11-15", "CFE 코드 자동 · 한글표시사항 없으면 작업 막기", "① 집계·출고지시서를 넣을 때 임시 코드(에두완-1K-WB 같은 것)인 품목에 진짜 CFE 코드가 자동으로 들어갑니다 — 줄에 코드가 있으면 그 코드로, 코드 열이 없는 표라도 올린 엑셀 파일 안의 [코드 ↔ 상품명]을 기억해 두었다가 이름으로 찾아 넣습니다. 미리보기의 [CFE 코드 N개 채우기]로 이번에 안 넣는 품목까지 한 번에 채울 수 있습니다. ② 현장작업 카드에서 컬러·품목보고번호·원산지가 없으면 한글표시사항 칸이 빨갛게 '작업 불가'로 뜨고, [생산 시작]·[생산 완료]가 막힙니다. 기준정보 › 원두에서 값을 넣으면 바로 풀립니다."],
   ["2026-11-13", "X-ray 부적합 — 원두 바로 빼기 · 품질관리로 자동 연결", "현장에서 X-ray 부적합을 등록하면 묻지 않고 그 수량만큼의 원두(개수 × 규격)를 쓰던 배치 재고에서 바로 뺍니다 (이물 선별 대기) — 생산계획과 다른 작업에 잡히지 않고, 하던 작업은 계속합니다. 품질관리 › 조치 대기에 '원두 ○kg 빼 둠'으로 뜨고, 이물을 거른 뒤 [선별 완료 · 원두 되돌리기]를 누르면 되돌릴 kg 만큼 그 배치로 돌아와 다시 생산에 쓸 수 있습니다 (못 살린 만큼은 폐기). 이미 빼 둔 원두는 그 지시를 생산 완료할 때 다시 빼지 않습니다. 품질관리의 이물질 집계가 현장의 'X-ray 부적합'·'이물'도 세도록 고쳤고, 왼쪽 메뉴 [품질관리]에 조치 대기 건수가 뜹니다. 서버 함수 2개·칸 추가(000_install_all.sql 재실행)."],
   ["2026-11-13", "생산 완료 — 생산자를 그때마다 선택 (필수)", "생산 완료 창에서 생산자가 미리 골라져 있지 않습니다. 이름 버튼을 눌러 직접 골라야 하고, 고르지 않으면 [완료]가 되지 않습니다 (빨간 테두리와 안내가 뜹니다). 위쪽 작업자 선택과 상관없이 완료할 때 고른 사람이 생산자로 기록됩니다."],
@@ -8501,7 +8512,11 @@ function saveGrinds(day, round, resolve){
   const agg = {};
   /* SKU(코드)별로 따로 쌓는다 — 분쇄 화면의 "마스터파일 분쇄 옵션 SKU별" 표가 원래 SKU 를 보여 주기 위해 */
   pGrind.forEach(g=>{ const k = `${g.p.id}|${g.grind}|${g.code||""}`; if (!agg[k]) agg[k] = { ...g, qty:0 }; agg[k].qty += Number(g.qty)||0; });
-  let n = 0; Object.values(agg).forEach(g=>{ if (putGrind(g.p, g.grind, g.qty, round, day, g.code, g.name)) n++; });
+  let n = 0; Object.values(agg).forEach(g=>{
+    /* 임시 코드인 홀빈 품목 — 분쇄 SKU 의 기본 코드를 넣는다 (CFE1535A → CFE1535) */
+    const m = codeKey(g.code||"").match(CFE_RE);
+    if (m && CFE_SUFFIX_GRIND[m[2]] && isAutoCode(g.p) && !productByCode("CFE"+m[1]) && (!sb || can("base"))) { g.p.code = "CFE"+m[1]; save("products", g.p); }
+    if (putGrind(g.p, g.grind, g.qty, round, day, g.code, g.name)) n++; });
   pGrind = []; return n;
 }
 function delGrind(id){ if (!Array.isArray(DB.grind_tallies)) return; DB.grind_tallies = DB.grind_tallies.filter(x=>x.id!==id); del("grind_tallies", id); renderGrind(); }
@@ -8514,8 +8529,73 @@ async function addGrindRow(){
   const q = await askText("수량(EA)", "1", "수량"); if (q === null || !(Number(q) > 0)) return;
   putGrind(prodById(pid), g, Number(q), tallyRound, grindDay(), ""); renderGrind();
 }
+/* ══ 분쇄량 통계 — 칼날 교체 주기 확인 (★ 2026-11-15 — Lee "분쇄 하루에 얼마나 하는지 즉 몇kg … 일주일이랑 한달 · 칼날 교체 주기 확인용") ══
+   kg = 분쇄 집계 수량 × 용량(g) ÷ 1000. 같은 날 집계(1차·2차…)와 출고지시서·계획을 둘 다 넣었으면 집계 차수만 센다 (같은 주문을 두 번 세지 않게).
+   칼날 교체일을 적어 두면 그날부터 지금까지 간 kg 을 보여 준다 (설정 grind_blade — 서버에 저장) */
+const BLADE_KEY = "grind_blade";
+const grindKgOf = t => (Number(t.qty)||0) * (Number(t.spec_g)||0) / 1000;
+function grindStatRows(){
+  const all = DB.grind_tallies || [], byDate = {};
+  all.forEach(t=>{ (byDate[t.date] = byDate[t.date] || []).push(t); });
+  const out = [];
+  Object.values(byDate).forEach(rs=>{ const real = rs.filter(t=>!["출고","계획"].includes(t.round)); out.push(...(real.length ? real : rs)); });
+  return out;
+}
+const bladeInfo = () => { const b = (typeof SETTINGS === "object" && SETTINGS && SETTINGS[BLADE_KEY]) || null; return b && b.date ? b : null; };
+async function setBlade(){
+  if (!(await requireUser())) return;
+  if (sb && !(can("plan") || can("base") || isManager())) return toast("관리자·현장 관리자만 기록할 수 있습니다");
+  const cur = bladeInfo();
+  const v = await askText(`칼날을 교체한 날짜 (예: ${today()})\n그날부터 간 kg 을 다시 셉니다${cur ? `\n\n지금 기록: ${cur.date} (${cur.by||""})` : ""}`, today(), "칼날 교체 기록");
+  if (v === null) return;
+  const d = String(v).trim().replace(/[./]/g, "-").replace(/\s+/g, "");
+  if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(d)) return toast("날짜를 2026-11-15 처럼 적어 주세요");
+  const [y, m, dd] = d.split("-"); const iso = `${y}-${m.padStart(2,"0")}-${dd.padStart(2,"0")}`;
+  const hist = [...((cur && cur.hist) || []), ...(cur ? [{ date:cur.date, by:cur.by||"" }] : [])].slice(-20);
+  const val = { date:iso, by:CURRENT_USER||"", at:nowISO(), hist };
+  SETTINGS[BLADE_KEY] = val; renderGrind();
+  const r = await saveSetting(BLADE_KEY, val);
+  if (r && r.ok === false) toast("칼날 교체일 저장 실패 — " + (r.message||"서버")); else { logAudit("분쇄 칼날 교체", iso, ""); toast(`칼날 교체일 ${iso} 기록 — 그날부터 다시 셉니다`); }
+}
+function renderGrindStats(){
+  if (!$("grindCards")) return;
+  const rows = grindStatRows(), T = today();
+  const sumKg = a => Math.round(a.reduce((t,x)=>t+grindKgOf(x),0)*10)/10, sumEa = a => a.reduce((t,x)=>t+(Number(x.qty)||0),0);
+  const dayR = rows.filter(t=>t.date===T), wkR = rows.filter(t=>weekKey(t.date)===weekKey(T)), moR = rows.filter(t=>monthKey(t.date)===monthKey(T));
+  /* 최근 30일 — 분쇄한 날만으로 하루 평균 */
+  const d30 = dayAfter(-29), r30 = rows.filter(t=>t.date>=d30 && t.date<=T), days30 = new Set(r30.map(t=>t.date)).size;
+  const avg = days30 ? Math.round(sumKg(r30)/days30*10)/10 : 0;
+  const b = bladeInfo(), since = b ? rows.filter(t=>t.date>=b.date) : [], sinceDays = b ? Math.max(0, Math.round((new Date(T) - new Date(b.date))/86400000)) : 0;
+  $("grindCards").innerHTML = `
+    <div class="card"><div class="lb">오늘</div><div class="vl">${fmt(sumKg(dayR))} <small>kg · ${fmt(sumEa(dayR))}개</small></div></div>
+    <div class="card"><div class="lb">이번 주 (월~일)</div><div class="vl">${fmt(sumKg(wkR))} <small>kg · ${fmt(sumEa(wkR))}개</small></div></div>
+    <div class="card"><div class="lb">이번 달</div><div class="vl">${fmt(sumKg(moR))} <small>kg · ${fmt(sumEa(moR))}개</small></div></div>
+    <div class="card"><div class="lb">하루 평균 (최근 30일 · 분쇄한 ${days30}일)</div><div class="vl">${fmt(avg)} <small>kg/일</small></div></div>
+    <div class="card ${b?"blue":""}"><div class="lb">칼날 교체 후 누적${b?` · ${b.date} 교체 (${sinceDays}일째)`:""}</div>
+      <div class="vl">${b ? `${fmt(sumKg(since))} <small>kg · ${fmt(sumEa(since))}개</small>` : `<small>교체일을 적으면 그날부터 셉니다</small>`}</div>
+      <div style="margin-top:6px"><button class="btn" style="height:28px;padding:0 10px;font-size:12px" onclick="setBlade()">${b?"칼날 교체 기록 (다시 세기)":"칼날 교체일 적기"}</button></div></div>`;
+  const row = (lb, a, hi) => `<tr${hi?' style="font-weight:800"':""}><td class="c">${lb}</td><td>${a.length?fmt(sumEa(a)):"—"}</td><td><b>${a.length?fmt(sumKg(a)):"—"}</b></td></tr>`;
+  const head = ["기간","개수","kg"];
+  const days = [...Array(14)].map((_,i)=>dayAfter(-i));
+  tbl("grindDayT", head, days.map(d=>row(`${d.slice(5).replace("-","/")} (${"일월화수목금토"[new Date(d).getDay()]})`, rows.filter(t=>t.date===d), d===T)),
+    `<td class="c"><b>14일 합계</b></td><td><b>${fmt(sumEa(rows.filter(t=>t.date>=days[13] && t.date<=T)))}</b></td><td><b>${fmt(sumKg(rows.filter(t=>t.date>=days[13] && t.date<=T)))}</b></td>`);
+  const wks = [...new Set([...Array(8)].map((_,i)=>weekKey(dayAfter(-7*i))))];
+  tbl("grindWeekT", head, wks.map(w=>{ const a = rows.filter(t=>weekKey(t.date)===w);
+    const mon = new Date(w), sun = new Date(w); sun.setDate(mon.getDate()+6);
+    const lb = isNaN(mon) ? w : `${ymd(mon).slice(5).replace("-","/")} ~ ${ymd(sun).slice(5).replace("-","/")}`;
+    return row(lb, a, w===weekKey(T)); }));
+  const mons = [...Array(6)].map((_,i)=>{ const x = new Date(); x.setDate(1); x.setMonth(x.getMonth()-i); return ymd(x).slice(0,7); });
+  tbl("grindMonT", head, mons.map(m=>row(m, rows.filter(t=>monthKey(t.date)===m), m===monthKey(T))));
+}
 function renderGrind(){
   if (!$("grindTbl")) return;
+  try { renderGrindStats(); } catch(e){ console.warn("[MES] 분쇄 통계", e); }
+  /* CFE 코드가 임시인 품목이 있으면 — 눈에 띄는 [채우기] 상자 */
+  if ($("grindFill")) { const fl = codeFillList();
+    $("grindFill").innerHTML = fl.length ? `<div class="codefill"><div class="cf-ico">🏷</div>
+      <div class="cf-txt"><b>CFE 코드가 없는 품목 ${fl.length}개 — 넣을 코드를 찾았습니다</b>
+        <span>지금은 임시 코드(예: ${fl[0].code})입니다. 분쇄 SKU(예: CFE1535A)에서 끝 글자를 뗀 코드(CFE1535)를 그 홀빈 품목의 코드로 넣습니다. 아래 표에는 찾은 코드로 미리 보여 줍니다.</span></div>
+      <button class="btn primary cf-btn" onclick="fillCodesFromFile()">CFE 코드 ${fl.length}개 채우기</button></div>` : ""; }
   const d = grindDay(); if ($("grindDateIn") && $("grindDateIn").value !== d) $("grindDateIn").value = d;
   const rows = (DB.grind_tallies||[]).filter(t=>t.date===d);
   const missing = MISSING_TABLES.includes("grind_tallies");
@@ -8526,7 +8606,7 @@ function renderGrind(){
     (missing ? ` <span class="tag bad" title="000_install_all.sql 의 '분쇄 집계' 절을 Supabase SQL Editor 에서 실행하세요">서버 표 없음 — 저장 안 됨</span>` : "");
   /* 원두 × 용량 × 분쇄도 */
   const key = r => `${r.product_id}`;
-  const prods = {}; rows.forEach(r=>{ const k = key(r); if (!prods[k]) prods[k] = { p: prodById(r.product_id), name:r.product_name, bean:r.bean, spec:Number(r.spec_g)||0, code:r.product_code, g:{}, tot:0 };
+  const prods = {}; rows.forEach(r=>{ const k = key(r); if (!prods[k]) prods[k] = { p: prodById(r.product_id), name:r.product_name, bean:r.bean, spec:Number(r.spec_g)||0, code:liveCode(prodById(r.product_id), r.product_code), g:{}, tot:0 };
     prods[k].g[r.grind] = (prods[k].g[r.grind]||0) + Number(r.qty||0); prods[k].tot += Number(r.qty||0); });
   const list = Object.values(prods).sort((a,b)=>prodCodeCmp(a.p||{code:a.code,name:a.name}, b.p||{code:b.code,name:b.name}));
   const grinds = GRIND_ORDER.filter(g=>rows.some(r=>r.grind===g)).concat([...new Set(rows.map(r=>r.grind))].filter(g=>!GRIND_ORDER.includes(g)));
@@ -8535,7 +8615,7 @@ function renderGrind(){
   /* 마스터파일 분쇄 옵션 — SKU별 (원래 SKU코드·상품명 그대로) */
   if ($("grindSku")) {
     const bySku = {};
-    rows.forEach(r=>{ const k = r.sku_code || `${r.product_id}|${r.grind}`; if (!bySku[k]) bySku[k] = { sku:r.sku_code||"—", name:r.sku_name||"", prod:r.product_name||"", code:r.product_code||"", grind:r.grind, qty:0, rounds:new Set() };
+    rows.forEach(r=>{ const k = r.sku_code || `${r.product_id}|${r.grind}`; if (!bySku[k]) bySku[k] = { sku:r.sku_code||"—", name:r.sku_name||"", prod:prodById(r.product_id)?.name||r.product_name||"", code:liveCode(prodById(r.product_id), r.product_code), grind:r.grind, qty:0, rounds:new Set() };
       bySku[k].qty += Number(r.qty||0); if (r.round) bySku[k].rounds.add(r.round); });
     const sl = Object.values(bySku).sort((a,b)=>natCmp(a.sku,b.sku));
     tbl("grindSku", ["SKU코드","SKU상품명 (마스터파일)","분쇄도","→ 홀빈 품목","CFE코드","차수","수량(EA)"],
@@ -8554,7 +8634,7 @@ function renderGrind(){
 function csvGrind(){
   const d = grindDay(), rows = (DB.grind_tallies||[]).filter(t=>t.date===d);
   csv(`분쇄집계_${d}`, ["일자","차수","CFE코드","품목명","원두","용량","분쇄도","SKU","수량"],
-    rows.map(t=>[d, t.round||"", t.product_code||"", t.product_name||"", t.bean||"", t.spec_g?specLabel(Number(t.spec_g)):"", t.grind, t.sku_code||"", t.qty]));
+    rows.map(t=>[d, t.round||"", liveCode(prodById(t.product_id), t.product_code), t.product_name||"", t.bean||"", t.spec_g?specLabel(Number(t.spec_g)):"", t.grind, t.sku_code||"", t.qty]));
 }
 function csvTally(){
   const d = tallyDay(), rounds = roundsOf(d);
@@ -16877,7 +16957,12 @@ function learnCodes(sheets){
   if (n) { try { localStorage.setItem("momos.cfeMap", JSON.stringify(pCodeMap)); } catch(_){} }
   return n;
 }
-const codeForProduct = p => { if (!p) return ""; const c = pCodeMap[nameKey(p.name)] || ""; const ex = c && productByCode(c); return (c && (!ex || ex.id === p.id)) ? c : ""; };
+/* ★ 2026-11-15 분쇄 SKU(CFE1535A) 로 들어온 품목은 끝 글자를 뗀 기본 코드(CFE1535)가 그 홀빈 품목의 코드다 — 분쇄 내역에서도 코드를 찾는다 */
+const grindBaseCode = p => { const t = (DB.grind_tallies||[]).find(g=>g.product_id===p.id && CFE_RE.test(codeKey(g.sku_code||"")) && CFE_SUFFIX_GRIND[codeKey(g.sku_code).match(CFE_RE)[2]]);
+  return t ? "CFE" + codeKey(t.sku_code).match(CFE_RE)[1] : ""; };
+const codeForProduct = p => { if (!p) return ""; const c = pCodeMap[nameKey(p.name)] || grindBaseCode(p) || ""; const ex = c && productByCode(c); return (c && (!ex || ex.id === p.id)) ? c : ""; };
+/* 화면에 보여 줄 코드 — 품목의 지금 코드(임시 코드면 찾은 CFE 코드) */
+const liveCode = (p, snap) => p ? (isAutoCode(p) ? (codeForProduct(p) || p.code || snap || "") : p.code) : (snap || "");
 const codeFillList = () => DB.products.filter(p=>!p.off && isAutoCode(p) && codeForProduct(p));
 async function fillCodesFromFile(){
   if (sb && !can("base")) return deny("base");
@@ -16885,7 +16970,7 @@ async function fillCodesFromFile(){
   if (!(await ask(`임시 코드(예: 에두완-1K-WB)인 품목 ${list.length}개에 CFE 코드를 넣습니다.\n\n${list.slice(0,10).map(p=>`${p.code||"(없음)"} → ${codeForProduct(p)}  ${p.name}`).join("\n")}${list.length>10?`\n… 외 ${list.length-10}개`:""}`, { title:"CFE 코드 채우기", yes:"채우기" }))) return;
   let n = 0; list.forEach(p=>{ const c = codeForProduct(p); if (!c) return; p.code = c; save("products", p); n++; });
   logAudit("CFE 코드 채움", `${n}건`, "엑셀의 코드·상품명으로");
-  renderAll(); preview(); toast(`품목 ${n}개에 CFE 코드를 넣었습니다`);
+  renderAll(); if ($("overlay")?.style.display === "block") preview(); toast(`품목 ${n}개에 CFE 코드를 넣었습니다`);
 }
 const nameKey = n => String(n||"").replace(/[\[(].*?[\])]/g, "").replace(/\s+/g, "").toLowerCase();
 const CFE_SUFFIX_GRIND = { A:"핸드드립", B:"커피메이커", C:"더치", D:"모카포트", E:"에스프레소" };
