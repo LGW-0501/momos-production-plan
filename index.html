@@ -76,6 +76,13 @@
     html[data-theme="dark"] #personalLoginGate input{ background:var(--bg); border-color:var(--line-2); }
   }
   *{margin:0;padding:0;box-sizing:border-box;}
+  /* ★ 2026-11-15 검수 — 날짜별 제목 */
+  .qcday{grid-column:1/-1; flex:0 0 100%; width:100%; display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 14px; margin-top:6px;
+    border-left:5px solid var(--ok); background:var(--card); border-radius:8px; font-size:15px;}
+  .qcday.late{border-left-color:var(--bad); background:var(--bad-soft);}
+  .qcday:first-child{margin-top:0;}
+  tr.qcdayrow td{background:var(--head); font-size:13.5px; padding-top:8px; padding-bottom:8px; border-left:4px solid var(--ok);}
+  tr.qcdayrow.late td{background:var(--bad-soft); border-left-color:var(--bad);}
   /* ★ 2026-11-15 엑셀 넣기 — CFE 코드 채우기 안내 (눈에 띄게) */
   .codefill{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:4px 0 12px; padding:14px 16px;
     border:2px solid var(--warn); border-radius:12px; background:var(--warn-soft);}
@@ -4432,7 +4439,7 @@ async function mesCountWork(a){
 /* ── 4. 검수 완료 ──────────────────────────────────────────── */
 async function mesCompleteQc(a){
   return rpc("complete_qc",
-    { p_order_id:a.order_id, p_user_name:CURRENT_USER, p_idempotency:a.idem,
+    { p_order_id:a.order_id, p_user_name:qcUser(), p_idempotency:a.idem,
       p_received_qty: (a.received == null || a.received === "") ? null : Number(a.received) },
     () => {
       const hit = idemHit(a.idem); if (hit) return hit;
@@ -4444,16 +4451,16 @@ async function mesCompleteQc(a){
       if (rcv != null && !(rcv >= 0)) return MES_ERR("bad_qty","확인수량이 음수입니다");
       const dif = rcv == null ? null : rcv - Number(o.qty_done||0);
       return localTx(T => {
-        T.upd(o, { status:"검수완료", qc_by:CURRENT_USER, qc_at:nowISO() }); save("orders", o);
+        T.upd(o, { status:"검수완료", qc_by:qcUser(), qc_at:nowISO() }); save("orders", o);
         const l = DB.logs.find(x => x.id === o.log_id);
         if (l) {
           /* ★ 전에는 received_qty 를 생산수량으로 자동 확정했습니다.
                검수자가 세어 보지도 않았는데 "확인함" 이 되는 셈이었습니다.
                이제 검수자가 넣은 값만 적습니다. 안 넣으면 비워 둡니다. */
-          T.upd(l, { checked_by:CURRENT_USER, checked_at:nowISO(),
+          T.upd(l, { checked_by:qcUser(), checked_at:nowISO(),
             status: (dif != null && dif !== 0) ? "revision"
                   : (l.status === "pending" ? "approved" : l.status),
-            received_by: rcv != null ? CURRENT_USER : l.received_by,
+            received_by: rcv != null ? qcUser() : l.received_by,
             received_at: rcv != null ? nowISO() : l.received_at,
             received_qty: rcv != null ? rcv : l.received_qty,
             qty_diff: dif != null ? dif : l.qty_diff,
@@ -7221,6 +7228,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-15", "검수 — 검수자를 그때마다 선택 (필수) · 현장작업 버튼 2개 정리", "[검수 완료]를 누르면 검수자 선택 창이 뜹니다. 이름을 눌러 골라야 하고, 고르지 않으면 넘어가지 않습니다 — 고른 사람이 검수자로 기록됩니다 (현장작업의 생산자 선택과 같은 방식). 수량이 달라 현장에 확인을 요청할 때도 고른 사람 이름으로 남습니다. 현장작업 화면 위의 [📋 이카운트 표로 생산 완료]·[라벨 바꾸기] 버튼을 뺐습니다."],
+  ["2026-11-15", "검수 밀림 — 밀린 것이 위 · 메뉴 숫자 · 현장작업에도 표시", "검수 화면은 밀린 것(오래된 날짜)이 맨 위, 오늘 것이 그 아래에 나옵니다. 왼쪽 메뉴 [검수]에 검수 대기 건수가 빨간 숫자로 뜹니다. 현장작업 화면(오늘)의 [검수 대기] 칸에도 지난 날짜에 생산하고 아직 검수 안 된 건이 'N일 지남' 표시와 함께 보입니다."],
+  ["2026-11-15", "검수 — 날짜별로 나눠 보기", "검수 대기는 날짜가 지나도 검수할 때까지 화면에 남습니다. 이제 오늘 것을 먼저 보여 주고, 지난 날짜 것은 그 아래에 날짜별 제목과 빨간 'N일 지남' 표시로 나눠 보여 줍니다. [오늘 생산 계획] 표도 날짜가 섞여 있으면 날짜별 제목 줄이 들어갑니다. 위 안내에 '지난 날짜 N건'이 보입니다."],
   ["2026-11-15", "분쇄 — CFE 코드 자동 인식 · 분쇄량(kg) 통계", "① 분쇄 화면의 CFE코드 칸이 임시 코드(파로라-200G-WB)로 나오던 것 — 분쇄 SKU(CFE1535A)에서 끝 글자를 뗀 기본 코드(CFE1535)를 그 홀빈 품목의 코드로 인식해 보여 주고, 화면 위 [CFE 코드 N개 채우기]로 품목에 바로 넣을 수 있습니다. 새로 넣는 분쇄 줄은 저장할 때 자동으로 들어갑니다. ② 분쇄량 통계 추가 — 오늘·이번 주·이번 달·하루 평균 kg, 일별(14일)·주별(8주)·월별(6개월) 표. [칼날 교체일 적기]로 날짜를 적으면 그날부터 간 kg 누적을 보여 줍니다."],
   ["2026-11-15", "CFE 코드 자동 · 한글표시사항 없으면 작업 막기", "① 집계·출고지시서를 넣을 때 임시 코드(에두완-1K-WB 같은 것)인 품목에 진짜 CFE 코드가 자동으로 들어갑니다 — 줄에 코드가 있으면 그 코드로, 코드 열이 없는 표라도 올린 엑셀 파일 안의 [코드 ↔ 상품명]을 기억해 두었다가 이름으로 찾아 넣습니다. 미리보기의 [CFE 코드 N개 채우기]로 이번에 안 넣는 품목까지 한 번에 채울 수 있습니다. ② 현장작업 카드에서 컬러·품목보고번호·원산지가 없으면 한글표시사항 칸이 빨갛게 '작업 불가'로 뜨고, [생산 시작]·[생산 완료]가 막힙니다. 기준정보 › 원두에서 값을 넣으면 바로 풀립니다."],
   ["2026-11-13", "X-ray 부적합 — 원두 바로 빼기 · 품질관리로 자동 연결", "현장에서 X-ray 부적합을 등록하면 묻지 않고 그 수량만큼의 원두(개수 × 규격)를 쓰던 배치 재고에서 바로 뺍니다 (이물 선별 대기) — 생산계획과 다른 작업에 잡히지 않고, 하던 작업은 계속합니다. 품질관리 › 조치 대기에 '원두 ○kg 빼 둠'으로 뜨고, 이물을 거른 뒤 [선별 완료 · 원두 되돌리기]를 누르면 되돌릴 kg 만큼 그 배치로 돌아와 다시 생산에 쓸 수 있습니다 (못 살린 만큼은 폐기). 이미 빼 둔 원두는 그 지시를 생산 완료할 때 다시 빼지 않습니다. 품질관리의 이물질 집계가 현장의 'X-ray 부적합'·'이물'도 세도록 고쳤고, 왼쪽 메뉴 [품질관리]에 조치 대기 건수가 뜹니다. 서버 함수 2개·칸 추가(000_install_all.sql 재실행)."],
@@ -8811,6 +8821,16 @@ function pqcBadge(){
   if (!n) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement("span"); el.className = "badge"; b.appendChild(el); }
   el.textContent = n;
+}
+/* ★ 2026-11-15 왼쪽 메뉴 [검수] 에 검수 대기 건수 */
+function qcBadge(){
+  const b = document.querySelector('#menu button[data-s="qc"]'); if (!b) return;
+  const n = DB.orders.filter(o=>o.status==="생산완료").length;
+  let el = b.querySelector(".badge");
+  if (!n) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement("span"); el.className = "badge"; b.appendChild(el); }
+  el.textContent = n;
+  el.title = `검수 대기 ${n}건`;
 }
 /* 왼쪽 메뉴에 대기 건수 뱃지 */
 function mtBadge(){
@@ -13994,7 +14014,7 @@ async function qcFlagQty(id, rcv){
   const d = rcv - Number(o.qty_done||0);
   const why = await askText(`차이 사유 (짧게 · 비워도 됨)`, d<0 ? "파손 · 덜 담김" : "덜 셈", "현장에 확인 요청");
   if (why === null) return;
-  const r = await rpc("qc_flag_qty", { p_order_id:id, p_received_qty:rcv, p_reason:String(why).trim()||null, p_user_name:CURRENT_USER||null, p_idempotency:`qfl-${id}-${uid()}` }, () => {
+  const r = await rpc("qc_flag_qty", { p_order_id:id, p_received_qty:rcv, p_reason:String(why).trim()||null, p_user_name:qcUser()||null, p_idempotency:`qfl-${id}-${uid()}` }, () => {
     if (o.status !== "생산완료") return MES_ERR("bad_status", `생산완료 건만 검수할 수 있습니다 (지금 ${o.status})`);
     pushEvent(null, o, "생산완료", "생산완료", "qc_qty_diff", JSON.stringify({ produced:Number(o.qty_done||0), received:rcv, reason:String(why).trim()||null }));
     logAudit("검수 수량 다름 · 현장 확인 요청", o.order_no, `${o.product_name||""} 생산 ${fmt(o.qty_done)} / 검수 ${fmt(rcv)}`);
@@ -20171,8 +20191,57 @@ function qcQtyHint(id, v){
   el.textContent = `${d > 0 ? "+" : ""}${fmt(d)} EA`;
   el.style.color = d === 0 ? "" : "var(--bad)";
 }
+/* ══ 검수자 선택 (★ 2026-11-15 — Lee "검수에도 어느 작업자가 받았는지 표시가 되어야 … 현장 작업에 있는거 처럼") ══
+   검수 완료를 누를 때마다 누가 검수했는지 이름을 눌러 고른다 — 미리 골라져 있지 않고, 안 고르면 넘어가지 않는다.
+   고른 사람이 검수자(qc_by)로 기록되어 출고 화면·이력에 남는다. */
+let QC_WHO = null;
+const qcUser = () => QC_WHO || CURRENT_USER;
+function pickWho(opt){
+  const esc = s => String(s??"").replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  let names = [...new Set(stationWorkers(opt.station || "qc").map(w=>w.name).filter(Boolean))];
+  if (!names.length && CURRENT_USER) names = [CURRENT_USER];
+  return new Promise(done=>{
+    const ov = document.createElement("div");
+    ov.style.cssText = "position:fixed;inset:0;background:rgba(15,20,40,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:14px";
+    ov.innerHTML = `<div style="background:var(--card,#fff);color:var(--ink);border-radius:16px;width:min(520px,100%);padding:20px 22px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:19px;font-weight:800">${esc(opt.title || "검수자 선택")}</div>
+      <div class="hint" style="padding:4px 0 12px">${opt.sub || ""}</div>
+      <div id="pwBox" style="border:2px solid var(--line-2);border-radius:10px;padding:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><b>${esc(opt.label || "검수자")}</b><span class="tag bad" id="pwReq">필수</span>
+          <span class="hint" id="pwTxt" style="padding:0;margin-left:auto;font-size:12.5px">누가 검수했는지 눌러 주세요</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">${names.map(n=>`<button type="button" class="btn pwBtn" data-who="${esc(n)}" style="height:46px;padding:0 18px;font-size:15.5px;font-weight:700">${esc(n)}</button>`).join("")
+          || `<span class="hint" style="padding:0">고를 사람이 없습니다 — 기준정보 › 생산자에서 업무 역할을 지정해 주세요</span>`}</div>
+      </div>
+      <div id="pwWarn" style="color:var(--bad);font-weight:700;min-height:22px;margin-top:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:6px"><button class="btn" id="pwNo" style="flex:1;height:48px">취소</button>
+        <button class="btn primary" id="pwOk" style="flex:2;height:48px;font-size:16px;font-weight:800">${esc(opt.yes || "검수 완료")}</button></div></div>`;
+    document.body.appendChild(ov);
+    let who = "";
+    ov.querySelectorAll(".pwBtn").forEach(b=>b.onclick=()=>{ who = b.dataset.who;
+      ov.querySelectorAll(".pwBtn").forEach(x=>x.classList.toggle("primary", x === b));
+      ov.querySelector("#pwBox").style.borderColor = "var(--ok)"; ov.querySelector("#pwReq").style.display = "none";
+      ov.querySelector("#pwTxt").innerHTML = `${esc(opt.label || "검수자")} <b>${esc(who)}</b>`; ov.querySelector("#pwWarn").textContent = ""; });
+    ov.querySelector("#pwNo").onclick = ()=>{ ov.remove(); done(null); };
+    ov.querySelector("#pwOk").onclick = ()=>{
+      if (!who) { ov.querySelector("#pwWarn").textContent = `${opt.label || "검수자"}를 선택해 주세요 — 선택해야 넘어갑니다`;
+        const B = ov.querySelector("#pwBox"); B.style.borderColor = "var(--bad)";
+        B.animate?.([{transform:"translateX(0)"},{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"translateX(0)"}], { duration:260 }); return; }
+      ov.remove(); done(who); };
+  });
+}
 async function qcDone(id){
   if (!(await requireUser())) return;
+  const o0 = ordById(id); if (!o0) return;
+  if (!qcOK(o0)) return toast("체크하지 않은 항목이 있습니다 — 전부 확인해 주세요");
+  { const raw0 = ($(`qcq-${id}`)?.value ?? "").trim(); if (raw0 !== "" && !(Number(raw0) >= 0)) return toast("확인수량을 숫자로 적어 주세요"); }
+  const p0 = prodById(o0.product_id);
+  const who = await pickWho({ title:"검수자 선택", station:"qc", label:"검수자", yes:"검수 완료",
+    sub:`${p0?.name || o0.product_name || ""}${o0.serial?` · 일련번호 ${o0.serial}`:""} · 생산 ${o0.done_by||"—"} ${fmt(o0.qty_done)}개` });
+  if (!who) return;
+  QC_WHO = who;
+  try { await qcDone0(id); } finally { QC_WHO = null; }
+}
+async function qcDone0(id){
   const o = ordById(id); if(!o) return;
   if (isCostcoProd(prodById(o.product_id)) && o.channel !== "코스트코") rpc("set_order_ship", { p_order_id:id, p_channel:"코스트코", p_ship_note:"", p_user_name:CURRENT_USER }, ()=>{ o.channel = "코스트코"; save("orders", o); return { ok:true }; }, { quiet:true }).then(r=>{ if (r && r.ok) o.channel = "코스트코"; });
   if (!qcOK(o)) return toast("체크하지 않은 항목이 있습니다 — 전부 확인해 주세요");
@@ -20193,7 +20262,7 @@ async function qcDone(id){
     if (!pick) return;
     const why = await askText(`차이 사유 (짧게 · 비워도 됨)`, d<0 ? "파손 · 덜 담김" : "덜 셈", "수량 정정 사유");
     if (why === null) return;
-    const r = await rpc("complete_qc_fix", { p_order_id:id, p_received_qty:rcv, p_reason:String(why).trim()||null, p_user_name:CURRENT_USER||null, p_idempotency:`qcf-${id}-${uid()}` }, () => {
+    const r = await rpc("complete_qc_fix", { p_order_id:id, p_received_qty:rcv, p_reason:String(why).trim()||null, p_user_name:qcUser()||null, p_idempotency:`qcf-${id}-${uid()}` }, () => {
       const l = DB.logs.find(x=>x.id===o.log_id), p = prodById(o.product_id);
       if (l) { l.qty_ea = rcv; l.revision_note = `검수 수량 정정 ${fmt(o.qty_done)} → ${fmt(rcv)}`; save("logs", l); }
       if (p) { p.cfe = Number(p.cfe||0) + d; save("products", p); }
@@ -20538,7 +20607,9 @@ function renderWork(){
   /* ★ 2026-11-11 — 검수 수량 다름(맨 위 · 깜빡임 · 날짜와 상관없이 확인할 때까지) / 검수 대기(아래 · 흐리게 · 그 날짜만) */
   const qFlags = DB.orders.filter(o=>qtyFlag(o)).sort((a,b)=>String(qtyFlag(a).at).localeCompare(String(qtyFlag(b).at)));
   const qFlagIds = new Set(qFlags.map(o=>o.id));
-  const qWait = ordsOf(d).filter(o=>o.status==="생산완료" && !qFlagIds.has(o.id)).sort((a,b)=>String(a.done_at).localeCompare(String(b.done_at)));
+  /* ★ 2026-11-15 오늘 화면에서는 지난 날짜에 생산하고 아직 검수 안 된 것도 같이 보인다 ("N일 지남") — 밀린 것이 위 */
+  const qWait = DB.orders.filter(o=>o.status==="생산완료" && !qFlagIds.has(o.id) && (o.work_date === d || (d === today() && String(o.work_date||"") < d)))
+    .sort((a,b)=>String(a.work_date).localeCompare(String(b.work_date)) || String(a.done_at).localeCompare(String(b.done_at)));
 
   /* 기계 순서대로 묶는다 — 기준정보에 없는 설비명(재작업 등)은 뒤에 붙인다 */
   const extra = [...new Set(all.concat(done).map(o=>o.machine||"").filter(Boolean))]
@@ -20571,8 +20642,7 @@ function renderWork(){
   const mixedAll = all.filter(o=>isMixedOrder(o) && o.status==="대기");
   const canEdit = can("plan") && all.some(o=>o.status==="대기");
   $("wkMachBtn").innerHTML = staleOrdersBar(d) + planSyncBar(d) +
-    (can("plan") ? `<button class="btn" style="font-weight:800;border-color:var(--pri,#2b50d8);color:var(--pri,#2b50d8)" onclick="openEcDone($('wkDate').value||today())" title="이카운트 생산입고 표를 복사해 붙여넣으면 이미 생산한 지시를 한 번에 완료">📋 이카운트 표로 생산 완료</button>` : "") +
-    (canEdit ? `<button class="btn ${wkLabelEdit?"primary":""}" onclick="setWkLabelEdit()">라벨 바꾸기</button>` : "") +
+    /* ★ 2026-11-15 [📋 이카운트 표로 생산 완료] · [라벨 바꾸기] 버튼은 현장 작업 화면에서 뺐다 (Lee "이카운트표 이거랑 라벨 바꾸기는 지워줘") */
     (canEdit ? `<button class="btn" onclick="sortOrdersBySpec($('wkDate').value||today())"
        title="기계마다 규격순으로 순서를 한 번에 다시 매깁니다">규격순 정렬 (${specDir()==="asc"?"100g→1kg":"1kg→100g"})</button>` : "") +
     (mixedAll.length && can("plan") ? `<button class="btn primary" onclick="splitAllOrders()"
@@ -20718,12 +20788,13 @@ function renderWork(){
   /* 검수 대기 (흐리게 · 검수가 끝나면 사라진다) — 빨간 칸 바로 아래, 할 일 카드 위 */
   const qWaitShown = wkMach === "반려" ? [] : qWait.filter(inKind);
   const qWaitPanel = () => !qWaitShown.length ? "" :
-    `<div class="mgrp qwait-grp"><div class="mgrp-h"><b>검수 대기</b><span class="tag">${qWaitShown.length}건</span>
+    `<div class="mgrp qwait-grp"><div class="mgrp-h"><b>검수 대기</b><span class="tag">${qWaitShown.length}건</span>${qWaitShown.some(o=>String(o.work_date||"") < d) ? `<span class="tag bad">지난 날짜 ${qWaitShown.filter(o=>String(o.work_date||"") < d).length}건</span>` : ""}
         <span class="r">생산 완료 → 검수 중 · 검수가 끝나면 여기서 사라집니다 · 수량이 다르면 위에 빨갛게 뜹니다</span></div>
       <div class="wcards">${qWaitShown.map(o=>{ const p = prodById(o.product_id);
-        return `<div class="wc qwait">
+        const late = String(o.work_date||"") < d ? Math.round((new Date(d) - new Date(o.work_date))/86400000) : 0;
+        return `<div class="wc qwait"${late?' style="opacity:.85"':""}>
           <div class="hd"><div class="nm">${specChip(specOf(o))}${p?.name||o.product_name||"품목 없음"}</div>
-            <div class="sub">${o.machine||"설비 미지정"}${o.serial?` · 일련번호 ${o.serial}`:""}</div></div>
+            <div class="sub">${late?`<span class="tag bad" style="font-size:11px">${o.work_date.slice(5).replace("-","/")} 생산 · ${late}일 지남</span> `:""}${o.machine||"설비 미지정"}${o.serial?` · 일련번호 ${o.serial}`:""}</div></div>
           <div class="big"><b>${fmt(o.qty_done)}</b> <span>개 생산 완료</span></div>
           <div class="meta">⏳ 검수 대기 · 완료 ${dtFull(o.done_at)}${o.done_by?` · ${o.done_by}`:""}${qcFlow(o)==="재검수 대기"?` · <span class="warn">재검수</span>`:""}</div>
         </div>`; }).join("")}</div></div>`;
@@ -20761,8 +20832,16 @@ function renderWork(){
 var QC_VIEW = "wait";
 function setQcView(v){ QC_VIEW = v; renderQc(); }
 function renderQc(){
-  const wait = DB.orders.filter(o=>o.status==="생산완료").sort((a,b)=>String(a.done_at).localeCompare(String(b.done_at)));
-  $("qcInfo").innerHTML = wait.length ? `검수 대기 <b>${wait.length}</b>건` : `검수할 것이 없습니다`;
+  /* ★ 2026-11-15 날짜별로 나눠 보기 (Lee "날짜 지난 … 계속 떠있네 · 구분이 되어 있으면 좋을 거 같은데 날짜 별로")
+       검수 대기는 날짜가 지나도 검수할 때까지 남는다 — 밀린 것(오래된 날짜)을 맨 위에, 오늘 것은 그 아래에 · 날짜별 제목과 "N일 지남" */
+  const qcDayOf = o => String(o.work_date || String(o.done_at||"").slice(0,10) || "");
+  const wait = DB.orders.filter(o=>o.status==="생산완료").sort((a,b)=>String(qcDayOf(a)).localeCompare(String(qcDayOf(b))) || String(a.done_at).localeCompare(String(b.done_at)));   // ★ 밀린 것(오래된 날짜)이 위 · 오늘이 아래 (Lee 2026-11-15)
+  qcBadge();
+  const qcOld = wait.filter(o=>qcDayOf(o) < today()).length;
+  $("qcInfo").innerHTML = wait.length ? `검수 대기 <b>${wait.length}</b>건${qcOld?` · <b style="color:var(--bad)">지난 날짜 ${qcOld}건</b>`:""}` : `검수할 것이 없습니다`;
+  const dayHead = (d, n, kind) => { const T = today(), late = d && d < T ? Math.round((new Date(T) - new Date(d))/86400000) : 0;
+    const lb = !d ? "날짜 없음" : `${d.slice(5).replace("-","/")} (${"일월화수목금토"[new Date(d).getDay()]})`;
+    return { late, html:`<b>${d === T ? "오늘 · " : ""}${lb}</b> <span class="tag ${late?"bad":"ok"}">${late ? `${late}일 지남` : (d > T ? "예정" : "오늘")}</span> <span class="hint" style="padding:0">${kind} ${n}건</span>` }; };
   /* 치고 있던 실제 확인수량은 다시 그려도 지워지지 않게 */
   const typed = {}; document.querySelectorAll('#qcCards input[id^="qcq-"]').forEach(i=>{ typed[i.id.slice(4)] = i.value; });
   /* 체크 저장 중이거나 칸에 커서가 있으면 지금은 다시 그리지 않는다 (실시간 갱신이 손가락을 밀어내지 않게) */
@@ -20782,16 +20861,24 @@ function renderQc(){
     if (el) { el.style.display = QC_VIEW === "plan" ? "" : "none";
       el.innerHTML = run.length ? `<div class="panel-h">🏭 오늘 생산 계획 ${run.length}건 <span class="hint" style="padding:0">(생산 중 ${nRun} · 대기 ${run.length-nRun}) — 아직 검수 전 · 다 됐으면 여기서 바로 완료</span> <span class="r hint">${can("work") ? "[생산 완료] 에서 수량을 넣으면 아래 검수 칸으로 넘어옵니다" : "권한설정에서 검수·출고에 [현장 생산] 을 켜야 누를 수 있습니다"}</span></div>
         <div class="panel-b"><table><thead><tr><th class="l">품목</th><th>상태</th><th>채널</th><th>일련번호</th><th>지시</th><th>기계 · 시작</th><th></th></tr></thead><tbody>${
-        run.map(o=>{ const p = prodById(o.product_id); const sp = ordNeedSplit(o);
-          return `<tr><td class="l"><b>${p?.name||o.product_name||""}</b>${o.work_date<today()?` <span class="tag bad" style="font-size:11px">${o.work_date.slice(5).replace("-","/")} 밀림</span>`:""}</td>
+        run.map((o,i)=>{ const p = prodById(o.product_id); const sp = ordNeedSplit(o);
+          /* 날짜가 둘 이상 섞여 있으면 날짜별 제목 줄 */
+          const multi = new Set(run.map(x=>x.work_date)).size > 1, sameSt = i > 0 && run[i-1].status === o.status && run[i-1].work_date === o.work_date;
+          const gh = (multi && !sameSt) ? (()=>{ const h = dayHead(o.work_date, run.filter(x=>x.work_date===o.work_date && x.status===o.status).length, o.status==="생산중"?"생산 중":"대기");
+            return `<tr class="qcdayrow ${h.late?"late":""}"><td class="l" colspan="7">${h.html}</td></tr>`; })() : "";
+          return gh + `<tr><td class="l"><b>${p?.name||o.product_name||""}</b>${o.work_date<today()?` <span class="tag bad" style="font-size:11px">${o.work_date.slice(5).replace("-","/")} 밀림</span>`:""}</td>
             <td class="c">${o.status==="생산중"?`<span class="tag warn">${o.paused_at?"정지":"생산 중"}</span>`:'<span class="tag">대기</span>'}</td><td class="c">${chChip(o.channel||p?.channel||"일반")}</td><td class="c"><b>${o.serial||"—"}</b></td>
             <td>${fmt(o.qty_plan)}${sp.buf?`<br><span class="hint" style="padding:0;font-size:11px">필요 ${fmt(sp.need)}</span>`:""}</td>
             <td class="c" style="font-size:12px">${o.machine||"—"}<br>${o.started_at?`${o.started_by||""} ${dtFull(o.started_at)}`:'<span class="hint" style="padding:0">시작 전</span>'}</td>
             <td class="c" style="white-space:nowrap">${can("work") ? `<button class="btn primary" style="height:36px" onclick="finishWork('${o.id}')">생산 완료</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : `<div class="panel-b"><div class="hint" style="padding:24px;text-align:center">오늘 남은 생산 계획이 없습니다 — 전부 생산 완료됐습니다</div></div>`; } }
+  let qcPrevDay = null;
   $("qcCards").innerHTML = wait.length ? wait.map(o=>{
     const p = prodById(o.product_id);
     const l = DB.logs.find(x=>x.id===o.log_id);
-    return `<div class="qcc" data-oid="${o.id}">
+    const dKey = qcDayOf(o); let dh = "";
+    if (dKey !== qcPrevDay) { qcPrevDay = dKey; const h = dayHead(dKey, wait.filter(x=>qcDayOf(x)===dKey).length, "검수 대기");
+      dh = `<div class="qcday ${h.late?"late":""}">${h.html}${h.late?` <span class="hint" style="padding:0">— 검수할 때까지 여기 남습니다</span>`:""}</div>`; }
+    return dh + `<div class="qcc" data-oid="${o.id}">
       <div class="hd"><div class="nm">${p?.name||""}</div>
         <div class="sub">${chName(ordShipCh(o))}${o.ship_note?` (${o.ship_note})`:""}${o.serial?` · 일련번호 ${o.serial}`:""} · 생산 ${o.done_by||"—"} · ${fmt(o.qty_done)}개${
           qcFlow(o)==="재검수 대기" ? ` · <span class="tag warn" style="font-size:11px">재검수 (반려 ${qcState(o).count}회)</span>` : ""}${
