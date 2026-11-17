@@ -1451,6 +1451,46 @@
   .csec.chide{display:none !important;}
   @media(max-width:760px){ body #capaCards.cards{grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px;} #capaCards .card .vl{font-size:20px;} }
 
+  /* ★ 2026-11-17 생산분석 — 1건 평균 · 월간 회고 그래프 */
+  #capaAvg .avg{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:0; border-bottom:1px solid var(--line);}
+  #capaAvg .avg > div{padding:12px 16px; border-right:1px solid var(--line);}
+  #capaAvg .avg > div:last-child{border-right:none;}
+  #capaAvg .avg span{display:block; font-size:12px; color:var(--soft); font-weight:600; margin-bottom:5px;}
+  #capaAvg .avg b{font-size:21px; font-weight:800; letter-spacing:-.8px; font-variant-numeric:tabular-nums;}
+  #capaAvg .avg small{font-size:11.5px; color:var(--soft); font-weight:600; margin-left:3px;}
+  #capaAvg .note{padding:8px 16px; font-size:12px; color:var(--soft); border-bottom:1px solid var(--line);}
+  #capaLogsWrap > summary{padding:10px 16px; cursor:pointer; font-size:12.5px; font-weight:800; color:var(--blue-600); list-style:none;}
+  #capaLogsWrap > summary::before{content:"▸ ";}
+  #capaLogsWrap[open] > summary::before{content:"▾ ";}
+  #capaLogsWrap > summary::-webkit-details-marker{display:none;}
+  .rtg{display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:14px; margin-bottom:14px;}
+  .rtc{border:1px solid var(--line); border-radius:10px; background:var(--card,#fff); min-width:0;}
+  .rtt{padding:11px 14px 0; font-size:13px; font-weight:800;}
+  .rtt span{font-size:11.5px; font-weight:600; color:var(--soft); margin-left:8px;}
+  .rth{padding:8px 12px 10px; height:230px;}
+  .rtm{padding:8px 14px 12px;}
+  .rtm .m{display:grid; grid-template-columns:104px minmax(0,1fr) auto; gap:4px 10px; align-items:center; padding:6px 0; border-bottom:1px dashed var(--line);}
+  .rtm .m:last-child{border-bottom:none;}
+  .rtm .m .k{font-size:12.5px; font-weight:800;}
+  .rtm .m .bars{display:flex; flex-direction:column; gap:3px; min-width:0;}
+  .rtm .m .bars div{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--soft); font-weight:700; white-space:nowrap;}
+  .rtm .m .bars i{display:block; height:9px; border-radius:3px; min-width:2px; background:var(--blue-600); flex:none;}
+  .rtm .m .bars div:last-child i{background:var(--line-2,#C9CEDA);}
+  .rtm .m .bars b{color:var(--ink); font-weight:800;}
+  .rtm .m .d{font-size:12px; text-align:right; white-space:nowrap;}
+  .rts{padding:8px 14px 12px;}
+  .rts .lb{font-size:11.5px; font-weight:700; color:var(--soft); margin:8px 0 5px;}
+  .rts .stk{display:flex; height:22px; border-radius:6px; overflow:hidden; background:var(--d-tint,#EEF1F7);}
+  .rts .stk i{display:block; height:100%;}
+  .rts .lg{display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:6px; font-size:11.5px; font-weight:700;}
+  .rts .lg span::before{content:""; display:inline-block; width:9px; height:9px; border-radius:2px; background:var(--c); margin-right:5px;}
+  .rtd > summary{cursor:pointer; padding:9px 2px; font-size:12.5px; font-weight:800; color:var(--blue-600); list-style:none;}
+  .rtd > summary::before{content:"▸ ";}
+  .rtd[open] > summary::before{content:"▾ ";}
+  .rtd > summary::-webkit-details-marker{display:none;}
+  @media(max-width:1100px){ .rtg{grid-template-columns:minmax(0,1fr);} }
+  @media(max-width:760px){ .rth{height:200px;} .rtm .m{grid-template-columns:84px minmax(0,1fr) auto;} }
+
 /* v60 개인계정 로그인 */
 #personalLoginGate{position:fixed;inset:0;z-index:2147483647;background:var(--bg,#F2F3F7);display:flex;
  align-items:center;justify-content:center;padding:20px}
@@ -1875,7 +1915,9 @@
       <div class="panel"><div class="panel-h">중단 사유별</div><div class="panel-b"><table id="capaPause"></table></div></div>
     </div>
     <div class="panel"><div class="panel-h">품목별 생산량 · 생산시간</div><div class="panel-b"><table id="capaProd"></table></div></div>
-    <div class="panel"><div class="panel-h">생산 건별 <span class="r hint">시작 · 완료 · 중단 · 참여 · 시간당</span></div><div class="panel-b"><table id="capaLogs"></table></div></div>
+    <div class="panel"><div class="panel-h">생산 1건 평균 <span class="r hint">건당 수량 · 생산시간 · 속도 — 품목별</span></div>
+      <div id="capaAvg"></div>
+      <details id="capaLogsWrap" ontoggle="CAPA_LOGS_OPEN=this.open"><summary>건별 목록 보기</summary><div class="panel-b"><table id="capaLogs"></table></div></details></div>
     <div class="panel"><div class="panel-h">월간 회고 <span class="r hint">이 달 ↔ 전월 · 계획 대비 · 품질 · 운영</span>
         <span style="margin-left:14px"><input type="month" id="capaRetroMon" onchange="renderCapa()"></span></div>
       <div id="capaRetro" style="padding:10px 18px"></div></div>
@@ -7572,6 +7614,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-17", "생산분석 — 1건 평균 · 월간 회고 그래프 · 채널 출고 칸", "■ [생산 건별] 목록을 [생산 1건 평균]으로 변경했습니다 — 건수 · 1건 평균 수량 · 평균 생산시간 · 평균 생산속도 · 평균 투입 인원과 품목별 평균을 표시합니다. 건별 목록은 [건별 목록 보기]를 누르면 펼쳐지며 엑셀 다운로드에는 전체가 포함됩니다 ■ 생산속도(EA/h · kg/h · EA/인시)는 실제 생산시간이 1분 이상인 건으로만 계산합니다 — [생산 시작] 직후 [생산 완료]를 누른 건이 섞이면 속도가 비정상적으로 크게 나오기 때문입니다. 수량 · 중량 합계에는 모든 건이 포함되며, 제외된 건수는 화면에 표시됩니다 ■ 월간 회고에 그래프를 추가했습니다 — 일별 생산수량(이 달 막대 · 전월 선), 이 달 ↔ 전월 비교 막대(생산수량 · 생산속도 · 인시당 생산 · 출고 · 로스율 · 부적합 · 반려 · 중단시간), 채널 출고(이 달 ↔ 전월), 생산 비중(규격별 · 설비별 · 채널). 기존 표는 [상세 표 보기] 안에 있습니다 ■ 위쪽 칸에 [채널 출고]를 추가했습니다 — 누르면 채널별 출고만 표시됩니다."],
   ["2026-11-17", "생산분석 — 간결하게 (창 접기 · 칸을 누르면 관련 항목만)", "생산분석 화면을 CAPA와 회고 중심으로 정리했습니다. ■ 각 창의 제목을 누르면 접히고 펴집니다 — 접은 상태는 이 기기에 저장되며, 접혀 있어도 제목 옆에 요약(건수 · 수량 등)이 표시됩니다 ■ 처음에는 생산속도(규격별 · 설비별 CAPA) · 작업자별 생산속도 · 월간 회고만 펼쳐져 있고, 채널별 출고 · 시간대별 · 중단 사유 · 품목별 · 생산 건별 · 연간 표 · 예상 생산시간은 접혀 있습니다 ■ 위쪽 칸(총 생산수량 · 시간당 생산수량 · 로스율 등)을 누르면 그 숫자와 관련된 창만 표시됩니다 — 다시 누르거나 [전체 보기]로 해제 ■ 창 순서를 생산속도 → 작업자 → 월간 회고 → 나머지 순으로 변경했습니다 ■ 작업자별 표는 시간당 생산(EA/인시)을 앞쪽에 표시합니다."],
   ["2026-11-17", "생산분석 — 채널별 출고 (회고 자료)", "생산분석 화면 위쪽에 [채널별 출고]를 추가했습니다. 출고 화면에서 [출고 완료] 한 수량을 출고처(일반 · 컬리 · 코스트코 · 네이버 · 라이브 · 온라인 외 · 부산점 · 직납 등)별로 집계하며, 새로 입력하는 것은 없습니다. ■ 한눈에 — 일자별 출고 추이(채널을 쌓은 막대, 기간이 길면 월별) ■ 채널별 — 막대 + 수량(EA) · 중량(kg) · 비중 · 전 기간 대비 ▲▼ · 규격별 수량. 채널 행을 누르면 품목별 내역이 펼쳐집니다 ■ 화면 위 기간 선택(일간 · 주간 · 월간 · 연간 · 직접 지정)을 그대로 따릅니다 ■ [엑셀 다운로드] ■ 월간 회고에 채널 출고(이 달 ↔ 전월), 연간에 월별 채널 출고 표를 추가했습니다."],
   ["2026-11-17", "오류 수정 — 작업지시 목록에서 수정한 값이 저장되지 않던 문제", "작업지시 목록 표에서 순서 · 출고처 · 설비 · 계획 수량을 변경하면 화면에서만 바뀌고 서버에 저장되지 않아, 새로고침하면 원래 값으로 돌아가던 문제를 수정했습니다. 이제 값을 변경하는 즉시 저장되며, 저장에 실패하면 원래 값으로 복원하고 사유를 안내합니다. 품목은 지시 생성 후 변경할 수 없으므로 선택칸 대신 품목명으로 표시합니다 (변경이 필요하면 삭제 후 다시 추가). 수정 내용은 변경이력에 기록됩니다 (작업지시 수정 · 작업지시 순서 변경) — 000_install_all.sql 재실행 필요."],
@@ -22345,15 +22388,21 @@ function capaRows(from, to){
   return DB.logs.filter(l=>logLive(l) && l.work_date >= from && l.work_date <= to && !l.rework).map(capaRow).filter(Boolean)
     .sort((a,b)=>String(a.o?.done_at||a.l.created_at).localeCompare(String(b.o?.done_at||b.l.created_at)));
 }
+/* ★ 2026-11-17 생산속도(EA/h · kg/h · EA/인시)는 실제 생산시간이 1분 이상인 건으로만 계산한다
+   — [생산 시작] 과 [생산 완료] 를 연달아 누른 건(0분)이 섞이면 "시간당 44,359개" 같은 값이 나와 평균이 무의미해진다.
+   수량 · 중량 · 시간 합계는 전부 포함하고, 속도에서만 뺀다 (nX = 제외된 건수) */
+const CAPA_MIN_SEC = 60;
+const capaFast = r => !!r.t && r.t.active >= CAPA_MIN_SEC;
 function capaSum(rows){
-  const timed = rows.filter(r=>r.t);
+  const timed = rows.filter(r=>r.t), sp = timed.filter(capaFast);
   const qty = rows.reduce((s,r)=>s+r.qty,0), kg = rows.reduce((s,r)=>s+r.kg,0);
   const active = timed.reduce((s,r)=>s+r.t.active,0), elapsed = timed.reduce((s,r)=>s+r.t.elapsed,0), pause = timed.reduce((s,r)=>s+r.t.pause,0);
-  const tq = timed.reduce((s,r)=>s+r.qty,0), tk = timed.reduce((s,r)=>s+r.kg,0), man = rows.reduce((s,r)=>s+r.manSec,0);
-  const h = active/3600;
-  return { n:rows.length, nT:timed.length, qty, kg:Math.round(kg*100)/100, active, elapsed, pause, man,
+  const tq = sp.reduce((s,r)=>s+r.qty,0), tk = sp.reduce((s,r)=>s+r.kg,0), man = rows.reduce((s,r)=>s+r.manSec,0), manS = sp.reduce((s,r)=>s+r.manSec,0);
+  const h = sp.reduce((s,r)=>s+r.t.active,0)/3600;
+  return { n:rows.length, nT:timed.length, nS:sp.length, nX:timed.length - sp.length, qty, kg:Math.round(kg*100)/100, active, elapsed, pause, man,
+    actS:h*3600, pauseS:sp.reduce((s,r)=>s+r.t.pause,0), qtyS:tq,
     qph: h>0 ? Math.round(tq/h) : null, kgph: h>0 ? Math.round(tk/h*10)/10 : null,
-    qpm: man>0 ? Math.round(tq/(man/3600)) : null };
+    qpm: manS>0 ? Math.round(tq/(manS/3600)) : null };
 }
 const pct = (a,b) => b ? `${Math.round(a/b*1000)/10}%` : "—";
 const delta = (a,b) => b == null || a == null ? "" : (a-b>0?`▲ ${fmt(a-b)}`:a-b<0?`▼ ${fmt(b-a)}`:"—");
@@ -22374,6 +22423,7 @@ function renderCapa(){
     ["시간당 생산수량", S.qph!=null?fmt(S.qph):"—", "EA/h"], ["시간당 생산중량", S.kgph!=null?fmt(S.kgph):"—", "kg/h"],
     ["총 투입 인시", fmtDur(S.man), "인원×시간"], ["인시당 생산량", S.qpm!=null?fmt(S.qpm):"—", "EA/인시"],
     ["로스율", lossIn?pct(lossKg, lossIn):"—", `${fmt(lossKg)}kg`], ["부적합 · 반려 · 재작업", `${fmt(pq.reduce((s,x)=>s+Number(x.qty||0),0))} · ${fmt(rj.reduce((s,x)=>s+Number(x.qty_affected||0),0))} · ${fmt(rw.reduce((s,x)=>s+Number(x.qty||0),0))}`, `EA · ${pq.length}건 · ${rj.length}건 · ${rw.length}건`],
+    (()=>{ const F = shipFacts(from, to); return ["채널 출고", fmt(F.reduce((t,x)=>t+x.qty,0)), `EA · ${kg1(F.reduce((t,x)=>t+x.kg,0))}kg · ${new Set(F.map(x=>x.ch)).size}곳`]; })(),
   ].map(([a,b,c],i)=>`<div class="card ${capaPick===i?"on":""}" onclick="capaPickCard(${i})" title="누르면 이 숫자와 관련된 항목만 표시합니다 — 다시 누르면 전체"><div class="lb">${a}</div><div class="vl">${b} <small>${c}</small></div></div>`).join("");
 
   const group = (key) => { const g = {}; rows.forEach(r=>{ const k = key(r); (g[k] = g[k]||[]).push(r); }); return Object.entries(g).map(([k,v])=>[k, capaSum(v)]); };
@@ -22400,11 +22450,30 @@ function renderCapa(){
       return `<tr><td class="c"><b>${k}</b></td><td>${fmt(Math.round(h.qty))}</td><td>${fmt(Math.round(h.kg*10)/10)}</td><td>${h.workers.size}</td><td class="l" style="font-size:12px">${[...h.workers].join(", ")}</td><td class="l" style="font-size:12px">${[...h.items].join(", ")}</td><td class="l" style="font-size:12px">${[...h.machines].join(", ")}</td><td class="${pqH[hh]?"bad":""}">${pqH[hh]||"—"}</td><td class="${rjH[hh]?"bad":""}">${rjH[hh]||"—"}</td><td>${h.pause>30?fmtDur(h.pause):"—"}</td></tr>`; }));
 
   /* 작업자별 */
-  const wk = {}; rows.forEach(r=>r.workers.forEach(w=>{ const x = wk[w.name] = wk[w.name] || { sec:0, n:0, qty:0 }; x.sec += w.sec; x.n++; x.qty += r.qty / Math.max(1, r.workers.length); }));
-  tbl("capaWorker", ["작업자","시간당 생산(EA/인시)","생산수량(분담)","투입시간","참여 건수"], Object.entries(wk).sort((a,b)=>b[1].sec-a[1].sec).map(([k,x])=>`<tr><td class="l"><b>${k}</b></td><td><b>${x.sec?fmt(Math.round(x.qty/(x.sec/3600))):"—"}</b></td><td>${fmt(Math.round(x.qty))}</td><td>${fmtDur(x.sec)}</td><td>${x.n}</td></tr>`));
+  const wk = {}; rows.forEach(r=>r.workers.forEach(w=>{ const x = wk[w.name] = wk[w.name] || { sec:0, n:0, qty:0, sq:0, ss:0 }; x.sec += w.sec; x.n++; x.qty += r.qty / Math.max(1, r.workers.length);
+    if (capaFast(r)) { x.sq += r.qty / Math.max(1, r.workers.length); x.ss += w.sec; } }));
+  tbl("capaWorker", ["작업자","시간당 생산(EA/인시)","생산수량(분담)","투입시간","참여 건수"], Object.entries(wk).sort((a,b)=>b[1].sec-a[1].sec).map(([k,x])=>`<tr><td class="l"><b>${k}</b></td><td><b>${x.ss?fmt(Math.round(x.sq/(x.ss/3600))):"—"}</b></td><td>${fmt(Math.round(x.qty))}</td><td>${fmtDur(x.sec)}</td><td>${x.n}</td></tr>`));
   /* 중단 사유별 */
   const ps = {}; rows.forEach(r=>r.pauses.forEach(x=>{ const k = ps[x.reason] = ps[x.reason] || { n:0, sec:0 }; k.n++; k.sec += x.sec; }));
   tbl("capaPause", ["사유","횟수","중단시간"], Object.entries(ps).sort((a,b)=>b[1].sec-a[1].sec).map(([k,x])=>`<tr><td class="l">${k}</td><td>${x.n}</td><td>${fmtDur(x.sec)}</td></tr>`));
+  /* ★ 2026-11-17 1건 평균 — 건별 목록 대신 (Lee "이거가 필요한걸까? 평균값으로 잡아주면 안될까?") */
+  { const avgOf = R => { const s = capaSum(R), sp = R.filter(capaFast); return { s, n:R.length, q:R.length ? s.qty / R.length : 0, k:R.length ? s.kg / R.length : 0,
+        act:sp.length ? s.actS / sp.length : null, pau:sp.length ? s.pauseS / sp.length : null, ppl:sp.length ? sp.reduce((t,r)=>t + Math.max(1, r.workers.length), 0) / sp.length : null }; };
+    const A = avgOf(rows), r1 = v => fmt(Math.round(v*10)/10);
+    const g = {}; rows.forEach(r=>{ (g[r.p.name] = g[r.p.name] || []).push(r); });
+    $("capaAvg").innerHTML = !rows.length ? `<div class="note" style="border:none;text-align:center;padding:22px">이 기간에 생산 실적이 없습니다</div>` : `<div class="avg">
+        <div><span>생산 건수</span><b>${fmt(A.n)}</b><small>건</small></div>
+        <div><span>1건 평균 수량</span><b>${r1(A.q)}</b><small>EA · ${r1(A.k)}kg</small></div>
+        <div><span>1건 평균 생산시간</span><b>${A.act != null ? fmtDur(A.act) : "—"}</b>${A.pau ? `<small>+ 중단 ${fmtDur(A.pau)}</small>` : ""}</div>
+        <div><span>평균 생산속도</span><b>${A.s.qph != null ? fmt(A.s.qph) : "—"}</b><small>EA/h · ${A.s.kgph != null ? fmt(A.s.kgph) : "—"}kg/h</small></div>
+        <div><span>평균 투입 인원</span><b>${A.ppl != null ? r1(A.ppl) : "—"}</b><small>명 · ${A.s.qpm != null ? fmt(A.s.qpm) : "—"} EA/인시</small></div></div>
+      ${A.s.nX || A.n - A.s.nT ? `<div class="note">생산시간 · 속도 평균은 실제 생산시간이 1분 이상인 <b>${fmt(A.s.nS)}건</b>으로 계산했습니다${A.s.nX ? ` — 1분 미만 ${fmt(A.s.nX)}건 제외 ([생산 시작] 직후 [생산 완료] 한 건)` : ""}${A.n - A.s.nT ? ` · 시간 기록 없음 ${fmt(A.n - A.s.nT)}건` : ""}</div>` : ""}
+      <div class="panel-b"><table><thead><tr><th class="l">품목</th><th>건수</th><th>1건 평균 수량</th><th>1건 평균 생산시간</th><th>평균 EA/h</th><th>평균 kg/h</th><th>평균 인원</th><th>속도 계산 건수</th></tr></thead><tbody>
+      ${Object.entries(g).sort((a,b)=>b[1].length - a[1].length || natCmp(a[0], b[0])).map(([k,R])=>{ const a = avgOf(R);
+        return `<tr><td class="l">${k}</td><td>${fmt(a.n)}</td><td>${r1(a.q)} EA</td><td>${a.act != null ? fmtDur(a.act) : "—"}</td><td><b>${a.s.qph != null ? fmt(a.s.qph) : "—"}</b></td><td><b>${a.s.kgph != null ? fmt(a.s.kgph) : "—"}</b></td><td>${a.ppl != null ? r1(a.ppl) : "—"}</td><td>${fmt(a.s.nS)} / ${fmt(a.n)}</td></tr>`; }).join("")}
+      </tbody></table></div>`;
+    const lw = $("capaLogsWrap"); if (lw) { lw.open = CAPA_LOGS_OPEN; lw.querySelector("summary").textContent = `건별 목록 보기 (${fmt(rows.length)}건)`; }
+    window.__capaAvg = A; }
   /* 건별 */
   tbl("capaLogs", ["일자","일련번호","품목","설비","시작","완료","경과","중단","실제 생산시간","수량","중량(kg)","EA/h","kg/h","참여 작업자(투입)"],
     [...rows].reverse().map(r=>`<tr><td class="c">${r.date}</td><td class="l"><b>${r.serial||"—"}</b></td><td class="l">${r.p.name}</td><td class="c">${r.machine}</td>
@@ -22416,13 +22485,13 @@ function renderCapa(){
   try { renderCapaCh(from, to); renderCapaYearCh(); } catch(e){ console.warn(e); }   // ★ 2026-11-17 채널별 출고
   renderCapaRetro(); renderCapaYear(); renderCapaForecast();
   try {                                                         // ★ 2026-11-17 접힌 창 제목 옆 요약 · 칸 눌러 골라 보기
-    capaHint("spec", S.qph != null ? `${fmt(S.qph)} EA/h · ${fmt(S.kgph)} kg/h` : "측정된 생산시간 없음");
     capaHint("mach", `${new Set(rows.map(r=>r.machine)).size}대`);
     capaHint("worker", `${Object.keys(wk).length}명${S.qpm != null ? ` · 평균 ${fmt(S.qpm)} EA/인시` : ""}`);
     capaHint("pause", S.pause ? `${fmtDur(S.pause)} · ${Object.keys(ps).length}개 사유` : "중단 없음");
     capaHint("hour", `${Object.keys(hours).length}개 시간대`);
     capaHint("prod", `${new Set(rows.map(r=>r.p.name)).size}품목`);
-    capaHint("logs", `${fmt(rows.length)}건 — 엑셀 다운로드에 전체 포함`);
+    capaHint("logs", (()=>{ const A = window.__capaAvg; return A && A.n ? `${fmt(A.n)}건 · 1건 평균 ${fmt(Math.round(A.q))}EA${A.act != null ? ` · ${fmtDur(A.act)}` : ""}` : "실적 없음"; })());
+    capaHint("spec", (S.qph != null ? `${fmt(S.qph)} EA/h · ${fmt(S.kgph)} kg/h` : "측정된 생산시간 없음") + (S.nX ? ` · 1분 미만 ${fmt(S.nX)}건 제외` : ""));
     capaHint("retro", $("capaRetroMon").value); capaHint("year", `${$("capaYear").value}년`); capaHint("yearch", `${$("capaYear").value}년`);
     capaApplyPick();
   } catch(e){ console.warn(e); }
@@ -22442,7 +22511,8 @@ const CH_COLORS = ["#1B4FD8","#F28E2B","#17A06B","#8A5CF6","#D93B4C","#2BB3C0","
 const CAPA_SECS = [["capaSpec","speed","spec",1],["capaMach","speed","mach",1],["capaWorker","worker","worker",1],["capaPause","pause","pause",0],
   ["capaRetro","retro","retro",1],["capaCh","ship","ch",0],["capaHour","hour","hour",0],["capaProd","prod","prod",0],["capaLogs","logs","logs",0],
   ["capaYearTbl","year","year",0],["capaYearCh","ship","yearch",0],["capaForecast","fc","fc",0]];
-const CAPA_CARD_G = [["prod","year"],["prod","year"],["hour","logs"],["pause"],["speed"],["speed"],["worker"],["worker"],["retro"],["retro"]];
+const CAPA_CARD_G = [["prod","year"],["prod","year"],["hour","logs"],["pause"],["speed"],["speed"],["worker"],["worker"],["retro"],["retro"],["ship"]];
+let CAPA_LOGS_OPEN = false, CAPA_RETRO_TBL = false;
 let capaPick = null;
 function capaFoldMap(){ try { return JSON.parse(localStorage.getItem("momos.capaFold") || "{}") || {}; } catch(_){ return {}; } }
 function capaSetup(){
@@ -22615,7 +22685,35 @@ function renderCapaRetro(){
   const kv = (k, v, d) => `<tr><td class="l">${k}</td><td><b>${v}</b></td><td class="c" style="font-size:12px">${d||""}</td></tr>`;
   const specLine = R => { const g = {}; R.forEach(r=>{ (g[r.specT] = g[r.specT]||[]).push(r); }); return Object.entries(g).sort((a,b)=>natCmp(a[0],b[0])).map(([k,v])=>{ const s = capaSum(v); return `${k} ${fmt(s.qty)}EA${s.qph!=null?` (${fmt(s.qph)}EA/h · ${fmt(s.kgph)}kg/h)`:""}`; }).join("<br>") || "—"; };
   const machLine = R => { const g = {}; R.forEach(r=>{ (g[r.machine] = g[r.machine]||[]).push(r); }); return Object.entries(g).map(([k,v])=>{ const s = capaSum(v); return `${k} ${fmt(s.qty)}EA${s.qph!=null?` (${fmt(s.qph)}EA/h)`:""}`; }).join("<br>") || "—"; };
-  $("capaRetro").innerHTML = `<div class="hint" style="padding:0 0 8px">${mon} (전월 ${pmon} 과 비교)</div>
+  /* ★ 2026-11-17 그래프 (Lee "월간 회고는 조금 더 그래프로") — 일별 생산 · 이 달↔전월 막대 · 채널 출고 · 규격/설비 비중. 표는 [상세 표 보기] 안으로 */
+  const shA1 = shipAgg(shipFacts(f1,t1)), shA0 = shipAgg(shipFacts(f0,t0));
+  const shE1 = Object.values(shA1).reduce((t,c)=>t+c.ea,0), shE0 = Object.values(shA0).reduce((t,c)=>t+c.ea,0);
+  const rDelta = (a, b, inv) => { a = Number(a)||0; b = Number(b)||0; if (!b) return `<span style="color:var(--soft);font-size:11.5px">${a ? "전월 없음" : "—"}</span>`;
+    const v = Math.round((a-b)/b*100); if (!v) return `<span style="color:var(--soft)">0%</span>`;
+    const good = inv ? v < 0 : v > 0; return `<b style="color:${good?"var(--ok)":"var(--bad)"}">${v>0?"▲":"▼"} ${fmt(Math.abs(v))}%</b>`; };
+  const pair = (k, a, b, unit, inv, dec) => { const f1v = v => v == null ? "—" : fmt(dec ? Math.round(v*10)/10 : Math.round(v)); const mx = Math.max(Number(a)||0, Number(b)||0, 1e-9);
+    return `<div class="m"><div class="k">${k}</div><div class="bars">
+      <div><i style="width:${Math.max(1, (Number(a)||0)/mx*62)}%"></i><b>${f1v(a)}</b>${a == null ? "" : unit}</div>
+      <div><i style="width:${Math.max(1, (Number(b)||0)/mx*62)}%"></i>${f1v(b)}${b == null ? "" : unit} <span style="font-weight:600">전월</span></div></div><div class="d">${rDelta(a, b, inv)}</div></div>`; };
+  const lossP = R => li(R) ? lk(R)/li(R)*100 : null;
+  const sumQ = (arr, key) => arr.reduce((s,x)=>s+Number(x[key]||0),0);
+  const stack = (title, ent) => { const tot = ent.reduce((t,e)=>t+e[1],0); if (!tot) return "";
+    return `<div class="lb">${title}</div><div class="stk">${ent.map(([k,v],i)=>`<i style="width:${v/tot*100}%;background:${CH_COLORS[i % CH_COLORS.length]}" title="${k} ${fmt(v)}EA"></i>`).join("")}</div>
+      <div class="lg">${ent.map(([k,v],i)=>`<span style="--c:${CH_COLORS[i % CH_COLORS.length]}">${k} ${fmt(v)} · ${Math.round(v/tot*100)}%</span>`).join("")}</div>`; };
+  const grp = (R, key) => { const g = {}; R.forEach(r=>{ const k = key(r); g[k] = (g[k]||0) + r.qty; }); return Object.entries(g).sort((a,b)=>b[1]-a[1]); };
+  const retroGraphs = `<div class="rtg">
+      <div class="rtc"><div class="rtt">일별 생산수량 <span>막대 = 이 달 · 선 = 전월 같은 날짜</span></div><div class="rth"><canvas id="capaRetroDay"></canvas></div></div>
+      <div class="rtc"><div class="rtt">이 달 ↔ 전월 <span>위 = 이 달 · 아래 = 전월</span></div><div class="rtm">
+        ${pair("생산수량", S1.qty, S0.qty, " EA")}${pair("생산속도", S1.qph, S0.qph, " EA/h")}${pair("인시당 생산", S1.qpm, S0.qpm, " EA/인시")}
+        ${pair("출고 수량", shE1, shE0, " EA")}${pair("로스율", lossP(R1), lossP(R0), "%", true, true)}
+        ${pair("부적합", sumQ(pq,"qty"), sumQ(pq0,"qty"), " EA", true)}${pair("반려", sumQ(rj,"qty_affected"), sumQ(rj0,"qty_affected"), " EA", true)}
+        ${pair("중단시간", S1.pause/60, S0.pause/60, " 분", true)}</div></div>
+      <div class="rtc"><div class="rtt">채널 출고 <span>이 달 ↔ 전월 · EA</span></div><div class="rth"><canvas id="capaRetroCh"></canvas></div></div>
+      <div class="rtc"><div class="rtt">생산 비중 <span>이 달 · EA</span></div><div class="rts">
+        ${stack("규격별", grp(R1, r=>r.specT).sort((a,b)=>natCmp(a[0],b[0]))) || `<div class="lb">이 달 생산 실적이 없습니다</div>`}${stack("설비별", grp(R1, r=>r.machine))}${stack("채널 출고", Object.values(shA1).sort((a,b)=>b.ea-a.ea).map(c=>[chName(c.ch), c.ea]))}</div></div>
+    </div>`;
+  $("capaRetro").innerHTML = `<div class="hint" style="padding:0 0 8px">${mon} (전월 ${pmon} 과 비교)</div>${retroGraphs}
+    <details class="rtd" ${CAPA_RETRO_TBL?"open":""} ontoggle="CAPA_RETRO_TBL=this.open"><summary>상세 표 보기 (생산 · CAPA · 품질 · 운영 · 채널 출고)</summary>
     <div class="cols2" style="gap:14px">
       <table><thead><tr><th class="l">생산</th><th>이 달</th><th>전월 대비</th></tr></thead><tbody>
         ${kv("총 생산수량", fmt(S1.qty)+" EA", delta(S1.qty, S0.qty) + ` (전월 ${fmt(S0.qty)})`)}
@@ -22654,7 +22752,23 @@ function renderCapaRetro(){
           ${kv("총 출고", `${fmt(e1)} EA · ${kg1(k1)} kg`, `${chDelta(e1, e0)} (전월 ${fmt(e0)})`)}
           ${ns.map(n=>kv(chName(n), `${fmt(a1[n]?.ea||0)} EA${e1 ? ` · ${Math.round((a1[n]?.ea||0)/e1*100)}%` : ""}`, `${chDelta(a1[n]?.ea||0, a0[n]?.ea||0)} (전월 ${fmt(a0[n]?.ea||0)})`)).join("") || kv("출고 내역", "—", "")}
         </tbody></table>`; })()}
-    </div>`;
+    </div></details>`;
+  /* 그래프 — 일별 생산(이 달 막대 + 전월 선) · 채널 출고(이 달 ↔ 전월) */
+  { const nd = last(new Date(mon + "-01")), days = Array.from({ length:nd }, (_,i)=>i+1);
+    const dayOf = (R, d) => R.filter(r=>Number(String(r.date).slice(8,10)) === d).reduce((t,r)=>t+r.qty,0);
+    const chs = [...new Set([...Object.keys(shA1), ...Object.keys(shA0)])].sort((x,y)=>(shA1[y]?.ea||0) - (shA1[x]?.ea||0) || chOrd(x) - chOrd(y));
+    const cs = getComputedStyle(document.documentElement), blue = cs.getPropertyValue("--blue-600").trim() || "#1B4FD8", gray = cs.getPropertyValue("--soft").trim() || "#6E7585";
+    draw([
+      ["capaRetroDay", { type:"bar", data:{ labels:days.map(d=>String(d)), datasets:[
+          { type:"bar", label:`${Number(mon.slice(5))}월`, data:days.map(d=>dayOf(R1, d)), backgroundColor:blue, borderRadius:2, order:2 },
+          { type:"line", label:`${Number(pmon.slice(5))}월`, data:days.map(d=>dayOf(R0, d)), borderColor:gray, backgroundColor:gray, borderWidth:1.5, pointRadius:0, tension:.25, borderDash:[4,3], order:1 } ] },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:"bottom", labels:{ boxWidth:12, font:{ size:11.5 } } }, tooltip:{ mode:"index", intersect:false } },
+          scales:{ x:{ grid:{ display:false }, ticks:{ autoSkip:true, maxRotation:0, font:{ size:10.5 } } }, y:{ beginAtZero:true, ticks:{ font:{ size:10.5 } } } } } }],
+      ["capaRetroCh", { type:"bar", data:{ labels:chs.map(chName), datasets:[
+          { label:`${Number(mon.slice(5))}월`, data:chs.map(c=>shA1[c]?.ea||0), backgroundColor:blue, borderRadius:2 },
+          { label:`${Number(pmon.slice(5))}월`, data:chs.map(c=>shA0[c]?.ea||0), backgroundColor:gray + "66", borderRadius:2 } ] },
+        options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:"bottom", labels:{ boxWidth:12, font:{ size:11.5 } } } },
+          scales:{ x:{ beginAtZero:true, ticks:{ font:{ size:10.5 } } }, y:{ grid:{ display:false }, ticks:{ font:{ size:11.5 } } } } } }] ]); }
 }
 /* 연간 */
 function renderCapaYear(){
