@@ -1239,6 +1239,35 @@
   .hm-cnt .warn b{color:var(--bad);}
   .hm-sec{font-size:13px; font-weight:800; color:var(--soft); margin:6px 2px -4px;}
   .hm-list{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  /* ★ 2026-11-17 분쇄 작업 */
+  .gwrap{display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:12px; align-items:start}
+  .ggrp{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card,transparent)}
+  .ggrp.alldone{opacity:.72}
+  .ggrp-h{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 12px; border-bottom:1px solid var(--line); background:var(--soft-bg,rgba(127,127,127,.06))}
+  .ggrp-h .gname{font-size:15.5px; font-weight:800}
+  .ggrp-h .gcnt{margin-left:auto; font-size:12.5px; font-weight:700; white-space:nowrap}
+  .ggrp .gbar{height:4px; background:var(--line)} .ggrp .gbar i{display:block; height:100%; background:var(--ok)}
+  .gi{display:flex; align-items:center; gap:10px; padding:8px 12px; border-bottom:1px solid var(--line); min-height:50px}
+  .gi:last-child{border-bottom:none}
+  .gi .gck{flex:none; width:34px; height:34px; border-radius:9px; border:2px solid var(--line-2,var(--line)); background:transparent; color:#fff; font-size:19px; font-weight:800; line-height:1; cursor:pointer; padding:0}
+  .gi.done .gck{background:var(--ok); border-color:var(--ok)}
+  .gi.part .gck{border-color:var(--warn)}
+  .gi .gnm{flex:1 1 auto; min-width:0; font-size:14px} .gi .gnm b{font-weight:700}
+  .gi.done .gnm{color:var(--soft)} .gi.done .gnm b{text-decoration:line-through; text-decoration-color:var(--soft)}
+  .gi .gq{flex:none; text-align:right; white-space:nowrap; font-size:12px; color:var(--soft)} .gi .gq b{font-size:17px; color:var(--ink)}
+  .gi .gst{flex:none; font-size:11.5px; color:var(--soft); text-align:right; min-width:86px; white-space:nowrap}
+  .gi .gst b{color:var(--ok)}
+  .gblade{border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:12px}
+  .gblade .t{display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px}
+  .gblade .t b.big{font-size:20px; letter-spacing:-.5px}
+  .gblade .bar{height:10px; border-radius:6px; background:var(--line); overflow:hidden; margin-top:8px} .gblade .bar i{display:block; height:100%; background:var(--ok)}
+  .gblade.warn .bar i{background:var(--warn)} .gblade.bad .bar i{background:var(--bad)}
+  .gblade.warn{border-color:var(--warn)} .gblade.bad{border-color:var(--bad)}
+  .gsum{cursor:pointer; padding:8px 0; font-size:12.5px; font-weight:700; color:var(--soft)}
+  details.gfold > summary{cursor:pointer; list-style:none} details.gfold > summary::-webkit-details-marker{display:none}
+  details.gfold > summary::before{content:"▸"; margin-right:8px; color:var(--soft)} details.gfold[open] > summary::before{content:"▾"}
+  details.gfold:not([open]) > summary{border-bottom:none}
+  @media (max-width:760px){ .gwrap{grid-template-columns:minmax(0,1fr)} .gi{padding:9px 10px; gap:8px} .gi .gck{width:40px; height:40px} .gi .gst{min-width:0} .gi .gnm{font-size:13.5px} }
   .chprod{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0 2px}
   .chprod .cp{border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:var(--card,transparent); min-width:0}
   .chprod .cp.off{opacity:.45}
@@ -1811,28 +1840,40 @@
   <div class="body">
     <h2 class="page">분쇄<small id="asof-grind"></small></h2>
     <div id="grindFill"></div>
+    <div id="grindAlert"></div>
+    <!-- ★ 2026-11-17 분쇄 작업 — 분쇄도별 카드 · [분쇄 완료] 체크 (Lee "분쇄 들어가보니깐 너무 허접하더라 분쇄 조금 더 신경써줘") -->
+    <div class="panel" id="grindWorkP">
+      <div class="panel-h" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">분쇄 작업 <span id="grindWorkSum"></span><span class="r" id="grindWorkTools" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"></span></div>
+      <div id="grindWork" style="padding:12px 14px 14px"></div>
+    </div>
     <div class="panel">
-      <div class="panel-h">분쇄량 — 칼날 교체 주기 확인 <span class="r hint">분쇄 집계 수량 × 용량으로 산출한 kg · 주 단위는 월~일</span></div>
-      <div class="cards" id="grindCards"></div>
-      <div class="panel-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;padding:0 14px 14px">
-        <div><div class="hint" style="padding:6px 0"><b>일별</b> · 최근 14일</div><table id="grindDayT"></table></div>
-        <div><div class="hint" style="padding:6px 0"><b>주별</b> · 최근 8주</div><table id="grindWeekT"></table></div>
-        <div><div class="hint" style="padding:6px 0"><b>월별</b> · 최근 6개월</div><table id="grindMonT"></table></div>
+      <div class="panel-h">분쇄량 · 칼날 <span class="r hint">분쇄 집계 수량 × 용량으로 산출한 kg · 주 단위는 월~일</span></div>
+      <div id="grindBlade" style="padding:12px 14px 2px"></div>
+      <div class="cards" id="grindCards" style="padding:0 14px;margin-bottom:14px"></div>
+      <div class="rtg" style="padding:0 14px;margin-bottom:6px">
+        <div class="rtc"><div class="rtt">일별 분쇄량 (kg) <span>최근 14일 · 점선 = 분쇄한 날 평균</span></div><div class="rth"><canvas id="grindDayC"></canvas></div></div>
+        <div class="rtc"><div class="rtt">분쇄도별 (kg) <span id="grindShareLb"></span></div><div class="rth"><canvas id="grindShareC"></canvas></div></div>
       </div>
+      <details id="grindStatD" style="padding:0 14px 12px"><summary class="gsum">일별 · 주별 · 월별 표 보기</summary>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;padding:4px 0 2px">
+          <div><div class="hint" style="padding:6px 0"><b>일별</b> · 최근 14일</div><table id="grindDayT"></table></div>
+          <div><div class="hint" style="padding:6px 0"><b>주별</b> · 최근 8주</div><table id="grindWeekT"></table></div>
+          <div><div class="hint" style="padding:6px 0"><b>월별</b> · 최근 6개월</div><table id="grindMonT"></table></div>
+        </div></details>
     </div>
     <div class="panel">
       <div class="panel-h">분쇄 수량표 <span id="grindSum"></span></div>
-      <div class="hint">A 핸드드립 · B 커피메이커 · C 가정용더치 · D 모카포트 · E 가정용에스프레소 — 집계·출고지시서·계획EA 붙여넣기 시 자동으로 반영됩니다 (일자·차수별로 누적되며 덮어쓰지 않음). 기본 코드가 미등록인 원두도 홀빈 품목으로 생성하여 반영하고, 분쇄도는 이 화면에만 기록합니다.</div>
+      <div class="hint">A 핸드드립 · B 커피메이커 · C 가정용더치 · D 모카포트 · E 가정용에스프레소 — 집계·출고지시서·계획EA 붙여넣기 시 자동으로 반영됩니다 · 플토 분쇄 집계 시트와 같은 표</div>
       <div class="panel-b"><table id="grindTbl"></table></div>
     </div>
-    <div class="panel">
-      <div class="panel-h">마스터파일 분쇄 옵션 — SKU별 <span class="r hint">플토 마스터파일의 SKU코드·상품명 원문 · 매칭된 홀빈 품목</span></div>
+    <details class="panel gfold">
+      <summary class="panel-h">마스터파일 분쇄 옵션 — SKU별 <span class="r hint">플토 마스터파일의 SKU코드·상품명 원문 · 매칭된 홀빈 품목 · 눌러서 펼치기</span></summary>
       <div class="panel-b"><table id="grindSku"></table></div>
-    </div>
-    <div class="panel">
-      <div class="panel-h">분쇄 입력 내역 <span class="r hint">입력 순 · 삭제하면 위 표에 즉시 반영됩니다</span></div>
+    </details>
+    <details class="panel gfold">
+      <summary class="panel-h">분쇄 입력 내역 <span class="r hint">입력 순 · 삭제하면 위 표에 즉시 반영됩니다 · 눌러서 펼치기</span></summary>
       <div class="panel-b"><table id="grindLog"></table></div>
-    </div>
+    </details>
   </div>
 </section>
 <section class="screen" id="s-order">
@@ -7689,6 +7730,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-17", "분쇄 — 분쇄도별 작업 카드 · 완료 체크 · 칼날 교체 기준 · 그래프", "① 분쇄 화면 맨 위에 [분쇄 작업]이 생겼습니다 — 그날 분쇄할 품목을 분쇄도별(핸드드립 · 커피메이커 · 더치 · 모카포트 · 에스프레소) 카드로 묶어 보여 주고, 줄마다 체크하면 분쇄 완료(작업자 · 시각)가 기록됩니다. 분쇄도 [전체 완료] · 완료 숨기기 · 완료 뒤 들어온 추가분은 [추가 N개 남음]으로 표시. 작업자는 처음 한 번만 묻고 이어서 체크하면 10분 동안 다시 묻지 않습니다. ② 칼날 교체 기준 kg 를 정해 두면 교체 후 누적량이 막대로 표시되고 80%부터 알림이 뜹니다. ③ 일별 분쇄량 · 분쇄도별 그래프 추가, 일별·주별·월별 표와 SKU별 표 · 입력 내역은 접어 두었습니다. ④ 메뉴의 분쇄에 오늘 남은 품목 수가 표시됩니다. 서버 SQL(000_install_all.sql) 재실행이 필요합니다."],
   ["2026-11-17", "배치 잔량 [수정] — 원두 차이 사유를 선택", "로스팅 › 배치 재고의 [수정]으로 잔량을 고칠 때 사유를 직접 쓰지 않고 선택합니다 — 줄었을 때: 로스(손실) · 폐기 · 샘플·테스트 · 음료용 · 실사 착오 · 원인불명 / 늘었을 때: 입고 누락 · 실사 착오 · 원인불명 / 기타 직접 입력. 재고 실사의 원두 차이 사유와 같은 목록이며, 로스(손실) · 폐기 · 원인불명은 로스관리에 로스로 집계됩니다."],
   ["2026-11-17", "생산 완료 — 작업자를 다시 묻지 않음", "생산 시작 때 작업자를 골랐으면 [생산 완료] 창이 그 작업자가 선택된 채로 열립니다 — 다시 고르지 않아도 되고, 다른 사람이 마무리했으면 이름을 눌러 바꿀 수 있습니다. 시작 기록이 없는 지시(검수 화면에서 바로 완료 등)는 전처럼 작업자를 골라야 완료됩니다."],
   ["2026-11-17", "검수 — 채널 칸 (코스트코 · 컬리 · 네이버 · 기타)", "검수 화면의 [검수 대기 · 오늘 생산 계획] 아래에 [채널] 칸이 생겼습니다 — 전체 · 코스트코 · 컬리 · 네이버 · 기타가 항상 보이고(건수 · 수량 · 이전 일자 건수), 누르면 그 채널 건만 표시됩니다 (다시 누르면 전체). 채널은 작업지시의 출고처 기준입니다. 메뉴의 검수 숫자와 위쪽 검수 대기 건수는 전체 기준 그대로입니다."],
@@ -8470,6 +8512,7 @@ function renderAll(){
   try { stationRender(); const st = document.querySelector(".screen.on")?.id?.replace("s-",""); if (STATION_SCREENS[st] && stationWho(st)) stationApply(st); } catch(e){ console.warn(e); }
   if (typeof applyRoleLock === "function") applyRoleLock();
   try { costcoAutoSoon(); } catch(e){ console.warn(e); }   // ★ 2026-11-17 코스트코 원두 입고 → 지시 자동 생성
+  try { grindBadge(); } catch(e){ console.warn(e); }
 }
 /* 설명 상자를 다 접거나 편다 — 브라우저가 기억한다 */
 let guideOff = false, guidePref = null, guideFirstRun = null;
@@ -9302,7 +9345,7 @@ function putGrind(p, grind, qty, round, d, sku, skuName){
   const n = Math.round(numOf(qty)); if (!p || !grind || !n) return null;
   if (!Array.isArray(DB.grind_tallies)) DB.grind_tallies = [];
   const day = d || tallyDay(), rd = round || tallyRound;
-  const old = DB.grind_tallies.find(t=>t.date===day && t.round===rd && t.product_id===p.id && t.grind===grind && (t.sku_code||"")===(sku||""));
+  const old = DB.grind_tallies.find(t=>t.date===day && t.round===rd && t.product_id===p.id && t.grind===grind && (t.sku_code||"")===(sku||"") && !t.done_at);
   if (old) { old.qty = Math.round(Number(old.qty||0) + n); old.at = nowISO(); old.user = CURRENT_USER || old.user; save("grind_tallies", old); return old; }
   const row = { id:uid(), date:day, round:rd, product_id:p.id, product_code:p.code||"", product_name:p.name||"", bean:p.bean||"", spec_g:Number(p.spec_g)||null,
     sku_code:sku||"", sku_name:skuName||"", grind, qty:n, note:"", user:CURRENT_USER||"", at:nowISO() };
@@ -9358,10 +9401,151 @@ async function setBlade(){
   if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(d)) return toast("일자를 2026-11-15 형식으로 입력하십시오");
   const [y, m, dd] = d.split("-"); const iso = `${y}-${m.padStart(2,"0")}-${dd.padStart(2,"0")}`;
   const hist = [...((cur && cur.hist) || []), ...(cur ? [{ date:cur.date, by:cur.by||"" }] : [])].slice(-20);
-  const val = { date:iso, by:CURRENT_USER||"", at:nowISO(), hist };
+  const val = { date:iso, by:CURRENT_USER||"", at:nowISO(), hist, limit_kg:bladeRaw().limit_kg ?? null };
   SETTINGS[BLADE_KEY] = val; renderGrind();
   const r = await saveSetting(BLADE_KEY, val);
   if (r && r.ok === false) toast("칼날 교체일 저장 실패 — " + (r.message||"서버")); else { logAudit("분쇄 칼날 교체", iso, ""); toast(`칼날 교체일 ${iso} 기록 — 해당 일자부터 다시 집계합니다`); }
+}
+/* ══ ★ 2026-11-17 분쇄 작업 — 분쇄도별 카드 · [분쇄 완료] 체크 · 칼날 교체 기준 kg 게이지 ══
+   · 그날 분쇄 집계를 분쇄도별로 묶어 보여 준다 (분쇄기 세팅 한 번에 같은 분쇄도를 몰아서)
+   · [분쇄 완료] = 그 품목 · 분쇄도의 집계 줄에 done_at · done_by 를 적는다 (서버 grind_mark) — 완료 뒤에 들어온 추가분은 "추가 N개" 로 남는다
+   · 작업자는 처음 체크할 때 한 번 묻고, 이어서 체크하면 10분 동안 다시 묻지 않는다 */
+let GRIND_WHO = null, GRIND_HIDE_DONE = false;
+const GRIND_WHO_MS = 10 * 60 * 1000;
+const canGrind = () => can("work") || can("plan");
+function grindItems(d){
+  const rows = (DB.grind_tallies||[]).filter(t=>t.date===d), m = {};
+  rows.forEach(r=>{ const k = `${r.grind}|${r.product_id}`; const p = prodById(r.product_id);
+    const x = m[k] || (m[k] = { grind:r.grind, pid:r.product_id, p, name:p?.name || r.product_name || "", bean:p?.bean || r.bean || r.product_name || "", spec:Number(p?.spec_g ?? r.spec_g)||0, code:liveCode(p, r.product_code), qty:0, kg:0, doneQty:0, by:"", at:"" });
+    x.qty += Number(r.qty||0); x.kg += grindKgOf(r);
+    if (r.done_at) { x.doneQty += Number(r.qty||0); if (String(r.done_at) > String(x.at)) { x.at = r.done_at; x.by = r.done_by || ""; } } });
+  return Object.values(m).map(x=>({ ...x, state: x.qty > 0 && x.doneQty >= x.qty ? "done" : x.doneQty > 0 ? "part" : "todo" }))
+    .sort((a,b)=>prodCodeCmp(a.p||{code:a.code,name:a.name}, b.p||{code:b.code,name:b.name}));
+}
+async function grindWho(label){
+  if (GRIND_WHO && Date.now() - GRIND_WHO.at < GRIND_WHO_MS) { GRIND_WHO.at = Date.now(); CURRENT_USER = GRIND_WHO.name; return GRIND_WHO.name; }
+  if (!(await requireUser({ ask:label, station:"work" }))) return null;
+  GRIND_WHO = { name:CURRENT_USER, at:Date.now() }; return CURRENT_USER;
+}
+function grindWhoReset(){ GRIND_WHO = null; renderGrind(); toast("다음 체크 때 작업자를 다시 선택합니다"); }
+function grindHideDone(v){ GRIND_HIDE_DONE = !!v; renderGrind(); }
+async function mesGrindMark(a){
+  return rpc("grind_mark", { p_date:a.date, p_grind:a.grind, p_product_id:a.product_id || null, p_done:a.done !== false, p_worker:a.worker || null }, () => {
+    const hit = (DB.grind_tallies||[]).filter(t=>t.date===a.date && t.grind===a.grind && (!a.product_id || t.product_id===a.product_id) && (a.done !== false ? !t.done_at : !!t.done_at));
+    hit.forEach(t=>{ t.done_at = a.done !== false ? nowISO() : null; t.done_by = a.done !== false ? (a.worker || CURRENT_USER || "") : null; save("grind_tallies", t); });
+    if (hit.length) logAudit(a.done !== false ? "분쇄 완료" : "분쇄 완료 취소", a.date, `${a.grind} · ${a.product_id ? (prodById(a.product_id)?.name||"") : "전체"} · ${hit.length}줄`);
+    return { ok:true, rows:hit.length };
+  }, { quiet:true });
+}
+/* [분쇄 완료] · 체크 · [취소] — pid 가 없으면 그 분쇄도 전체 */
+async function grindMark(grind, pid, done){
+  if (!canGrind()) return toast("분쇄 완료 체크는 현장 작업 또는 계획 권한이 있는 계정만 할 수 있습니다");
+  if (MISSING_TABLES.includes("grind_tallies")) return toast("분쇄 집계 표가 서버에 없습니다 — 000_install_all.sql 을 실행하십시오");
+  const d = grindDay(), its = grindItems(d).filter(x=>x.grind===grind && (!pid || x.pid===pid));
+  if (!its.length) return;
+  if (!done && !(await ask(`${grind}${pid ? ` · ${its[0].name}` : " 전체"}\n\n분쇄 완료 표시를 취소합니다.`, { title:"분쇄 완료 취소", yes:"완료 취소" }))) return;
+  if (done && !pid) { const left = its.filter(x=>x.state !== "done");
+    if (!left.length) return toast("이미 모두 완료되었습니다");
+    if (!(await ask(`${grind} — 남은 ${left.length}품목 · ${fmt(left.reduce((t,x)=>t+x.qty-x.doneQty,0))}개를 모두 분쇄 완료로 표시합니다.`, { title:"분쇄도 전체 완료", yes:"전체 완료" }))) return; }
+  const who = await grindWho(done ? "분쇄 완료" : "분쇄 완료 취소"); if (!who) return;
+  const r = await mesGrindMark({ date:d, grind, product_id:pid || null, done, worker:who });
+  if (!r || r.ok === false) { const msg = String(r?.message || "처리하지 못했습니다");
+    return ask(/grind_mark|schema cache|function|done_at/i.test(msg) ? "서버에 최신 000_install_all.sql 을 먼저 실행하십시오 (분쇄 완료 체크 기능)." : msg, { title:"분쇄 완료", yes:"확인", only:true }); }
+  if (sb) { try { await pullWhere("grind_tallies", "date", d); } catch(_){} }
+  renderGrind();
+  toast(done ? `${grind}${pid ? ` · ${its[0].name}` : " 전체"} — 분쇄 완료 (${who})` : "분쇄 완료를 취소했습니다");
+}
+function renderGrindWork(){
+  const box = $("grindWork"); if (!box) return;
+  const d = grindDay(), its = grindItems(d), T = today();
+  const nAll = its.length, nDone = its.filter(x=>x.state === "done").length;
+  const ea = its.reduce((t,x)=>t+x.qty,0), eaDone = its.reduce((t,x)=>t+Math.min(x.qty, x.doneQty),0), kg = Math.round(its.reduce((t,x)=>t+x.kg,0)*10)/10;
+  const pct = ea ? Math.round(eaDone/ea*100) : 0;
+  $("grindWorkSum").innerHTML = nAll ? `<span class="tag">${d === T ? "오늘" : d.slice(5).replace("-","/")}</span> <span class="tag">${fmt(ea)}개 · ${fmt(kg)}kg</span> <span class="tag ${nDone === nAll ? "ok" : "warn"}">완료 ${nDone} / ${nAll}품목 · ${pct}%</span>` : "";
+  $("grindWorkTools").innerHTML = nAll ? (GRIND_WHO && Date.now() - GRIND_WHO.at < GRIND_WHO_MS ? `<span class="hint" style="padding:0">작업자 <b>${xh(GRIND_WHO.name)}</b></span><button class="btn" style="height:30px;font-size:12px" onclick="grindWhoReset()">작업자 변경</button>` : "") +
+    `<label class="hint" style="padding:0;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" ${GRIND_HIDE_DONE?"checked":""} onchange="grindHideDone(this.checked)">완료 숨기기</label>` : "";
+  if (!nAll) { box.innerHTML = `<div class="wempty" style="margin:0">${d} 분쇄할 품목이 없습니다<br><span>플토 엑셀을 [엑셀 업로드]로 등록하면 분쇄 SKU가 분쇄도별 카드로 표시됩니다</span></div>`; return; }
+  const grinds = GRIND_ORDER.filter(g=>its.some(x=>x.grind===g)).concat([...new Set(its.map(x=>x.grind))].filter(g=>!GRIND_ORDER.includes(g)));
+  const can1 = canGrind();
+  const hhmm = at => { const t = new Date(at); return isNaN(t) ? "" : `${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`; };
+  box.innerHTML = `<div class="gwrap">${grinds.map(g=>{
+    const li = its.filter(x=>x.grind===g), dn = li.filter(x=>x.state === "done").length, gEa = li.reduce((t,x)=>t+x.qty,0), gKg = Math.round(li.reduce((t,x)=>t+x.kg,0)*10)/10;
+    const gPct = gEa ? Math.round(li.reduce((t,x)=>t+Math.min(x.qty,x.doneQty),0)/gEa*100) : 0, all = dn === li.length;
+    const shown = GRIND_HIDE_DONE ? li.filter(x=>x.state !== "done") : li;
+    return `<div class="ggrp ${all?"alldone":""}">
+      <div class="ggrp-h"><span class="gname">${g}</span><span class="tag">${fmt(gEa)}개 · ${fmt(gKg)}kg</span>
+        <span class="gcnt ${all?"ok":""}">${all ? "✓ 모두 완료" : `완료 ${dn} / ${li.length}`}</span>
+        ${can1 && !all ? `<button class="btn" style="height:30px;font-size:12px" onclick="grindMark('${g}', '', true)" title="이 분쇄도의 남은 품목을 모두 분쇄 완료로 표시합니다">전체 완료</button>` : ""}</div>
+      <div class="gbar"><i style="width:${gPct}%"></i></div>
+      ${shown.map(x=>`<div class="gi ${x.state}">
+        <button class="gck" ${can1 ? `onclick="grindMark('${g}','${x.pid}', ${x.state === "done" ? "false" : "true"})"` : "disabled"} title="${x.state === "done" ? "누르면 완료 표시를 취소합니다" : "누르면 분쇄 완료로 표시합니다"}">${x.state === "done" ? "✓" : ""}</button>
+        <div class="gnm">${x.spec ? specChip(x.spec) : ""}<b>${xh(x.bean)}</b></div>
+        <div class="gq"><b>${fmt(x.qty)}</b>개<br>${fmt(Math.round(x.kg*10)/10)}kg</div>
+        <div class="gst">${x.state === "done" ? `<b>✓ ${xh(x.by||"")}</b><br>${hhmm(x.at)}` : x.state === "part" ? `<span class="warn" style="font-weight:800">추가 ${fmt(x.qty - x.doneQty)}개 남음</span><br>${fmt(x.doneQty)}개 완료` : `<span>대기</span>`}</div>
+      </div>`).join("") || `<div class="hint" style="padding:12px">완료한 품목은 숨겼습니다</div>`}</div>`; }).join("")}</div>`;
+}
+/* 칼날 — 교체 기준 kg 를 정해 두면 누적량을 막대로 · 80% 부터 알림 */
+const bladeRaw = () => (typeof SETTINGS === "object" && SETTINGS && SETTINGS[BLADE_KEY]) || {};
+function bladeState(){
+  const b = bladeInfo(), lim = Number(bladeRaw().limit_kg) || 0; if (!b) return { b:null, lim, kg:0, pct:0, lv:"" };
+  const kg = Math.round(grindStatRows().filter(t=>t.date >= b.date).reduce((t,x)=>t+grindKgOf(x),0)*10)/10;
+  const pct = lim > 0 ? Math.round(kg/lim*100) : 0;
+  return { b, lim, kg, pct, lv: lim > 0 ? (pct >= 100 ? "bad" : pct >= 80 ? "warn" : "ok") : "", days:Math.max(0, Math.round((new Date(today()) - new Date(b.date))/86400000)) };
+}
+async function setBladeLimit(){
+  if (!(await requireUser())) return;
+  if (sb && !(can("plan") || can("base") || isManager())) return toast("관리자·현장 관리자만 설정할 수 있습니다");
+  const cur = bladeRaw();
+  const v = await askText(`칼날 교체 기준 (kg)\n칼날 교체 후 누적 분쇄량이 이 값에 가까워지면 알려 줍니다 (80%부터 표시).\n기준을 없애려면 0 을 입력하십시오.`, String(cur.limit_kg || ""), "칼날 교체 기준 kg");
+  if (v === null) return;
+  const n = Math.max(0, Math.round(numOf(v)*10)/10); if (isNaN(n)) return toast("숫자로 입력하십시오");
+  const val = { ...cur, limit_kg:n || null };
+  SETTINGS[BLADE_KEY] = val; renderGrind();
+  const r = await saveSetting(BLADE_KEY, val);
+  if (r && r.ok === false) toast("저장 실패 — " + (r.message||"서버")); else { logAudit("분쇄 칼날 교체 기준", n ? `${n}kg` : "없음", ""); toast(n ? `칼날 교체 기준 ${fmt(n)}kg` : "칼날 교체 기준을 없앴습니다"); }
+}
+function renderGrindBlade(){
+  const S = bladeState(), el = $("grindBlade"), al = $("grindAlert");
+  const edit = can("plan") || can("base") || isManager();
+  if (el) el.innerHTML = !S.b
+    ? `<div class="gblade"><div class="t"><b>칼날</b><span class="hint" style="padding:0">교체일을 입력하면 그날부터 누적 분쇄량을 집계합니다${S.lim ? ` · 교체 기준 ${fmt(S.lim)}kg` : ""}</span>${edit ? `<button class="btn" style="height:30px;font-size:12px;margin-left:auto" onclick="setBlade()">칼날 교체일 입력</button><button class="btn" style="height:30px;font-size:12px" onclick="setBladeLimit()">교체 기준 kg</button>` : ""}</div></div>`
+    : `<div class="gblade ${S.lv}"><div class="t"><b>칼날 교체 후 누적</b><b class="big">${fmt(S.kg)}kg</b>${S.lim ? `<span>/ 기준 ${fmt(S.lim)}kg</span><span class="tag ${S.lv === "bad" ? "bad" : S.lv === "warn" ? "warn" : "ok"}">${S.pct}%${S.lv === "bad" ? " · 교체 기준 초과" : S.lv === "warn" ? " · 교체 시기 임박" : ""}</span>` : `<span class="hint" style="padding:0">교체 기준 kg 를 설정하면 막대와 알림이 표시됩니다</span>`}
+        <span class="hint" style="padding:0">${S.b.date} 교체 · ${S.days}일째${S.lim && S.kg < S.lim ? ` · 남은 ${fmt(Math.round((S.lim - S.kg)*10)/10)}kg` : ""}</span>
+        ${edit ? `<button class="btn" style="height:30px;font-size:12px;margin-left:auto" onclick="setBlade()">칼날 교체 기록</button><button class="btn" style="height:30px;font-size:12px" onclick="setBladeLimit()">교체 기준 kg</button>` : ""}</div>
+        ${S.lim ? `<div class="bar"><i style="width:${Math.min(100, S.pct)}%"></i></div>` : ""}</div>`;
+  if (al) al.innerHTML = S.lv === "bad" || S.lv === "warn"
+    ? `<div class="guide" style="border-left-color:var(--${S.lv});margin-bottom:12px"><b>${S.lv === "bad" ? "⚠ 분쇄 칼날 교체 기준을 넘었습니다" : "분쇄 칼날 교체 시기가 가까워졌습니다"}</b> — 교체 후 누적 ${fmt(S.kg)}kg / 기준 ${fmt(S.lim)}kg (${S.pct}%) · ${S.b.date} 교체 후 ${S.days}일째. 교체한 뒤 [칼날 교체 기록]을 누르면 다시 집계합니다.</div>` : "";
+}
+/* 메뉴의 분쇄 숫자 — 오늘 남은 분쇄 품목 수 · 칼날 교체 기준을 넘으면 ! */
+function grindBadge(){
+  const b = document.querySelector('#menu button[data-s="grind"]'); if (!b) return;
+  let n = 0, lv = ""; try { n = grindItems(today()).filter(x=>x.state !== "done").length; lv = bladeState().lv; } catch(_){}
+  let el = b.querySelector(".badge");
+  if (!n && lv !== "bad") { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement("span"); el.className = "badge"; b.appendChild(el); }
+  el.textContent = n || "!";
+  el.title = `${n ? `오늘 분쇄 미완료 ${n}품목` : ""}${lv === "bad" ? `${n ? " · " : ""}칼날 교체 기준 초과` : ""}`;
+}
+function renderGrindCharts(){
+  if (!$("grindDayC") || !$("s-grind")?.classList.contains("on") || typeof draw !== "function") return;
+  const rows = grindStatRows(), T = today(), r1 = v => Math.round(v*10)/10;
+  const days = [...Array(14)].map((_,i)=>dayAfter(-(13 - i)));
+  const kgs = days.map(d=>r1(rows.filter(t=>t.date===d).reduce((t,x)=>t+grindKgOf(x),0)));
+  const on = kgs.filter(v=>v > 0), avg = on.length ? r1(on.reduce((t,v)=>t+v,0)/on.length) : 0;
+  const mk = monthKey(T), mo = rows.filter(t=>monthKey(t.date)===mk);
+  const gs = GRIND_ORDER.filter(g=>mo.some(t=>t.grind===g)).concat([...new Set(mo.map(t=>t.grind))].filter(g=>!GRIND_ORDER.includes(g)));
+  if ($("grindShareLb")) $("grindShareLb").textContent = `${Number(mk.slice(5))}월 · 합계 ${fmt(r1(mo.reduce((t,x)=>t+grindKgOf(x),0)))}kg`;
+  const blue = "#3B6CF6", soft = "#9AA4B8";
+  draw([
+    ["grindDayC", { type:"bar", data:{ labels:days.map(d=>`${Number(d.slice(8))}`), datasets:[
+        { type:"bar", label:"분쇄 kg", data:kgs, backgroundColor:days.map(d=>d===T ? "#1F9D6B" : blue), borderRadius:3, order:2 },
+        { type:"line", label:`분쇄한 날 평균 ${avg}kg`, data:days.map(()=>avg), borderColor:soft, borderWidth:1.5, pointRadius:0, borderDash:[4,3], order:1 } ] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:"bottom", labels:{ boxWidth:12, font:{ size:11.5 } } }, tooltip:{ mode:"index", intersect:false } },
+        scales:{ x:{ grid:{ display:false }, ticks:{ maxRotation:0, font:{ size:10.5 } } }, y:{ beginAtZero:true, ticks:{ font:{ size:10.5 } } } } } }],
+    ["grindShareC", { type:"bar", data:{ labels:gs, datasets:[ { label:"kg", data:gs.map(g=>r1(mo.filter(t=>t.grind===g).reduce((t,x)=>t+grindKgOf(x),0))), backgroundColor:blue, borderRadius:3 } ] },
+      options:{ indexAxis:"y", responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } },
+        scales:{ x:{ beginAtZero:true, ticks:{ font:{ size:10.5 } } }, y:{ grid:{ display:false }, ticks:{ font:{ size:11.5 } } } } } }],
+  ]);
 }
 let grindPick = null;                      // ★ 2026-11-17 누른 칸 — day · week · month · avg · blade (null = 전체)
 function grindPickCard(k){ grindPick = grindPick === k ? null : k; renderGrindStats(); }
@@ -9396,6 +9580,7 @@ function renderGrindStats(){
   tbl("grindDayT", head, days.map(d=>row(`${d.slice(5).replace("-","/")} (${"일월화수목금토"[new Date(d).getDay()]})`, rows.filter(t=>t.date===d), d===T)),
     `<td class="c"><b>${dayTot}</b></td><td><b>${fmt(sumEa(dayAll))}</b></td><td><b>${fmt(sumKg(dayAll))}</b></td>`);
   { const show = { day:!grindPick || ["day","avg","blade"].includes(grindPick), week:!grindPick || grindPick === "week", month:!grindPick || grindPick === "month" };
+    if (grindPick && $("grindStatD")) $("grindStatD").open = true;      // 칸을 누르면 접어 둔 표가 펼쳐진다
     [["grindDayT","day"],["grindWeekT","week"],["grindMonT","month"]].forEach(([id,k])=>{ const w = $(id)?.parentElement; if (w) { w.style.display = show[k] ? "" : "none"; w.style.maxWidth = grindPick ? "720px" : ""; } });
     const dh = $("grindDayT")?.previousElementSibling; if (dh) dh.innerHTML = dayTitle; }
   const wks = [...new Set([...Array(8)].map((_,i)=>weekKey(dayAfter(-7*i))))];
@@ -9409,6 +9594,7 @@ function renderGrindStats(){
 function renderGrind(){
   if (!$("grindTbl")) return;
   try { renderGrindStats(); } catch(e){ console.warn("[MES] 분쇄 통계", e); }
+  try { renderGrindWork(); renderGrindBlade(); grindBadge(); renderGrindCharts(); } catch(e){ console.warn("[MES] 분쇄 작업", e); }
   /* CFE 코드가 임시인 품목이 있으면 — 눈에 띄는 [채우기] 상자 */
   if ($("grindFill")) { const fl = codeFillList();
     $("grindFill").innerHTML = fl.length ? `<div class="codefill"><div class="cf-ico">🏷</div>
@@ -9452,8 +9638,8 @@ function renderGrind(){
 }
 function csvGrind(){
   const d = grindDay(), rows = (DB.grind_tallies||[]).filter(t=>t.date===d);
-  csv(`분쇄집계_${d}`, ["일자","차수","CFE코드","품목명","원두","용량","분쇄도","SKU","수량"],
-    rows.map(t=>[d, t.round||"", liveCode(prodById(t.product_id), t.product_code), t.product_name||"", t.bean||"", t.spec_g?specLabel(Number(t.spec_g)):"", t.grind, t.sku_code||"", t.qty]));
+  csv(`분쇄집계_${d}`, ["일자","차수","CFE코드","품목명","원두","용량","분쇄도","SKU","수량","분쇄 완료","작업자"],
+    rows.map(t=>[d, t.round||"", liveCode(prodById(t.product_id), t.product_code), t.product_name||"", t.bean||"", t.spec_g?specLabel(Number(t.spec_g)):"", t.grind, t.sku_code||"", t.qty, t.done_at ? String(t.done_at).slice(0,16).replace("T"," ") : "", t.done_by||""]));
 }
 function csvTally(){
   const d = tallyDay(), rounds = roundsOf(d);
