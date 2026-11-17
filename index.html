@@ -1239,6 +1239,16 @@
   .hm-cnt .warn b{color:var(--bad);}
   .hm-sec{font-size:13px; font-weight:800; color:var(--soft); margin:6px 2px -4px;}
   .hm-list{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .chprod{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0 2px}
+  .chprod .cp{border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:var(--card,transparent); min-width:0}
+  .chprod .cp.off{opacity:.45}
+  .chprod .cp .k{display:flex; align-items:center; justify-content:space-between; gap:6px; font-size:11.5px}
+  .chprod .cp .k em{font-style:normal; color:var(--soft); font-size:11px}
+  .chprod .cp .v{margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .chprod .cp .v b{font-size:17px} .chprod .cp .v span{font-size:11px; color:var(--soft); margin-left:3px}
+  .chprod .cp .pb{height:4px; border-radius:3px; background:var(--line); margin-top:5px; overflow:hidden}
+  .chprod .cp .pb i{display:block; height:100%; background:var(--ok)}
+  @media (max-width:760px){ .chprod{grid-template-columns:repeat(2,1fr)} }
   .hm-row{display:flex; align-items:center; gap:10px; width:100%; padding:13px 14px; border:none; border-bottom:1px solid var(--line);
     background:none; font:inherit; text-align:left; cursor:pointer; color:var(--ink);}
   .hm-row:last-child{border-bottom:none;}
@@ -1431,6 +1441,9 @@
   #capaCards .card{cursor:pointer; padding:12px 14px 13px; transition:border-color .12s, box-shadow .12s;}
   #capaCards .card:hover{border-color:var(--blue-600);}
   #capaCards .card.on{border-color:var(--blue-600); box-shadow:0 0 0 2px var(--blue-600);}
+  .card.pick{cursor:pointer; transition:border-color .12s, box-shadow .12s;}
+  .card.pick:hover{border-color:var(--blue-600);}
+  .card.pick.on{border-color:var(--blue-600); box-shadow:0 0 0 2px var(--blue-600);}
   #capaCards .card .lb{margin-bottom:6px;}
   #capaCards .card .vl{font-size:24px; letter-spacing:-1px;}
   #capaCards .card .vl small{display:block; margin:7px 0 0; letter-spacing:0; line-height:1.3; font-size:11.5px;}
@@ -1669,6 +1682,7 @@
         <span class="r"><button class="btn" onclick="go('order')">작업지시 →</button>
           <button class="btn" onclick="go('work')">현장 화면 →</button></span></div>
       <div class="hint">계획 → 생산 → 검수 → 출고 진행 단계를 한눈에 표시합니다 · 진행률은 현장 입력 수량 기준입니다</div>
+      <div id="dashCh" style="padding:0 14px 10px"></div>
       <div class="panel-b"><table id="dashWO"></table></div>
     </div>
     <div class="panel">
@@ -2091,6 +2105,8 @@
           <input type="date" id="tallyDateIn" onchange="setTallyDate(this.value)">
           <label style="color:var(--soft);font-size:12px;font-weight:700">차수</label>
           <select id="tallyRoundIn" onchange="setTallyRound(this.value)" style="font-weight:800"></select>
+          <label style="color:var(--soft);font-size:12px;font-weight:700" title="지금 넣는 집계가 어느 채널 주문인지 — 작업지시가 채널별로 따로 생성됩니다">채널</label>
+          <select id="tallyChIn" onchange="setTallyCh(this.value)" style="font-weight:800" title="지금 넣는 집계가 어느 채널 주문인지 — 작업지시가 채널별로 따로 생성됩니다"></select>
           <button class="btn primary" onclick="openPaste('tally')">엑셀로 집계 추가</button>
           <button class="btn" onclick="addTallyRow()">직접 추가</button>
           <button class="btn" onclick="backToTally()" title="수동으로 수정한 계획을 집계 기준으로 복원합니다">집계 기준 복원</button>
@@ -2633,9 +2649,10 @@
         <label id="hsEndL" style="color:var(--soft);font-size:12.5px;font-weight:600">종료 일자</label><input type="date" id="hsEnd" onchange="renderHoldHist()"><input type="month" id="hsMonth" style="display:none" onchange="renderHoldHist()">
         <select id="hsBean" onchange="renderHoldHist()" title="원두 1종 선택 — 원두 MMS 는 배치별, CFE 는 해당 원두 품목만"><option value="">원두 전체</option></select>
         <input type="text" id="hsFind" placeholder="이름 검색" style="width:120px" oninput="renderHoldHist()">
+        <label id="hsGoneL" style="display:inline-flex;align-items:center;gap:5px;color:var(--soft);font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap" title="기간 마지막 날 보유량이 0인 원두도 함께 표시합니다"><input type="checkbox" id="hsGone" onchange="renderHoldHist()"><span id="hsGoneT">소진 원두 포함</span></label>
         <button class="btn" onclick="csvHoldHist()">엑셀 다운로드</button>
         <button class="btn" id="hsClean" style="color:var(--bad);display:none" onclick="cleanCfeMoves()" title="삭제된 생산·출고의 잔여 수불로 과거 일자가 마이너스로 표시되는 건을 정리 (관리자)">잔여 수불 정리</button></span></div>
-      <div class="hint">해당 일자 마감 기준 장부상 보유량입니다 · 원두명을 누르거나 위에서 원두를 선택하면 <b>해당 원두만 배치별로</b> · 전일(월별은 전월) 대비 <b class="ok">증가 시 녹색</b> · <b class="bad">감소 시 적색</b> · 수치에 마우스를 올리면 전일 대비 증감 표시</div>
+      <div class="hint">해당 일자 마감 기준 장부상 보유량입니다 · 원두명을 누르거나 위에서 원두를 선택하면 <b>해당 원두만 배치별로</b> · 전일(월별은 전월) 대비 <b class="ok">증가 시 녹색</b> · <b class="bad">감소 시 적색</b> · 수치에 마우스를 올리면 전일 대비 증감 표시 · <b>기간 마지막 날 보유량이 없는 원두는 표시하지 않습니다</b> ([소진 원두 포함]을 선택하면 표시)</div>
       <div class="panel-b"><table id="hsTbl"></table></div>
     </div>
   </div>
@@ -3561,6 +3578,7 @@ const USE_REASONS = [
   { k:"로스(손실)",  c:"bad"  },
   { k:"폐기",       c:"bad"  },
   { k:"원인불명",    c:"bad"  },
+  { k:"이동",       c:"warn" },   // ★ 2026-11-17 원두 이동 — 비고에 "받는 곳: …"
 ];
 const reasonCls = k => (USE_REASONS.find(r=>r.k===k)||{}).c || "warn";
 const EVENT_TYPES = ["이벤트","라이브","납품","점검","휴무"];
@@ -6231,6 +6249,61 @@ async function mesLossBatch(a){
     });
   });
 }
+/* ★ 2026-11-17 원두 이동 — 배치에서 kg 를 빼고(사유 '이동' · 비고 '받는 곳: …') 연결된 대기 지시는 수량을 줄이거나(일부) 취소(전량)한다 */
+async function mesTransferBatch(a){
+  return rpc("transfer_batch", { p_mms_id:a.mms_id, p_kg:a.kg, p_to:a.to, p_order_id:a.order_id || null, p_new_qty:a.new_qty ?? null,
+      p_batch_plan:a.batch_plan || null, p_date:today(), p_idempotency:a.idem }, () => {
+    const hit = idemHit(a.idem); if (hit) return hit;
+    const m = DB.mms.find(x => x.id === a.mms_id); if (!m) return MES_ERR("no_batch","배치를 찾을 수 없습니다");
+    const to = String(a.to||"").trim(); if (!to) return MES_ERR("no_dest","받는 곳을 입력하십시오");
+    const kg = Math.round(Number(a.kg ?? m.stock_kg)*1000)/1000;
+    if (!(kg > 0)) return MES_ERR("bad_qty","이동할 수량(kg)을 입력하십시오");
+    if (kg > Number(m.stock_kg||0) + 0.0005) return MES_ERR("over", `이동할 수량이 배치 잔량 ${fmt(m.stock_kg)} kg 보다 많습니다`);
+    return localTx(T => {
+      const before = Number(m.stock_kg||0), after = Math.max(0, Math.round((before - kg)*1000)/1000), note = `받는 곳: ${to}`;
+      const memo = `[원두 이동] ${kg} kg → ${to} (${today().slice(5).replace("-","/")} · ${CURRENT_USER||""})`;
+      const u = T.add("usages", { id:uid(), use_date:today(), bean:m.bean, mms_id:m.id, batch_code:batchLabel(m), roast_date:m.roast_date,
+        batch:Number(m.batch)||0, batch_full:batchFull(m), kg, reason:"이동", note, user:CURRENT_USER||"(미지정)", at:nowISO(), cancelled_at:null });
+      save("usages", u);
+      putMove(T, { kind:"원두", ref_type:"usage", ref_id:m.id, mms_id:m.id, bean:m.bean, qty:-kg, unit:"kg", reason:"이동", note, move_date:today(), user_name:CURRENT_USER });
+      T.upd(m, { stock_kg:after }); save("mms", m);
+      let ord = null, no = null; const o = a.order_id ? ordById(a.order_id) : null;
+      if (o && o.status === "대기") {
+        no = o.order_no;
+        if (!(Number(a.new_qty) > 0)) {
+          T.upd(o, { status:"폐기", note:`${memo} ${o.note||""}`.trim() }); save("orders", o);
+          pushEvent(T, o, "대기", "폐기", "transfer", memo);
+          logAudit("작업지시 취소", o.order_no, `${o.product_name||""} · 지시 ${fmt(o.qty_plan)} EA · 원두 이동 → ${to} (${kg} kg)`); ord = "cancelled";
+        } else {
+          logAudit("작업지시 수정", o.order_no, `수량 ${fmt(o.qty_plan)} → ${fmt(a.new_qty)} · 원두 이동 → ${to} (${kg} kg)`);
+          T.upd(o, { qty_plan:Number(a.new_qty), batch_plan:a.batch_plan || o.batch_plan, note:`${o.note||""} ${memo}`.trim() }); save("orders", o); ord = "reduced";
+        }
+      }
+      logAudit("원두 이동", m.bean, `${batchFull(m)} · ${kg} kg → ${to} · 남음 ${after} kg`);
+      const r = { ok:true, kg, before, after, order:ord, order_no:no }; idemPut(T, a.idem, "transfer_batch", m.id, r); return r;
+    });
+  });
+}
+/* ★ 2026-11-17 코스트코 원두 입고 → 작업지시 자동 생성 (배치 하나에 한 번만 — 취소한 뒤에 다시 생기지 않는다) */
+async function mesCostcoAuto(a){
+  const key = `costco-auto-${a.mms_id}`;
+  return rpc("costco_auto_order", { p_mms_id:a.mms_id, p_draft:a.draft }, () => {
+    const hit = idemHit(key); if (hit) return hit;
+    const d = a.draft, wd = today();
+    return localTx(T => {
+      const o = T.add("orders", { id:uid(), order_no:orderNo(wd), work_date:wd, product_id:d.product_id,
+        product_name:d.product_name, product_code:d.product_code, product_spec:d.product_spec, qty_plan:d.qty, channel:d.channel || "일반",
+        machine:d.machine || "", machine_id:d.machine_id || null,
+        priority:DB.orders.filter(x=>x.work_date===wd).reduce((t,x)=>Math.max(t, Number(x.priority)||0), 0) + 1, status:"대기", qty_done:0, qty_ng:0, lot:"",
+        serial:d.serial || "", serial_full:d.serial_full || "", log_id:null, batch_plan:d.batch_plan || "", label_packs:d.label_packs ?? null,
+        label_id:d.label_id || "", batch_seq:null, batch_of:null, pack_type:d.pack_type,
+        started_by:null, started_at:null, done_by:null, done_at:null, qc:{}, qc_by:null, qc_at:null, ng_type:"", ng_note:"", ship_by:null, ship_at:null, note:"" });
+      save("orders", o); pushEvent(T, o, null, "대기", "create");
+      logAudit("작업지시 생성", o.order_no, `코스트코 원두 입고 → 자동 생성 · ${d.product_name} ${fmt(d.qty)} EA · ${d.batch_plan}`);
+      const r = { ok:true, made:1, order_id:o.id, order_no:o.order_no }; idemPut(T, key, "costco_auto_order", a.mms_id, r); return r;
+    });
+  }, { quiet:true });
+}
 async function mesScrapBatch(a){
   return rpc("scrap_batch",
     { p_mms_id:a.mms_id, p_reason:a.reason||null, p_idempotency:a.idem },
@@ -7614,6 +7687,10 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-17", "채널별 생산 — 컬리 · 네이버 · 코스트코 따로", "① 생산계획 › 집계에 [채널] 선택이 생겼습니다 — 엑셀로 집계를 넣거나 줄을 추가할 때 어느 채널 주문인지 고르면 집계 줄마다 채널이 기록됩니다 (집계 기록 표에서 줄마다 변경 가능 · 컬리 MK 코드는 자동으로 컬리 · 채널 전용 품목은 그 품목의 채널). ② 작업지시를 생성하면 같은 품목이라도 채널별로 지시(현장 카드)가 따로 만들어지고 출고처에 채널이 들어갑니다 — 여유분은 품목의 기본 채널(일반) 지시에 포함됩니다. ③ 대시보드 · 휴대폰 오늘 요약에 컬리 · 네이버 · 코스트코 · 기타 네 칸으로 오늘 생산(완료 / 계획 EA)이 표시됩니다 (지시의 출고처 기준). 서버 SQL(000_install_all.sql) 재실행이 필요합니다 (집계에 채널 열 추가)."],
+  ["2026-11-17", "코스트코 — 입고하면 지시 자동 생성 · 완료까지 계속 표시 · 원두 이동", "① 코스트코 원두를 입고하면 그 배치로 작업지시가 자동으로 생성됩니다 (배치 하나에 한 번 · 수량은 배치 중량으로 만들 수 있는 개수 · 2026-11-17 이후 입고분부터). ② 코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다 — 지난 날짜 지시에는 [MM/DD 지시 · 완료 전까지 표시] 표시가 붙고, 생산 시작을 누르면 작업일이 그날로 바뀌어 실적 · 원두 사용이 실제 생산한 날로 기록됩니다. ③ 카드의 [원두 이동] — 이동할 kg 과 받는 곳을 입력하면 재고에서 차감되고, 일부 이동이면 지시 수량이 줄고 전량 이동이면 지시가 취소됩니다(작업지시 목록에 [취소 · 원두 이동]으로 남음). 받는 곳은 원두 사용 내역 비고 · 작업지시 메모 · 변경이력 세 곳에 기록됩니다. ④ 로스팅 › 배치 재고 표에도 줄마다 [이동] 버튼 — 코스트코가 아닌 원두도 같은 방식으로 이동을 기록할 수 있습니다. 서버 SQL(000_install_all.sql) 재실행이 필요합니다."],
+  ["2026-11-17", "분쇄 — 분쇄량 칸을 누르면 그 표만 표시", "분쇄 화면 [분쇄량 — 칼날 교체 주기 확인]의 칸을 누르면 해당 표만 표시됩니다. ■ 오늘 → 일별(최근 14일) ■ 이번 주 → 주별 ■ 이번 달 → 월별 ■ 일 평균 → 일별(최근 30일) ■ 칼날 교체 후 누적 → 교체일부터 분쇄한 날만. 같은 칸을 다시 누르면 전체 표가 표시됩니다."],
+  ["2026-11-17", "재고 현황 › 일자별 보유량 — 보유량이 없는 원두는 표시하지 않음", "원두 MMS 목록에서 조회 기간 마지막 날 보유량이 없는 원두(다 사용했거나 더 이상 취급하지 않는 원두)는 표시하지 않습니다. 원두가 계속 추가되고 없어지므로 지금 보유 중인 원두만 보이도록 한 것입니다. 지난 원두를 확인하려면 [소진 원두 포함]을 선택하십시오 (괄호 안 숫자 = 숨겨진 원두 수). 원두를 하나 선택해 배치별로 볼 때와 CFE 완제품 · 부자재 목록은 기존과 같습니다. 엑셀 다운로드도 화면과 같은 기준으로 내려받습니다."],
   ["2026-11-17", "생산분석 — 1건 평균 · 월간 회고 그래프 · 채널 출고 칸", "■ [생산 건별] 목록을 [생산 1건 평균]으로 변경했습니다 — 건수 · 1건 평균 수량 · 평균 생산시간 · 평균 생산속도 · 평균 투입 인원과 품목별 평균을 표시합니다. 건별 목록은 [건별 목록 보기]를 누르면 펼쳐지며 엑셀 다운로드에는 전체가 포함됩니다 ■ 생산속도(EA/h · kg/h · EA/인시)는 실제 생산시간이 1분 이상인 건으로만 계산합니다 — [생산 시작] 직후 [생산 완료]를 누른 건이 섞이면 속도가 비정상적으로 크게 나오기 때문입니다. 수량 · 중량 합계에는 모든 건이 포함되며, 제외된 건수는 화면에 표시됩니다 ■ 월간 회고에 그래프를 추가했습니다 — 일별 생산수량(이 달 막대 · 전월 선), 이 달 ↔ 전월 비교 막대(생산수량 · 생산속도 · 인시당 생산 · 출고 · 로스율 · 부적합 · 반려 · 중단시간), 채널 출고(이 달 ↔ 전월), 생산 비중(규격별 · 설비별 · 채널). 기존 표는 [상세 표 보기] 안에 있습니다 ■ 위쪽 칸에 [채널 출고]를 추가했습니다 — 누르면 채널별 출고만 표시됩니다."],
   ["2026-11-17", "생산분석 — 간결하게 (창 접기 · 칸을 누르면 관련 항목만)", "생산분석 화면을 CAPA와 회고 중심으로 정리했습니다. ■ 각 창의 제목을 누르면 접히고 펴집니다 — 접은 상태는 이 기기에 저장되며, 접혀 있어도 제목 옆에 요약(건수 · 수량 등)이 표시됩니다 ■ 처음에는 생산속도(규격별 · 설비별 CAPA) · 작업자별 생산속도 · 월간 회고만 펼쳐져 있고, 채널별 출고 · 시간대별 · 중단 사유 · 품목별 · 생산 건별 · 연간 표 · 예상 생산시간은 접혀 있습니다 ■ 위쪽 칸(총 생산수량 · 시간당 생산수량 · 로스율 등)을 누르면 그 숫자와 관련된 창만 표시됩니다 — 다시 누르거나 [전체 보기]로 해제 ■ 창 순서를 생산속도 → 작업자 → 월간 회고 → 나머지 순으로 변경했습니다 ■ 작업자별 표는 시간당 생산(EA/인시)을 앞쪽에 표시합니다."],
   ["2026-11-17", "생산분석 — 채널별 출고 (회고 자료)", "생산분석 화면 위쪽에 [채널별 출고]를 추가했습니다. 출고 화면에서 [출고 완료] 한 수량을 출고처(일반 · 컬리 · 코스트코 · 네이버 · 라이브 · 온라인 외 · 부산점 · 직납 등)별로 집계하며, 새로 입력하는 것은 없습니다. ■ 한눈에 — 일자별 출고 추이(채널을 쌓은 막대, 기간이 길면 월별) ■ 채널별 — 막대 + 수량(EA) · 중량(kg) · 비중 · 전 기간 대비 ▲▼ · 규격별 수량. 채널 행을 누르면 품목별 내역이 펼쳐집니다 ■ 화면 위 기간 선택(일간 · 주간 · 월간 · 연간 · 직접 지정)을 그대로 따릅니다 ■ [엑셀 다운로드] ■ 월간 회고에 채널 출고(이 달 ↔ 전월), 연간에 월별 채널 출고 표를 추가했습니다."],
@@ -8115,7 +8192,7 @@ document.addEventListener("keydown", e=>{ if (e.key === "Escape") closeMenuCfg()
    ══════════════════════════════════════════════════════════════ */
 const CHG_SCREENS = {
   work:  { ord:true, re:/^(작업지시|작업 시작|작업 중단|생산 완료|부적합|재작업|조치 후 재검수|검수 수량|검수 반려|출고 반려)/ },
-  order: { ord:true, re:/^(작업지시|작업 시작|작업 중단|생산 완료|부적합 등록|검수 완료|출고 완료)/ },
+  order: { ord:true, re:/^(작업지시|작업 시작|작업 중단|생산 완료|부적합 등록|검수 완료|출고 완료)/ },   // 원두 이동으로 줄거나 취소된 지시는 "작업지시 수정 · 취소" 로 잡힌다
   qc:    { re:/검수|^생산 완료|^출고 반려/ },
   ship:  { re:/출고|^검수 완료/ },
   plan:  { re:/집계|계획|자동 ?배정|출고지시|여유분|안전재고|^작업지시 생성/ },
@@ -8196,7 +8273,7 @@ function hmGo(s, kind){ if (!menuOk(s)) return; if (s === "work" && kind != null
 /* 오늘 요약 — 진행률 · 건수 · 확인 필요 · 설비별 지금/다음 작업 */
 function renderHome(){
   const box = $("homeBox"); if (!box) return;
-  const d = today(), os = ordsOf(d).filter(o=>o.status !== "폐기");
+  const d = today(), os = ordsOf(d).concat(costcoCarry(d)).filter(o=>o.status !== "폐기");
   const planEa = os.reduce((t,o)=>t+Number(o.qty_plan||0),0), doneEa = os.reduce((t,o)=>t+Number(o.qty_done||0),0);
   const pct = planEa ? Math.min(100, Math.round(doneEa/planEa*100)) : 0;
   const wait = os.filter(o=>o.status==="대기"), run = os.filter(o=>o.status==="생산중"), fin = os.filter(o=>stIdx(o) >= 2);
@@ -8236,6 +8313,7 @@ function renderHome(){
       <div class="k">오늘 생산</div>
       <div class="v"><b>${fmt(doneEa)}</b><span>/ ${fmt(planEa)} EA</span><em>${pct}%</em></div>
       <div class="pb"><i style="width:${pct}%"></i></div></button>
+    ${chProdHTML(os)}
     <div class="hm-cnt">
       <button onclick="hmGo('work','')"><b>${wait.length}</b><span>대기</span></button>
       <button class="${run.length ? "hot" : ""}" onclick="hmGo('work','')"><b>${run.length}</b><span>생산중</span></button>
@@ -8385,6 +8463,7 @@ function renderAll(){
   syncUserUI();
   try { stationRender(); const st = document.querySelector(".screen.on")?.id?.replace("s-",""); if (STATION_SCREENS[st] && stationWho(st)) stationApply(st); } catch(e){ console.warn(e); }
   if (typeof applyRoleLock === "function") applyRoleLock();
+  try { costcoAutoSoon(); } catch(e){ console.warn(e); }   // ★ 2026-11-17 코스트코 원두 입고 → 지시 자동 생성
 }
 /* 설명 상자를 다 접거나 편다 — 브라우저가 기억한다 */
 let guideOff = false, guidePref = null, guideFirstRun = null;
@@ -8710,6 +8789,40 @@ const tallyQty  = (pid, round, d) => talliesOf(d)
   .filter(t=>t.product_id===pid && (round===undefined || t.round===round))
   .reduce((s,t)=>s+Number(t.qty||0), 0);
 const hasTally  = (pid, d) => talliesOf(d).some(t=>t.product_id===pid);
+/* ══ ★ 2026-11-17 채널별 생산 (Lee "생산에는 채널별로 컬리 네이버 코스트코 따로 잡혔으면") ══
+   · 집계를 넣을 때 채널을 고른다 (집계 줄마다 채널) — 품목 자체가 채널 전용이면(품목의 채널이 일반이 아니면) 그 채널이 우선
+   · 작업지시를 만들 때 품목 수량을 채널별로 나눠 지시(카드)를 따로 만든다 — 지시의 출고처 = 채널
+   · 화면 요약은 컬리 · 네이버 · 코스트코 · 기타 네 칸 */
+let tallyCh = "일반";
+function setTallyCh(v){ tallyCh = v || "일반"; renderPlan(); }
+const CH_MAIN = ["컬리","네이버","코스트코"], CH_BUCKETS = ["컬리","네이버","코스트코","기타"];
+const chBucket = ch => CH_MAIN.includes(ch) ? ch : "기타";
+const tallyChOf = t => t.channel || prodChan(prodById(t.product_id));
+/* 품목 · 날짜 → 채널별 집계 수량 { 컬리: 30, 일반: 50 } */
+function tallyByCh(pid, d){
+  const T = {}; talliesOf(d).filter(t=>t.product_id===pid).forEach(t=>{ const c = tallyChOf(t); T[c] = (T[c]||0) + Number(t.qty||0); });
+  return T;
+}
+/* 지시를 낼 때 채널별로 떼어 줄 순서표 — 채널 집계에서 그 채널로 이미 만든 수량을 뺀 만큼씩, 나머지(여유분 포함)는 품목의 기본 채널 */
+function chQueue(p, d){
+  const def = prodChan(p), T = tallyByCh(p.id, d), M = {};
+  DB.orders.filter(o=>o.work_date===d && o.product_id===p.id && o.status!=="폐기").forEach(o=>{ const c = o.channel||"일반"; M[c] = (M[c]||0) + Number(o.qty_done||0); });
+  const ord = c => { const i = ["코스트코","컬리","네이버"].indexOf(c); return i < 0 ? 9 : i; };
+  return { def, q:Object.keys(T).filter(c=>c !== def).sort((a,b)=>ord(a)-ord(b) || a.localeCompare(b))
+    .map(c=>({ ch:c, left:Math.max(0, Math.round(T[c] - (M[c]||0))) })).filter(x=>x.left > 0) };
+}
+/* 오늘 생산을 채널 네 칸으로 — 지시의 출고처 기준 */
+function chProdSum(os){
+  const S = {}; CH_BUCKETS.forEach(b=>S[b] = { plan:0, done:0, n:0 });
+  os.forEach(o=>{ const b = S[chBucket(o.channel||"일반")]; b.plan += Number(o.qty_plan||0); b.done += Number(o.qty_done||0); b.n++; });
+  return S;
+}
+function chProdHTML(os){
+  const S = chProdSum(os);
+  return `<div class="chprod">${CH_BUCKETS.map(b=>{ const x = S[b], pct = x.plan ? Math.min(100, Math.round(x.done/x.plan*100)) : 0;
+    return `<div class="cp ${x.n ? "" : "off"}"><div class="k">${CH_STYLE[b] ? `<span style="${CH_STYLE[b]};font-weight:800;font-size:11.5px;padding:1px 7px;border-radius:6px">${b}</span>` : `<span class="tag" style="font-size:11.5px">${b}</span>`}<em>${x.n}건</em></div>
+      <div class="v"><b>${fmt(x.done)}</b><span>/ ${fmt(x.plan)} EA</span></div><div class="pb"><i style="width:${pct}%"></i></div></div>`; }).join("")}</div>`;
+}
 /* 그 날 이미 만든 수량 — 생산중이어도 찍어 넣은 수량은 센다 */
 const madeQty = (pid, d) => DB.orders
   .filter(o=>o.work_date===(d||tallyDay()) && o.product_id===pid)
@@ -8966,7 +9079,7 @@ async function splitOrderByKg(id, quiet){
 function dupOrdersOf(d){
   const seen = {}, dups = [];
   ordsOf(d).filter(o=>o.status==="대기" && !(Number(o.qty_done)>0)).forEach(o=>{
-    const k = `${o.product_id}|${o.machine||""}|${o.batch_plan||""}`;
+    const k = `${o.product_id}|${o.machine||""}|${o.batch_plan||""}|${o.channel||""}`;
     if (seen[k]) dups.push({ o, first:seen[k] }); else seen[k] = o; });
   return dups;
 }
@@ -9078,6 +9191,8 @@ function renderTally(){
   if ($("tallyDateIn") && !$("tallyDateIn").value) $("tallyDateIn").value = d;
   if ($("tallyRoundIn")) $("tallyRoundIn").innerHTML =
     TALLY_ROUNDS.map(r=>`<option ${r===tallyRound?"selected":""}>${r}</option>`).join("");
+  if ($("tallyChIn")) { $("tallyChIn").innerHTML = CHANNELS.map(c=>`<option value="${c}" ${c===tallyCh?"selected":""}>${chName(c)}</option>`).join("");
+    $("tallyChIn").style.borderColor = tallyCh !== "일반" ? "var(--warn)" : ""; }
 
   const rounds = roundsOf(d), ps = sorted("tallyTbl", tallyProds(d));
   const sum  = ps.reduce((t,p)=>t+tallyQty(p.id, undefined, d), 0);
@@ -9119,7 +9234,8 @@ function renderTally(){
       return `<tr class="${lf<=0?"":""}">
         <td class="rowno">${i+1}</td>
         <td class="l">${p.code||"—"}</td>
-        <td class="l"><b>${p.name}</b></td>
+        <td class="l"><b>${p.name}</b>${(()=>{ const T = tallyByCh(p.id, d), ks = Object.keys(T).filter(c=>T[c] > 0); if (!ks.length || (ks.length === 1 && ks[0] === "일반")) return "";
+          return `<div class="hint" style="padding:0;font-size:11px;white-space:normal">${ks.map(c=>`${c==="일반"?"일반(온라인)":c} <b>${fmt(T[c])}</b>`).join(" · ")}</div>`; })()}</td>
         ${rounds.map(r=>{ const q = tallyQty(p.id, r, d);
           return `<td class="fix">${q?fmt(q):'<span class="hint" style="padding:0">—</span>'}</td>`; }).join("")}
         <td class="fix"><b>${fmt(tot)}</b></td>
@@ -9146,11 +9262,13 @@ function renderTally(){
   const log = sorted("tallyLog", [...talliesOf(d)].sort((a,b)=>
     (TALLY_ROUNDS.indexOf(a.round)-TALLY_ROUNDS.indexOf(b.round)) || String(a.at).localeCompare(String(b.at))));
   SHOWN.tallies = log.map(t=>t.id);
-  tbl("tallyLog", [selAllBox("tallies"),"차수","품목","수량(EA)","비고","입력자","입력 시각",""],
+  tbl("tallyLog", [selAllBox("tallies"),"차수","채널","품목","수량(EA)","비고","입력자","입력 시각",""],
     log.map((t,i)=>`<tr class="${SEL.tallies.has(t.id)?"selrow":""}"><td class="rowno" style="white-space:nowrap">${selBox("tallies",t.id,i)}${i+1}</td>
       <td class="c"><select data-t="tallies" data-id="${t.id}" data-k="round" style="font-weight:800"
           onchange="setTally('${t.id}','round',this.value)">
         ${TALLY_ROUNDS.map(r=>`<option ${r===t.round?"selected":""}>${r}</option>`).join("")}</select></td>
+      <td class="c"><select onchange="setTally('${t.id}','channel',this.value)" style="${tallyChOf(t)!=="일반"?"font-weight:800;border-color:var(--warn)":""}" title="이 집계 줄의 채널 — 작업지시가 채널별로 따로 생성됩니다">
+        ${[...new Set([...CHANNELS, tallyChOf(t)])].map(c=>`<option value="${c}" ${c===tallyChOf(t)?"selected":""}>${chName(c)}</option>`).join("")}</select></td>
       <td class="l"><select onchange="setTally('${t.id}','product_id',this.value)" style="min-width:230px">
         ${PRODS().map(p=>`<option value="${p.id}" ${p.id===t.product_id?"selected":""}>${p.name}</option>`).join("")}
         </select>${prodById(t.product_id)?"":`<br><span class="hint" style="padding:0;font-size:11px">이전 기록: ${t.product_name||""}</span>`}</td>
@@ -9160,7 +9278,7 @@ function renderTally(){
       <td class="c">${t.user||"—"}</td>
       <td class="c" style="font-size:11.5px">${fmtTime(t.at)}</td>
       <td class="c"><button class="btn danger" onclick="delTally('${t.id}')">삭제</button></td></tr>`),
-    log.length ? `<td colspan="3" class="c">합 계 · ${log.length}건</td>
+    log.length ? `<td colspan="4" class="c">합 계 · ${log.length}건</td>
       <td><b>${fmt(log.reduce((s,t)=>s+Number(t.qty||0),0))}</b></td><td colspan="4"></td>` : null);
 
   selBar("tallies");
@@ -9239,6 +9357,8 @@ async function setBlade(){
   const r = await saveSetting(BLADE_KEY, val);
   if (r && r.ok === false) toast("칼날 교체일 저장 실패 — " + (r.message||"서버")); else { logAudit("분쇄 칼날 교체", iso, ""); toast(`칼날 교체일 ${iso} 기록 — 해당 일자부터 다시 집계합니다`); }
 }
+let grindPick = null;                      // ★ 2026-11-17 누른 칸 — day · week · month · avg · blade (null = 전체)
+function grindPickCard(k){ grindPick = grindPick === k ? null : k; renderGrindStats(); }
 function renderGrindStats(){
   if (!$("grindCards")) return;
   const rows = grindStatRows(), T = today();
@@ -9248,19 +9368,30 @@ function renderGrindStats(){
   const d30 = dayAfter(-29), r30 = rows.filter(t=>t.date>=d30 && t.date<=T), days30 = new Set(r30.map(t=>t.date)).size;
   const avg = days30 ? Math.round(sumKg(r30)/days30*10)/10 : 0;
   const b = bladeInfo(), since = b ? rows.filter(t=>t.date>=b.date) : [], sinceDays = b ? Math.max(0, Math.round((new Date(T) - new Date(b.date))/86400000)) : 0;
+  /* ★ 2026-11-17 칸을 누르면 그 칸의 표만 표시 (Lee "이런 네모칸은 눌렀을때 그거만 보이게") — 다시 누르면 전체 */
+  if (grindPick === "blade" && !b) grindPick = null;
+  const pk = k => `class="card pick ${grindPick===k?"on":""}" onclick="if(!event.target.closest('button')) grindPickCard('${k}')" title="누르면 이 항목의 표만 표시합니다 — 다시 누르면 전체"`;
   $("grindCards").innerHTML = `
-    <div class="card"><div class="lb">오늘</div><div class="vl">${fmt(sumKg(dayR))} <small>kg · ${fmt(sumEa(dayR))}개</small></div></div>
-    <div class="card"><div class="lb">이번 주 (월~일)</div><div class="vl">${fmt(sumKg(wkR))} <small>kg · ${fmt(sumEa(wkR))}개</small></div></div>
-    <div class="card"><div class="lb">이번 달</div><div class="vl">${fmt(sumKg(moR))} <small>kg · ${fmt(sumEa(moR))}개</small></div></div>
-    <div class="card"><div class="lb">일 평균 (최근 30일 · 분쇄 ${days30}일)</div><div class="vl">${fmt(avg)} <small>kg/일</small></div></div>
-    <div class="card ${b?"blue":""}"><div class="lb">칼날 교체 후 누적${b?` · ${b.date} 교체 (${sinceDays}일째)`:""}</div>
+    <div ${pk("day")}><div class="lb">오늘</div><div class="vl">${fmt(sumKg(dayR))} <small>kg · ${fmt(sumEa(dayR))}개</small></div></div>
+    <div ${pk("week")}><div class="lb">이번 주 (월~일)</div><div class="vl">${fmt(sumKg(wkR))} <small>kg · ${fmt(sumEa(wkR))}개</small></div></div>
+    <div ${pk("month")}><div class="lb">이번 달</div><div class="vl">${fmt(sumKg(moR))} <small>kg · ${fmt(sumEa(moR))}개</small></div></div>
+    <div ${pk("avg")}><div class="lb">일 평균 (최근 30일 · 분쇄 ${days30}일)</div><div class="vl">${fmt(avg)} <small>kg/일</small></div></div>
+    <div ${b ? pk("blade").replace('class="card pick', 'class="card blue pick') : 'class="card"'}><div class="lb">칼날 교체 후 누적${b?` · ${b.date} 교체 (${sinceDays}일째)`:""}</div>
       <div class="vl">${b ? `${fmt(sumKg(since))} <small>kg · ${fmt(sumEa(since))}개</small>` : `<small>교체일을 입력하면 해당 일자부터 집계합니다</small>`}</div>
       <div style="margin-top:6px"><button class="btn" style="height:28px;padding:0 10px;font-size:12px" onclick="setBlade()">${b?"칼날 교체 기록 (재집계)":"칼날 교체일 입력"}</button></div></div>`;
   const row = (lb, a, hi) => `<tr${hi?' style="font-weight:800"':""}><td class="c">${lb}</td><td>${a.length?fmt(sumEa(a)):"—"}</td><td><b>${a.length?fmt(sumKg(a)):"—"}</b></td></tr>`;
   const head = ["기간","개수","kg"];
-  const days = [...Array(14)].map((_,i)=>dayAfter(-i));
+  /* 일별 표 — 기본 14일 · [일 평균] 칸을 누르면 30일 · [칼날 교체 후 누적] 칸을 누르면 교체일부터 분쇄한 날만 */
+  const nDay = grindPick === "avg" ? 30 : 14;
+  let days = [...Array(nDay)].map((_,i)=>dayAfter(-i)), dayTitle = `<b>일별</b> · 최근 ${nDay}일`, dayTot = `${nDay}일 합계`, dayFrom = days[days.length-1];
+  if (grindPick === "blade" && b) { dayFrom = b.date; dayTitle = `<b>칼날 교체 후</b> · ${b.date}부터 (분쇄한 날만)`; dayTot = "교체 후 합계";
+    days = [...new Set([T, ...rows.filter(t=>t.date >= b.date && t.date <= T).map(t=>t.date)])].sort().reverse(); }
+  const dayAll = rows.filter(t=>t.date >= dayFrom && t.date <= T);
   tbl("grindDayT", head, days.map(d=>row(`${d.slice(5).replace("-","/")} (${"일월화수목금토"[new Date(d).getDay()]})`, rows.filter(t=>t.date===d), d===T)),
-    `<td class="c"><b>14일 합계</b></td><td><b>${fmt(sumEa(rows.filter(t=>t.date>=days[13] && t.date<=T)))}</b></td><td><b>${fmt(sumKg(rows.filter(t=>t.date>=days[13] && t.date<=T)))}</b></td>`);
+    `<td class="c"><b>${dayTot}</b></td><td><b>${fmt(sumEa(dayAll))}</b></td><td><b>${fmt(sumKg(dayAll))}</b></td>`);
+  { const show = { day:!grindPick || ["day","avg","blade"].includes(grindPick), week:!grindPick || grindPick === "week", month:!grindPick || grindPick === "month" };
+    [["grindDayT","day"],["grindWeekT","week"],["grindMonT","month"]].forEach(([id,k])=>{ const w = $(id)?.parentElement; if (w) { w.style.display = show[k] ? "" : "none"; w.style.maxWidth = grindPick ? "720px" : ""; } });
+    const dh = $("grindDayT")?.previousElementSibling; if (dh) dh.innerHTML = dayTitle; }
   const wks = [...new Set([...Array(8)].map((_,i)=>weekKey(dayAfter(-7*i))))];
   tbl("grindWeekT", head, wks.map(w=>{ const a = rows.filter(t=>weekKey(t.date)===w);
     const mon = new Date(w), sun = new Date(w); sun.setDate(mon.getDate()+6);
@@ -10542,11 +10673,13 @@ function setPlan(id,v){
   planRenderSoon();
 }
 /* 집계 한 줄 넣기 — 같은 차수·같은 품목이면 더한다 (덮어쓰지 않는다) */
-function putTally(p, qty, round, d, note){
+function putTally(p, qty, round, d, note, ch){
   const n = Math.round(numOf(qty));
   if (!p || !n) return null;
   const day = d || tallyDay(), rd = round || tallyRound;
-  const old = DB.tallies.find(t=>t.date===day && t.round===rd && t.product_id===p.id);
+  /* ★ 2026-11-17 채널 — 줄에 정해진 채널(컬리 MK 코드 등) > 품목의 채널(채널 전용 품목) > 위에서 고른 채널 */
+  const c = ch || (prodChan(p) !== "일반" ? prodChan(p) : tallyCh) || "일반";
+  const old = DB.tallies.find(t=>t.date===day && t.round===rd && t.product_id===p.id && tallyChOf(t)===c);
   if (old) { old.qty = Math.round(Number(old.qty||0) + n);
     old.at = nowISO(); old.user = CURRENT_USER || old.user;
     if (note) old.note = note;
@@ -10554,7 +10687,7 @@ function putTally(p, qty, round, d, note){
     if (p.id in planEA) delete planEA[p.id];       // 집계가 계획을 몰게 둔다
     return old; }
   const row = { id:uid(), date:day, round:rd, product_id:p.id, ...pSnap(p),
-    qty:n, note:note||"", user:CURRENT_USER||"", at:nowISO() };
+    qty:n, note:note||"", user:CURRENT_USER||"", at:nowISO(), ...(c !== prodChan(p) ? { channel:c } : {}) };
   DB.tallies.push(row); save("tallies", row);
   if (p.id in planEA) delete planEA[p.id];
   return row;
@@ -10566,10 +10699,10 @@ async function addTallyRow(){
   const p = PRODS()[0];
   if (!p) return toast("품목이 없습니다 — 기준정보 > 품목에서 먼저 등록하십시오");
   const row = { id:uid(), date:tallyDay(), round:tallyRound, product_id:p.id, ...pSnap(p),
-    qty:0, note:"", user:CURRENT_USER||"", at:nowISO() };
+    qty:0, note:"", user:CURRENT_USER||"", at:nowISO(), ...(tallyCh && tallyCh !== "일반" ? { channel:tallyCh } : {}) };
   DB.tallies.push(row); save("tallies", row);
   renderPlan(); renderRestIdle("plan"); focusNewRow("tallyLog", 'input.cntin');
-  toast(`${tallyRound} 행을 추가했습니다 — 품목과 수량을 입력하십시오`);
+  toast(`${tallyRound}${tallyCh !== "일반" ? ` · ${tallyCh}` : ""} 행을 추가했습니다 — 품목과 수량을 입력하십시오`);
 }
 function setTally(id, k, v){
   const t = DB.tallies.find(x=>x.id===id); if(!t) return;
@@ -11021,7 +11154,7 @@ function renderRoast(){
   const delBtn = m => !can("base") ? ""
     : batchUntouched(m) && DB.roast_lines.some(l=>l.mms_id===m.id) ? ` <button class="btn" style="color:var(--bad)" onclick="unreceiveBatch('${m.id}')" title="오입고 시 — 배치를 삭제하고 로스팅 행을 '입고 예정 배치'로 복원합니다">입고 취소</button>`
     : ` <button class="btn" style="color:var(--bad)" onclick="delBatchOne('${m.id}')" title="이 배치를 삭제합니다 — 생산에 사용한 배치는 관리자만 가능 (사유 기록)">삭제</button>`;
-  tbl("liveTbl", ["배치","현장번호","원두","로스팅일","잔여(kg)","계획 사용(kg)","사용(kg)","상미 잔여","상태",'<span class="fix">보류</span>','<span class="fix">수정 · 삭제</span>'],
+  tbl("liveTbl", ["배치","현장번호","원두","로스팅일","잔여(kg)","계획 사용(kg)","사용(kg)","상미 잔여","상태",'<span class="fix">보류</span>','<span class="fix">수정 · 이동 · 삭제</span>'],
     live.map(m=>{ const st=shelfState(m.roast_date), h=isHeld(m);
       const used = DB.consumptions.filter(c=>consLive(c) && c.mms_id===m.id).reduce((s,c)=>s+Number(c.used_kg||0),0);
       return `<tr class="${h?"heldrow":""}"><td class="l"><b>${batchLabel(m)}</b></td>
@@ -11036,7 +11169,8 @@ function renderRoast(){
         <td class="c fix">${h
           ? `<button class="btn primary" onclick="freeBatch('${m.id}')">해제</button>`
           : `<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}</td>
-        <td class="c fix" style="white-space:nowrap"><button class="btn" onclick="fixBatchQty('${m.id}')" title="실사 잔량으로 장부를 조정합니다">수정</button>${delBtn(m)}</td></tr>`; }),
+        <td class="c fix" style="white-space:nowrap"><button class="btn" onclick="fixBatchQty('${m.id}')" title="실사 잔량으로 장부를 조정합니다">수정</button>${
+          canMoveBean() && !h && Number(m.stock_kg) > 0 ? ` <button class="btn" onclick="transferBatchOne('${m.id}')" title="이 배치의 원두를 다른 곳으로 넘깁니다 — 재고에서 차감되고, 받는 곳이 사용 내역 비고 · 변경이력에 기록됩니다">이동</button>` : ""}${delBtn(m)}</td></tr>`; }),
     `<td colspan="4" class="c">합 계 · ${live.length}배치 (보류 ${live.filter(isHeld).length})${offLive.length?` · 사용 중단 원두 ${offLive.length}배치는 아래에 별도 표시`:""}</td>
      <td>${fmt(live.filter(m=>!isHeld(m)).reduce((s,m)=>s+Number(m.stock_kg||0),0))}</td>
      <td>${fmt(Object.values(resv).reduce((s,v)=>s+v,0))}</td><td colspan="5"></td>`);
@@ -15068,7 +15202,12 @@ function holdHistData(){
     });
   }
   rows = rows.filter(r=>r.vals.some(v=>Math.abs(v)>.005) && (!q || findHit(q, r.name, r.sub)));
-  return { type, days, rows, unit };
+  /* ★ 2026-11-17 원두 목록 — 기간 마지막 날 보유량이 없는(다 쓴 · 단종된) 원두는 표시하지 않는다
+     (Lee "해당 원두가 없으면 사라지게 — 원두는 계속 추가되고 사라질 건데 계속 보이는 건 안 맞는 거 같아"). [소진 원두 포함] 을 선택하면 다시 표시 */
+  let gone = 0;
+  if (type === "mms" && !one) { const n0 = rows.length, live = rows.filter(r=>Math.abs(r.vals[r.vals.length-1]) > .005); gone = n0 - live.length;
+    if (!$("hsGone")?.checked) rows = live; }
+  return { type, days, rows, unit, gone };
 }
 function renderHoldHist(){
   if (!$("hsTbl")) return;
@@ -15082,7 +15221,9 @@ function renderHoldHist(){
       const beans = [...new Set([...DB.mms.map(m=>m.bean), ...DB.products.map(p=>p.bean)])].filter(Boolean).sort(beanCmp);
       sel.innerHTML = `<option value="">원두 전체</option>` + beans.map(b=>`<option ${b===cur?"selected":""}>${b}</option>`).join("");
       if (type === "mat") sel.value = ""; } }
-  const { days, rows, unit } = holdHistData();
+  const { days, rows, unit, gone } = holdHistData();
+  { const L = $("hsGoneL"), on = ($("hsType")?.value || "mms") === "mms" && !$("hsBean")?.value;
+    if (L) { L.style.display = on ? "inline-flex" : "none"; $("hsGoneT").textContent = `소진 원두 포함${gone ? ` (${gone})` : ""}`; } }
   const WD_ = ["일","월","화","수","목","금","토"];
   const monthly = $("hsDays")?.value === "months";
   const head = ["품목", ...days.map(D=>{ const d = new Date(D);
@@ -15095,7 +15236,7 @@ function renderHoldHist(){
       r.vals.map((v,i)=>{ const d = i ? Math.round((v - r.vals[i-1])*100)/100 : 0;
         return `<td style="text-align:right;${d>0?"color:var(--ok);font-weight:700;":d<0?"color:var(--bad);font-weight:700;":""}${v<0?"background:var(--d-bad-soft,#FFF1F0);":""}${i===r.vals.length-1?"font-weight:800;background:var(--d-tint,#F7F8FB);":""}" title="${days[i]} · ${fmt(v)}${r.u||unit}${i?` · ${monthly?"전월":"전일"} 대비 ${d>0?"+":""}${fmt(d)}`:""}">${Math.abs(v)<.005?'<span style="color:var(--soft)">0</span>':fmt(v)}</td>`; }).join("")}</tr>`),
     rows.length && unit ? `<td class="c">합 계 · ${rows.length}</td>${days.map((_,i)=>`<td style="text-align:right"><b>${fmt(Math.round(rows.reduce((s,r)=>s+r.vals[i],0)*100)/100)}</b></td>`).join("")}` : null);
-  if (!rows.length) { const b = $("hsTbl").querySelector("tbody"); if (b) b.innerHTML = `<tr><td colspan="${days.length+1}" class="c" style="padding:24px;color:var(--soft)">해당 기간에 보유량이 있는 항목이 없습니다</td></tr>`; }
+  if (!rows.length) { const b = $("hsTbl").querySelector("tbody"); if (b) b.innerHTML = `<tr><td colspan="${days.length+1}" class="c" style="padding:24px;color:var(--soft)">${gone ? `기간 마지막 날 보유량이 있는 원두가 없습니다 — 소진 원두 ${gone}종은 [소진 원두 포함]으로 확인하십시오` : "해당 기간에 보유량이 있는 항목이 없습니다"}</td></tr>`; }
   /* 칸 너비를 고르게 — 7일로 보면 칸마다 너비가 들쭉날쭉하던 것 (Lee) */
   { const T = $("hsTbl"); T.querySelector("colgroup")?.remove();
     const cg = document.createElement("colgroup");
@@ -17760,7 +17901,7 @@ function resolveCode(code){
   }
   if (suf === "MK") {
     const mk = DB.products.find(p=>beanNrm(p.bean)===beanNrm(base.bean) && Number(p.spec_g)===Number(base.spec_g) && (p.grind||"홀빈")===(base.grind||"홀빈") && prodChan(p)==="컬리");
-    return mk ? { p:mk, how:"코드 매칭 (컬리)" } : { p:base, how:"컬리(MK) → 일반 품목에 합산", warn:true };
+    return mk ? { p:mk, how:"코드 매칭 (컬리)", ch:"컬리" } : { p:base, how:"컬리(MK) → 일반 품목 · 채널 컬리", ch:"컬리" };
   }
   return { p:base, how:`${suf} → 기본 품목에 합산`, warn:true };
 }
@@ -18912,7 +19053,7 @@ function preview(){
           const cl = (!R.warn && nameRaw) ? cleanSkuName(nameRaw) : "";
           const rn = (cl && R.p.name !== cl && nameKey(R.p.name) === nameKey(cl)) ? cl : "";
           if (cl && !R.grind) noteBeanFix(R.p.bean, cl, nameRaw); else if (cl && R.grind) noteBeanFix(R.p.bean, cl, "");
-          pRows.push({ nameRaw: nameRaw || code, qty, p:R.p, mk:null, near:null, code, viaCode:true, how:[R.how, rn?"이름 띄어쓰기 정리":""].filter(Boolean).join(" · "), warnHow:R.warn, grind:R.grind, rename:rn }); return; }
+          pRows.push({ nameRaw: nameRaw || code, qty, p:R.p, mk:null, near:null, code, viaCode:true, how:[R.how, rn?"이름 띄어쓰기 정리":""].filter(Boolean).join(" · "), warnHow:R.warn, grind:R.grind, rename:rn, ch:R.ch || "" }); return; }
         if (!nameRaw) { pSkip.push({ code, nameRaw, qty, why:"코드 미등록 · 이름 없음 — 기준정보에 코드 등록 필요" }); return; }
       }
       if (!nameRaw || TOTAL_RE.test(nameRaw.replace(/\s+/g,"")) || /품목명|상품명/.test(nameRaw)) return;
@@ -18944,7 +19085,7 @@ function preview(){
     /* 같은 품목(같은 코드)이 여러 줄이면 수량을 자동으로 합친다 */
     const agg={}, order=[];
     pRows.forEach(r=>{
-      const k = r.p ? r.p.id : (r.mk ? `mk:${r.mk.bean}|${r.mk.spec}|${r.mk.grind}` : "x:"+order.length);
+      const k = r.p ? r.p.id + (r.ch ? "|" + r.ch : "") : (r.mk ? `mk:${r.mk.bean}|${r.mk.spec}|${r.mk.grind}` : "x:"+order.length);
       if (agg[k] && r.qty!=null) { agg[k].qty = (Number(agg[k].qty)||0) + Number(r.qty); agg[k].dup = (agg[k].dup||1) + 1;
         if (r.warnHow) { agg[k].warnHow = true; agg[k].how = [...new Set(`${agg[k].how||""} · ${r.how||""}`.split(" · ").map(x=>x.trim()).filter(Boolean))].join(" · "); } }
       else if (!agg[k]) { agg[k] = {...r}; order.push(k); }
@@ -19222,7 +19363,7 @@ async function applyPaste(){
     let qty = 0;
     pRows.forEach(r=>{ if (r.qty==null) return;
       const p = ensureProduct(r); if (!p) return;
-      putTally(p, r.qty, rd, d); qty += Math.round(numOf(r.qty)); n++; });
+      putTally(p, r.qty, rd, d, "", r.ch || ""); qty += Math.round(numOf(r.qty)); n++; });
     const gN = saveGrinds(d, rd, ensureProduct);
     if (mkP) logAudit("품목 자동등록", `${mkP}건`, "집계 붙여넣기로 신규 품목 생성 (안전재고 0)");
     if (gN) logAudit("분쇄 집계", `${d} ${rd}`, `${gN}행`);
@@ -19326,7 +19467,7 @@ const pctOf = o => { const q=Number(o.qty_plan||0); return q>0 ? Math.min(100, M
 function planOrderDiff(d){
   d = d || tallyDay();
   const gone = [], changed = [], many = [];
-  const ords = ordsOf(d).filter(o=>o.status !== "폐기");
+  const ords = ordsOf(d).filter(o=>o.status !== "폐기" && !isCostcoOrd(o));   // ★ 2026-11-17 코스트코 지시는 원두 입고 기준 — 계획과 비교하지 않는다 (동기화로 지워지지 않게)
   const byP = {}; ords.forEach(o=>{ (byP[o.product_id] = byP[o.product_id]||[]).push(o); });
   Object.entries(byP).forEach(([pid, list])=>{
     const p = prodById(pid); if (!p) return;
@@ -19337,15 +19478,29 @@ function planOrderDiff(d){
     if (target <= 0) { if (wait.length) gone.push(...wait); return; }
     const diff = Math.round(target - sum);
     if (!wait.length) return;                       // 전부 시작/완료됨 — 현장이 알아서
-    if (wait.length === 1) { const o = wait[0], q = Number(o.qty_plan||0) + diff; if (q <= 0) gone.push(o); else changed.push({ o, p, from:Number(o.qty_plan||0), to:q }); }
-    else many.push({ p, diff, n:wait.length });
+    /* ★ 2026-11-17 채널별로 맞춘다 — 채널마다 목표(집계)와 그 채널 지시 수량을 비교한다. 채널을 안 쓰는 품목은 전과 같다(일반 한 칸)
+         · 수량이 달라진 채널의 대기 지시가 하나면 그 지시만 고친다 · 여럿이면 수동 확인
+         · 지시가 아직 없는 채널(2차에 새로 들어온 채널)은 여기서 다른 지시를 늘리지 않는다 — [작업지시 생성] 으로 그 채널 지시가 추가된다 */
+    const T = tallyByCh(pid, d), def = prodChan(p), tg = {}; let rest = Math.max(0, Math.round(target));
+    Object.keys(T).filter(c=>c !== def).forEach(c=>{ const k = Math.min(rest, Math.round(T[c])); tg[c] = k; rest -= k; }); tg[def] = (tg[def]||0) + rest;
+    const fix = [], goneC = []; let bad = false, miss = false;
+    [...new Set([...Object.keys(tg), ...list.map(o=>o.channel||"일반")])].forEach(c=>{
+      const lc = list.filter(o=>(o.channel||"일반")===c), wc = lc.filter(o=>o.status === "대기");
+      const dc = Math.round((tg[c]||0) - lc.reduce((t,o)=>t+Number(o.qty_plan||0),0)); if (!dc) return;
+      if (!lc.length) { miss = true; return; }
+      if (!wc.length) return;                       // 그 채널은 전부 시작/완료됨
+      if (wc.length > 1) { bad = true; return; }
+      const q = Number(wc[0].qty_plan||0) + dc;
+      if (q <= 0) goneC.push(wc[0]); else fix.push({ o:wc[0], p, from:Number(wc[0].qty_plan||0), to:q }); });
+    if (bad || (miss && goneC.length)) many.push({ p, diff, n:wait.length });   // 출고처를 손으로 바꾼 지시 등 — 지우지 않고 확인하게 한다
+    else { gone.push(...goneC); changed.push(...fix); }
   });
   return { d, gone, changed, many, n: gone.length + changed.length + many.length };
 }
 /* ★ 2026-11-03 생산계획(집계) 날짜와 다른 날로 만들어진 작업지시 (Lee "11월 2일 생산계획인데 11월 3일로 잡혔어")
    그날 집계가 없는데 대기 지시가 있고, 가까운 날 집계의 품목과 겹치면 → 그 계획 날짜로 옮기자고 한다 (지우자고 하지 않음) */
 function planDayOfOrders(d){
-  const wait = ordsOf(d).filter(o=>o.status === "대기"); if (!wait.length || talliesOf(d).length) return null;
+  const wait = ordsOf(d).filter(o=>o.status === "대기" && !isCostcoOrd(o)); if (!wait.length || talliesOf(d).length) return null;
   const pids = new Set(wait.map(o=>o.product_id));
   const days = [...new Set(DB.tallies.map(t=>t.date))].filter(x=>x && x !== d && Math.abs(new Date(x) - new Date(d)) <= 7*86400000)
     .map(x=>{ const tp = new Set(talliesOf(x).map(t=>t.product_id)); const hit = [...pids].filter(id=>tp.has(id)).length; return { x, hit }; })
@@ -19365,7 +19520,7 @@ async function mesMoveOrders(a){
 async function moveOrdersDate(from, to){
   if (!(await requireUser())) return;
   if (!can("plan")) return deny("plan");
-  const wait = ordsOf(from).filter(o=>o.status === "대기"), started = ordsOf(from).length - wait.length;
+  const wait = ordsOf(from).filter(o=>o.status === "대기" && !isCostcoOrd(o)), started = ordsOf(from).filter(o=>!isCostcoOrd(o)).length - wait.length;   // 코스트코 지시는 날짜와 상관없이 표시되므로 옮기지 않는다
   if (!wait.length) return toast("이동할 대기 지시가 없습니다");
   const v = await askText(`${from} 작업지시 ${wait.length}건 (미착수 건)을 생산계획 일자로 이동합니다.${started?`\n이미 착수·완료한 ${started}건은 변경하지 않습니다.`:""}\n\n이동할 일자 (생산계획 집계 일자)`, to || tallyDay(), "작업지시 일자 이동");
   if (v === null) return; const dd = String(v).trim().replace(/[./]/g,"-");
@@ -19387,7 +19542,7 @@ async function moveOrdersDate(from, to){
    출고는 이미 나갔으니 남은 대기 지시는 전부 여유분 — 취소하면 원두는 배치에 그대로 남아 오늘 계획에 쓰인다 */
 function staleOrders(d){
   d = d || today();
-  return DB.orders.filter(o=>o.status==="대기" && o.work_date && o.work_date < d && !(Number(o.qty_done)>0) && !/^\[반려 삭제/.test(String(o.note||"")));
+  return DB.orders.filter(o=>o.status==="대기" && o.work_date && o.work_date < d && !(Number(o.qty_done)>0) && !/^\[반려 삭제/.test(String(o.note||"")) && !isCostcoOrd(o));
 }
 function staleOrdersBar(d){
   if (!can("plan")) return "";
@@ -19506,17 +19661,26 @@ async function makeOrders(){
   const draft = [];
   planBatches(rows);
   /* 배치가 다르면 일련번호가 다르다 — 지시도 배치마다 따로 낸다 */
+  /* ★ 2026-11-17 채널별로 따로 — 집계에 채널(컬리 · 네이버 · 코스트코 …)이 있으면 같은 품목이라도 지시를 채널마다 나눈다 */
+  const chQ = {}, chDay = tallyDay();
+  const chTake = (p, n) => { const Q = chQ[p.id] || (chQ[p.id] = chQueue(p, chDay)); const out = []; let left = n;
+    for (const x of Q.q) { if (left <= 0) break; if (x.left <= 0) continue; const k = Math.min(x.left, left); x.left -= k; left -= k; out.push({ ch:x.ch, qty:k }); }
+    if (left > 0) out.push({ ch:Q.def, qty:left }); return out; };
+  const scaleKg = (txt, share) => String(txt||"").replace(/([\d,]+(?:\.\d+)?)\s*kg/gi, (_, k) => `${fmt(Math.round(Number(k.replace(/,/g,""))*share*100)/100)}kg`);
+  const emit = x => { const parts = chTake(x.p, x.qty);
+    if (parts.length <= 1) { draft.push({ ...x, channel:parts[0]?.ch }); return; }
+    parts.forEach(pt => draft.push({ ...x, qty:pt.qty, channel:pt.ch, batches:scaleKg(x.batches, pt.qty / x.qty), packs:labelNeed(x.p, pt.qty).bundles })); };
   const push = (r, qty, machine) => {
     if (!(qty>0)) return;
     const parts = planSplit ? splitByBatch(r, qty) : [];
     if (planSplit && parts.length > 1) {
-      parts.forEach((x,j)=>draft.push({ p:r.p, qty:x.ea, machine,
+      parts.forEach((x,j)=>emit({ p:r.p, qty:x.ea, machine,
         batches: x.b ? `${batchLabel(x.b)} ${fmt(x.kg)}kg` : "",
         packs: labelNeed(r.p, x.ea).bundles, seq:j+1, of:parts.length,
         label_id: labelPick(r.p), sn: serialOfBatches(x.b ? [x.b] : []) }));
       return;
     }
-    draft.push({ p:r.p, qty, machine, batches: shareBatches(r, qty),
+    emit({ p:r.p, qty, machine, batches: shareBatches(r, qty),
       packs: labelNeed(r.p, qty).bundles,
       label_id: labelPick(r.p), sn: serialOfBatches(r.picks) });
   };
@@ -19559,13 +19723,15 @@ async function makeOrders(){
   }
 
   /* 이미 오늘 대기 중인 품목이 있으면 — 빼고 만들지, 추가로 낼지 먼저 묻는다 (중복 지시 방지) */
-  const waiting = new Set(ordsOf(d).filter(o=>o.status!=="출고완료").map(o=>o.product_id));
-  const dupP = [...new Map(draft.filter(x=>waiting.has(x.p.id)).map(x=>[x.p.id, x.p])).values()];
+  /* ★ 2026-11-17 품목 + 채널 기준 — 같은 품목이라도 새로 들어온 채널(예: 2차에 네이버 추가)은 "이미 발행" 이 아니다 */
+  const wKey = (pid, ch) => `${pid}|${ch||"일반"}`, dCh = x => x.channel || x.p.channel || "일반";
+  const waiting = new Set(ordsOf(d).filter(o=>o.status!=="출고완료" && !isMovedOrd(o)).concat(costcoCarry(d)).map(o=>wKey(o.product_id, o.channel)));   // 지난 날짜에 자동 생성되어 아직 남아 있는 코스트코 지시도 "이미 발행" 으로 본다
+  const dupP = [...new Map(draft.filter(x=>waiting.has(wKey(x.p.id, dCh(x)))).map(x=>[x.p.id, x.p])).values()];
   if (dupP.length) {
     const c = await ask(`${dupP.length}품목은 오늘 이미 지시가 발행되어 있습니다:\n${dupP.slice(0,8).map(p=>"· "+p.name).join("\n")}${dupP.length>8?`\n… 외 ${dupP.length-8}품목`:""}\n\n2차 집계와 같이 추가 생산이 필요한 경우 [추가로 생성], 그렇지 않으면 [제외 후 생성]`,
       { title:"기발행 지시", choices:[ { label:"제외 후 생성", v:"skip", cls:"primary" }, { label:"추가로 생성", v:"add" }, { label:"취소", v:null } ] });
     if (!c) return;
-    if (c === "skip") { const keep = draft.filter(x=>!waiting.has(x.p.id)); draft.length = 0; draft.push(...keep); }
+    if (c === "skip") { const keep = draft.filter(x=>!waiting.has(wKey(x.p.id, dCh(x)))); draft.length = 0; draft.push(...keep); }
     if (!draft.length) return toast("신규 생성할 지시가 없습니다 — 모두 이미 발행되었습니다");
   }
   if (!(await ask(`${d} 작업지시 ${draft.length}건을 생성합니다.\n품목·수량·설비는 생산계획 내용 그대로 반영됩니다.\n` +
@@ -19581,7 +19747,7 @@ async function makeOrders(){
   const payload = draft.map(x => ({
     product_id:x.p.id, product_name:x.p.name, product_code:x.p.code || "",
     product_spec:x.p.spec_g ?? null,
-    qty:x.qty, channel:x.p.channel || "일반",
+    qty:x.qty, channel:x.channel || x.p.channel || "일반",
     machine:x.machine, machine_id:DB.machines.find(m=>m.name===x.machine)?.id || null,
     serial: x.sn?.short || fallbackSn(), serial_full: x.sn?.full || "",
     batch_plan:x.batches || "", label_packs:x.packs ?? null,
@@ -21208,14 +21374,139 @@ async function shipBack(id){
 
 /* ── 진행 막대 ── */
 const barHTML = (pct, cls) => `<div class="pbar"><i class="${cls||""}" style="width:${Math.min(100,pct)}%"></i></div>`;
-const stTag = o => `<span class="tag ${WOST_TAG[o.status]||""}">${o.status}</span>`;
+const stTag = o => isMovedOrd(o) ? `<span class="tag warn" title="원두를 전량 이동하여 취소된 지시">취소 · 원두 이동</span>` : `<span class="tag ${WOST_TAG[o.status]||""}">${o.status}</span>`;
+/* ══ ★ 2026-11-17 코스트코 — 입고하면 지시 자동 생성 · 완료될 때까지 날짜와 상관없이 현장 작업에 표시 · 원두 이동 ══ */
+const COSTCO_AUTO_FROM = "2026-11-17";      // 이 날짜부터 입고한 배치만 자동 생성 (그 전 재고로 지시가 한꺼번에 생기지 않게)
+const xh = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+const isCostcoOrd = o => !!o && (isCostcoProd(prodById(o.product_id)) || /코스트코/.test(String(o.product_name||"")));
+const isMovedOrd  = o => !!o && o.status === "폐기" && /^\[원두 이동\]/.test(String(o.note||""));
+const canMoveBean = () => can("plan") || can("stock");
+/* 지난 날짜에 만든 코스트코 지시 중 아직 생산 완료가 안 된 것 — 오늘(또는 이후 날짜) 화면에 같이 나온다 */
+function costcoCarry(d){
+  d = d || today(); if (d < today()) return [];
+  return DB.orders.filter(o=>(o.status==="대기" || o.status==="생산중") && o.work_date && o.work_date < d && isCostcoOrd(o)
+    && !/^\[반려 삭제/.test(String(o.note||"")));
+}
+const COSTCO_TRIED = new Set(); let COSTCO_T = null, COSTCO_BUSY = false;
+function costcoCandidates(){
+  if (!LOGIN_USER && sb) return [];
+  if (!(can("plan") || can("stock") || can("work"))) return [];
+  const ps = DB.products.filter(p=>isCostcoProd(p) && !p.off && p.bean); if (!ps.length) return [];
+  return DB.mms.filter(m=>m.in_kg != null && Number(m.stock_kg) > 0 && !isHeld(m) && inDateOf(m) >= COSTCO_AUTO_FROM && !COSTCO_TRIED.has(m.id)).map(m=>{
+    const cand = ps.filter(x=>x.bean===m.bean); if (!cand.length) return null;
+    if (DB.products.some(x=>!x.off && x.bean===m.bean && !isCostcoProd(x))) return null;               // 다른 채널 품목도 쓰는 원두 — 자동으로 만들지 않는다 (코스트코 전용 원두만)
+    const full = batchFull(m), same = DB.orders.filter(o=>isCostcoOrd(o) && o.status !== "폐기" && prodById(o.product_id)?.bean === m.bean);
+    /* 규격이 여러 개면 — 가장 최근에 지시를 낸 코스트코 품목, 없으면 가장 큰 규격 */
+    const lastO = same.filter(o=>cand.some(x=>x.id===o.product_id)).sort((a,b)=>String(b.work_date).localeCompare(String(a.work_date)) || String(b.order_no).localeCompare(String(a.order_no)))[0];
+    const p = (lastO && cand.find(x=>x.id===lastO.product_id)) || cand.slice().sort((a,b)=>Number(b.spec_g||0)-Number(a.spec_g||0))[0];
+    if (same.some(o=>batchParts(o.batch_plan).some(x=>x.full===full))) return null;                     // 이미 이 배치로 낸 지시가 있다
+    if (same.some(o=>stIdx(o) < 2 && !batchParts(o.batch_plan).length)) return null;                    // 배치를 아직 안 정한 지시가 기다리는 중 — 그 지시가 쓸 수 있다
+    if (idemHit(`costco-auto-${m.id}`)) return null;
+    const per = needKg(p, 1), qty = per > 0 ? Math.floor((Number(m.stock_kg) + 0.0005) / per) : 0; if (!(qty > 0)) return null;
+    return { m, p, qty };
+  }).filter(Boolean);
+}
+function costcoAutoSoon(){ if (COSTCO_T || COSTCO_BUSY) return; COSTCO_T = setTimeout(()=>{ COSTCO_T = null; costcoAuto(); }, 1200); }
+async function costcoAuto(){
+  if (COSTCO_BUSY) return; let list = [];
+  try { list = costcoCandidates(); } catch(e){ console.warn(e); return; }
+  if (!list.length) return;
+  COSTCO_BUSY = true; const made = [];
+  try {
+    for (const x of list) {
+      COSTCO_TRIED.add(x.m.id);
+      const last = DB.orders.filter(o=>o.product_id===x.p.id && o.machine).sort((a,b)=>String(b.work_date).localeCompare(String(a.work_date)))[0];
+      const sn = serialOfBatches([x.m]), kg = Math.round(Number(x.m.stock_kg)*1000)/1000;
+      const draft = { product_id:x.p.id, product_name:x.p.name, product_code:x.p.code || "", product_spec:x.p.spec_g ?? null,
+        qty:x.qty, channel:(x.p.channel && x.p.channel !== "일반") ? x.p.channel : (SHIP_CH.includes("코스트코") ? "코스트코" : "일반"),
+        machine:last?.machine || "", machine_id:DB.machines.find(mc=>mc.name===(last?.machine||""))?.id || null,
+        serial:sn.short || makeSerial(today()), serial_full:sn.full || "", batch_plan:`${batchLabel(x.m)} ${kg}kg`,
+        label_packs:labelNeed(x.p, x.qty).bundles ?? null, label_id:labelPick(x.p) || "", pack_type:isFullPack(x.p) ? PACK_FULL : PACK_LABEL };
+      const r = await mesCostcoAuto({ mms_id:x.m.id, draft });
+      if (r && r.ok !== false && !r.replayed && r.made) { made.push(`${x.p.name} ${fmt(x.qty)}개`);
+        if (sb && r.order_id) { try { await Promise.all([ pullOrder(r.order_id), pullWhere("order_events", "order_id", r.order_id) ]); } catch(_){} } }
+    }
+  } finally { COSTCO_BUSY = false; }
+  if (made.length) { renderAll(); toast(`코스트코 원두 입고 → 작업지시 ${made.length}건 자동 생성 (${made.slice(0,2).join(", ")}${made.length>2?` 외 ${made.length-2}건`:""}) — 완료될 때까지 현장 작업에 표시됩니다`); }
+}
+/* [원두 이동] — 받은 원두를 다른 곳으로 넘긴다 · 일부(지시 수량 줄임) · 전량(지시 취소) */
+async function transferOrderBean(id){
+  if (!(await requireUser())) return;
+  const o = ordById(id); if (!o) return;
+  if (!canMoveBean()) return toast("원두 이동은 계획 또는 재고 권한이 있는 계정만 할 수 있습니다");
+  if (o.status !== "대기") return toast("대기 상태의 지시만 원두를 이동할 수 있습니다 — 생산중이면 [대기 전환] 후 진행하십시오");
+  const p = prodById(o.product_id), ps = batchParts(o.batch_plan), m = ordBatchMms(o);
+  const only = { title:"원두 이동", yes:"확인", only:true };
+  if (Number(o.qty_done) > 0) return ask("이미 생산한 수량이 있는 지시입니다.\n남은 원두는 [로스팅 › 배치 재고]의 해당 배치 줄 [이동] 버튼으로 이동하십시오.", only);
+  if (!p || ps.length !== 1 || !m) return ask("이 지시는 사용할 배치가 하나로 정해져 있지 않아 여기서 이동할 수 없습니다.\n[로스팅 › 배치 재고]의 해당 배치 줄 [이동] 버튼으로 이동하십시오.", only);
+  const left = Math.round(Number(m.stock_kg||0)*1000)/1000;
+  if (!(left > 0)) return toast("이 배치는 남은 원두가 없습니다");
+  const kgAns = await ask(`${p.name}\n배치 ${ps[0].text.replace(/\s*[\d.,]+\s*kg/i,"")} · 현재 ${fmt(left)} kg\n\n이동할 중량(kg)을 입력하십시오.\n전량이면 숫자를 그대로 두고 [다음].`,
+    { prompt:true, value:String(left), title:"원두 이동 ① 중량", yes:"다음" });
+  if (kgAns === null) return;
+  const kg = Math.round(Number(String(kgAns).replace(/,/g,"").replace(/kg/i,"").trim())*1000)/1000;
+  if (!(kg > 0)) return toast("0보다 큰 숫자를 입력하십시오");
+  if (kg > left + 0.0005) return toast(`배치 잔량 ${fmt(left)} kg 보다 많이 이동할 수 없습니다`);
+  const toAns = await ask(`${fmt(kg)} kg 을(를) 어디로 이동합니까?\n받는 곳을 입력하십시오 (예: 온라인 생산분, 부산점, 거래처명).\n\n입력한 내용은 원두 사용 내역 비고 · 작업지시 메모 · 변경이력에 기록됩니다.`,
+    { prompt:true, value:"", title:"원두 이동 ② 받는 곳", yes:"다음" });
+  if (toAns === null) return;
+  const to = String(toAns).trim(); if (!to) return toast("받는 곳을 입력해야 이동할 수 있습니다");
+  const after = Math.max(0, Math.round((left - kg)*1000)/1000), per = needKg(p, 1);
+  const canEa = per > 0 ? Math.floor((after + 0.0005) / per) : 0, plan = Math.round(Number(o.qty_plan)||0);
+  const newQty = Math.min(plan, canEa), cancel = newQty <= 0;
+  const oldKg = ps[0].kg, bp = oldKg > 0 ? ps[0].text.replace(/[\d.,]+\s*kg/i, `${Math.min(oldKg, after)}kg`) : ps[0].text;
+  if (!(await ask(`아래 내용으로 원두를 이동합니다.\n\n· 품목: ${p.name}\n· 배치: ${ps[0].text.replace(/\s*[\d.,]+\s*kg/i,"")}\n· 이동: ${fmt(kg)} kg → ${to}\n· 배치 잔량: ${fmt(left)} kg → ${fmt(after)} kg\n` +
+      (cancel ? `· 작업지시: ${after > 0 ? `남는 ${fmt(after)} kg 으로는 1개도 생산할 수 없어 ` : "전량 이동 → "}지시 취소 (기록은 작업지시 목록에 남습니다)`
+              : newQty < plan ? `· 작업지시: 수량 ${fmt(plan)}개 → ${fmt(newQty)}개 (남는 원두로 생산 가능한 수량)` : `· 작업지시: 수량 ${fmt(plan)}개 그대로`) +
+      `\n\n재고에서 바로 차감됩니다. 잘못 이동한 경우 [로스팅 › 수불 · 사용이력 › 생산 외 사용 내역]에서 취소하면 재고가 복원됩니다 (취소된 지시는 복원되지 않으므로 다시 추가).`,
+      { title:"원두 이동 ③ 확인", yes:cancel ? "이동 · 지시 취소" : "이동", danger:cancel }))) return;
+  const busy = setBusy("원두 이동 처리 중…");
+  const r = await mesTransferBatch({ mms_id:m.id, kg, to, order_id:o.id, new_qty:cancel ? 0 : newQty, batch_plan:cancel ? null : bp, idem:`tb-${o.id}-${uid()}` });
+  busy(); if (sb) await reloadDB({ silent:true }); renderAll();
+  if (!r || r.ok === false) {
+    const msg = String(r?.message || "원두를 이동하지 못했습니다");
+    return ask(/transfer_batch|schema cache|function/i.test(msg) ? "서버에 최신 000_install_all.sql 을 먼저 실행하십시오 (원두 이동 기능)." : msg, { title:"원두 이동", yes:"확인", only:true });
+  }
+  toast(cancel ? `${fmt(kg)} kg → ${to} 이동 · 작업지시 취소 — 기록은 작업지시 목록 · 원두 사용 내역에 남습니다`
+               : `${fmt(kg)} kg → ${to} 이동${newQty < plan ? ` · 지시 수량 ${fmt(plan)} → ${fmt(newQty)}개` : ""}`);
+}
+/* 배치 재고 표의 [이동] — 이 배치로 낸 대기 지시가 하나면 그 지시의 원두 이동과 같다 (수량 줄임 · 취소까지), 아니면 재고만 뺀다 */
+async function transferBatchOne(mid){
+  if (!(await requireUser())) return;
+  const m = DB.mms.find(x=>x.id===mid); if (!m) return;
+  if (!canMoveBean()) return toast("원두 이동은 계획 또는 재고 권한이 있는 계정만 할 수 있습니다");
+  const full = batchFull(m);
+  const linked = DB.orders.filter(o=>stIdx(o) < 2 && prodById(o.product_id)?.bean === m.bean && batchParts(o.batch_plan).some(x=>x.full===full));
+  if (linked.length === 1 && linked[0].status === "대기" && !(Number(linked[0].qty_done) > 0) && batchParts(linked[0].batch_plan).length === 1) return transferOrderBean(linked[0].id);
+  const left = Math.round(Number(m.stock_kg||0)*1000)/1000; if (!(left > 0)) return toast("이 배치는 남은 원두가 없습니다");
+  const kgAns = await ask(`${m.bean}\n배치 ${batchLabel(m)} · 현재 ${fmt(left)} kg\n\n이동할 중량(kg)을 입력하십시오.\n전량이면 숫자를 그대로 두고 [다음].`,
+    { prompt:true, value:String(left), title:"원두 이동 ① 중량", yes:"다음" });
+  if (kgAns === null) return;
+  const kg = Math.round(Number(String(kgAns).replace(/,/g,"").replace(/kg/i,"").trim())*1000)/1000;
+  if (!(kg > 0)) return toast("0보다 큰 숫자를 입력하십시오");
+  if (kg > left + 0.0005) return toast(`배치 잔량 ${fmt(left)} kg 보다 많이 이동할 수 없습니다`);
+  const toAns = await ask(`${fmt(kg)} kg 을(를) 어디로 이동합니까?\n받는 곳을 입력하십시오 (예: 온라인 생산분, 부산점, 거래처명).\n\n입력한 내용은 원두 사용 내역 비고 · 변경이력에 기록됩니다.`,
+    { prompt:true, value:"", title:"원두 이동 ② 받는 곳", yes:"다음" });
+  if (toAns === null) return;
+  const to = String(toAns).trim(); if (!to) return toast("받는 곳을 입력해야 이동할 수 있습니다");
+  const after = Math.max(0, Math.round((left - kg)*1000)/1000);
+  if (!(await ask(`아래 내용으로 원두를 이동합니다.\n\n· 원두: ${m.bean}\n· 배치: ${batchLabel(m)}\n· 이동: ${fmt(kg)} kg → ${to}\n· 배치 잔량: ${fmt(left)} kg → ${fmt(after)} kg` +
+      (linked.length ? `\n\n※ 이 배치를 사용할 작업지시 ${linked.length}건(${linked.slice(0,3).map(o=>o.order_no).join(", ")})의 수량은 자동으로 변경되지 않습니다 — 필요하면 작업지시에서 직접 수정하십시오.` : "") +
+      `\n\n재고에서 바로 차감됩니다. 잘못 이동한 경우 [수불 · 사용이력 › 생산 외 사용 내역]에서 취소하면 재고가 복원됩니다.`, { title:"원두 이동 ③ 확인", yes:"이동" }))) return;
+  const busy = setBusy("원두 이동 처리 중…");
+  const r = await mesTransferBatch({ mms_id:m.id, kg, to, idem:`tb-${m.id}-${uid()}` });
+  busy(); if (sb) await reloadDB({ silent:true }); renderAll();
+  if (!r || r.ok === false) { const msg = String(r?.message || "원두를 이동하지 못했습니다");
+    return ask(/transfer_batch|schema cache|function/i.test(msg) ? "서버에 최신 000_install_all.sql 을 먼저 실행하십시오 (원두 이동 기능)." : msg, { title:"원두 이동", yes:"확인", only:true }); }
+  toast(`${fmt(kg)} kg → ${to} 이동 — 배치 잔량 ${fmt(after)} kg`);
+}
 const ordsOf = d => DB.orders.filter(o=>o.work_date===d).sort((a,b)=>(a.priority||0)-(b.priority||0));
 
 /* ══ 작업지시 (관리자) ══ */
 function renderOrder(){
   if (!$("woDate").value) $("woDate").value = today();
   const d = $("woDate").value, list = ordsOf(d);
-  const sum = k => list.reduce((s,o)=>s+Number(o[k]||0),0);
+  const sum = k => list.reduce((s,o)=>s+(k==="qty_plan" && isMovedOrd(o) ? 0 : Number(o[k]||0)),0);   // 원두 이동으로 취소된 지시는 계획 합계에서 뺀다
   $("woSum").innerHTML = WOST.map(st=>{
     const n = list.filter(o=>o.status===st).length;
     return `<div class="st"><div class="k">${st}</div><div class="v ${n?(WOST_TAG[st]||""):""}">${n}</div></div>`;
@@ -21237,7 +21528,7 @@ function renderOrder(){
         <td class="l"><b>${o.serial||"—"}</b>${
           o.batch_of>1?`<br><span class="tag" style="font-size:10px">배치 ${o.batch_seq}/${o.batch_of}</span>`:""}${
           isMixedOrder(o)?`<br><span class="tag bad" style="font-size:10px">배치 ${batchParts(o.batch_plan).length}개 혼재</span>`:""}</td>
-        <td class="l" style="white-space:nowrap">${specChip(specOf(o))}${p?.name||"—"}</td>
+        <td class="l" style="white-space:nowrap">${specChip(specOf(o))}${p?.name||"—"}${/\[원두 이동\]/.test(String(o.note||"")) ? `<br><span class="hint" style="padding:0;font-size:11px;color:var(--warn);white-space:normal">${xh(o.note).replace(/ \[원두 이동\]/g, "<br>[원두 이동]")}</span>` : ""}</td>
         <td class="c">${lock ? o.channel : `<select onchange="setOrd('${o.id}','channel',this.value)">${
           SHIP_CH.map(c=>`<option ${c===o.channel?"selected":""}>${c}</option>`).join("")}</select>`}</td>
         <td class="c">${lock ? (o.machine||"—") : `<select onchange="setOrd('${o.id}','machine',this.value)"><option value="">미지정</option>${
@@ -21514,8 +21805,10 @@ function renderWork(){
   const rejCards = rej.filter(x=>x.f==="조치 필요").map(x=>x.o);
   /* 반려 건을 [처음부터 다시 생산] 한 지시는 원래 날짜에 묶이지 않고 오늘 칸에 다시 나온다 */
   const redo = d === today() ? DB.orders.filter(o=>o.status==="대기" && o.work_date < d && /^\[반려 삭제/.test(String(o.note||""))) : [];
-  const all  = ordsOf(d).concat(redo).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
-  const done = ordsOf(d).filter(o=>stIdx(o) >= 2);
+  /* ★ 2026-11-17 코스트코 지시는 완료될 때까지 날짜와 상관없이 나온다 */
+  const cCarry = costcoCarry(d), cCarryIds = new Set(cCarry.map(o=>o.id));
+  const all  = ordsOf(d).concat(redo, cCarry).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
+  const done = ordsOf(d).filter(o=>stIdx(o) >= 2 && !isMovedOrd(o));
   /* ★ 2026-11-11 — 검수 수량 다름(맨 위 · 깜빡임 · 날짜와 상관없이 확인할 때까지) / 검수 대기(아래 · 흐리게 · 그 날짜만) */
   const qFlags = DB.orders.filter(o=>qtyFlag(o)).sort((a,b)=>String(qtyFlag(a).at).localeCompare(String(qtyFlag(b).at)));
   const qFlagIds = new Set(qFlags.map(o=>o.id));
@@ -21589,9 +21882,10 @@ function renderWork(){
     const bt = ps.length === 1 ? ps[0].text : ps.length > 1 ? `배치 ${ps.length}개 혼재` : (o.batch_plan || "미지정");
     const mfg = mfgDateOf(o);
     return `<div class="wc wcz ${rd.beanNone?"none":""}" data-oid="${o.id}" data-co="${o.id}" onclick="wkOpen('${o.id}')">
-      <div class="z1"><span class="zn">${o.priority||"-"}</span>${specChip(specOf(o))}<span class="nm">${p?.name||"품목 없음"}</span><span class="q"><b>${fmt(o.qty_done)}</b> / ${fmt(o.qty_plan)}개</span></div>
+      <div class="z1"><span class="zn">${o.priority||"-"}</span>${specChip(specOf(o))}<span class="nm">${CH_STYLE[o.channel] ? chChip(o.channel) : ""}${p?.name||"품목 없음"}</span><span class="q"><b>${fmt(o.qty_done)}</b> / ${fmt(o.qty_plan)}개</span></div>
       <div class="z2"><span>배치 <b class="${ps.length>1?"bad":""}">${bt}</b></span>${m ? `<span>중량 <b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}</b> · 사용 가능 <b>${fmt(left)}kg</b>${canEa!=null?` · <b class="${canEa<todo?"bad":""}">약 ${fmt(canEa)}개</b>`:""}</span>` : ""}</div>
       <div class="z2">${b ? `<span>컬러 <b class="${b.color?"":"bad"}">${b.color||"없음"}</b></span><span>제조일자 <b>${mfg||"—"}</b></span>${o.serial?`<span>일련번호 <b>${o.serial}</b></span>`:""}` : `<span class="bad">한글표시사항 없음 — 원두 마스터 확인</span>`}</div>
+      ${cCarryIds.has(o.id) || /\[원두 이동\]/.test(String(o.note||"")) ? `<div class="z2">${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${/\[원두 이동\]/.test(String(o.note||"")) ? `<span class="warn">${xh(o.note)}</span>` : ""}</div>` : ""}
       ${rd.msgs.length ? `<div class="z3">${rd.msgs.map(t=>`<span>⚠ ${t}</span>`).join("")}</div>` : ""}
       <div class="z4">눌러서 펼치기 ▾</div>
     </div>`;
@@ -21608,7 +21902,7 @@ function renderWork(){
           can("plan") ? `<span class="prib">
             <button onclick="moveOrd('${o.id}',-1)" title="순서 앞으로">▲</button>
             <button onclick="moveOrd('${o.id}',1)" title="순서 뒤로">▼</button></span>` : ""}</div>
-        <div class="sub">${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 재생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"일련번호":"일련번호"} ${o.serial}`:""}${
+        <div class="sub">${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 재생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px;margin-right:4px" title="코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"일련번호":"일련번호"} ${o.serial}`:""}${
           o.batch_of>1?` · 배치 ${o.batch_seq}/${o.batch_of}`:""}${
           run && o.started_at ? ` · <span title="작업 시작 일시">시작 ${dtFull(o.started_at)}${o.started_by?` ${o.started_by}`:""}</span>` : ""}</div>
       </div>
@@ -21701,6 +21995,7 @@ function renderWork(){
         ${o.status==="대기" ? "" : (o.paused_at ? `<button onclick="resumeWork('${o.id}')" style="color:var(--ok);font-weight:800">▶ 작업 재개</button>` : `<button onclick="pauseWork('${o.id}')" title="일시정지 — 휴식·설비 이상 등. [작업 재개]를 누르면 이어서 진행됩니다">⏸ 일시정지</button>`)}
         
         ${o.status==="대기" ? "" : `<button onclick="stopWork('${o.id}')" title="이 작업을 중단하고 대기 상태로 전환합니다 — 다른 작업을 우선 진행할 때 사용">대기 전환</button>`}
+        ${o.status==="대기" && isCostcoOrd(o) && canMoveBean() && !(Number(o.qty_done) > 0) ? `<button onclick="transferOrderBean('${o.id}')" title="받은 원두를 다른 곳으로 넘깁니다 — 일부면 지시 수량이 줄고, 전량이면 지시가 취소됩니다. 받는 곳은 원두 사용 내역 비고 · 작업지시 메모 · 변경이력에 기록됩니다">원두 이동</button>` : ""}
       </div>
       ${o.status==="대기" && isMixedOrder(o) && can("plan") ? `<div class="btns sm" style="padding-top:0">
         <button onclick="splitOrder('${o.id}')" style="color:var(--blue-600);font-weight:800">배치별 분할</button>
@@ -23602,7 +23897,7 @@ const CLOSE_ITEMS_KEY = "close_items", CLOSE_LOG_KEY = "close_log";
 /* s = 화면, tab = 그 안의 탭(또는 재고확인의 대상), go = 바로가기 글자 */
 const CLOSE_AUTO = {
   orders: { t:"오늘 작업지시 전체 생산 완료", s:"work", go:"현장 작업 열기",
-            n:d=>ordsOf(d).filter(o=>stIdx(o)<2).length, lbl:"미완료" },
+            n:d=>ordsOf(d).filter(o=>stIdx(o)<2 && !isCostcoOrd(o)).length, lbl:"미완료" },   // 코스트코 지시는 완료될 때까지 이어지므로 마감 미완료로 세지 않는다
   labels: { t:"오늘 라벨 작업 전체 완료", s:"mt", go:"라벨작업 열기",
             n:d=>mtOf(d).filter(t=>t.status!=="작업완료").length, lbl:"미완료" },
   qc:     { t:"생산완료 건 검수 · 실적 수령 확인", s:"qc", go:"검수 열기",
@@ -23727,6 +24022,7 @@ async function editCloseItems(){
 function renderDashWO(){
   if (!$("dashWO")) return;
   const list = ordsOf(today());
+  if ($("dashCh")) $("dashCh").innerHTML = list.some(o=>o.status !== "폐기") ? chProdHTML(list.concat(costcoCarry(today())).filter(o=>o.status !== "폐기")) : "";   // ★ 2026-11-17 채널별 생산 (컬리 · 네이버 · 코스트코 · 기타)
   tbl("dashWO", ["일련번호","품목","출고처","설비","계획","생산","진행","상태","담당"],
     list.map(o=>{ const p = prodById(o.product_id);
       return `<tr><td class="l">${o.serial||"—"}</td><td class="l"><b>${p?.name||""}</b></td>
