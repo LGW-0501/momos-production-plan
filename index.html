@@ -1717,6 +1717,7 @@
     <button class="btn" onclick="manualRefresh()">새로고침</button>
   </div>
   <div class="subtabs" id="wkTabs"></div>
+  <div class="subtabs" id="wkChTabs" style="margin-top:-4px"></div>
   <div class="body">
     <h2 class="page">현장 작업<small id="asof-work"></small></h2>
     <div class="guide">
@@ -6287,8 +6288,8 @@ async function mesTransferBatch(a){
 /* ★ 2026-11-17 코스트코 원두 입고 → 작업지시 자동 생성 (배치 하나에 한 번만 — 취소한 뒤에 다시 생기지 않는다) */
 async function mesCostcoAuto(a){
   const key = `costco-auto-${a.mms_id}`;
-  return rpc("costco_auto_order", { p_mms_id:a.mms_id, p_draft:a.draft }, () => {
-    const hit = idemHit(key); if (hit) return hit;
+  return rpc("costco_auto_order", a.force ? { p_mms_id:a.mms_id, p_draft:a.draft, p_force:true } : { p_mms_id:a.mms_id, p_draft:a.draft }, () => {
+    const hit = a.force ? null : idemHit(key); if (hit) return hit;
     const d = a.draft, wd = today();
     return localTx(T => {
       const o = T.add("orders", { id:uid(), order_no:orderNo(wd), work_date:wd, product_id:d.product_id,
@@ -7687,8 +7688,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-17", "현장 작업 — 채널 칸 (코스트코 · 컬리 · 네이버 · 기타) · 코스트코 원두는 재고가 있으면 자동 지시", "① 현장 작업 설비 탭 아래에 [채널] 칸이 생겼습니다 — 전체 · 코스트코 · 컬리 · 네이버 · 기타가 항상 보이고(건수 · 수량), 누르면 그 채널 카드만 표시됩니다 (다시 누르면 전체 · 설비 탭과 함께 사용). ② 코스트코 원두는 입고 날짜와 상관없이 재고가 있으면 작업지시가 자동으로 생성됩니다 (전에는 11/17 이후 입고분만). ③ 지시가 생성되지 않은 코스트코 원두는 코스트코 칸 위에 배치별 사유(보류 · 다른 채널과 같이 쓰는 원두 · 이전에 취소한 배치 · 서버 SQL 미실행 등)와 함께 표시되고, 취소했던 배치는 [지시 생성]으로 다시 만들 수 있습니다."],
   ["2026-11-17", "채널별 생산 — 컬리 · 네이버 · 코스트코 따로", "① 생산계획 › 집계에 [채널] 선택이 생겼습니다 — 엑셀로 집계를 넣거나 줄을 추가할 때 어느 채널 주문인지 고르면 집계 줄마다 채널이 기록됩니다 (집계 기록 표에서 줄마다 변경 가능 · 컬리 MK 코드는 자동으로 컬리 · 채널 전용 품목은 그 품목의 채널). ② 작업지시를 생성하면 같은 품목이라도 채널별로 지시(현장 카드)가 따로 만들어지고 출고처에 채널이 들어갑니다 — 여유분은 품목의 기본 채널(일반) 지시에 포함됩니다. ③ 대시보드 · 휴대폰 오늘 요약에 컬리 · 네이버 · 코스트코 · 기타 네 칸으로 오늘 생산(완료 / 계획 EA)이 표시됩니다 (지시의 출고처 기준). 서버 SQL(000_install_all.sql) 재실행이 필요합니다 (집계에 채널 열 추가)."],
-  ["2026-11-17", "코스트코 — 입고하면 지시 자동 생성 · 완료까지 계속 표시 · 원두 이동", "① 코스트코 원두를 입고하면 그 배치로 작업지시가 자동으로 생성됩니다 (배치 하나에 한 번 · 수량은 배치 중량으로 만들 수 있는 개수 · 2026-11-17 이후 입고분부터). ② 코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다 — 지난 날짜 지시에는 [MM/DD 지시 · 완료 전까지 표시] 표시가 붙고, 생산 시작을 누르면 작업일이 그날로 바뀌어 실적 · 원두 사용이 실제 생산한 날로 기록됩니다. ③ 카드의 [원두 이동] — 이동할 kg 과 받는 곳을 입력하면 재고에서 차감되고, 일부 이동이면 지시 수량이 줄고 전량 이동이면 지시가 취소됩니다(작업지시 목록에 [취소 · 원두 이동]으로 남음). 받는 곳은 원두 사용 내역 비고 · 작업지시 메모 · 변경이력 세 곳에 기록됩니다. ④ 로스팅 › 배치 재고 표에도 줄마다 [이동] 버튼 — 코스트코가 아닌 원두도 같은 방식으로 이동을 기록할 수 있습니다. 서버 SQL(000_install_all.sql) 재실행이 필요합니다."],
+  ["2026-11-17", "코스트코 — 입고하면 지시 자동 생성 · 완료까지 계속 표시 · 원두 이동", "① 코스트코 원두를 입고하면 그 배치로 작업지시가 자동으로 생성됩니다 (배치 하나에 한 번 · 수량은 배치 중량으로 만들 수 있는 개수 · 입고 날짜와 상관없이 재고가 있는 코스트코 원두 전부). ② 코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다 — 지난 날짜 지시에는 [MM/DD 지시 · 완료 전까지 표시] 표시가 붙고, 생산 시작을 누르면 작업일이 그날로 바뀌어 실적 · 원두 사용이 실제 생산한 날로 기록됩니다. ③ 카드의 [원두 이동] — 이동할 kg 과 받는 곳을 입력하면 재고에서 차감되고, 일부 이동이면 지시 수량이 줄고 전량 이동이면 지시가 취소됩니다(작업지시 목록에 [취소 · 원두 이동]으로 남음). 받는 곳은 원두 사용 내역 비고 · 작업지시 메모 · 변경이력 세 곳에 기록됩니다. ④ 로스팅 › 배치 재고 표에도 줄마다 [이동] 버튼 — 코스트코가 아닌 원두도 같은 방식으로 이동을 기록할 수 있습니다. 서버 SQL(000_install_all.sql) 재실행이 필요합니다."],
   ["2026-11-17", "분쇄 — 분쇄량 칸을 누르면 그 표만 표시", "분쇄 화면 [분쇄량 — 칼날 교체 주기 확인]의 칸을 누르면 해당 표만 표시됩니다. ■ 오늘 → 일별(최근 14일) ■ 이번 주 → 주별 ■ 이번 달 → 월별 ■ 일 평균 → 일별(최근 30일) ■ 칼날 교체 후 누적 → 교체일부터 분쇄한 날만. 같은 칸을 다시 누르면 전체 표가 표시됩니다."],
   ["2026-11-17", "재고 현황 › 일자별 보유량 — 보유량이 없는 원두는 표시하지 않음", "원두 MMS 목록에서 조회 기간 마지막 날 보유량이 없는 원두(다 사용했거나 더 이상 취급하지 않는 원두)는 표시하지 않습니다. 원두가 계속 추가되고 없어지므로 지금 보유 중인 원두만 보이도록 한 것입니다. 지난 원두를 확인하려면 [소진 원두 포함]을 선택하십시오 (괄호 안 숫자 = 숨겨진 원두 수). 원두를 하나 선택해 배치별로 볼 때와 CFE 완제품 · 부자재 목록은 기존과 같습니다. 엑셀 다운로드도 화면과 같은 기준으로 내려받습니다."],
   ["2026-11-17", "생산분석 — 1건 평균 · 월간 회고 그래프 · 채널 출고 칸", "■ [생산 건별] 목록을 [생산 1건 평균]으로 변경했습니다 — 건수 · 1건 평균 수량 · 평균 생산시간 · 평균 생산속도 · 평균 투입 인원과 품목별 평균을 표시합니다. 건별 목록은 [건별 목록 보기]를 누르면 펼쳐지며 엑셀 다운로드에는 전체가 포함됩니다 ■ 생산속도(EA/h · kg/h · EA/인시)는 실제 생산시간이 1분 이상인 건으로만 계산합니다 — [생산 시작] 직후 [생산 완료]를 누른 건이 섞이면 속도가 비정상적으로 크게 나오기 때문입니다. 수량 · 중량 합계에는 모든 건이 포함되며, 제외된 건수는 화면에 표시됩니다 ■ 월간 회고에 그래프를 추가했습니다 — 일별 생산수량(이 달 막대 · 전월 선), 이 달 ↔ 전월 비교 막대(생산수량 · 생산속도 · 인시당 생산 · 출고 · 로스율 · 부적합 · 반려 · 중단시간), 채널 출고(이 달 ↔ 전월), 생산 비중(규격별 · 설비별 · 채널). 기존 표는 [상세 표 보기] 안에 있습니다 ■ 위쪽 칸에 [채널 출고]를 추가했습니다 — 누르면 채널별 출고만 표시됩니다."],
@@ -21376,7 +21378,6 @@ async function shipBack(id){
 const barHTML = (pct, cls) => `<div class="pbar"><i class="${cls||""}" style="width:${Math.min(100,pct)}%"></i></div>`;
 const stTag = o => isMovedOrd(o) ? `<span class="tag warn" title="원두를 전량 이동하여 취소된 지시">취소 · 원두 이동</span>` : `<span class="tag ${WOST_TAG[o.status]||""}">${o.status}</span>`;
 /* ══ ★ 2026-11-17 코스트코 — 입고하면 지시 자동 생성 · 완료될 때까지 날짜와 상관없이 현장 작업에 표시 · 원두 이동 ══ */
-const COSTCO_AUTO_FROM = "2026-11-17";      // 이 날짜부터 입고한 배치만 자동 생성 (그 전 재고로 지시가 한꺼번에 생기지 않게)
 const xh = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
 const isCostcoOrd = o => !!o && (isCostcoProd(prodById(o.product_id)) || /코스트코/.test(String(o.product_name||"")));
 const isMovedOrd  = o => !!o && o.status === "폐기" && /^\[원두 이동\]/.test(String(o.note||""));
@@ -21387,29 +21388,61 @@ function costcoCarry(d){
   return DB.orders.filter(o=>(o.status==="대기" || o.status==="생산중") && o.work_date && o.work_date < d && isCostcoOrd(o)
     && !/^\[반려 삭제/.test(String(o.note||"")));
 }
-const COSTCO_TRIED = new Set(); let COSTCO_T = null, COSTCO_BUSY = false;
-function costcoCandidates(){
-  if (!LOGIN_USER && sb) return [];
-  if (!(can("plan") || can("stock") || can("work"))) return [];
+const COSTCO_TRIED = new Set(), COSTCO_ERR = {}, COSTCO_OLD = new Set(); let COSTCO_T = null, COSTCO_BUSY = false;
+/* 코스트코 원두(코스트코 품목이 쓰는 원두) 재고 배치마다 — 지시가 있는지, 없으면 왜 없는지
+   state: has(지시 있음) · make(자동 생성 대상) · 그 외 = 자동으로 만들지 않는 이유 */
+function costcoBatches(){
   const ps = DB.products.filter(p=>isCostcoProd(p) && !p.off && p.bean); if (!ps.length) return [];
-  return DB.mms.filter(m=>m.in_kg != null && Number(m.stock_kg) > 0 && !isHeld(m) && inDateOf(m) >= COSTCO_AUTO_FROM && !COSTCO_TRIED.has(m.id)).map(m=>{
-    const cand = ps.filter(x=>x.bean===m.bean); if (!cand.length) return null;
-    if (DB.products.some(x=>!x.off && x.bean===m.bean && !isCostcoProd(x))) return null;               // 다른 채널 품목도 쓰는 원두 — 자동으로 만들지 않는다 (코스트코 전용 원두만)
-    const full = batchFull(m), same = DB.orders.filter(o=>isCostcoOrd(o) && o.status !== "폐기" && prodById(o.product_id)?.bean === m.bean);
+  const beans = new Set(ps.map(p=>p.bean));
+  return DB.mms.filter(m=>beans.has(m.bean) && Number(m.stock_kg) > 0).map(m=>{
+    const cand = ps.filter(x=>x.bean===m.bean), full = batchFull(m);
+    const same = DB.orders.filter(o=>isCostcoOrd(o) && o.status !== "폐기" && prodById(o.product_id)?.bean === m.bean);
     /* 규격이 여러 개면 — 가장 최근에 지시를 낸 코스트코 품목, 없으면 가장 큰 규격 */
     const lastO = same.filter(o=>cand.some(x=>x.id===o.product_id)).sort((a,b)=>String(b.work_date).localeCompare(String(a.work_date)) || String(b.order_no).localeCompare(String(a.order_no)))[0];
     const p = (lastO && cand.find(x=>x.id===lastO.product_id)) || cand.slice().sort((a,b)=>Number(b.spec_g||0)-Number(a.spec_g||0))[0];
-    if (same.some(o=>batchParts(o.batch_plan).some(x=>x.full===full))) return null;                     // 이미 이 배치로 낸 지시가 있다
-    if (same.some(o=>stIdx(o) < 2 && !batchParts(o.batch_plan).length)) return null;                    // 배치를 아직 안 정한 지시가 기다리는 중 — 그 지시가 쓸 수 있다
-    if (idemHit(`costco-auto-${m.id}`)) return null;
-    const per = needKg(p, 1), qty = per > 0 ? Math.floor((Number(m.stock_kg) + 0.0005) / per) : 0; if (!(qty > 0)) return null;
-    return { m, p, qty };
-  }).filter(Boolean);
+    const per = needKg(p, 1), qty = per > 0 ? Math.floor((Number(m.stock_kg) + 0.0005) / per) : 0;
+    const o = same.find(x=>stIdx(x) < 2 && batchParts(x.batch_plan).some(b=>b.full===full));
+    let state = "make", why = "";
+    if (o) { state = "has"; why = `${o.order_no} · ${o.status}`; }
+    else if (isHeld(m)) { state = "hold"; why = "보류 중인 배치"; }
+    else if (DB.products.some(x=>!x.off && x.bean===m.bean && !isCostcoProd(x))) { state = "shared"; why = "다른 채널 품목도 사용하는 원두"; }
+    else if (same.some(x=>stIdx(x) < 2 && !batchParts(x.batch_plan).length)) { state = "wait"; why = "배치를 지정하지 않은 코스트코 지시가 대기 중"; }
+    else if (!(qty > 0)) { state = "small"; why = `1개 분량(${fmt(per)}kg) 미만`; }
+    else if (COSTCO_ERR[m.id]) { state = "err"; why = COSTCO_ERR[m.id]; }
+    else if (COSTCO_OLD.has(m.id) || idemHit(`costco-auto-${m.id}`)) { state = "done"; why = same.some(x=>batchParts(x.batch_plan).some(b=>b.full===full)) ? "이 배치의 지시는 이미 생산 완료" : "이전에 취소 · 삭제한 배치"; }
+    return { m, p, qty, state, why };
+  });
+}
+const costcoNoOrder = () => { try { return costcoBatches().filter(x=>x.state !== "has" && !(x.state === "done" && /생산 완료/.test(x.why))); } catch(_){ return []; } };
+function costcoCandidates(){
+  if (!LOGIN_USER && sb) return [];
+  if (!(can("plan") || can("stock") || can("work"))) return [];
+  return costcoBatches().filter(x=>x.state === "make" && !COSTCO_TRIED.has(x.m.id));
+}
+/* 현장 작업 › 코스트코 칸 위 — 지시가 없는 코스트코 원두와 그 이유 */
+function costcoStockPanel(){
+  const list = costcoNoOrder(); if (!list.length) return "";
+  return `<div class="mgrp" style="border-style:dashed"><div class="mgrp-h"><b>지시가 없는 코스트코 원두</b><span class="tag warn">${list.length}배치 · ${fmt(Math.round(list.reduce((t,x)=>t+Number(x.m.stock_kg||0),0)*10)/10)}kg</span>
+      <span class="r">코스트코 원두는 재고가 있으면 작업지시가 자동으로 생성됩니다 — 아래 배치는 사유가 있어 생성되지 않았습니다</span></div>
+    <div style="padding:8px 14px 12px">${list.map(x=>`<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 0;border-bottom:1px solid var(--line)">
+      <b>${batchLabel(x.m)}</b><span>${x.m.bean}</span><span>잔여 <b>${fmt(x.m.stock_kg)}kg</b>${x.qty > 0 ? ` · 약 ${fmt(x.qty)}개` : ""}</span>
+      <span class="tag ${x.state === "err" ? "bad" : x.state === "make" ? "ok" : "warn"}">${x.state === "make" ? "자동 생성 중…" : xh(x.why)}</span>
+      ${(x.state === "done" || x.state === "err") && x.qty > 0 && can("plan") ? `<button class="btn primary" style="height:30px;margin-left:auto" onclick="costcoMake('${x.m.id}')" title="이 배치로 코스트코 작업지시를 생성합니다">지시 생성</button>` : ""}</div>`).join("")}</div></div>`;
 }
 function costcoAutoSoon(){ if (COSTCO_T || COSTCO_BUSY) return; COSTCO_T = setTimeout(()=>{ COSTCO_T = null; costcoAuto(); }, 1200); }
-async function costcoAuto(){
+/* [지시 생성] — 전에 취소 · 삭제했거나 실패한 배치를 손으로 다시 */
+async function costcoMake(mid){
+  if (!(await requireUser())) return;
+  if (!can("plan")) return deny("plan");
+  const x = costcoBatches().find(y=>y.m.id === mid); if (!x || !(x.qty > 0)) return toast("생산 가능한 수량이 없습니다");
+  if (!(await ask(`${x.p.name}\n배치 ${batchLabel(x.m)} · ${fmt(x.m.stock_kg)}kg → ${fmt(x.qty)}개\n\n이 배치로 코스트코 작업지시를 생성합니다.`, { title:"코스트코 지시 생성", yes:"생성" }))) return;
+  delete COSTCO_ERR[mid]; COSTCO_OLD.delete(mid); COSTCO_TRIED.delete(mid);
+  await costcoAuto([{ ...x, state:"make", force:true }]);
+  if (COSTCO_ERR[mid]) ask(COSTCO_ERR[mid], { title:"코스트코 지시 생성", yes:"확인", only:true });
+}
+async function costcoAuto(forced){
   if (COSTCO_BUSY) return; let list = [];
-  try { list = costcoCandidates(); } catch(e){ console.warn(e); return; }
+  try { list = forced || costcoCandidates(); } catch(e){ console.warn(e); return; }
   if (!list.length) return;
   COSTCO_BUSY = true; const made = [];
   try {
@@ -21422,11 +21455,14 @@ async function costcoAuto(){
         machine:last?.machine || "", machine_id:DB.machines.find(mc=>mc.name===(last?.machine||""))?.id || null,
         serial:sn.short || makeSerial(today()), serial_full:sn.full || "", batch_plan:`${batchLabel(x.m)} ${kg}kg`,
         label_packs:labelNeed(x.p, x.qty).bundles ?? null, label_id:labelPick(x.p) || "", pack_type:isFullPack(x.p) ? PACK_FULL : PACK_LABEL };
-      const r = await mesCostcoAuto({ mms_id:x.m.id, draft });
-      if (r && r.ok !== false && !r.replayed && r.made) { made.push(`${x.p.name} ${fmt(x.qty)}개`);
+      const r = await mesCostcoAuto({ mms_id:x.m.id, draft, force:!!x.force });
+      if (r && r.ok !== false && !r.replayed && r.made) { made.push(`${x.p.name} ${fmt(x.qty)}개`); delete COSTCO_ERR[x.m.id]; COSTCO_OLD.delete(x.m.id);
         if (sb && r.order_id) { try { await Promise.all([ pullOrder(r.order_id), pullWhere("order_events", "order_id", r.order_id) ]); } catch(_){} } }
+      else if (r && r.ok !== false) COSTCO_OLD.add(x.m.id);          // 전에 이미 처리한 배치 (취소 · 삭제했거나 생산을 마침)
+      else COSTCO_ERR[x.m.id] = /costco_auto_order|schema cache|function/i.test(String(r?.message||"")) ? "서버에 최신 000_install_all.sql 실행 필요" : String(r?.message || "생성 실패");
     }
   } finally { COSTCO_BUSY = false; }
+  if (!made.length && list.length) { try { renderOne("work"); } catch(_){} }
   if (made.length) { renderAll(); toast(`코스트코 원두 입고 → 작업지시 ${made.length}건 자동 생성 (${made.slice(0,2).join(", ")}${made.length>2?` 외 ${made.length-2}건`:""}) — 완료될 때까지 현장 작업에 표시됩니다`); }
 }
 /* [원두 이동] — 받은 원두를 다른 곳으로 넘긴다 · 일부(지시 수량 줄임) · 전량(지시 취소) */
@@ -21783,6 +21819,11 @@ function setWkLabelEdit(){ wkLabelEdit = !wkLabelEdit; renderWork();
   toast(wkLabelEdit ? "카드에서 라벨을 변경할 수 있습니다" : "라벨 영역을 접었습니다"); }
 let wkMach = "";                       // "" = 전체, 그 외 = 그 종류(수동 · 리팩 · 이카)만
 try { wkMach = localStorage.getItem("momos.wkMach") || ""; } catch(_){}     // 현장 태블릿은 자기 기계를 기억한다
+/* ★ 2026-11-17 채널 칸 — 코스트코 · 컬리 · 네이버 · 기타 (Lee "여기에 따로 코스트코 컬리 네이버 칸이 있는 줄 알았는데") · 설비 탭과 같이 쓴다 */
+let wkCh = "";
+try { wkCh = localStorage.getItem("momos.wkCh") || ""; } catch(_){}
+function setWkCh(c){ wkCh = (wkCh === c ? "" : c); try { localStorage.setItem("momos.wkCh", wkCh); } catch(_){} renderWork(); }
+const WK_CHS = ["코스트코","컬리","네이버","기타"];
 function setWkMach(m){ wkMach = m; try { localStorage.setItem("momos.wkMach", m); } catch(_){} renderWork(); updateFavBtn(); }
 /* 기계 이름 → 종류: "수동 2구"·"수동 1구" → 수동 · "리팩(Reepack)" → 리팩 · "이카(ICA)" → 이카 */
 function machKind(name){
@@ -21807,8 +21848,11 @@ function renderWork(){
   const redo = d === today() ? DB.orders.filter(o=>o.status==="대기" && o.work_date < d && /^\[반려 삭제/.test(String(o.note||""))) : [];
   /* ★ 2026-11-17 코스트코 지시는 완료될 때까지 날짜와 상관없이 나온다 */
   const cCarry = costcoCarry(d), cCarryIds = new Set(cCarry.map(o=>o.id));
-  const all  = ordsOf(d).concat(redo, cCarry).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
-  const done = ordsOf(d).filter(o=>stIdx(o) >= 2 && !isMovedOrd(o));
+  if (wkCh && !WK_CHS.includes(wkCh)) wkCh = "";
+  const inCh = o => !wkCh || chBucket(ordCh(o)) === wkCh;
+  const all0 = ordsOf(d).concat(redo, cCarry).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
+  const all  = all0.filter(inCh);
+  const done = ordsOf(d).filter(o=>stIdx(o) >= 2 && !isMovedOrd(o) && inCh(o));
   /* ★ 2026-11-11 — 검수 수량 다름(맨 위 · 깜빡임 · 날짜와 상관없이 확인할 때까지) / 검수 대기(아래 · 흐리게 · 그 날짜만) */
   const qFlags = DB.orders.filter(o=>qtyFlag(o)).sort((a,b)=>String(qtyFlag(a).at).localeCompare(String(qtyFlag(b).at)));
   const qFlagIds = new Set(qFlags.map(o=>o.id));
@@ -21838,6 +21882,15 @@ function renderWork(){
     return `<button class="subtab ${wkMach===v?"on":""}" onclick="setWkMach('${v}')">${t} ${n}${run?` <span style="opacity:.8">· 생산중 ${run}</span>`:""}</button>`;
   }).join("");
 
+  /* 채널 칸 — 항상 보인다 (건수 0 이어도) · 누르면 그 채널 카드만, 다시 누르면 전체 */
+  const cWaitN = costcoNoOrder().length;
+  $("wkChTabs").innerHTML = `<span class="hint" style="padding:0 4px 0 0;align-self:center;font-weight:700;white-space:nowrap;flex:none">채널</span>` + [["", "전체"], ...WK_CHS.map(c=>[c,c])].map(([v,t])=>{
+    const its = v === "" ? all0 : all0.filter(o=>chBucket(ordCh(o)) === v), n = its.length, run = its.filter(o=>o.status==="생산중").length;
+    const ea = its.reduce((x,o)=>x+Number(o.qty_plan||0),0);
+    const on = wkCh === v, st = CH_STYLE[v] && !on ? `border-color:${(CH_STYLE[v].match(/background:(#[0-9A-Fa-f]+)/)||[])[1]||""}` : "";
+    return `<button class="subtab ${on?"on":""}" style="${st}" onclick="setWkCh('${v}')" title="${v ? `${v} 지시만 표시 — 다시 누르면 전체` : "모든 채널"}">${CH_STYLE[v] ? `<span style="${CH_STYLE[v]};font-weight:800;font-size:11px;padding:1px 6px;border-radius:5px;margin-right:5px">${t}</span>` : t + " "}${n}${v && n ? ` <span style="opacity:.75;font-weight:500">· ${fmt(ea)}EA</span>` : ""}${run?` <span style="opacity:.8">· 생산중 ${run}</span>`:""}${v === "코스트코" && cWaitN ? ` <span style="color:var(--warn);font-weight:800">· 지시 없는 원두 ${cWaitN}</span>` : ""}</button>`;
+  }).join("");
+
   $("wkInfo").innerHTML = all.length
     ? `작업 대상 <b>${all.length}</b>건 · 설비 ${groups.length}대${done.length?` · 검수 이관 ${done.length}건`:""}${qWait.length?` (검수 대기 <b>${qWait.length}</b>)`:""}`
     : (done.length ? `오늘 작업이 모두 완료되었습니다 (${done.length}건${qWait.length?` · 검수 대기 ${qWait.length}`:""})` : `오늘 발행된 작업지시가 없습니다`);
@@ -21862,7 +21915,7 @@ function renderWork(){
 
   const shown = wkMach === "반려" ? [] : (wkMach ? groups.filter(g=>kindOf(g)===wkMach) : groups);
   /* 반려 칸 — 품목 · 배치 · LOT · 사유 · 반려 일시 · 조치 상태 */
-  const rejShown = rejCards.filter(o=>!wkMach || wkMach === "반려" || machKind(o.machine||"") === wkMach || (wkMach === "미지정" && !o.machine));
+  const rejShown = rejCards.filter(o=>(!wkMach || wkMach === "반려" || machKind(o.machine||"") === wkMach || (wkMach === "미지정" && !o.machine)) && inCh(o));
   const rejWait = rej.filter(x=>x.f==="재검수 대기").length;
   const rejPanelF = () => !rejShown.length ? (wkMach === "반려" && rejWait ? `<div class="wempty">재작업 대상 반려 건이 없습니다<br><span>재검수 대기 중 ${rejWait}건 — 검수가 완료되면 이력에 기록됩니다</span></div>` : "") : `<div class="mgrp" style="border-color:var(--bad)">
       <div class="mgrp-h" style="color:var(--bad)"><b>⚠ ${isFloor() ? "반려품 — 재작업" : "반려 — 현장 재작업"}</b>
@@ -22005,7 +22058,7 @@ function renderWork(){
       ? html.replace(/<\/div>\s*$/, `<div class="btns sm wkfold" style="padding-top:0"><button onclick="wkFold('${o.id}')">접기 ▴</button></div></div>`) : html;
   };
 
-  const inKind = o => !wkMach || machKind(o.machine||"") === wkMach || (wkMach === "미지정" && !o.machine);
+  const inKind = o => (!wkMach || machKind(o.machine||"") === wkMach || (wkMach === "미지정" && !o.machine)) && inCh(o);
   /* 맨 위 — 검수 수량 다름 (확인할 때까지 깜빡임) */
   const qFlagPanel = () => { if (!qFlags.length || wkMach === "반려") return "";
     return `<div class="mgrp qflag-grp"><div class="mgrp-h" style="color:var(--bad)"><b>⚠ 검수 수량 불일치 — 확인하십시오</b><span class="tag bad">${qFlags.length}건</span>
@@ -22037,7 +22090,7 @@ function renderWork(){
           <div class="meta">⏳ 검수 대기 · 완료 ${dtFull(o.done_at)}${o.done_by?` · ${o.done_by}`:""}${qcFlow(o)==="재검수 대기"?` · <span class="warn">재검수</span>`:""}</div>
         </div>`; }).join("")}</div></div>`;
   /* ★ 2026-11-13 [검수 대기] 칸을 위로 (Lee "대기 열은 위로 올라 왔으면") — 순서: 수량 다름(빨강) → 검수 대기 → 반려 → 기계별 할 일 */
-  $("wkCards").innerHTML = qFlagPanel() + qWaitPanel() + rejPanelF() + (shown.length ? shown.map(g=>{
+  $("wkCards").innerHTML = (wkCh === "코스트코" || (!wkCh && cWaitN) ? costcoStockPanel() : "") + qFlagPanel() + qWaitPanel() + rejPanelF() + (shown.length ? shown.map(g=>{
     const m   = DB.machines.find(x=>x.name===g.name);
     const ea  = g.items.reduce((t,o)=>t+Number(o.qty_plan||0),0);
     const madeEa = g.items.reduce((t,o)=>t+Number(o.qty_done||0),0);
@@ -22064,7 +22117,9 @@ function renderWork(){
       <div class="wcards">${g.items.map(card).join("")}</div>
     </div>`;
   }).join("")
-    : (wkMach === "반려" ? "" : `<div class="wempty">${wkMach
+    : (wkMach === "반려" ? "" : `<div class="wempty">${wkCh
+        ? `${wkCh} 채널${wkMach ? ` · ${wkMach}` : ""}에 예정된 작업이 없습니다<br><span>채널 칸에서 [전체]를 누르면 다른 채널도 표시됩니다</span>`
+        : wkMach
         ? `${wkMach} 에 예정된 작업이 없습니다<br><span>상단 탭에서 [전체]를 누르면 다른 설비도 표시됩니다</span>`
         : `오늘 예정된 작업이 없습니다<br><span>관리자가 작업지시를 발행하면 설비별 카드로 표시됩니다</span>`}</div>`));
 }
