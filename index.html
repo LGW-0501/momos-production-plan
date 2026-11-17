@@ -521,6 +521,8 @@
   .wspec div{display:flex; gap:8px; align-items:baseline; font-size:12px; line-height:1.75;}
   .wspec span{color:var(--soft); font-weight:700; min-width:74px; flex-shrink:0;}
   .wspec b{color:var(--ink); font-weight:800; font-variant-numeric:tabular-nums;}
+  .wc > .wspec{margin-left:18px; margin-right:18px;}                /* 카드 테두리에 글자가 붙던 것 */
+  .wspec span.hint{min-width:0; flex-shrink:1;}                 /* 긴 안내는 줄바꿈 — 카드 밖으로 넘치지 않게 */
   .wspec div.pick{margin-top:6px;}
   .wspec select{width:100%; height:30px; font-size:12px; font-weight:700;}
   .wc,.qcc{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;
@@ -1164,6 +1166,266 @@
     .kpi .sub div{padding:6px 7px;}
   }
 
+  /* ★ 2026-11-17 휴대폰 — 옆이 잘리던 문제 (Lee "모바일로 옆에가 짤려")
+     화면보다 넓은 요소가 하나라도 있으면 휴대폰이 페이지 전체를 축소해 오른쪽에 빈 띠가 생기고 내용이 잘렸다.
+     ① 넓은 요소를 화면 폭에 맞추고 ② 그래도 넓은 표는 그 패널 안에서만 옆으로 밀리게 한다. */
+  @media(max-width:760px){
+    .main{max-width:100%; overflow-x:hidden;}
+    @supports (overflow:clip){ .main{overflow-x:clip; overflow-y:visible;} }
+    .panel{overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch;}
+    body:not(.navopen) .gnb{box-shadow:none;}                   /* 닫힌 메뉴의 그림자가 왼쪽 끝에 비치던 것 */
+    /* 조회 조건 — 폭이 고정된 입력칸도 화면 폭에 맞춘다 */
+    .cond input:not([type=checkbox]):not([type=radio]), .cond select{max-width:100%; min-width:0; box-sizing:border-box;}
+    .cond > input:not([type]), .cond > input[type=search]{height:42px; width:100%; font-size:15px; grid-column:2;}
+    .cond > input[style*="width"]:not([type=checkbox]):not([type=radio]):not([type=number]){width:100% !important;}
+    body .cond:not(:has(> label)) > input:not([type]), body .cond:not(:has(> label)) > input[type=text]{flex:1 1 100%; width:100% !important; height:36px; grid-column:auto;}
+    body .cond:not(:has(> label)) > select{flex:1 1 calc(50% - 6px); width:auto; height:36px; font-size:13px; grid-column:auto;}
+    #fdQ{grid-column:1 / -1;}
+    /* 패널 제목 줄 — 안쪽 묶음도 줄바꿈 */
+    .panel-h{min-width:0;}
+    .panel-h .r{min-width:0; max-width:100%;}
+    .panel-h .r > span{display:flex; flex-wrap:wrap; gap:5px; min-width:0; max-width:100%; margin-right:0 !important;}
+    .panel-h .r > span .btn{flex:1 1 auto;}
+    .panel-h .sortbar{margin-left:0; width:100%; min-width:0;}
+    .sortbar select{flex:1 1 140px; min-width:0; max-width:100%;}
+    .panel-h select, .panel-h input[type=text], .panel-h input[type=date]{max-width:100%; min-width:0;}
+    /* 2단 배치 → 1단, 안쪽 표는 그 칸 안에서 옆으로 */
+    .cols2{grid-template-columns:minmax(0,1fr);}
+    .cols2 > *{min-width:0; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch;}
+    .cols2 > table{display:block;}
+    .xscroll{overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;}
+    /* 문의 등록 */
+    #helpForm{grid-template-columns:minmax(0,1fr) minmax(0,1fr) !important;}
+    #helpForm > label{grid-column:1 / -1;}
+    #helpForm select, #helpForm input{min-width:0; max-width:100%;}
+    #capaForecast label{display:flex; flex-wrap:wrap; align-items:center; gap:6px; max-width:100%;}
+    #capaForecast select{min-width:0; max-width:100%;}
+  }
+  body.mobile:not(.navopen) .gnb{box-shadow:none;}
+  body.mobile table thead th .grip{display:none;}
+  table thead th:last-child .grip{right:0;}                     /* 마지막 열 손잡이가 표 밖으로 3px 나가 페이지 폭을 넓히던 것 */
+  @supports (overflow:clip){ body.mobile .main{overflow-x:clip;} }
+  /* 아이폰 — 날짜칸이 지정한 폭을 무시하고 옆으로 넘치던 것 */
+  @supports (-webkit-touch-callout:none){
+    input[type=date], input[type=time], input[type=month], input[type=datetime-local]{
+      -webkit-appearance:none; appearance:none; min-width:0; max-width:100%; box-sizing:border-box;}
+    input[type=date]::-webkit-date-and-time-value, input[type=time]::-webkit-date-and-time-value,
+    input[type=month]::-webkit-date-and-time-value, input[type=datetime-local]::-webkit-date-and-time-value{text-align:left; min-width:0;}
+  }
+
+  /* ★ 2026-11-17 휴대폰 간편 보기 (Lee "모바일로 봤을때는 너무 복잡 · 한눈에 볼 수 있게") — 화면 폭 760px 이하에서만. PC · 태블릿은 그대로
+     ① 하단 탭 ② 오늘 요약 ③ 현장 작업 카드 요약 행 ④ 숫자 상자 · 도구 버튼 접기 ⑤ 메뉴 2열 */
+  #mNav{display:none;}
+  #menu button.monly{display:none;}
+  .cond .mtool{display:none;}
+  .wkfold{display:none !important;}
+  .hm{display:flex; flex-direction:column; gap:12px; max-width:560px;}
+  .hm-hd{display:flex; align-items:baseline; gap:8px;}
+  .hm-hd b{font-size:19px; font-weight:800; letter-spacing:-.5px;}
+  .hm-hd span{color:var(--soft); font-size:12.5px; font-weight:700;}
+  .hm-prog{background:var(--navy-900); color:#fff; border-radius:14px; padding:16px 18px; border:none; text-align:left; font:inherit; width:100%; cursor:pointer;}
+  .hm-prog .k{font-size:13px; color:var(--blue-300); font-weight:700;}
+  .hm-prog .v{display:flex; align-items:baseline; gap:6px; margin:6px 0 10px;}
+  .hm-prog .v b{font-size:38px; font-weight:800; letter-spacing:-1.5px; line-height:1; font-variant-numeric:tabular-nums;}
+  .hm-prog .v span{color:#AFBBDC; font-weight:700; font-size:14px;}
+  .hm-prog .v em{margin-left:auto; font-style:normal; font-size:22px; font-weight:800;}
+  .hm-prog .pb{height:8px; border-radius:4px; background:rgba(255,255,255,.16); overflow:hidden;}
+  .hm-prog .pb i{display:block; height:100%; background:#6FE0AE; border-radius:4px;}
+  .hm-cnt{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px;}
+  .hm-cnt button{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 2px 10px; font:inherit; text-align:center; cursor:pointer; color:var(--ink); min-width:0;}
+  .hm-cnt b{display:block; font-size:24px; font-weight:800; letter-spacing:-1px; line-height:1.15; font-variant-numeric:tabular-nums;}
+  .hm-cnt span{font-size:11.5px; color:var(--soft); font-weight:700; white-space:nowrap;}
+  .hm-cnt .hot b{color:var(--blue-600);}
+  .hm-cnt .warn b{color:var(--bad);}
+  .hm-sec{font-size:13px; font-weight:800; color:var(--soft); margin:6px 2px -4px;}
+  .hm-list{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .hm-row{display:flex; align-items:center; gap:10px; width:100%; padding:13px 14px; border:none; border-bottom:1px solid var(--line);
+    background:none; font:inherit; text-align:left; cursor:pointer; color:var(--ink);}
+  .hm-row:last-child{border-bottom:none;}
+  .hm-row .d{width:9px; height:9px; border-radius:50%; background:var(--warn,#E08A00); flex:none;}
+  .hm-row.bad .d{background:var(--bad);}
+  .hm-row .t{flex:1; min-width:0; font-weight:700; font-size:14px;}
+  .hm-row .n{font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .hm-row .go{color:var(--soft); font-size:18px; line-height:1;}
+  .hm-row .m{font-size:12px; color:var(--soft); font-weight:800; display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .hm-row .p{font-size:15px; font-weight:800; margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .hm-row .s{font-size:12px; color:var(--soft); font-weight:700; margin-top:2px;}
+  .hm-row .s .bad{color:var(--bad);}
+  .hm-ok{padding:16px; text-align:center; color:var(--ok); font-weight:800; font-size:13.5px;}
+  .hm-none{padding:22px 16px; text-align:center; color:var(--soft); font-weight:700; font-size:13.5px;}
+  @media(max-width:760px){
+    /* ① 하단 탭 — 자주 쓰는 화면 3개 + 요약 + 전체 메뉴 */
+    #mNav{display:flex; position:fixed; left:0; right:0; bottom:0; z-index:43; background:var(--card); border-top:1px solid var(--line);
+      padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -4px 16px rgba(11,20,68,.08);}
+    #mNav button{flex:1 1 0; min-width:0; height:58px; border:none; background:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+      color:var(--soft); font:inherit; font-size:11px; font-weight:700; position:relative; cursor:pointer; touch-action:manipulation; padding:0;}
+    #mNav button .ico{font-size:19px; line-height:1;}
+    #mNav button.on{color:var(--blue-600);}
+    #mNav button.on::before{content:""; position:absolute; top:0; left:24%; right:24%; height:3px; border-radius:0 0 3px 3px; background:var(--blue-600);}
+    #mNav .badge{position:absolute; top:5px; left:calc(50% + 7px); min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--bad); color:#fff;
+      font-size:10.5px; font-weight:800; font-style:normal; display:flex; align-items:center; justify-content:center;}
+    .body{padding-bottom:calc(84px + env(safe-area-inset-bottom));}
+    #toast, body.mobile #toast{bottom:calc(72px + env(safe-area-inset-bottom));}
+    /* ⑤ 메뉴 — 2열 · 묶음 이름 */
+    .gnb, body.mobile .gnb{width:min(88vw,330px);}
+    body .gnb #menu{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:2px 6px; padding:0 10px;}
+    body .gnb #menu button[data-s]{padding:11px 10px; border-radius:9px; gap:9px; min-width:0;}
+    body .gnb #menu button[data-s] .lb{font-size:13.5px; white-space:nowrap;}
+    body .gnb #menu button.monly{display:flex;}
+    body .gnb #menu .grp{grid-column:1 / -1; height:auto; background:none; margin:8px 2px 2px; padding-top:8px; border-top:1px solid var(--line);
+      font-size:11px; font-weight:800; color:var(--soft); letter-spacing:.02em;}
+    body .gnb #menu .grp::before{content:attr(data-t);}
+    body .gnb #menu button[data-s] .badge{top:8px; right:8px;}
+    /* 화면 머리 — 간결하게 */
+    .body > h2.page small{display:none;}
+    #s-work h2.page, #s-work .autoStamp, #s-home h2.page, .screen .body > .guidebtn{display:none;}
+    /* ④-1 도구 버튼 접기 — 버튼이 3개 이상인 조회 줄은 [도구] 로 접어 둔다 */
+    .cond.mfold > .mtool{display:block; height:34px !important; font-size:12.5px !important; color:var(--soft); border-style:dashed; grid-column:1 / -1; flex:1 1 100% !important;}
+    .cond.mfold:not(.open) > .btn:not(.mtool), .cond.mfold:not(.open) > #planMode{display:none !important;}
+    /* ④-2 숫자 상자 — 큰 숫자만, 누르면 세부 */
+    body .kpis{grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; margin-bottom:12px;}
+    body #mtSum.kpis{grid-template-columns:repeat(3,minmax(0,1fr));}
+    body #dashKpi.kpis{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+    body .kpis .kpi{cursor:pointer;}
+    body .kpis .kpi .top{display:block; padding:10px 12px 11px;}
+    body .kpis .kpi .top .k{font-size:12px; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:none;}
+    body .kpis .kpi .top .k::after{content:" ▾"; opacity:.55;}
+    body .kpis .kpi .top .v{font-size:25px; letter-spacing:-1px;}
+    body .kpis .kpi .sub{display:none;}
+    body .kpis .kpi.open{grid-column:1 / -1;}
+    body .kpis .kpi.open .sub{display:flex;}
+    body .kpis .kpi.open .top .k::after{content:" ▴";}
+    #gaugeWrap{grid-template-columns:repeat(3,minmax(0,1fr)) !important; gap:8px !important; margin-bottom:12px !important;}
+    #gaugeWrap .panel-h{padding:9px 8px 0; font-size:11.5px; border-bottom:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;}
+    #gaugeWrap .gauge{padding:2px 6px 10px;}
+    #gaugeWrap .gauge .svgwrap, #gaugeWrap .gauge .de, #gaugeWrap .gauge .chips{display:none;}
+    #gaugeWrap .gauge .big{font-size:24px; letter-spacing:-1px; margin-top:0;}
+    #gaugeWrap .gauge .cap{font-size:11px; margin-top:0;}
+    /* ③ 현장 작업 — 요약 행 */
+    .wcards{grid-template-columns:minmax(0,1fr); gap:10px;}
+    .wc.wcz{padding:11px 13px 8px; cursor:pointer; border-radius:12px;}
+    .wc.wcz .z1{display:flex; align-items:center; gap:7px; min-width:0;}
+    .wc.wcz .zn{flex:none; min-width:24px; height:24px; padding:0 5px; border-radius:7px; background:var(--d-tint,#EEF1F7); color:var(--soft); font-size:12.5px; font-weight:800;
+      display:flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums;}
+    .wc.wcz .z1 .nm{flex:1; min-width:0; font-size:15px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink);}
+    .wc.wcz .z1 .q{font-size:12.5px; color:var(--soft); font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums;}
+    .wc.wcz .z1 .q b{font-size:17px; color:var(--ink); font-weight:800;}
+    .wc.wcz .z2{display:flex; flex-wrap:wrap; gap:1px 12px; margin-top:5px; font-size:12px; color:var(--soft); font-weight:600; line-height:1.55;}
+    .wc.wcz .z2 b{color:var(--ink); font-weight:800;}
+    .wc.wcz .z2 b.bad, .wc.wcz .z2 .bad{color:var(--bad);}
+    .wc.wcz .z3{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
+    .wc.wcz .z3 span{font-size:11.5px; font-weight:800; padding:2px 7px; border-radius:6px; color:var(--warn,#B26A00); border:1px solid currentColor;}
+    .wc.wcz.none{border:2px solid var(--bad);}
+    .wc.wcz.none .z3 span:first-child{background:var(--bad); color:#fff; border-color:var(--bad);}
+    .wc.wcz .z4{margin-top:6px; text-align:center; font-size:11px; color:var(--soft); font-weight:700; opacity:.75;}
+    .wkfold{display:flex !important;}
+    .wc .big b{font-size:36px;}
+    .wc .btns button{height:52px;}
+    .wc.qwait .hd{padding:9px 14px 8px;}
+    .wc.qwait .hd .nm{font-size:15px;}
+    .wc.qwait .big{padding:7px 14px 0; font-size:13px;}
+    .wc.qwait .big b{font-size:22px; letter-spacing:-.5px;}
+    .mgrp-h .r{margin-left:0; width:100%; font-size:11.5px;}
+    .qwait-grp .mgrp-h .r, .qflag-grp .mgrp-h .r{display:none;}
+    /* 현장 작업 조회 줄 — 정렬 버튼 · 새로고침은 [도구] 안으로 (처리해야 하는 파란 버튼은 그대로) */
+    .cond.mfold:not(.open) #wkMachBtn > .btn:not(.primary){display:none;}
+    .wc.wcz .zb{display:flex; align-items:center; gap:10px; margin-top:9px;}
+    .wc.wcz .zb .go{height:40px; padding:0 20px; border-radius:9px; border:none; background:var(--blue-600); color:#fff; font:inherit; font-weight:800; font-size:14px; cursor:pointer; touch-action:manipulation;}
+    .wc.wcz .zb .go:disabled{opacity:.45;}
+    .wc.wcz .zb .z4{margin:0 0 0 auto;}
+    /* 작업지시 목록 — 핵심 열만 (순서 · 품목 · 계획 · 생산 · 상태) */
+    #woTbl.mz th:nth-child(1), #woTbl.mz td:nth-child(1), #woTbl.mz th:nth-child(3), #woTbl.mz td:nth-child(3),
+    #woTbl.mz th:nth-child(5), #woTbl.mz td:nth-child(5), #woTbl.mz th:nth-child(6), #woTbl.mz td:nth-child(6),
+    #woTbl.mz th:nth-child(9), #woTbl.mz td:nth-child(9), #woTbl.mz th:nth-child(10), #woTbl.mz td:nth-child(10),
+    #woTbl.mz th:nth-child(12), #woTbl.mz td:nth-child(12), #woTbl.mz th:nth-child(13), #woTbl.mz td:nth-child(13), #woTbl.mz tfoot{display:none;}
+    #woTbl.mz td:nth-child(4){white-space:normal !important;}
+    #woTbl.mz th, #woTbl.mz td{padding:0 7px;}
+    #woTbl.mz td[colspan]{display:table-cell;}
+    #woTbl.mz td:nth-child(2) input{width:44px !important;}
+    #woTbl.mz td:nth-child(7) input{width:62px;}
+  }
+
+  /* ★ 2026-11-17 메뉴 설정 — 순서 · 숨김 · 하단 탭을 각자 지정 (Lee "본인들이 메뉴를 커스텀") */
+  #menu button.uhide, #menu .grp.uhide{display:none !important;}
+  #menu.custom .grp{display:none !important;}
+  #menuDlg{position:fixed; inset:0; z-index:90; background:rgba(11,20,68,.45); display:flex; align-items:center; justify-content:center; padding:16px;}
+  #menuDlg .mbox{background:var(--card,#fff); color:var(--ink); width:440px; max-width:100%; max-height:min(86vh,760px); border-radius:14px; display:flex; flex-direction:column;
+    overflow:hidden; box-shadow:0 24px 70px rgba(11,20,68,.25);}
+  #menuDlg .mh{display:flex; align-items:center; padding:14px 10px 4px 16px;}
+  #menuDlg .mh b{font-size:16px; font-weight:800; flex:1;}
+  #menuDlg .mh .x{border:none; background:none; font-size:17px; color:var(--soft); cursor:pointer; width:36px; height:36px;}
+  #menuDlg .mt{padding:0 16px 10px; font-size:12px; line-height:1.55;}
+  #menuDlg .ml{overflow-y:auto; border-top:1px solid var(--line); border-bottom:1px solid var(--line); -webkit-overflow-scrolling:touch;}
+  #menuDlg .mr{display:flex; align-items:center; gap:6px; padding:5px 12px 5px 14px; border-bottom:1px solid var(--line);}
+  #menuDlg .mr:last-child{border-bottom:none;}
+  #menuDlg .mr label{flex:1; min-width:0; display:flex; align-items:center; gap:9px; font-weight:700; font-size:14px; cursor:pointer; min-height:38px; margin:0;}
+  #menuDlg .mr label input{width:18px; height:18px; flex:none; margin:0;}
+  #menuDlg .mr .ico{width:18px; text-align:center; opacity:.7; flex:none;}
+  #menuDlg .mr .nm{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  #menuDlg .mr.off .nm, #menuDlg .mr.off .ico{opacity:.38;}
+  #menuDlg .mr button{height:34px; border:1px solid var(--line-2); background:var(--card,#fff); color:var(--soft); border-radius:8px; font:inherit; font-size:12px; font-weight:800; cursor:pointer; flex:none; padding:0;}
+  #menuDlg .mr .tb{min-width:50px; padding:0 8px;}
+  #menuDlg .mr .tb.on{background:var(--blue-600); border-color:var(--blue-600); color:#fff;}
+  #menuDlg .mr .mv{width:36px;}
+  #menuDlg .mr button:disabled{opacity:.3; cursor:default;}
+  #menuDlg .mf{display:flex; gap:8px; padding:12px 16px;}
+  #menuDlg .mf .btn{flex:1; height:40px;}
+  @media(max-width:760px){ #menuDlg{padding:10px;} #menuDlg .mbox{max-height:calc(100dvh - 20px);} }
+
+  /* ★ 2026-11-17 변경 표시 — 다른 사람이 변경한 내용: 메뉴에 파란 숫자 · 화면 위 변경 목록 · 바뀐 줄/카드 빨간 테두리, [확인] 을 누를 때까지 (Lee) */
+  #menu button[data-s] .cbadge{position:absolute; top:6px; left:10px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--blue-600); color:#fff;
+    font-size:10.5px; font-weight:800; line-height:17px; text-align:center;}
+  .chgbar{border:2px solid var(--bad); border-radius:10px; background:var(--bad-soft,#FDECEC); margin:0 0 14px; overflow:hidden;}
+  .chgbar .ch{display:flex; align-items:center; gap:10px; padding:9px 12px; flex-wrap:wrap;}
+  .chgbar .ch b{color:var(--bad); font-size:14px; font-weight:800; white-space:nowrap;}
+  .chgbar .ch span{flex:1; min-width:120px; font-size:12px; color:var(--soft); font-weight:600;}
+  .chgbar .ch .btn{height:34px; padding:0 18px; font-weight:800;}
+  .chgbar .cl{background:var(--card,#fff); border-top:1px solid var(--line);}
+  .chgbar .cl > div{display:flex; gap:8px; align-items:baseline; padding:6px 12px; border-bottom:1px solid var(--line); font-size:12.5px; line-height:1.5;}
+  .chgbar .cl > div:last-child{border-bottom:none;}
+  .chgbar .tm{color:var(--soft); font-variant-numeric:tabular-nums; white-space:nowrap; font-size:11.5px;}
+  .chgbar .who{white-space:nowrap; font-weight:800;}
+  .chgbar .tx{flex:1; min-width:0; overflow-wrap:anywhere;}
+  .chgbar .tx i{font-style:normal; color:var(--soft);}
+  .chgbar .more{display:block; width:100%; border:none; border-top:1px solid var(--line); background:var(--card,#fff); padding:8px; font:inherit; font-size:12px; font-weight:800;
+    color:var(--blue-600); cursor:pointer;}
+  .wc.chg, .qcc.chg, .rc .item.chg{outline:3px solid var(--bad); outline-offset:-1px;}
+  tr.chg > td{background:var(--bad-soft,#FDECEC) !important;}
+  tr.chg > td:first-child{box-shadow:inset 4px 0 0 var(--bad);}
+  @media print{ .chgbar{display:none;} }
+  #woTbl td input.num{min-width:64px;}                          /* 세 자리 수량이 칸에서 잘리던 것 */
+  #woTbl td select{min-width:92px;}
+  @media(max-width:760px){
+    body .gnb #menu button[data-s] .cbadge{top:8px; left:auto; right:34px;}
+    #mNav .cbadge{position:absolute; top:5px; right:calc(50% + 7px); min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--blue-600); color:#fff;
+      font-size:10.5px; font-weight:800; font-style:normal; display:flex; align-items:center; justify-content:center;}
+  }
+
+  /* ★ 2026-11-17 생산분석 — 채널별 출고 */
+  #capaCh .chsum{display:flex; gap:26px; padding:12px 18px; border-bottom:1px solid var(--line); align-items:baseline; flex-wrap:wrap;}
+  #capaCh .chsum b.n{font-size:24px; letter-spacing:-1px; font-variant-numeric:tabular-nums;}
+  #capaCh .chwrap{padding:14px 18px; height:300px;}
+  #capaCh tr.chrow{cursor:pointer;}
+  #capaCh tr.chrow:hover td{background:var(--d-tint,#F7F8FB);}
+  #capaCh .chdot{display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:8px; vertical-align:middle;}
+  #capaCh .chbar{height:16px; border-radius:4px; min-width:3px;}
+  #capaCh tr.chsub > td{padding:0; background:var(--d-tint,#F7F8FB);}
+  #capaCh .chprod{padding:10px 18px 14px 40px;}
+  #capaCh .chprod table{width:auto; min-width:min(720px,100%); background:var(--card,#fff);}
+  #capaCh .chprod .pbar2{height:10px; border-radius:3px; min-width:2px; opacity:.55;}
+  #capaCh tfoot td, #capaYearCh tfoot td{text-align:right; font-variant-numeric:tabular-nums;}
+  #capaCh tfoot td.l{text-align:left;} #capaYearCh tfoot td.c{text-align:center;}
+  #capaCh .chempty{padding:26px 18px; text-align:center; color:var(--soft); font-weight:700; font-size:13.5px;}
+  @media(max-width:760px){ #capaCh .chwrap{height:250px; padding:10px 8px;} #capaCh .chprod{padding:8px 10px 12px 14px;} #capaCh .chsum{gap:14px; padding:10px 12px;}
+    /* 휴대폰 — 막대 · 규격별 열은 숨기고 숫자를 한 화면에 */
+    #capaChTbl > table > thead th:nth-child(2), #capaChTbl > table > tbody > tr.chrow > td:nth-child(2), #capaChTbl > table > tfoot td:nth-child(2),
+    #capaChTbl > table > thead th:nth-child(7), #capaChTbl > table > tbody > tr.chrow > td:nth-child(7), #capaChTbl > table > tfoot td:nth-child(7),
+    #capaCh .chprod th:nth-child(2), #capaCh .chprod td:nth-child(2){display:none;}
+    #capaChTbl th, #capaChTbl td{padding:0 7px;}
+    #capaChTbl > table > thead th:first-child{width:auto !important;}
+    #capaCh .chprod table{min-width:0; width:100%;}
+    #capaCh .chprod td.l{white-space:normal !important;} }
+
 /* v60 개인계정 로그인 */
 #personalLoginGate{position:fixed;inset:0;z-index:2147483647;background:var(--bg,#F2F3F7);display:flex;
  align-items:center;justify-content:center;padding:20px}
@@ -1245,18 +1507,20 @@
 
 <div class="navScrim" onclick="closeNav()"></div>
 
+<nav id="mNav" class="noprint"></nav>
 <div class="shell">
 <div class="gnb">
   <div class="menu" id="favList" style="display:none"></div>
   <nav class="menu" id="menu">
+    <button data-s="home" data-r="admin,lead,floor,qc" class="monly"><span class="ico">⌂</span><span class="lb">오늘 요약</span></button>
     <button data-s="dash" data-r="admin" class="on"><span class="ico">▦</span><span class="lb">대시보드</span></button>
-    <div class="grp" data-r="admin"></div>
+    <div class="grp" data-r="admin" data-t="현장"></div>
     <button data-s="work" data-r="admin,floor"><span class="ico">▶</span><span class="lb">현장 작업</span></button>
     <button data-s="qc" data-r="admin,qc"><span class="ico">☑</span><span class="lb">검수</span></button>
     <button data-s="ship" data-r="admin,qc"><span class="ico">▷</span><span class="lb">출고</span></button>
     <button data-s="count" data-r="admin,lead,floor,qc"><span class="ico">⊞</span><span class="lb">재고 실사</span></button>
     <button data-s="close" data-r="admin,lead,floor,qc"><span class="ico">☾</span><span class="lb">마감</span></button>
-    <div class="grp" data-r="admin,qc,floor"></div>
+    <div class="grp" data-r="admin,qc,floor" data-t="생산 관리"></div>
     <button data-s="plan" data-r="admin"><span class="ico">▤</span><span class="lb">생산계획</span></button>
     <button data-s="order" data-r="admin"><span class="ico">≡</span><span class="lb">작업지시</span></button>
     <button data-s="log" data-r="admin"><span class="ico">✓</span><span class="lb">생산실적</span></button>
@@ -1264,23 +1528,24 @@
     <button data-s="mt" data-r="admin,lead,floor"><span class="ico">▥</span><span class="lb">라벨작업</span></button>
     <button data-s="rw" data-r="admin"><span class="ico">⟳</span><span class="lb">재작업</span></button>
     <button data-s="pqc" data-r="admin,qc,floor"><span class="ico">◉</span><span class="lb">품질관리</span></button>
-    <div class="grp" data-r="admin"></div>
+    <div class="grp" data-r="admin" data-t="재고 · 이력"></div>
     <button data-s="roast" data-r="admin"><span class="ico">◐</span><span class="lb">로스팅</span></button>
     <button data-s="req" data-r="admin"><span class="ico">✉</span><span class="lb">요청서</span></button>
     <button data-s="stock" data-r="admin"><span class="ico">▣</span><span class="lb">재고 현황</span></button>
     <button data-s="trace" data-r="admin,qc"><span class="ico">⌕</span><span class="lb">이력추적</span></button>
     <button data-s="find" data-r="admin,lead,qc"><span class="ico">☰</span><span class="lb">통합 조회</span></button>
-    <div class="grp" data-r="admin"></div>
+    <div class="grp" data-r="admin" data-t="분석 · 기준"></div>
     <button data-s="loss" data-r="admin"><span class="ico">▽</span><span class="lb">로스관리</span></button>
     <button data-s="capa" data-r="admin,lead"><span class="ico">◔</span><span class="lb">생산분석</span></button>
     <button data-s="cal" data-r="admin"><span class="ico">▩</span><span class="lb">캘린더</span></button>
     <button data-s="base" data-r="admin"><span class="ico">◇</span><span class="lb">기준정보</span></button>
-    <div class="grp" data-r="admin,qc,floor,lead"></div>
+    <div class="grp" data-r="admin,qc,floor,lead" data-t="기타"></div>
     <button data-s="help" data-r="admin,lead,floor,qc"><span class="ico">✎</span><span class="lb">문의</span></button>
     <button data-s="approve" data-r="admin,lead,floor,qc"><span class="ico">☑</span><span class="lb">결재</span></button>
   </nav>
   <div class="menu gnbOut" id="gnbTools">
     <button onclick="reloadDB();closeNav()"><span class="ico">↻</span><span class="lb">새로고침</span></button>
+    <button onclick="openMenuCfg()"><span class="ico">⚙</span><span class="lb">메뉴 설정</span></button>
     <button onclick="toggleGuide()" id="gnbGuide"><span class="ico">?</span><span class="lb">도움말 보기</span></button>
     <button onclick="toggleMobile()" id="gnbMob"><span class="ico">🖥</span><span class="lb">PC 보기</span></button>
     <button onclick="openManual()"><span class="ico">📖</span><span class="lb">사용 설명서</span></button>
@@ -1357,6 +1622,11 @@
 </section>
 
 <!-- ══════ 현장 작업 ══════ -->
+<!-- ══════ 오늘 요약 (휴대폰 첫 화면) ══════ -->
+<section class="screen" id="s-home">
+  <div class="body"><div id="homeBox" class="hm"></div></div>
+</section>
+
 <section class="screen" id="s-work">
   <div class="cond">
     <label>작업일</label><input type="date" id="wkDate" onchange="renderWork()">
@@ -1515,7 +1785,7 @@
 <section class="screen" id="s-trace">
   <div class="cond">
     <label>품목</label><select id="trProd" onchange="renderTrace()" style="min-width:220px"><option value="">(전체)</option></select>
-    <label>검색</label><input id="trQ" placeholder="일련번호 · 봉투/부자재 LOT · 지시번호 · 배치번호(2801 / 26102801 / 2026-10-28)" style="width:360px" oninput="renderTrace()">
+    <label>검색</label><input type="text" id="trQ" placeholder="일련번호 · 봉투/부자재 LOT · 지시번호 · 배치번호(2801 / 26102801 / 2026-10-28)" style="width:360px" oninput="renderTrace()">
     <button class="btn primary" onclick="renderTrace()">조회</button>
   </div>
   <div class="body">
@@ -1568,6 +1838,8 @@
     <h2 class="page">생산분석 — 생산시간 · CAPA · 회고<small id="asof-capa"></small></h2>
     <div class="guide"><b>현장에서 [생산 시작] ~ [생산 완료] 를 누른 시각을 기준으로 산출합니다.</b> 실제 생산시간 = 경과시간 − 중단시간(일시정지) · 시간당 CAPA = 생산수량(중량) ÷ 실제 생산시간 · 중량(규격)별로 구분하여 산출합니다 · 참여 작업자가 [참여]를 누르면 인시(인원×시간)가 별도로 집계됩니다 (누르지 않으면 시작한 작업자 1명으로 산정) · 수치는 생산실적(검수·출고 전 포함) 기준입니다.</div>
     <div class="cards" id="capaCards"></div>
+    <div class="panel" id="capaChPanel"><div class="panel-h">채널별 출고 <span class="r hint" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span id="capaChInfo"></span><button class="btn" onclick="csvCapaCh()">엑셀 다운로드</button></span></div>
+      <div id="capaCh"></div></div>
     <div class="cols2">
       <div class="panel"><div class="panel-h">중량(규격)별 CAPA</div><div class="panel-b"><table id="capaSpec"></table></div></div>
       <div class="panel"><div class="panel-h">설비별 CAPA <span class="r hint">설비 × 규격</span></div><div class="panel-b"><table id="capaMach"></table></div></div>
@@ -1584,6 +1856,8 @@
       <div id="capaRetro" style="padding:10px 18px"></div></div>
     <div class="panel"><div class="panel-h">연간 — 월별 비교 <span style="margin-left:14px"><input type="number" id="capaYear" style="width:80px" onchange="renderCapa()"> 년</span></div>
       <div class="panel-b"><table id="capaYearTbl"></table></div></div>
+    <div class="panel"><div class="panel-h">연간 — 월별 채널 출고 <span class="r hint">[출고 완료] 기준 · EA · 위 연도와 같이 바뀝니다</span></div>
+      <div class="panel-b"><table id="capaYearCh"></table></div></div>
     <div class="panel"><div class="panel-h">예상 생산시간 · 필요 인원 <span class="r hint">최근 90일 CAPA 기준 산출</span></div>
       <div id="capaForecast" style="padding:10px 18px"></div></div>
   </div>
@@ -7273,6 +7547,12 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-17", "생산분석 — 채널별 출고 (회고 자료)", "생산분석 화면 위쪽에 [채널별 출고]를 추가했습니다. 출고 화면에서 [출고 완료] 한 수량을 출고처(일반 · 컬리 · 코스트코 · 네이버 · 라이브 · 온라인 외 · 부산점 · 직납 등)별로 집계하며, 새로 입력하는 것은 없습니다. ■ 한눈에 — 일자별 출고 추이(채널을 쌓은 막대, 기간이 길면 월별) ■ 채널별 — 막대 + 수량(EA) · 중량(kg) · 비중 · 전 기간 대비 ▲▼ · 규격별 수량. 채널 행을 누르면 품목별 내역이 펼쳐집니다 ■ 화면 위 기간 선택(일간 · 주간 · 월간 · 연간 · 직접 지정)을 그대로 따릅니다 ■ [엑셀 다운로드] ■ 월간 회고에 채널 출고(이 달 ↔ 전월), 연간에 월별 채널 출고 표를 추가했습니다."],
+  ["2026-11-17", "오류 수정 — 작업지시 목록에서 수정한 값이 저장되지 않던 문제", "작업지시 목록 표에서 순서 · 출고처 · 설비 · 계획 수량을 변경하면 화면에서만 바뀌고 서버에 저장되지 않아, 새로고침하면 원래 값으로 돌아가던 문제를 수정했습니다. 이제 값을 변경하는 즉시 저장되며, 저장에 실패하면 원래 값으로 복원하고 사유를 안내합니다. 품목은 지시 생성 후 변경할 수 없으므로 선택칸 대신 품목명으로 표시합니다 (변경이 필요하면 삭제 후 다시 추가). 수정 내용은 변경이력에 기록됩니다 (작업지시 수정 · 작업지시 순서 변경) — 000_install_all.sql 재실행 필요."],
+  ["2026-11-17", "변경 표시 — 다른 사람이 변경한 내용을 메뉴 숫자와 빨간 테두리로", "현장 작업 · 작업지시 · 생산계획 · 라벨작업 · 검수 · 출고 화면에 적용했습니다. ■ 다른 사람이 변경한 내용이 있으면 메뉴에 파란 숫자가 표시됩니다 (빨간 숫자는 기존대로 처리할 건수) ■ 화면에 들어가면 위쪽에 변경 목록(누가 · 언제 · 무엇을)이 표시되고, 해당 지시의 줄 · 카드는 빨간 테두리로 표시됩니다 ■ [확인]을 눌러야 사라집니다 — 화면에 들어가기만 해서는 유지됩니다 ■ 본인이 변경한 내용은 세지 않습니다 ■ 확인 시각은 이 기기의 내 계정에만 저장되며, 처음 사용할 때는 그 시점까지의 이력을 확인한 것으로 봅니다."],
+  ["2026-11-17", "메뉴 설정 — 순서 · 숨김 · 하단 탭을 각자 지정", "오른쪽 위 계정 메뉴(또는 휴대폰 ☰ 메뉴 아래)의 [메뉴 설정]에서 ■ 메뉴 순서를 ▲▼ 로 변경 ■ 사용하지 않는 메뉴를 체크 해제하여 숨김 ■ 휴대폰 하단 탭에 표시할 화면을 최대 3개 지정할 수 있습니다. PC 왼쪽 메뉴와 휴대폰 메뉴에 함께 적용됩니다. 설정은 이 기기의 내 계정에만 저장되며(다른 기기 · 다른 계정에는 영향 없음), 메뉴를 숨겨도 권한은 변경되지 않습니다. [기본값으로]를 누르면 처음 상태로 복원됩니다."],
+  ["2026-11-17", "휴대폰 간편 보기 — 한눈에 보이게", "휴대폰(화면 폭 760px 이하)에서만 적용됩니다 — PC · 태블릿 화면은 그대로입니다. ■ 하단 탭 — 요약 · 자주 쓰는 화면 3개 · 전체 메뉴(☰). 계정 권한에 맞는 화면이 표시됩니다 ■ 오늘 요약(첫 화면) — 오늘 생산 진행률, 대기 · 생산중 · 검수 대기 · 완료 건수, 확인 필요 항목(원두 없음 · 라벨 부족 등), 설비별 지금/다음 작업. 누르면 해당 화면으로 이동합니다 ■ 현장 작업 — 지금 할 카드(생산중 · 설비별 다음 작업 · 반려품)만 전체로 표시하고, 나머지 대기 건은 요약 행으로 표시합니다. 요약 행에도 배치 · 배치 중량 · 컬러 · 제조일자는 남기며, 누르면 전체 카드(한글표시사항 전체 포함)가 펼쳐집니다 ■ 라벨작업 — 대기 건은 요약 행 + [작업 시작], 누르면 전체 카드 ■ 숫자 상자는 큰 숫자만, 누르면 세부 ■ 버튼이 많은 조회 줄은 [도구] 로 접힘 ■ 메뉴는 2열 · 묶음 이름 표시 ■ 작업지시 목록은 핵심 열(순서 · 품목 · 계획 · 생산 · 상태)만, [전체 열 보기]로 전환."],
+  ["2026-11-17", "휴대폰 — 화면 옆 잘림 수정", "휴대폰에서 화면보다 넓은 요소가 있으면 페이지 전체가 축소되어 오른쪽에 빈 띠가 생기고 내용이 잘리던 문제를 수정했습니다. ■ 화면 폭에 맞춤 — 이력추적 · 통합 조회 검색칸, 라벨작업 지시 단위, 기준정보 원두 탭(사용중/종료/전체), 로스관리 · 생산분석 표, 문의 등록, 표 열 너비 손잡이 ■ 넓은 표는 해당 패널 안에서만 좌우로 이동 ■ 아이폰 일자 입력칸이 칸 밖으로 넘치던 것, 입력칸을 누르면 화면이 확대된 채 남던 것 방지 ■ 닫힌 메뉴의 그림자가 왼쪽 끝에 비치던 것 제거 ■ 현장 작업 카드의 상세 행이 카드 테두리에 붙던 것, 긴 안내가 카드 밖으로 넘치던 것 수정."],
   ["2026-11-16", "오류 수정 10건 (전체 점검 결과)", "① 결재 › 시점 복원 — 복원 시 작업지시·생산실적의 품목 연결이 끊기고 제품별 BOM이 삭제되던 오류 수정 (서버) · BOM도 저장 대상에 포함 ② 부자재 차감 — 차감 시점이 비어 있는 봉투·풀패키지도 생산 완료 시 자동 차감되고, 라벨작업 [작업 완료]가 정상 처리됩니다 (서버) · 장부 재고가 부족해도 생산 완료는 막지 않고 음수로 기록합니다 ③ 잔량 이월도 수불에 기록 — 재고 대조 차이 해소 (서버) ④ 입고 전 배치가 지정된 지시는 동일 원두 배치 기준으로만 계산 ⑤ 현장 작업자 기본 권한을 서버와 동일하게 — 작업지시·생산실적 수정 가능 (기준정보 › 권한설정에서 변경 가능) ⑥ 품목 연결이 없는 지시가 있어도 현장 작업 화면이 표시됩니다 ⑦ 순서 변경·설비 이동 즉시 반영 ⑧ 동일 설정 연속 저장 시 순서 보장 ⑨ 검수 계정의 라벨작업 동기화 호출 제거 ⑩ 로그인 전 서버 확인 호출 제거. 서버 안내 문구도 표준 용어로 정비했습니다 — 000_install_all.sql 을 다시 실행해야 ①②③과 서버 문구가 적용됩니다."],
   ["2026-11-16", "용어 · 안내 문구 정비 (ERP/MES 표준 용어)", "화면 명칭 · 버튼 · 안내 · 확인 메시지를 업무용 표준 용어로 정비했습니다 (기능과 데이터는 동일). ■ 메뉴 — 재고확인 → 재고 현황 · 조회 → 통합 조회 · 재고 세기 → 재고 실사 · 설명 → 도움말 ■ 공통 — 기계 → 설비 · 생산자 → 작업자 · 정상품 → 양품 · 받기/받음 → 입고 · 바로잡기 → 정정 · 되돌리기 → 복원/취소 · 지우기 → 삭제 · 고치기 → 수정 · 만들기 → 생성 · 맞추기 → 조정/적용 · 합치기 → 병합 · 나누기 → 분할 · 옮기기 → 이동 · 모자람 → 부족 · 남은 → 잔여 · 줄 → 행 ■ 현장 작업 — 잠깐 멈춤 → 일시정지 · 다시 시작 → 작업 재개 · 대기로 되돌리기 → 대기 전환 · 돌아온 제품 → 반려품 · 다시 검수로 → 재검수 요청 · 처음부터 다시 생산 → 전량 재생산 · 상자 번호 → 일련번호 · 버린 봉투 → 폐기 봉투 · 만들 수 있는 수량 → 생산 가능 수량 ■ 기준정보 · 계획 — 원두별 세팅 → 원두별 설정 · 기계 배분 → 설비 배정 · 자동배분 → 자동 배정 ■ 결재 — 시점 되돌리기 → 시점 복원 (확인 입력어도 '복원'으로 변경). 이미 저장된 기록의 사유 · 메모는 입력 당시 표현 그대로 표시됩니다."],
   ["2026-11-16", "봉투 로스 · 원두별 세팅 · 준비 상태 우선순위", "① 생산 완료 창에 [버린 봉투] 칸 — 봉투만 버린 수만큼 봉투 재고에서 더 뺍니다. 봉투 로스율(%)을 넣으면 카드에 필요 봉투 수가 로스 포함으로 나옵니다. ② 기준정보 › [원두별 세팅] — 한글표시사항 · 라벨/봉투 · 원두 로스율 · 봉투 로스율 · 설비 세팅값을 원두 한 줄에서, 빠진 것만 모아 보기. ③ [자동 정렬] — 준비된 것(원두·라벨·봉투) → 채널 순서 → 규격순. 카드에 원두 없음 · 라벨/봉투 모자람 표시. ④ 원두가 없는 지시는 생산 시작이 안 됩니다."],
@@ -7609,6 +7889,7 @@ function openAcct(){
       <button class="it" onclick="closeAcct();reloadDB()"><span class="ico">↻</span>데이터 새로고침</button>
       <button class="it" onclick="closeAcct();toggleGuide()"><span class="ico">?</span>${guideOn ? "도움말 접기" : "도움말 보기"}</button>
       <button class="it" onclick="closeAcct();toggleMobile()"><span class="ico">${mobile ? "🖥" : "📱"}</span>${mobile ? "PC 보기" : "모바일 보기"}</button>
+      <button class="it" onclick="openMenuCfg()"><span class="ico">☰</span>메뉴 설정 (순서 · 숨김 · 하단 탭)</button>
       <button class="it" onclick="closeAcct();toggleFav()"><span class="ico">★</span>${isFav(curCtx().k) ? "현재 화면 즐겨찾기 해제" : "이 화면 즐겨찾기"}</button>
       <button class="it" onclick="setNotifSound(${notifSound()?"false":"true"})"><span class="ico">🔔</span>알림 소리 ${notifSound() ? "끄기" : "켜기"}</button>
     </div>
@@ -7653,6 +7934,274 @@ document.addEventListener("DOMContentLoaded", ()=>applyTheme(false));
 function setFontScale(p){ try { localStorage.setItem("momos.fontScale", String(p)); } catch(_){} applyFontScale(); openAcct(); toast(`글자 크기 ${p===100?"기본":p+"%"}`); }
 applyFontScale();
 checkChangelog();
+/* ══════════════════════════════════════════════════════════════
+   ★ 2026-11-17 휴대폰 간편 보기 — 하단 탭 · 오늘 요약 · 접기 (화면 폭 760px 이하에서만 동작)
+   ══════════════════════════════════════════════════════════════ */
+const PHONE_MQ = (()=>{ try { return window.matchMedia("(max-width:760px)"); } catch(_){ return null; } })();
+const isPhone = () => !!(PHONE_MQ && PHONE_MQ.matches);
+const WK_OPEN = new Set();                 // 휴대폰에서 눌러서 펼친 작업 카드
+function wkOpen(id){ WK_OPEN.add(id); renderWork(); applyRoleLock();
+  const c = document.querySelector(`#s-work .wc[data-oid="${id}"]`); if (c) { const y = c.getBoundingClientRect().top + window.scrollY - 70; window.scrollTo({ top:y }); } }
+function wkFold(id){ WK_OPEN.delete(id); renderWork(); applyRoleLock(); }
+const MT_OPEN = new Set();                 // 휴대폰에서 눌러서 펼친 라벨작업 카드
+function mtOpen(id){ MT_OPEN.add(id); renderMt(); applyRoleLock(); }
+function mtFold(id){ MT_OPEN.delete(id); renderMt(); applyRoleLock(); }
+let WO_FULL = false;                       // 휴대폰 작업지시 목록 — 전체 열 보기
+function woFullToggle(){ WO_FULL = !WO_FULL; renderOrder(); applyRoleLock(); }
+/* ══════════════════════════════════════════════════════════════
+   ★ 2026-11-17 메뉴 설정 — 순서 · 숨김 · 휴대폰 하단 탭을 각자 지정 (Lee "본인들이 메뉴를 커스텀")
+   이 기기의 로그인 계정별로 저장한다 (localStorage) · PC 왼쪽 메뉴와 휴대폰 메뉴에 같이 적용 · 숨겨도 권한은 그대로
+   ══════════════════════════════════════════════════════════════ */
+const MENU_DEFAULT = [...document.querySelectorAll("#menu > *")];
+const menuPrefKey = () => "momos.menu." + ((LOGIN_USER && (LOGIN_USER.login_id || LOGIN_USER.id)) || "device");
+function menuPref(){
+  try { const v = JSON.parse(localStorage.getItem(menuPrefKey()) || "null");
+    if (v && typeof v === "object") return { order:Array.isArray(v.order) ? v.order : [], hide:Array.isArray(v.hide) ? v.hide : [], tabs:Array.isArray(v.tabs) ? v.tabs : null }; } catch(_){}
+  return { order:[], hide:[], tabs:null };
+}
+const menuTabsOf = p => (p.tabs != null ? p.tabs : (MNAV_PREF[ROLE] || MNAV_PREF.admin));
+function saveMenuPref(p){
+  try { if (!p) localStorage.removeItem(menuPrefKey()); else localStorage.setItem(menuPrefKey(), JSON.stringify(p)); } catch(_){}
+  applyRoleLock(); if ($("menuDlg")) renderMenuCfg();
+}
+function applyMenuPref(){
+  const menu = $("menu"); if (!menu) return;
+  const p = menuPref(), btns = MENU_DEFAULT.filter(el=>el.tagName === "BUTTON" && el.dataset.s);
+  const sig = menuPrefKey() + "|" + p.order.join(",");
+  if (menu.dataset.sig !== sig) {
+    menu.dataset.sig = sig;
+    if (p.order.length) { const by = {}; btns.forEach(b=>{ by[b.dataset.s] = b; });
+      const seq = ["home", ...p.order.filter(s=>by[s] && s !== "home"), ...btns.map(b=>b.dataset.s).filter(s=>s !== "home" && !p.order.includes(s))];
+      seq.forEach(s=>{ if (by[s]) menu.appendChild(by[s]); }); menu.classList.add("custom"); }
+    else { MENU_DEFAULT.forEach(el=>menu.appendChild(el)); menu.classList.remove("custom"); }
+  }
+  const hide = new Set(p.hide);
+  btns.forEach(b=>b.classList.toggle("uhide", hide.has(b.dataset.s)));
+  /* 묶음 구분선 — 그 묶음의 메뉴가 하나도 안 보이면 구분선도 감춘다 */
+  let grp = null, any = false;
+  [...menu.children].forEach(el=>{
+    if (el.classList.contains("grp")) { if (grp) grp.classList.toggle("uhide", !any); grp = el; any = false; }
+    else if (el.dataset && el.dataset.s && el.style.display !== "none" && !el.classList.contains("uhide") && !el.classList.contains("monly")) any = true; });
+  if (grp) grp.classList.toggle("uhide", !any);
+}
+/* 설정 창 — 내 권한으로 보이는 메뉴를 지금 순서대로 (오늘 요약은 항상 맨 앞) */
+function menuCfgList(){
+  return [...document.querySelectorAll("#menu button[data-s]")].filter(b=>b.dataset.s !== "home" && b.style.display !== "none")
+    .map(b=>({ s:b.dataset.s, n:b.querySelector(".lb")?.textContent.trim().replace(/\s*\(.*$/, "") || b.dataset.s, ico:b.querySelector(".ico")?.textContent || "" }));
+}
+function openMenuCfg(){
+  try { closeAcct(); closeNav(); } catch(_){}
+  let d = $("menuDlg");
+  if (!d) { d = document.createElement("div"); d.id = "menuDlg"; d.addEventListener("click", e=>{ if (e.target === d) closeMenuCfg(); }); document.body.appendChild(d); }
+  renderMenuCfg();
+}
+function closeMenuCfg(){ const d = $("menuDlg"); if (d) d.remove(); }
+function renderMenuCfg(){
+  const d = $("menuDlg"); if (!d) return;
+  const p = menuPref(), list = menuCfgList();
+  const tabs = menuTabsOf(p).filter(s=>list.some(x=>x.s===s) && !p.hide.includes(s)).slice(0,3);
+  const sc = d.querySelector(".ml")?.scrollTop || 0;
+  d.innerHTML = `<div class="mbox">
+    <div class="mh"><b>메뉴 설정</b><button class="x" onclick="closeMenuCfg()" title="닫기">✕</button></div>
+    <div class="mt hint">체크를 해제하면 메뉴에서 숨겨지고, ▲▼ 로 순서를 변경합니다. <b>[탭]</b>은 휴대폰 하단 탭에 표시할 화면입니다 (최대 3개).<br>이 기기의 내 계정에만 저장되며, 숨겨도 권한은 그대로입니다.</div>
+    <div class="ml">${list.map((x,i)=>{ const hid = p.hide.includes(x.s), ti = tabs.indexOf(x.s);
+      return `<div class="mr ${hid?"off":""}">
+        <label><input type="checkbox" ${hid?"":"checked"} onchange="menuCfgToggle('${x.s}')"><span class="ico">${x.ico}</span><span class="nm">${x.n}</span></label>
+        <button class="tb ${ti>=0?"on":""}" ${hid?"disabled":""} onclick="menuCfgTab('${x.s}')" title="휴대폰 하단 탭에 표시">${ti>=0?`탭 ${ti+1}`:"탭"}</button>
+        <button class="mv" ${i===0?"disabled":""} onclick="menuCfgMove('${x.s}',-1)" title="위로">▲</button>
+        <button class="mv" ${i===list.length-1?"disabled":""} onclick="menuCfgMove('${x.s}',1)" title="아래로">▼</button>
+      </div>`; }).join("")}</div>
+    <div class="mf"><button class="btn" onclick="menuCfgReset()">기본값으로</button><button class="btn primary" onclick="closeMenuCfg()">완료</button></div></div>`;
+  const ml = d.querySelector(".ml"); if (ml) ml.scrollTop = sc;
+}
+function menuCfgToggle(s){
+  const p = menuPref(), list = menuCfgList(), i = p.hide.indexOf(s);
+  if (i >= 0) p.hide.splice(i, 1);
+  else { if (list.filter(x=>!p.hide.includes(x.s)).length <= 1) { toast("메뉴는 1개 이상 표시해야 합니다"); return renderMenuCfg(); }
+    p.tabs = menuTabsOf(p).filter(x=>x !== s); p.hide.push(s); }
+  saveMenuPref(p);
+}
+function menuCfgTab(s){
+  const p = menuPref(), list = menuCfgList();
+  let tabs = menuTabsOf(p).filter(x=>list.some(y=>y.s===x) && !p.hide.includes(x)).slice(0,3);
+  if (tabs.includes(s)) tabs = tabs.filter(x=>x !== s);
+  else { if (tabs.length >= 3) return toast("하단 탭은 3개까지 지정할 수 있습니다 — 다른 탭을 먼저 해제하십시오"); tabs.push(s); }
+  p.tabs = tabs; saveMenuPref(p);
+}
+function menuCfgMove(s, dir){
+  const p = menuPref(), order = menuCfgList().map(x=>x.s), i = order.indexOf(s), j = i + dir;
+  if (i < 0 || j < 0 || j >= order.length) return;
+  [order[i], order[j]] = [order[j], order[i]];
+  /* 내 권한으로 안 보이는 메뉴는 기존 자리 뒤에 그대로 둔다 */
+  p.order = order; saveMenuPref(p);
+}
+function menuCfgReset(){ saveMenuPref(null); toast("메뉴를 기본값으로 복원했습니다"); }
+document.addEventListener("keydown", e=>{ if (e.key === "Escape") closeMenuCfg(); });
+
+/* ══════════════════════════════════════════════════════════════
+   ★ 2026-11-17 변경 표시 (Lee "변경 이력이 있으면 검수처럼 모든 메뉴에 숫자 · 들어가면 빨갛게 · 확인할 때까지")
+   · 근거 = 변경이력(DB.audit) 중 내가 마지막으로 [확인] 한 뒤에 "다른 사람"이 남긴 것
+   · 메뉴에 파란 숫자(빨간 숫자 = 해야 할 일과 구분) · 화면 위에 누가·언제·무엇을 · 해당 줄/카드는 빨간 테두리
+   · [확인] 을 눌러야 사라진다 · 확인 시각은 이 기기의 내 계정에만 저장 · 주요 화면 6개부터 (현장 작업 · 작업지시 · 생산계획 · 라벨작업 · 검수 · 출고)
+   ══════════════════════════════════════════════════════════════ */
+const CHG_SCREENS = {
+  work:  { ord:true, re:/^(작업지시|작업 시작|작업 중단|생산 완료|부적합|재작업|조치 후 재검수|검수 수량|검수 반려|출고 반려)/ },
+  order: { ord:true, re:/^(작업지시|작업 시작|작업 중단|생산 완료|부적합 등록|검수 완료|출고 완료)/ },
+  qc:    { re:/검수|^생산 완료|^출고 반려/ },
+  ship:  { re:/출고|^검수 완료/ },
+  plan:  { re:/집계|계획|자동 ?배정|출고지시|여유분|안전재고|^작업지시 생성/ },
+  mt:    { re:/부자재 작업|라벨작업|라벨 자동생성|라벨 변경/ },
+};
+const CHG_MORE = new Set(), CHG_TC = new WeakMap();
+const chgKey = () => "momos.chgack." + ((LOGIN_USER && (LOGIN_USER.login_id || LOGIN_USER.id)) || "device");
+function chgAckMap(){ try { return JSON.parse(localStorage.getItem(chgKey()) || "{}") || {}; } catch(_){ return {}; } }
+function chgAckSave(m){ try { localStorage.setItem(chgKey(), JSON.stringify(m)); } catch(_){} }
+const chgT = a => { let t = CHG_TC.get(a); if (t === undefined) { t = Date.parse(a.at); if (isNaN(t)) t = 0; CHG_TC.set(a, t); } return t; };
+const chgMine = a => (!!a.user_id && !!LOGIN_USER && a.user_id === LOGIN_USER.id && !(typeof isSharedLogin === "function" && isSharedLogin())) || (!!a.user && a.user === me());
+const chgEsc = v => String(v ?? "").replace(/[<>&"]/g, c=>({ "<":"&lt;", ">":"&gt;", "&":"&amp;", '"':"&quot;" }[c]));
+function chgEntries(sc, byNo){
+  const cfg = CHG_SCREENS[sc]; if (!cfg) return [];
+  const ack = chgAckMap();
+  if (ack[sc] == null) {                   // 처음 쓰는 기기 · 계정 — 지금까지의 이력은 확인한 것으로 본다
+    ack[sc] = DB.audit.reduce((m,a)=>Math.max(m, chgT(a)), 0) || Date.now(); chgAckSave(ack); return []; }
+  const t0 = Number(ack[sc]) || 0;
+  return DB.audit.filter(a=>chgT(a) > t0 && !chgMine(a) && (cfg.re.test(String(a.action||"")) || (cfg.ord && byNo.has(a.target))))
+    .sort((a,b)=>chgT(b) - chgT(a));
+}
+function chgApply(){
+  if (sb && !LOGIN_USER) return;           // 로그인 전에는 계산하지 않는다
+  const byNo = new Map(); DB.orders.forEach(o=>{ if (o.order_no) byNo.set(o.order_no, o); });
+  Object.keys(CHG_SCREENS).forEach(sc=>{
+    const es = chgEntries(sc, byNo), n = es.length, mb = menuBtn(sc);
+    if (mb) { let el = mb.querySelector(".cbadge");
+      if (!n) { if (el) el.remove(); }
+      else { if (!el) { el = document.createElement("span"); el.className = "cbadge"; mb.appendChild(el); }
+        el.textContent = n > 99 ? "99+" : String(n); el.title = `다른 사람이 변경한 내용 ${n}건 — 화면에서 [확인]을 누르면 사라집니다`; } }
+    const sec = $("s-" + sc), body = sec && sec.querySelector(".body"); if (!body) return;
+    sec.querySelectorAll(".chg").forEach(e=>e.classList.remove("chg"));
+    let bar = [...body.children].find(e=>e.classList.contains("chgbar"));
+    if (!n) { if (bar) bar.remove(); return; }
+    const ids = new Set(es.map(a=>byNo.get(a.target)?.id).filter(Boolean));
+    if (ids.size) sec.querySelectorAll("[data-co],[data-oid]").forEach(e=>{ if (ids.has(e.dataset.co || e.dataset.oid)) e.classList.add("chg"); });
+    if (sc === "mt") { const txt = es.map(a=>`${a.target||""} ${a.detail||""}`);
+      sec.querySelectorAll("[data-cn]").forEach(e=>{ const nm = e.dataset.cn; if (nm && txt.some(t=>t.includes(nm))) e.classList.add("chg"); }); }
+    if (!bar) { bar = document.createElement("div"); bar.className = "chgbar";
+      const h2 = [...body.children].find(e=>e.matches("h2.page")); if (h2) h2.insertAdjacentElement("afterend", bar); else body.prepend(bar); }
+    const all = CHG_MORE.has(sc), show = all ? es.slice(0, 100) : es.slice(0, 4);
+    const html = `<div class="ch"><b>변경 ${fmt(n)}건</b><span>다른 사람이 변경한 내용입니다 — 내용을 확인한 후 [확인]을 누르십시오${ids.size ? " (해당 항목은 빨간 테두리)" : ""}</span>
+        <button class="btn primary" onclick="chgAckNow('${sc}')">확인</button></div>
+      <div class="cl">${show.map(a=>{ const o = byNo.get(a.target), p = o && prodById(o.product_id);
+        const tg = o ? `${p?.name || o.product_name || ""}${o.serial ? ` (${o.serial})` : ""}` : (a.target || "");
+        return `<div><span class="tm">${fmtDT(a.at)}</span><span class="who">${chgEsc(a.user || "—")}</span><span class="tx"><b>${chgEsc(a.action)}</b>${tg ? ` · ${chgEsc(tg)}` : ""}${a.detail ? ` <i>— ${chgEsc(String(a.detail).slice(0, 80))}</i>` : ""}</span></div>`; }).join("")}</div>
+      ${n > 4 ? `<button class="more" onclick="chgMoreToggle('${sc}')">${all ? "접기 ▴" : `전체 ${fmt(n)}건 보기 ▾`}</button>` : ""}`;
+    if (bar.dataset.h !== html) { bar.innerHTML = html; bar.dataset.h = html; }
+  });
+}
+function chgAckNow(sc){
+  const byNo = new Map(); DB.orders.forEach(o=>{ if (o.order_no) byNo.set(o.order_no, o); });
+  const es = chgEntries(sc, byNo), ack = chgAckMap();
+  ack[sc] = es.reduce((m,a)=>Math.max(m, chgT(a)), Number(ack[sc]) || 0); chgAckSave(ack);
+  CHG_MORE.delete(sc); applyRoleLock(); toast(`변경 ${fmt(es.length)}건을 확인했습니다`);
+}
+function chgMoreToggle(sc){ if (CHG_MORE.has(sc)) CHG_MORE.delete(sc); else CHG_MORE.add(sc); chgApply(); }
+
+const MNAV_PREF = { floor:["work","mt","pqc"], qc:["qc","ship","pqc"], lead:["work","mt","order"], admin:["work","qc","plan"] };
+const menuBtn = s => document.querySelector(`#menu button[data-s="${s}"]`);
+const menuOk = s => { const b = menuBtn(s); return !!b && b.style.display !== "none"; };
+function renderMNav(){
+  const n = $("mNav"); if (!n) return;
+  const cur = document.querySelector(".screen.on")?.id?.replace(/^s-/, "") || "";
+  const mp = menuPref();
+  const items = ["home", ...menuTabsOf(mp).filter(s=>menuOk(s) && !mp.hide.includes(s)).slice(0,3)];
+  const html = items.map(s=>{ const b = menuBtn(s); if (!b) return "";
+      const bd = b.querySelector(".badge")?.textContent || "", cb = b.querySelector(".cbadge")?.textContent || "";
+      return `<button class="${cur===s?"on":""}" onclick="mNavGo('${s}')"><span class="ico">${b.querySelector(".ico")?.textContent||""}</span><span>${s==="home" ? "요약" : (b.querySelector(".lb")?.textContent.trim().replace(/\s*\(.*$/,"") || s)}</span>${bd?`<i class="badge">${bd}</i>`:""}${cb?`<i class="cbadge">${cb}</i>`:""}</button>`; }).join("")
+    + (()=>{ /* 탭에 없는 화면의 변경 건수는 [전체] 에 합쳐서 표시 */
+        const rest = [...document.querySelectorAll("#menu button[data-s] .cbadge")].filter(e=>!items.includes(e.parentElement.dataset.s) && e.parentElement.style.display !== "none" && !e.parentElement.classList.contains("uhide"))
+          .reduce((t,e)=>t + (parseInt(e.textContent, 10) || 0), 0);
+        return `<button class="${items.includes(cur)?"":"on"}" onclick="toggleNav()"><span class="ico">☰</span><span>전체</span>${rest ? `<i class="cbadge">${rest > 99 ? "99+" : rest}</i>` : ""}</button>`; })();
+  if (n.dataset.h !== html) { n.innerHTML = html; n.dataset.h = html; }
+}
+function mNavGo(s){ closeNav(); go(s); window.scrollTo(0, 0); }
+function hmGo(s, kind){ if (!menuOk(s)) return; if (s === "work" && kind != null) { wkMach = kind; } go(s); window.scrollTo(0, 0); }
+/* 오늘 요약 — 진행률 · 건수 · 확인 필요 · 설비별 지금/다음 작업 */
+function renderHome(){
+  const box = $("homeBox"); if (!box) return;
+  const d = today(), os = ordsOf(d).filter(o=>o.status !== "폐기");
+  const planEa = os.reduce((t,o)=>t+Number(o.qty_plan||0),0), doneEa = os.reduce((t,o)=>t+Number(o.qty_done||0),0);
+  const pct = planEa ? Math.min(100, Math.round(doneEa/planEa*100)) : 0;
+  const wait = os.filter(o=>o.status==="대기"), run = os.filter(o=>o.status==="생산중"), fin = os.filter(o=>stIdx(o) >= 2);
+  const qcWait = DB.orders.filter(o=>o.status==="생산완료");
+  const rd = wait.map(o=>{ try { return ordReady(o); } catch(_){ return { msgs:[] }; } });
+  const flagN = DB.orders.filter(o=>{ try { return qtyFlag(o); } catch(_){ return false; } }).length;
+  const rejN = DB.orders.filter(o=>{ try { return qcFlow(o) === "조치 필요"; } catch(_){ return false; } }).length;
+  const mtN = (()=>{ try { return mtOf(d).filter(t=>t.status !== "작업완료").length; } catch(_){ return 0; } })();
+  const pqcN = Number(menuBtn("pqc")?.querySelector(".badge")?.textContent || 0);
+  const warns = [
+    [flagN, "bad", "검수 수량 불일치 — 확인 필요", "work", ""],
+    [rejN, "bad", "반려품 — 재작업 필요", "work", "반려"],
+    [rd.filter(r=>r.beanNone).length, "bad", "원두 없음 — 생산 시작 불가", "work", ""],
+    [rd.filter(r=>r.beanShort).length, "", "원두 부족", "work", ""],
+    [rd.filter(r=>r.labelShort).length, "", "라벨 부족", menuOk("mt") ? "mt" : "work", null],
+    [rd.filter(r=>r.bagShort).length, "", "봉투 부족", "work", ""],
+    [mtN, "", "라벨작업 대기", "mt", null],
+    [pqcN, "", "부적합 조치 대기", "pqc", null],
+  ].filter(w=>w[0] > 0 && menuOk(w[3]));
+  const act = os.filter(o=>stIdx(o) < 2);
+  const names = [...DB.machines.map(m=>m.name), ...new Set(act.map(o=>o.machine||"").filter(n=>n && !DB.machines.some(m=>m.name===n)))];
+  if (act.some(o=>!o.machine)) names.push("");
+  const mach = names.map(n=>{ const it = act.filter(o=>(o.machine||"")===n).sort(byPriority); if (!it.length) return "";
+    const r = it.find(o=>o.status==="생산중"), o = r || it[0], p = prodById(o.product_id), w = it.filter(x=>x.status==="대기").length;
+    const R = r ? null : (()=>{ try { return ordReady(o); } catch(_){ return null; } })();
+    const bt = batchParts(o.batch_plan), tagc = r ? (o.paused_at ? "warn" : "ok") : "";
+    return `<button class="hm-row" onclick="hmGo('work', ${JSON.stringify(n ? machKind(n) : "미지정").replace(/"/g,"&quot;")})">
+      <div class="t"><div class="m">${n || "설비 미지정"} <span class="tag ${tagc}">${r ? (o.paused_at ? "일시정지" : "생산중") : "다음 작업"}</span>${w ? `<span>대기 ${w}건</span>` : ""}</div>
+        <div class="p">${specChip(specOf(o))}${p?.name || o.product_name || "품목 없음"}</div>
+        <div class="s">${r ? `<b>${fmt(o.qty_done)}</b> / ${fmt(o.qty_plan)}개${o.started_by ? ` · ${o.started_by}` : ""}` : `${fmt(o.qty_plan)}개${bt.length === 1 ? ` · 배치 ${bt[0].text}` : ""}`}${R && R.msgs.length ? ` · <span class="bad">⚠ ${R.msgs[0]}</span>` : ""}</div></div>
+      <span class="go">›</span></button>`; }).join("");
+  const wd = "일월화수목금토"[new Date(d + "T00:00:00").getDay()];
+  const qcS = menuOk("qc") ? "qc" : "work";
+  box.innerHTML = `
+    <div class="hm-hd"><b>오늘 ${d.slice(5).replace("-", "/")} (${wd})</b><span>${CURRENT_USER || ""}</span></div>
+    <button class="hm-prog" onclick="hmGo('work','')">
+      <div class="k">오늘 생산</div>
+      <div class="v"><b>${fmt(doneEa)}</b><span>/ ${fmt(planEa)} EA</span><em>${pct}%</em></div>
+      <div class="pb"><i style="width:${pct}%"></i></div></button>
+    <div class="hm-cnt">
+      <button onclick="hmGo('work','')"><b>${wait.length}</b><span>대기</span></button>
+      <button class="${run.length ? "hot" : ""}" onclick="hmGo('work','')"><b>${run.length}</b><span>생산중</span></button>
+      <button class="${qcWait.length ? "warn" : ""}" onclick="hmGo('${qcS}','')"><b>${qcWait.length}</b><span>검수 대기</span></button>
+      <button onclick="hmGo('${menuOk("log") ? "log" : "work"}','')"><b>${fin.length}</b><span>완료</span></button>
+    </div>
+    <div class="hm-sec">확인 필요</div>
+    <div class="hm-list">${warns.length ? warns.map(w=>`<button class="hm-row ${w[1]}" onclick="hmGo('${w[3]}', ${w[4] == null ? "null" : `'${w[4]}'`})"><span class="d"></span><span class="t">${w[2]}</span><span class="n">${fmt(w[0])}건</span><span class="go">›</span></button>`).join("")
+      : `<div class="hm-ok">✓ 확인할 항목이 없습니다</div>`}</div>
+    <div class="hm-sec">설비별 현황</div>
+    <div class="hm-list">${mach || `<div class="hm-none">${fin.length ? "오늘 작업이 모두 완료되었습니다" : "오늘 발행된 작업지시가 없습니다"}</div>`}</div>`;
+}
+/* 숫자 상자 — 휴대폰에서는 큰 숫자만 보이고 누르면 세부가 펼쳐진다 (다시 그려져도 유지) */
+const KPI_OPEN = new Set();
+document.addEventListener("click", e=>{ if (!isPhone()) return;
+  const k = e.target && e.target.closest ? e.target.closest(".kpis > .kpi") : null; if (!k || !k.parentElement.id) return;
+  const key = k.parentElement.id + ":" + [...k.parentElement.children].indexOf(k);
+  if (KPI_OPEN.has(key)) KPI_OPEN.delete(key); else KPI_OPEN.add(key);
+  k.classList.toggle("open", KPI_OPEN.has(key)); });
+function kpiReopen(){ KPI_OPEN.forEach(key=>{ const i = key.lastIndexOf(":"); $(key.slice(0,i))?.children[Number(key.slice(i+1))]?.classList.add("open"); }); }
+/* 조회 줄의 버튼이 3개 이상이면 휴대폰에서는 [도구] 하나로 접는다 */
+function mFoldConds(){
+  document.querySelectorAll(".screen > .cond").forEach(c=>{
+    if ([...c.children].some(e=>e.classList.contains("mtool"))) return;
+    const n = [...c.children].filter(e=>e.classList.contains("btn")).length, wk = c.parentElement.id === "s-work";
+    if (n < 3 && !wk) return;
+    c.classList.add("mfold");
+    const lb = wk ? "정렬 · 새로고침 ▾" : `도구 ${n}개 ▾`;
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn mtool"; b.textContent = lb;
+    b.onclick = () => { const on = c.classList.toggle("open"); b.textContent = on ? "접기 ▴" : lb; };
+    c.appendChild(b); });
+}
+try { mFoldConds(); } catch(e){ console.warn(e); }
+try { PHONE_MQ && PHONE_MQ.addEventListener("change", ()=>{ try { const s = document.querySelector(".screen.on")?.id?.replace(/^s-/, ""); if (s) render(s); } catch(e){ console.warn(e); } }); } catch(_){}
+
 /* ══ 모바일 보기 — 태블릿·휴대폰 배치. 한 번 켜면 그 기기가 기억한다.
    처음 열 때 화면이 1100px 보다 좁으면(태블릿) 저절로 켠다. */
 function applyMobile(on){
@@ -7666,6 +8215,10 @@ function toggleMobile(){
   try { localStorage.setItem("momos.mobile", on ? "on" : "off"); } catch(_){}
   applyMobile(on); toast(on ? "모바일 보기 — 왼쪽 ☰ 로 메뉴를 엽니다" : "PC 보기");
 }
+/* ★ 2026-11-17 아이폰 — 입력칸을 누르면 화면이 확대된 채 남아 옆이 잘리던 것 방지 (두 손가락 확대는 그대로 가능) */
+(()=>{ try { const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const m = document.querySelector('meta[name="viewport"]');
+  if (ios && m && !/maximum-scale/.test(m.content)) m.content += ", maximum-scale=1"; } catch(_){} })();
 (()=>{ let v = null; try { v = localStorage.getItem("momos.mobile"); } catch(_){}
   const auto = v == null && window.innerWidth <= 1100 && ("ontouchstart" in window);
   if (v === "on" || auto) applyMobile(true); })();
@@ -7712,7 +8265,7 @@ function renderOne(s){
   ({ dash:renderDash, plan:renderPlan, roast:renderRoast, req:renderReq, log:renderLog,
      stock:renderStock, pqc:renderPqc, cal:renderCal, loss:renderLoss, base:renderBase,
      work:renderWork, qc:renderQc, ship:renderShip, order:renderOrder, trace:renderTrace,
-     rw:renderRw, mt:renderMt, close:renderClose, count:renderCount, help:renderHelp, approve:renderApprove, capa:renderCapa, find:renderFind, grind:renderGrind })[s]?.();
+     rw:renderRw, mt:renderMt, close:renderClose, count:renderCount, help:renderHelp, approve:renderApprove, capa:renderCapa, find:renderFind, grind:renderGrind, home:renderHome })[s]?.();
 }
 /* ★ 기준 순서 — 품목은 CFE 코드 번호, 원두는 MMS 코드 번호, 부자재는 구분→코드→이름 순.
      표·카드·계획·집계·여유분·재고 세기 전부 이 순서를 따른다 (머리글 정렬을 누르면 그게 우선) */
@@ -7759,7 +8312,7 @@ function renderAll(){
   try { matDedupeView(); } catch(e){ console.warn(e); }   // 권한 없는 계정은 겹친 자재를 화면에서 한 줄로
   fillBeanList();                       // 원두 이름 자동완성 목록
   ["dash","plan","roast","req","log","stock","pqc","cal","loss","base",
-   "work","qc","ship","order","trace","rw","mt","close","count","help"].forEach(renderOne);
+   "work","qc","ship","order","trace","rw","mt","close","count","help","home"].forEach(renderOne);
   syncUserUI();
   try { stationRender(); const st = document.querySelector(".screen.on")?.id?.replace("s-",""); if (STATION_SCREENS[st] && stationWho(st)) stationApply(st); } catch(e){ console.warn(e); }
   if (typeof applyRoleLock === "function") applyRoleLock();
@@ -9365,7 +9918,16 @@ function renderMt(){
     const stock = Number(M?.stock||0);
     const after = Math.round((stock - Number(t.order_qty||0))*100)/100;
     const short = Math.max(0, Number(t.order_qty||0) - stock);
-    return `<div class="wc ${t.status==="작업중"?"run":""}">
+    /* ★ 2026-11-17 휴대폰 — 대기 건은 요약 행 + [작업 시작] (누르면 전체 카드) */
+    if (isPhone() && t.status === "대기" && !MT_OPEN.has(t.id)) { const pr = prioOf(t);
+      return `<div class="wc wcz" data-cn="${String(t.product_name||"").replace(/"/g,"&quot;")}" onclick="mtOpen('${t.id}')">
+        <div class="z1">${pr<9999 ? `<span class="zn">${pr}</span>` : ""}${specChip(Number(t.spec_g)||0)}<span class="nm">${t.product_name}</span><span class="q"><b>${packText(t.order_qty, t.pack_qty, t.unit)}</b></span></div>
+        <div class="z2"><span>라벨 작업 <b>${fmt(t.order_qty)}${t.unit}</b></span><span>현재 재고 <b class="${short?"bad":""}">${fmt(stock)}${t.unit}</b></span>${short ? `<span class="bad">${fmt(short)} 부족</span>` : ""}${
+          t.material_name && t.material_name !== t.product_name ? `<span>${t.material_name}</span>` : ""}</div>
+        <div class="zb"><button class="go" onclick="event.stopPropagation();mtStart('${t.id}')">작업 시작</button><span class="z4">눌러서 펼치기 ▾</span></div>
+      </div>`; }
+    const foldBtn = isPhone() && t.status === "대기" ? `<div class="btns sm wkfold" style="padding-top:0"><button onclick="mtFold('${t.id}')">접기 ▴</button></div>` : "";
+    return `<div class="wc ${t.status==="작업중"?"run":""}" data-cn="${String(t.product_name||"").replace(/"/g,"&quot;")}">
       <div class="hd">
         <div class="nm">${(()=>{ const pr = prioOf(t); return pr<9999 ? `<span class="pri">${pr}</span>` : ""; })()}${specChip(Number(t.spec_g)||0)}${t.product_name}</div>
         <div class="sub">${t.material_name}</div>
@@ -9398,7 +9960,7 @@ function renderMt(){
                             : `<button onclick="mtBack('${t.id}')">대기 전환</button>`}
         <button onclick="addRound('${t.product_id}','${t.material_id}')">추가 라벨작업</button>
         <button onclick="mtRemove('${t.id}')" style="color:var(--bad)" title="이 라벨 작업을 수행하지 않고 삭제합니다 — 오늘은 다시 생성되지 않습니다">미실시 · 삭제</button>
-      </div>
+      </div>${foldBtn}
     </div>`;
   };
 
@@ -19008,9 +19570,17 @@ async function addOrder(){
   renderWork(); renderOrder();
 }
 /* 치는 중에는 화면에만 둡니다 */
-function setOrd(id,k,v){
+/* ★ 2026-11-17 오류 수정 — 작업지시 목록에서 고친 값(순서 · 출고처 · 설비 · 계획 수량)이 화면에서만 바뀌고 서버에 저장되지 않아
+   새로고침하면 원래 값으로 돌아가던 문제. 값을 바꾸면 바로 서버에 저장하고, 실패하면 원래 값으로 되돌린다. */
+async function setOrd(id,k,v){
   const o = ordById(id); if(!o) return;
-  o[k] = (k==="qty_plan"||k==="priority") ? (Number(v)||0) : v;
+  const prev = o[k], val = (k==="qty_plan"||k==="priority") ? (Number(v)||0) : v;
+  if (prev === val) return;
+  if (!ORD_EDITABLE.includes(k)) { renderOrder(); return toast("이 항목은 목록에서 변경할 수 없습니다 — 지시를 삭제한 후 다시 추가하십시오"); }
+  o[k] = val;
+  const patch = {}; patch[k] = val;
+  const r = await mesEditOrder({ order_id:id, patch, idem:`oe-${id}-${k}-${uid()}` });
+  if (!r || !r.ok) { const cur = ordById(id); if (cur) cur[k] = prev; toast(r?.message || "저장하지 못했습니다"); }
   renderOrder(); renderWork(); renderDash();
 }
 /* 칸에서 손을 뗐을 때 한 번 보냅니다 */
@@ -20583,20 +21153,22 @@ function renderOrder(){
   }).join("");
 
   $("woSortBar").innerHTML = sortBarHTML();
+  if (isPhone()) $("woSortBar").innerHTML += ` <button class="btn" onclick="woFullToggle()" title="휴대폰에서는 순서 · 품목 · 계획 · 생산 · 상태만 표시합니다">${WO_FULL ? "핵심 열만" : "전체 열 보기"}</button>`;   // ★ 2026-11-17
   setTimeout(()=>selBar("orders"));
   list.sort((a,b)=>String(a.machine||"~").localeCompare(String(b.machine||"~")) || byPriority(a,b));
   if (sortState("woTbl")) list.splice(0, list.length, ...sorted("woTbl", list));
   SHOWN.orders = list.map(o=>o.id);
+  const mzNow = isPhone() && !WO_FULL;      // ★ 2026-11-17 휴대폰 — 핵심 열만 · 품목은 글자로 (수정은 [전체 열 보기])
+  $("woTbl").classList.toggle("mz", mzNow);
   tbl("woTbl", [selAllBox("orders"),"순서","일련번호","품목","출고처","설비","계획","생산","부적합","진행","상태","담당",""],
     list.map((o,oi)=>{
       const p = prodById(o.product_id);
       const lock = stIdx(o) >= 2;
-      return `<tr class="${SEL.orders.has(o.id)?"selrow":""}">${selTd("orders",o.id,oi)}<td>${lock?o.priority:`<input type="number" class="num" style="width:52px" value="${o.priority||0}" onchange="setOrd('${o.id}','priority',this.value)">`}</td>
+      return `<tr class="${SEL.orders.has(o.id)?"selrow":""}" data-co="${o.id}">${selTd("orders",o.id,oi)}<td>${lock?o.priority:`<input type="number" class="num" style="width:52px" value="${o.priority||0}" onchange="setOrd('${o.id}','priority',this.value)">`}</td>
         <td class="l"><b>${o.serial||"—"}</b>${
           o.batch_of>1?`<br><span class="tag" style="font-size:10px">배치 ${o.batch_seq}/${o.batch_of}</span>`:""}${
           isMixedOrder(o)?`<br><span class="tag bad" style="font-size:10px">배치 ${batchParts(o.batch_plan).length}개 혼재</span>`:""}</td>
-        <td class="l" style="white-space:nowrap">${specChip(specOf(o))}${lock ? (p?.name||"—") : `<select style="width:auto;max-width:calc(100% - 56px)" onchange="setOrd('${o.id}','product_id',this.value)">${
-          PRODS().map(x=>`<option value="${x.id}" ${x.id===o.product_id?"selected":""}>${x.name}</option>`).join("")}</select>`}</td>
+        <td class="l" style="white-space:nowrap">${specChip(specOf(o))}${p?.name||"—"}</td>
         <td class="c">${lock ? o.channel : `<select onchange="setOrd('${o.id}','channel',this.value)">${
           SHIP_CH.map(c=>`<option ${c===o.channel?"selected":""}>${c}</option>`).join("")}</select>`}</td>
         <td class="c">${lock ? (o.machine||"—") : `<select onchange="setOrd('${o.id}','machine',this.value)"><option value="">미지정</option>${
@@ -20935,12 +21507,33 @@ function renderWork(){
         <span class="tag bad">${rejShown.length}건</span>${rejWait ? `<span class="tag warn">재검수 대기 ${rejWait}</span>` : ""}
         <span class="r">반려 수량만큼 카드로 반송됩니다 · 조치 후 <b>[재작업 완료 → 재검수 요청]</b> · 이력은 하나로 연결됩니다</span></div>
       <div class="wcards">${rejShown.map(o=>card(o)).join("")}</div></div>`;
+  /* ★ 2026-11-17 휴대폰 — 지금 할 카드(생산중 · 설비별 다음 작업 · 반려품)만 전체로 보이고, 나머지 대기 건은 요약 행 (누르면 펼침)
+     요약 행에도 배치 · 배치 중량 · 한글표시사항 핵심(컬러 · 제조일자)은 남긴다 (Lee "한글표시사항이랑 배치 중량은 중요한건데") */
+  const phone = isPhone();
+  const autoOpen = new Set();
+  if (phone) groups.forEach(g=>{ if (!g.items.some(o=>o.status==="생산중")) { const f = g.items.find(o=>o.status==="대기"); if (f) autoOpen.add(f.id); } });
+  const cardMini = (o, p) => {
+    const rd = ordReady(o), m = ordBatchMms(o), ps = batchParts(o.batch_plan), b = beanInfo(p?.bean);
+    const left = m ? Number(m.stock_kg||0) : null, tot = m ? (Number(m.in_kg ?? 0) || null) : null;
+    const per = p ? needKg(p, 1) : 0, canEa = m && per > 0 ? Math.floor((left + 0.0005) / per) : null;
+    const todo = Math.max(0, Math.round(Number(o.qty_plan||0) - Number(o.qty_done||0)));
+    const bt = ps.length === 1 ? ps[0].text : ps.length > 1 ? `배치 ${ps.length}개 혼재` : (o.batch_plan || "미지정");
+    const mfg = mfgDateOf(o);
+    return `<div class="wc wcz ${rd.beanNone?"none":""}" data-oid="${o.id}" data-co="${o.id}" onclick="wkOpen('${o.id}')">
+      <div class="z1"><span class="zn">${o.priority||"-"}</span>${specChip(specOf(o))}<span class="nm">${p?.name||"품목 없음"}</span><span class="q"><b>${fmt(o.qty_done)}</b> / ${fmt(o.qty_plan)}개</span></div>
+      <div class="z2"><span>배치 <b class="${ps.length>1?"bad":""}">${bt}</b></span>${m ? `<span>중량 <b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}</b> · 사용 가능 <b>${fmt(left)}kg</b>${canEa!=null?` · <b class="${canEa<todo?"bad":""}">약 ${fmt(canEa)}개</b>`:""}</span>` : ""}</div>
+      <div class="z2">${b ? `<span>컬러 <b class="${b.color?"":"bad"}">${b.color||"없음"}</b></span><span>제조일자 <b>${mfg||"—"}</b></span>${o.serial?`<span>일련번호 <b>${o.serial}</b></span>`:""}` : `<span class="bad">한글표시사항 없음 — 원두 마스터 확인</span>`}</div>
+      ${rd.msgs.length ? `<div class="z3">${rd.msgs.map(t=>`<span>⚠ ${t}</span>`).join("")}</div>` : ""}
+      <div class="z4">눌러서 펼치기 ▾</div>
+    </div>`;
+  };
   const card = o=>{
     const p = prodById(o.product_id);
     const rjd = rejIds.has(o.id);                         // 반려되어 돌아온 카드
     const pct = pctOf(o), run = o.status==="생산중" && !rjd;
+    if (phone && !rjd && !run && stIdx(o) < 2 && !autoOpen.has(o.id) && !WK_OPEN.has(o.id)) return cardMini(o, p);
     const drg = can("plan") && !rjd && stIdx(o) < 2;       // ★ 2026-11-15 마우스로 끌어서 순서 · 설비 바꾸기
-    return `<div class="wc ${run?"run":""}" ${rjd?'style="border:2px solid var(--bad)"':""} ${drg?`draggable="true" data-oid="${o.id}" ondragstart="wkDragStart(event,'${o.id}')" ondragend="wkDragEnd()" ondragover="wkDragOver(event,this)" ondragleave="this.classList.remove('dropL','dropR')" ondrop="wkDrop(event,this)" title="끌어서 순서를 변경하거나 다른 설비로 이동할 수 있습니다"`:""}>
+    const html = `<div class="wc ${run?"run":""}" data-co="${o.id}" ${rjd?'style="border:2px solid var(--bad)"':""} ${drg?`draggable="true" data-oid="${o.id}" ondragstart="wkDragStart(event,'${o.id}')" ondragend="wkDragEnd()" ondragover="wkDragOver(event,this)" ondragleave="this.classList.remove('dropL','dropR')" ondrop="wkDrop(event,this)" title="끌어서 순서를 변경하거나 다른 설비로 이동할 수 있습니다"`:""}>
       <div class="hd">
         <div class="nm"><span class="pri">${o.priority||"-"}</span>${specChip(specOf(o))}${p?.name||"품목 없음"}${
           can("plan") ? `<span class="prib">
@@ -21044,6 +21637,8 @@ function renderWork(){
         <button onclick="splitOrder('${o.id}')" style="color:var(--blue-600);font-weight:800">배치별 분할</button>
       </div>` : ""}${DB.order_events.some(e=>e.order_id===o.id && /^qc_/.test(e.event)) ? `<div class="btns sm" style="padding-top:0"><button onclick="showQcHistory('${o.id}')">작업 이력 (반려 → 재작업)</button></div>` : ""}
     </div>`}`;
+    return (phone && !rjd && !run && WK_OPEN.has(o.id) && !autoOpen.has(o.id))
+      ? html.replace(/<\/div>\s*$/, `<div class="btns sm wkfold" style="padding-top:0"><button onclick="wkFold('${o.id}')">접기 ▴</button></div></div>`) : html;
   };
 
   const inKind = o => !wkMach || machKind(o.machine||"") === wkMach || (wkMach === "미지정" && !o.machine);
@@ -21052,7 +21647,7 @@ function renderWork(){
     return `<div class="mgrp qflag-grp"><div class="mgrp-h" style="color:var(--bad)"><b>⚠ 검수 수량 불일치 — 확인하십시오</b><span class="tag bad">${qFlags.length}건</span>
         <span class="r">[확인]을 누르면 검수 확인 수량으로 정정되고 출고 대기로 전환됩니다 · 누르기 전까지 이 카드는 유지됩니다</span></div>
       <div class="wcards">${qFlags.map(o=>{ const p = prodById(o.product_id), f = qtyFlag(o);
-        return `<div class="wc qflag">
+        return `<div class="wc qflag" data-co="${o.id}">
           <div class="hd"><div class="nm">${specChip(specOf(o))}${p?.name||o.product_name||"품목 없음"}</div>
             <div class="sub">${o.machine||"설비 미지정"}${o.serial?` · 일련번호 ${o.serial}`:""}${o.work_date!==d?` · ${o.work_date.slice(5).replace("-","/")} 생산`:""} · 생산 ${o.done_by||"—"}</div></div>
           <div class="qf-nums">
@@ -21071,7 +21666,7 @@ function renderWork(){
         <span class="r">생산 완료 → 검수 중 · 검수가 완료되면 목록에서 제외됩니다 · 수량이 불일치하면 상단에 적색으로 표시됩니다</span></div>
       <div class="wcards">${qWaitShown.map(o=>{ const p = prodById(o.product_id);
         const late = String(o.work_date||"") < d ? Math.round((new Date(d) - new Date(o.work_date))/86400000) : 0;
-        return `<div class="wc qwait"${late?' style="opacity:.85"':""}>
+        return `<div class="wc qwait" data-co="${o.id}"${late?' style="opacity:.85"':""}>
           <div class="hd"><div class="nm">${specChip(specOf(o))}${p?.name||o.product_name||"품목 없음"}</div>
             <div class="sub">${late?`<span class="tag bad" style="font-size:11px">${o.work_date.slice(5).replace("-","/")} 생산 · ${late}일 경과</span> `:""}${o.machine||"설비 미지정"}${o.serial?` · 일련번호 ${o.serial}`:""}</div></div>
           <div class="big"><b>${fmt(o.qty_done)}</b> <span>개 생산 완료</span></div>
@@ -21396,7 +21991,7 @@ function renderShip(){
       <div class="sub">${its.length}건 · ${fmt(its.reduce((t,x)=>t+x.pt.qty,0))}개${its.length>1?` <button class="btn" style="height:28px;padding:0 10px;margin-left:8px;font-size:12px;font-weight:800" onclick="shipGroup('${ch}')">이 출고처 전량 출고</button>`:""}</div></div>
       <div class="items">${its.map(({o,pt,multi,ps})=>{ const p=prodById(o.product_id);
         const others = multi ? ps.filter(x=>x!==pt).map(x=>`${chName(x.ch)} ${fmt(x.qty)}${x.shipped_at?" ✓":""}`).join(" · ") : "";
-        return `<div class="item"><div class="top"><b style="flex:1">${p?.name||""}</b>
+        return `<div class="item" data-co="${o.id}"><div class="top"><b style="flex:1">${p?.name||""}</b>
           <span class="hint" style="padding:0;font-size:11px">${o.serial||o.order_no}</span></div>
           <div class="row">수량 <b>${fmt(pt.qty)}</b> 개${multi?` <span class="hint" style="padding:0;font-size:11px">(전체 ${fmt(shipQtyOf(o))} 중 · ${others})</span>`:""} <span class="calc">검수 ${o.qc_by||"—"} ${dtFull(o.qc_at)}</span></div>
           ${pt.note?`<div class="row" style="font-weight:700">비고 · ${pt.note}</div>`:(!multi&&o.ship_note&&!pt.rest?`<div class="row" style="font-weight:700">비고 · ${o.ship_note}</div>`:"")}
@@ -21407,7 +22002,7 @@ function renderShip(){
 
   tbl("shTbl", ["출고 일시","출고처","품목","수량","일련번호","LOT","생산 완료","검수 완료","출고자",""],
     sorted("shTbl", gone).map(o=>{ const p=prodById(o.product_id);
-      return `<tr><td class="c">${dtFull(o.ship_at)}</td><td class="c">${(()=>{ const ps = shipParts(o); return ps.length > 1 ? ps.map(x=>`<span class="tag">${chName(x.ch)} ${fmt(x.qty)}</span>`).join(" ") : `<span class="tag">${chName(ps[0]?.ch||ordShipCh(o))}</span>`; })()}${o.ship_note?`<br><span class="hint" style="padding:0;font-size:11px">${o.ship_note}</span>`:""}</td>
+      return `<tr data-co="${o.id}"><td class="c">${dtFull(o.ship_at)}</td><td class="c">${(()=>{ const ps = shipParts(o); return ps.length > 1 ? ps.map(x=>`<span class="tag">${chName(x.ch)} ${fmt(x.qty)}</span>`).join(" ") : `<span class="tag">${chName(ps[0]?.ch||ordShipCh(o))}</span>`; })()}${o.ship_note?`<br><span class="hint" style="padding:0;font-size:11px">${o.ship_note}</span>`:""}</td>
         <td class="l">${p?.name||""}</td><td>${fmt(o.qty_done)}</td>
         <td class="l">${o.serial||"—"}</td><td class="l">${ordLotRows(o).length?lotRowsText(ordLotRows(o)):(o.lot||"—")}</td>
         <td class="c" style="font-size:12px">${dtFull(o.done_at)}<br>${o.done_by||"—"}</td><td class="c" style="font-size:12px">${dtFull(o.qc_at)}<br>${o.qc_by||"—"}</td><td class="c">${o.ship_by||"—"}</td>
@@ -21791,7 +22386,125 @@ function renderCapa(){
       <td>${fmt(r.qty)}</td><td>${fmt(r.kg)}</td><td>${r.t&&r.t.active>0?fmt(Math.round(r.qty/(r.t.active/3600))):"—"}</td><td>${r.t&&r.t.active>0?fmt(Math.round(r.kg/(r.t.active/3600)*10)/10):"—"}</td>
       <td class="l" style="font-size:12px">${r.workers.map(w=>`${w.name} ${fmtDur(w.sec)}`).join(", ")||"—"}</td></tr>`));
 
+  try { renderCapaCh(from, to); renderCapaYearCh(); } catch(e){ console.warn(e); }   // ★ 2026-11-17 채널별 출고
   renderCapaRetro(); renderCapaYear(); renderCapaForecast();
+}
+/* ══════════════════════════════════════════════════════════════
+   ★ 2026-11-17 채널별 출고 (Lee "채널 별로 얼마나 출고 되었는지 — 생산 분석에, 결국 회고 자료")
+   · 기준 = 출고 화면에서 [출고 완료] 한 수량 (지시의 출고처 나눔 + 지시 없는 출고) — 새로 입력하는 것 없음
+   · 한눈에 = 일자별 추이(쌓은 막대) · 채널별 = 막대 + 표, 채널을 누르면 품목별 내역 · EA 와 kg · 전 기간 대비 ▲▼
+   ══════════════════════════════════════════════════════════════ */
+const CH_COLORS = ["#1B4FD8","#F28E2B","#17A06B","#8A5CF6","#D93B4C","#2BB3C0","#6E7585","#B0578D","#C9A227","#3D4A7A"];
+const CAPA_CH_OPEN = new Set();
+const chOrd = c => { const i = SHIP_CH.indexOf(c); return i < 0 ? 99 : i; };
+const chColor = c => { const i = SHIP_CH.indexOf(c); if (i >= 0) return CH_COLORS[i % CH_COLORS.length];
+  let h = 0; for (const ch of String(c)) h = (h * 31 + ch.charCodeAt(0)) % 997; return CH_COLORS[h % CH_COLORS.length]; };
+function shipFacts(from, to){
+  const out = [], inR = d => !!d && d >= from && d <= to;
+  DB.orders.forEach(o=>{ if (o.status !== "출고완료" && o.status !== "검수완료") return;
+    let ps; try { ps = shipParts(o); } catch(_){ return; }
+    const p = prodById(o.product_id), g = specOf(o);
+    ps.forEach(pt=>{ const at = pt.shipped_at || (o.status === "출고완료" ? o.ship_at : null); if (!at || !(pt.qty > 0)) return;
+      const d = ymdLocal(at); if (!inR(d)) return;
+      out.push({ d, ch:pt.ch || "일반", qty:pt.qty, kg: p ? stdKg(p, pt.qty) : pt.qty * g / 1000, key:o.product_id || o.product_name, name:p?.name || o.product_name || "(품목 없음)",
+        spec:g, order_no:o.order_no || "", serial:o.serial || "", by:pt.shipped_by || o.ship_by || "" }); }); });
+  (DB.shipments || []).forEach(sh=>{ if (sh.order_id || sh.cancelled_at) return;
+    const d = String(sh.ship_date || ymdLocal(sh.shipped_at) || "").slice(0,10); if (!inR(d)) return;
+    const p = prodById(sh.product_id), q = Number(sh.qty) || 0, g = Number(sh.product_spec ?? p?.spec_g) || 0; if (!(q > 0)) return;
+    out.push({ d, ch:sh.channel || "일반", qty:q, kg: p ? stdKg(p, q) : q * g / 1000, key:sh.product_id || sh.product_name, name:p?.name || sh.product_name || "(품목 없음)",
+      spec:g, order_no:"", serial:"", by:sh.shipped_by_name || "" }); });
+  return out;
+}
+function shipAgg(facts){
+  const by = {};
+  facts.forEach(x=>{ const c = by[x.ch] = by[x.ch] || { ch:x.ch, ea:0, kg:0, n:0, spec:{}, prod:{}, day:{} };
+    c.ea += x.qty; c.kg += x.kg; c.n++; const b = bucketOf(x.spec); c.spec[b] = (c.spec[b]||0) + x.qty; c.day[x.d] = (c.day[x.d]||0) + x.qty;
+    const pr = c.prod[x.key] = c.prod[x.key] || { name:x.name, spec:x.spec, ea:0, kg:0 }; pr.ea += x.qty; pr.kg += x.kg; });
+  return by;
+}
+function capaPrevRange(from, to){
+  const f = new Date(from + "T00:00:00"), t = new Date(to + "T00:00:00");
+  if (capaMode === "month") return [ymd(new Date(f.getFullYear(), f.getMonth()-1, 1)), ymd(new Date(f.getFullYear(), f.getMonth(), 0))];
+  if (capaMode === "year") return [`${f.getFullYear()-1}-01-01`, `${f.getFullYear()-1}-12-31`];
+  const span = Math.round((t - f) / 86400000) + 1, b = new Date(f); b.setDate(f.getDate() - 1); const a = new Date(b); a.setDate(b.getDate() - span + 1);
+  return [ymd(a), ymd(b)];
+}
+const chDelta = (cur, prev) => { cur = Number(cur)||0; prev = Number(prev)||0;
+  if (!prev) return cur ? `<span class="tag" style="font-size:11px">신규</span>` : `<span style="color:var(--soft)">—</span>`;
+  const v = Math.round((cur - prev) / prev * 100);
+  return v === 0 ? `<span style="color:var(--soft)">0%</span>` : `<b style="color:${v>0?"var(--ok)":"var(--bad)"};white-space:nowrap">${v>0?"▲":"▼"} ${fmt(Math.abs(v))}%</b>`; };
+const kg1 = v => fmt(Math.round((Number(v)||0) * 10) / 10);
+function renderCapaCh(from, to){
+  const box = $("capaCh"); if (!box) return;
+  const [pf, pt] = capaPrevRange(from, to), F = shipFacts(from, to), P = shipFacts(pf, pt), A = shipAgg(F), B = shipAgg(P);
+  const prevTxt = capaMode === "year" ? `${pf.slice(0,4)}년` : capaMode === "month" ? `${pf.slice(0,4)}년 ${Number(pf.slice(5,7))}월`
+    : pf === pt ? pf.slice(5).replace("-","/") : `${pf.slice(5).replace("-","/")} ~ ${pt.slice(5).replace("-","/")}`;
+  if ($("capaChInfo")) $("capaChInfo").textContent = `[출고 완료] 기준 · 전 기간(${prevTxt}) 대비`;
+  if (!box.dataset.init) { box.dataset.init = "1";
+    box.innerHTML = `<div id="capaChSum"></div><div class="chwrap" id="capaChWrap"><canvas id="capaChChart"></canvas></div><div class="panel-b" id="capaChTbl"></div>`; }
+  const names = [...new Set([...Object.keys(A), ...Object.keys(B)])];
+  const chs = names.map(n=>A[n] || { ch:n, ea:0, kg:0, n:0, spec:{}, prod:{}, day:{} }).sort((a,b)=>b.ea - a.ea || chOrd(a.ch) - chOrd(b.ch));
+  const tot = chs.reduce((t,c)=>t+c.ea,0), totKg = chs.reduce((t,c)=>t+c.kg,0), ptot = Object.values(B).reduce((t,c)=>t+c.ea,0), pkg = Object.values(B).reduce((t,c)=>t+c.kg,0);
+  if (!F.length) {
+    $("capaChWrap").style.display = "none"; $("capaChTbl").innerHTML = "";
+    $("capaChSum").innerHTML = `<div class="chempty">이 기간에 [출고 완료] 한 내역이 없습니다${ptot ? ` — 전 기간 ${fmt(ptot)} EA` : ""}<br><span class="hint" style="padding:0;font-weight:600">출고 화면에서 [출고 완료]를 누르면 출고처별로 집계됩니다</span></div>`;
+    return; }
+  $("capaChWrap").style.display = "";
+  $("capaChSum").innerHTML = `<div class="chsum">
+      <div><span class="hint" style="padding:0">출고 수량</span> <b class="n">${fmt(tot)}</b> EA ${chDelta(tot, ptot)}</div>
+      <div><span class="hint" style="padding:0">출고 중량</span> <b class="n">${kg1(totKg)}</b> kg ${chDelta(totKg, pkg)}</div>
+      <div><span class="hint" style="padding:0">출고 건수</span> <b class="n">${fmt(F.length)}</b> 건</div>
+      <div><span class="hint" style="padding:0">출고처</span> <b class="n">${Object.keys(A).length}</b> 곳</div></div>`;
+  /* 한눈에 — 일자별(62일을 넘으면 월별) 쌓은 막대 */
+  const span = Math.round((new Date(to + "T00:00:00") - new Date(from + "T00:00:00")) / 86400000) + 1, byMon = span > 62;
+  const keyOf = d => byMon ? d.slice(0,7) : d, keys = [...new Set(F.map(x=>keyOf(x.d)))].sort();
+  const act = chs.filter(c=>c.ea > 0);
+  draw([["capaChChart", { type:"bar",
+    data:{ labels:keys.map(k=>byMon ? `${Number(k.slice(5))}월` : `${Number(k.slice(5,7))}/${Number(k.slice(8))}`),
+      datasets:act.map(c=>({ label:chName(c.ch), backgroundColor:chColor(c.ch), stack:"s", borderRadius:2, maxBarThickness:46,
+        data:keys.map(k=>Object.entries(c.day).reduce((t,[d,v])=>t + (keyOf(d) === k ? v : 0), 0)) })) },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:"bottom", labels:{ boxWidth:12, font:{ size:12 } } },
+        tooltip:{ mode:"index", intersect:false } },
+      scales:{ x:{ stacked:true, grid:{ display:false } }, y:{ stacked:true, beginAtZero:true, title:{ display:true, text:"EA" } } } } }]]);
+  /* 채널별 — 막대 + 표, 누르면 품목별 내역 */
+  const mx = Math.max(...chs.map(c=>c.ea), 1);
+  const specTags = c => [1000,500,200,100].filter(b=>c.spec[b]).map(b=>`<span class="tag" style="font-size:11px;margin-right:4px">${specLabel(b)} ${fmt(c.spec[b])}</span>`).join("");
+  const prodTbl = c => { const pb = (B[c.ch] || {}).prod || {}; const rows = Object.entries(c.prod).sort((a,b)=>b[1].ea - a[1].ea), pm = Math.max(...rows.map(r=>r[1].ea), 1);
+    const gone = Object.entries(pb).filter(([k])=>!c.prod[k]);
+    return `<div class="chprod"><div style="font-size:12px;font-weight:800;color:var(--soft);margin-bottom:6px">${chName(c.ch)} — 품목별 내역 (${rows.length}품목)</div>
+      <table><thead><tr><th class="l">품목</th><th class="l" style="min-width:140px"></th><th>출고 EA</th><th>kg</th><th>채널 내 비중</th><th>전 기간 대비</th></tr></thead><tbody>
+      ${rows.map(([k,r])=>`<tr><td class="l" style="white-space:nowrap">${specChip(r.spec)}${r.name}</td><td class="l"><div class="pbar2" style="background:${chColor(c.ch)};width:${Math.max(2, r.ea/pm*100)}%"></div></td>
+        <td><b>${fmt(r.ea)}</b></td><td>${kg1(r.kg)}</td><td>${c.ea ? Math.round(r.ea/c.ea*100) : 0}%</td><td>${chDelta(r.ea, pb[k]?.ea)}</td></tr>`).join("")}
+      ${gone.map(([k,r])=>`<tr><td class="l" style="white-space:nowrap;color:var(--soft)">${specChip(r.spec)}${r.name}</td><td></td><td>0</td><td>0</td><td>—</td><td>${chDelta(0, r.ea)} <span class="hint" style="padding:0;font-size:11px">전 기간 ${fmt(r.ea)}</span></td></tr>`).join("")}
+      </tbody></table></div>`; };
+  $("capaChTbl").innerHTML = `<table><thead><tr><th class="l" style="width:170px">채널</th><th class="l" style="min-width:200px">비중</th><th>출고 EA</th><th>kg</th><th>비중</th><th>전 기간 대비</th><th class="l">규격별</th></tr></thead><tbody>
+    ${chs.map(c=>{ const open = CAPA_CH_OPEN.has(c.ch), has = c.ea > 0 || (B[c.ch] && Object.keys(B[c.ch].prod).length);
+      return `<tr class="chrow" onclick="capaChToggle('${String(c.ch).replace(/'/g,"\\'")}')" title="누르면 품목별 내역을 ${open?"접습니다":"펼칩니다"}">
+        <td class="l" style="white-space:nowrap"><span class="chdot" style="background:${chColor(c.ch)}"></span><b>${open?"▾":"▸"} ${chName(c.ch)}</b></td>
+        <td class="l"><div class="chbar" style="background:${chColor(c.ch)};width:${c.ea ? Math.max(1.5, c.ea/mx*100) : 0}%"></div></td>
+        <td><b>${fmt(c.ea)}</b></td><td>${kg1(c.kg)}</td><td>${tot ? Math.round(c.ea/tot*100) : 0}%</td><td>${chDelta(c.ea, B[c.ch]?.ea)}</td>
+        <td class="l" style="white-space:nowrap">${specTags(c) || `<span class="hint" style="padding:0;font-size:11.5px">전 기간 ${fmt(B[c.ch]?.ea||0)} EA</span>`}</td></tr>${open && has ? `<tr class="chsub"><td colspan="7">${prodTbl(c)}</td></tr>` : ""}`; }).join("")}
+    </tbody><tfoot><tr><td class="l">합 계</td><td></td><td>${fmt(tot)}</td><td>${kg1(totKg)}</td><td>100%</td><td>${chDelta(tot, ptot)}</td><td class="l" style="font-weight:600;font-size:12px">전 기간 ${fmt(ptot)} EA · ${kg1(pkg)} kg</td></tr></tfoot></table>`;
+}
+function capaChToggle(ch){ if (CAPA_CH_OPEN.has(ch)) CAPA_CH_OPEN.delete(ch); else CAPA_CH_OPEN.add(ch);
+  const from = $("capaFrom").value, to = $("capaTo").value || from; renderCapaCh(from, to); }
+function csvCapaCh(){
+  const from = $("capaFrom").value, to = $("capaTo").value || from;
+  const F = shipFacts(from, to).sort((a,b)=>a.d.localeCompare(b.d) || chOrd(a.ch) - chOrd(b.ch) || natCmp(a.name, b.name));
+  if (!F.length) return toast("이 기간에 출고 완료한 내역이 없습니다");
+  csv("채널별출고", ["출고일","채널","품목","규격","출고 EA","중량kg","지시번호","일련번호","출고자"],
+    F.map(x=>[x.d, chName(x.ch), x.name, x.spec ? specLabel(x.spec) : "", x.qty, Math.round(x.kg*1000)/1000, x.order_no, x.serial, x.by]));
+}
+/* 연간 — 월별 채널 출고 */
+function renderCapaYearCh(){
+  if (!$("capaYearCh")) return;
+  const y = $("capaYear").value || today().slice(0,4);
+  const F = shipFacts(`${y}-01-01`, `${y}-12-31`), chs = [...new Set(F.map(x=>x.ch))].sort((a,b)=>chOrd(a) - chOrd(b));
+  const M = Array.from({ length:12 }, (_,i)=>{ const mm = `${y}-${String(i+1).padStart(2,"0")}`, f = F.filter(x=>x.d.slice(0,7) === mm);
+    return { i, by:Object.fromEntries(chs.map(c=>[c, f.filter(x=>x.ch === c).reduce((t,x)=>t+x.qty,0)])), ea:f.reduce((t,x)=>t+x.qty,0), kg:f.reduce((t,x)=>t+x.kg,0) }; });
+  tbl("capaYearCh", ["월", ...chs.map(chName), "합계 EA", "kg", "전월 대비"],
+    M.map(m=>`<tr><td class="c"><b>${m.i+1}월</b></td>${chs.map(c=>`<td>${m.by[c] ? fmt(m.by[c]) : "—"}</td>`).join("")}<td><b>${m.ea ? fmt(m.ea) : "—"}</b></td><td>${m.kg ? kg1(m.kg) : "—"}</td><td class="c">${m.i && m.ea ? chDelta(m.ea, M[m.i-1].ea) : "—"}</td></tr>`),
+    `<td class="c">합 계</td>${chs.map(c=>`<td>${fmt(M.reduce((t,m)=>t+m.by[c],0))}</td>`).join("")}<td>${fmt(M.reduce((t,m)=>t+m.ea,0))}</td><td>${kg1(M.reduce((t,m)=>t+m.kg,0))}</td><td></td>`);
 }
 /* 월간 회고 */
 function renderCapaRetro(){
@@ -21848,6 +22561,13 @@ function renderCapaRetro(){
         ${kv("시간대 (최다 생산)", (()=>{ const hh = {}; R1.filter(r=>r.t).forEach(r=>{ const k = String(r.t.end).slice(11,13); hh[k] = (hh[k]||0)+r.qty; }); const b = Object.entries(hh).sort((a,b)=>b[1]-a[1])[0]; return b ? `${b[0]}시 완료분 ${fmt(b[1])}EA` : "—"; })(), "")}
         ${kv("주요 이슈 (문의·비고)", (()=>{ const hs = helpTickets().filter(t=>String(t.at||"").slice(0,7)===mon); const cl = Object.entries(closeLog()).filter(([d])=>d.slice(0,7)===mon && closeLog()[d]?.note).map(([d,v])=>`${d.slice(5)} ${v.note}`); return [`문의 ${hs.length}건`, ...cl.slice(0,5)].join("<br>"); })(), "")}
       </tbody></table>
+      ${(()=>{ /* ★ 2026-11-17 채널 출고 — 이 달 ↔ 전월 */
+        const a1 = shipAgg(shipFacts(f1,t1)), a0 = shipAgg(shipFacts(f0,t0)), ns = [...new Set([...Object.keys(a1), ...Object.keys(a0)])].sort((x,y)=>(a1[y]?.ea||0) - (a1[x]?.ea||0) || chOrd(x) - chOrd(y));
+        const e1 = Object.values(a1).reduce((t,c)=>t+c.ea,0), e0 = Object.values(a0).reduce((t,c)=>t+c.ea,0), k1 = Object.values(a1).reduce((t,c)=>t+c.kg,0);
+        return `<table><thead><tr><th class="l">채널 출고</th><th>이 달</th><th>전월 대비</th></tr></thead><tbody>
+          ${kv("총 출고", `${fmt(e1)} EA · ${kg1(k1)} kg`, `${chDelta(e1, e0)} (전월 ${fmt(e0)})`)}
+          ${ns.map(n=>kv(chName(n), `${fmt(a1[n]?.ea||0)} EA${e1 ? ` · ${Math.round((a1[n]?.ea||0)/e1*100)}%` : ""}`, `${chDelta(a1[n]?.ea||0, a0[n]?.ea||0)} (전월 ${fmt(a0[n]?.ea||0)})`)).join("") || kv("출고 내역", "—", "")}
+        </tbody></table>`; })()}
     </div>`;
 }
 /* 연간 */
@@ -21890,9 +22610,9 @@ function renderCapaForecast(){
   try { const rows = planRows(); allocate(rows); const by = {};
     rows.forEach(r=>Object.entries(r.alloc||{}).forEach(([mid,q])=>{ const m = DB.machines.find(x=>x.id===mid)?.name||"미지정"; const sp = Number(r.p.spec_g)||0; const k = `${m}|${sp}`; const o = by[k] = by[k]||{ m, sp, ea:0, kg:0 }; o.ea += q; o.kg += q*sp/1000; }));
     const list = Object.values(by).map(x=>{ const cc = recentCapa(x.m, x.sp); const h = cc.S.kgph ? x.kg/cc.S.kgph : null; return { ...x, cc, h, hAll: h!=null ? h*(1+cc.pauseRatio) : null }; });
-    if (list.length) planHtml = `<div style="font-weight:700;margin:12px 0 4px">오늘 생산계획 예상 (설비 배정 기준)</div><table><thead><tr><th>설비</th><th>규격</th><th>계획 EA</th><th>계획 kg</th><th>최근 CAPA</th><th>예상 생산시간</th><th>중단 포함</th><th>평균 인원</th><th>근거</th></tr></thead><tbody>${
+    if (list.length) planHtml = `<div style="font-weight:700;margin:12px 0 4px">오늘 생산계획 예상 (설비 배정 기준)</div><div class="xscroll"><table><thead><tr><th>설비</th><th>규격</th><th>계획 EA</th><th>계획 kg</th><th>최근 CAPA</th><th>예상 생산시간</th><th>중단 포함</th><th>평균 인원</th><th>근거</th></tr></thead><tbody>${
       list.map(x=>`<tr><td class="c">${x.m}</td><td class="c">${specLabel(x.sp)}</td><td>${fmt(x.ea)}</td><td>${fmt(Math.round(x.kg*10)/10)}</td><td>${x.cc.S.kgph!=null?`${fmt(x.cc.S.kgph)}kg/h`:"—"}</td><td><b>${x.h!=null?fmtDur(x.h*3600):"—"}</b></td><td>${x.hAll!=null?fmtDur(x.hAll*3600):"—"}</td><td>${x.cc.n?Math.round(x.cc.ppl*10)/10:"—"}명</td><td class="c" style="font-size:12px">${x.cc.src} ${x.cc.n}건</td></tr>`).join("")}</tbody>
-      <tfoot><tr><td colspan="5" class="c">합계</td><td><b>${fmtDur(list.reduce((s,x)=>s+(x.h||0),0)*3600)}</b></td><td>${fmtDur(list.reduce((s,x)=>s+(x.hAll||0),0)*3600)}</td><td colspan="2"></td></tr></tfoot></table>`; } catch(e){}
+      <tfoot><tr><td colspan="5" class="c">합계</td><td><b>${fmtDur(list.reduce((s,x)=>s+(x.h||0),0)*3600)}</b></td><td>${fmtDur(list.reduce((s,x)=>s+(x.hAll||0),0)*3600)}</td><td colspan="2"></td></tr></tfoot></table></div>`; } catch(e){}
   $("capaForecast").innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
       <label>설비 <select onchange="fcState.machine=this.value;renderCapaForecast()">${machs.map(m=>`<option ${m===fcState.machine?"selected":""}>${m}</option>`).join("")}</select></label>
       <label>품목 <select onchange="fcState.pid=this.value;renderCapaForecast()">${prods.map(x=>`<option value="${x.id}" ${x.id===fcState.pid?"selected":""}>${x.name}</option>`).join("")}</select></label>
@@ -22970,11 +23690,14 @@ function applyRoleLock(){
     el.classList.toggle("mine", isMine(el.dataset.s));
   });
   document.querySelectorAll("#menu .grp").forEach(el=>{ el.style.display = onlyMine(el) ? "none" : ""; });
+  try { applyMenuPref(); } catch(e){ console.warn(e); }                 // ★ 2026-11-17 각자 지정한 메뉴 순서 · 숨김
   const mu = $("mtUnitPanel"); if (mu) mu.style.display = can("plan") ? "" : "none";
   /* 현장 계정의 라벨작업 — 오늘 할 카드만 (마감 현황 17칸 표 · 전체 현황 표는 관리자) */
   ["mtClosePanel","mtAllPanel","mtDiff"].forEach(id=>{ const e = $(id); if (e) e.style.display = isFloor() ? "none" : ""; });
   applyGuide();
   roleBanner();
+  try { chgApply(); } catch(e){ console.warn(e); }                      // ★ 2026-11-17 변경 표시 (파란 숫자 · 위쪽 목록 · 빨간 테두리)
+  try { renderMNav(); kpiReopen(); } catch(e){ console.warn(e); }      // ★ 2026-11-17 휴대폰 하단 탭 · 펼친 숫자 상자 유지
 }
 /* 화면 맨 위에 "보기 전용" 띠 */
 function roleBanner(){
@@ -23032,6 +23755,7 @@ async function firstRun(){
     }
     setRole(loginRole(), true);
     renderAll();
+    if (isPhone()) go("home");            // ★ 2026-11-17 휴대폰은 [오늘 요약] 이 첫 화면
     return;
   }
   setRole("floor", true);
