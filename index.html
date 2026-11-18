@@ -1148,7 +1148,10 @@
   body.mobile .topbar .right > button:not(#personalLogoutBtn), body.mobile .topbar .right #personalLogoutBtn,
   body.mobile .topbar .right #loginIdentity, body.mobile .topbar .right .st{display:none !important;}
   body.mobile .topbar .right #curUser{display:block; max-width:none; flex:1 1 0;}
-  body.mobile .topbar .right #favBtn, body.mobile .topbar .right #bellBtn{display:flex !important; width:32px; height:32px;}
+  /* ★ 2026-11-18 모바일 보기에도 알림(🔔)을 보인다 (Lee "모바일에 알림 표시가 없던데 그거 뜨게 해줘")
+       위의 "버튼은 전부 숨김" 규칙이 더 강해서 종 모양까지 숨겨지고 있었다 — 같은 세기로 다시 켠다 */
+  body.mobile .topbar .right > button#bellBtn{display:flex !important; align-items:center; justify-content:center; flex:none; width:36px; height:36px; font-size:17px;}
+  body.mobile #bellMenu{width:min(420px, calc(100vw - 16px)) !important; right:8px; max-height:calc(100vh - 150px); overflow-y:auto;}
   body.mobile .acct{top:62px; right:8px;}
   body.mobile .guide{display:none;}                       /* 설명은 서랍의 [설명 보기]로 */
   body.mobile.showguide .guide{display:block;}
@@ -7780,6 +7783,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-18", "모바일 보기에 알림(🔔) 표시", "휴대폰 · 태블릿의 모바일 보기 위쪽 바에 알림 종이 나옵니다 — 읽지 않은 알림 수가 빨간 숫자로 붙고, 누르면 알림 목록이 화면 폭에 맞게 열립니다. 전에는 모바일 보기에서 종이 숨겨져 알림을 볼 곳이 없었습니다."],
   ["2026-11-18", "변경 표시 [확인] — 같은 아이디의 다른 기기와 연동", "변경 표시(메뉴의 파란 숫자 · 화면 위 변경 목록)에서 [확인]을 누르면 같은 아이디로 로그인한 다른 기기에서도 함께 사라집니다. 전에는 기기마다 따로 눌러야 했습니다. 다른 아이디의 확인 기록에는 영향이 없습니다. (서버 000_install_all.sql 재실행 필요 — 실행 전에는 전처럼 이 기기에만 저장)"],
   ["2026-11-18", "기본 여유 (블렌드 4종 자동 +25개) · 원두별 사용 계획", "에스쇼콜라 · 프루티봉봉 · 부산 · 므쵸베리는 주문이 있는 날 주문이 가장 많은 품목 하나에 기본 여유 25개를 자동으로 더합니다 — 생산 목표와 로스팅 요청에 모두 포함되고, 요일별 여유분 · 여유분 스위치와는 따로입니다. 수량은 기준정보 › 원두별 설정의 [기본 여유]에서 원두마다 바꿉니다. 집계 탭과 로스팅 요청 화면에 「원두별 사용 계획」 표(주문분 + 여유분 + 기본 여유 = 합계 · 재고 대비 부족)가 생겼습니다. 현장 카드에는 「원두 사용」 줄이 생겨 같은 배치를 나눠 쓰는 지시의 사용량과 남음/부족을 보여 주고, 생산 가능 수량도 나눠 쓰는 만큼 빼고 계산합니다. 생산 중 수량을 입력하면 [+N개 추가]가 실제보다 많이 나오던 계산도 바로잡았습니다."],
   ["2026-11-18", "이월할 때 다음 지시 목표도 같이 늘리기", "생산 완료 창에서 잔량 원두를 다음 배치로 이월할 때 「다음 지시 목표도 늘리기」 체크(기본 켜짐)가 나옵니다 — 완료하면 이월과 함께 다음 지시 목표가 늘어납니다. 늘릴 수 없으면 이유(이월 후 최대 수량 · +1개까지 부족한 kg)를 창에 적습니다. 현장 카드도 이월받은 배치인데 [+N개 추가]가 없으면 「추가 없음」과 계산 근거를 표시합니다."],
