@@ -1268,6 +1268,12 @@
   details.gfold > summary::before{content:"▸"; margin-right:8px; color:var(--soft)} details.gfold[open] > summary::before{content:"▾"}
   details.gfold:not([open]) > summary{border-bottom:none}
   @media (max-width:760px){ .gwrap{grid-template-columns:minmax(0,1fr)} .gi{padding:9px 10px; gap:8px} .gi .gck{width:40px; height:40px} .gi .gst{min-width:0} .gi .gnm{font-size:13.5px} }
+  .swb{display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 10px 0 12px; border-radius:17px; border:1.5px solid var(--line-2,var(--line)); background:var(--card,transparent); color:var(--ink); font-weight:700; font-size:12.5px; cursor:pointer; white-space:nowrap; flex:none}
+  .swb .st{font-size:11px; font-weight:800; padding:2px 8px; border-radius:10px; background:var(--ok); color:#fff}
+  .swb.off{border-color:var(--bad); color:var(--soft)} .swb.off .kn{text-decoration:line-through} .swb.off .st{background:var(--bad)}
+  .swb .hd{font-size:11px; font-weight:700; color:var(--bad)}
+  .swb:disabled{cursor:default; opacity:.8}
+  .chprod .cp.swoff{opacity:.5; border-style:dashed}
   .chprod{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:10px 0 2px}
   .chprod .cp{border:1px solid var(--line); border-radius:10px; padding:8px 10px; background:var(--card,transparent); min-width:0}
   .chprod .cp.off{opacity:.45}
@@ -1387,6 +1393,19 @@
   /* ★ 2026-11-17 메뉴 설정 — 순서 · 숨김 · 하단 탭을 각자 지정 (Lee "본인들이 메뉴를 커스텀") */
   #menu button.uhide, #menu .grp.uhide{display:none !important;}
   #menu.custom .grp{display:none !important;}
+  #chOrdDlg{position:fixed; inset:0; z-index:90; background:rgba(11,20,68,.45); display:flex; align-items:center; justify-content:center; padding:16px;}
+  #chOrdDlg .mbox{background:var(--card,#fff); color:var(--ink); width:400px; max-width:100%; border-radius:14px; display:flex; flex-direction:column; box-shadow:0 18px 50px rgba(0,0,0,.28);}
+  #chOrdDlg .mh{display:flex; align-items:center; padding:14px 10px 4px 16px;} #chOrdDlg .mh b{font-size:16px; font-weight:800; flex:1;}
+  #chOrdDlg .mh .x{border:none; background:none; font-size:17px; color:var(--soft); cursor:pointer; width:36px; height:36px;}
+  #chOrdDlg .mt{padding:0 16px 10px; font-size:12px; line-height:1.55;}
+  #chOrdDlg .col{border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:6px 10px; display:flex; flex-direction:column; gap:6px; user-select:none; -webkit-user-select:none;}
+  #chOrdDlg .cor{display:flex; align-items:center; gap:10px; padding:8px 8px 8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--card,#fff); cursor:grab; touch-action:none; min-height:48px;}
+  #chOrdDlg .cor.drag{cursor:grabbing; border-color:var(--blue,#3B6CF6); box-shadow:0 6px 18px rgba(0,0,0,.22); opacity:.92;}
+  #chOrdDlg .cor .grip{font-size:17px; color:var(--soft); width:20px; text-align:center;}
+  #chOrdDlg .cor .no{width:22px; height:22px; border-radius:50%; background:var(--line); font-size:11.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:none;}
+  #chOrdDlg .cor .nm{flex:1; min-width:0; font-size:14px;}
+  #chOrdDlg .cor .btn{height:34px; min-width:38px; padding:0;}
+  #chOrdDlg .mf{display:flex; align-items:center; gap:8px; padding:12px 14px;}
   #wakeDlg{position:fixed; inset:0; z-index:90; background:rgba(11,20,68,.45); display:flex; align-items:center; justify-content:center; padding:16px;}
   #wakeDlg .mbox{background:var(--card,#fff); color:var(--ink); width:440px; max-width:100%; border-radius:14px; display:flex; flex-direction:column; box-shadow:0 18px 50px rgba(0,0,0,.28);}
   #wakeDlg .mh{display:flex; align-items:center; padding:14px 10px 4px 16px;} #wakeDlg .mh b{font-size:16px; font-weight:800; flex:1;}
@@ -1757,6 +1776,7 @@
   </div>
   <div class="subtabs" id="wkTabs"></div>
   <div class="subtabs" id="wkChTabs" style="margin-top:-4px"></div>
+  <div class="subtabs" id="wkSw" style="margin-top:-4px"></div>
   <div class="body">
     <h2 class="page">현장 작업<small id="asof-work"></small></h2>
     <div class="guide">
@@ -1791,6 +1811,7 @@
     </div>
     <div id="qcTabs" style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap"></div>
     <div class="subtabs" id="qcChTabs" style="margin:0 0 12px"></div>
+    <div class="subtabs" id="qcSw" style="margin:-4px 0 12px"></div>
     <div class="panel" id="qcRun" style="display:none;margin-bottom:14px;border:2px solid var(--accent)"></div>
     <div id="qcCards" class="wcards"></div>
   </div>
@@ -6174,7 +6195,7 @@ async function mesCreateOrders(a){
             serial:d.serial || "", serial_full:d.serial_full || "", log_id:null,
             batch_plan:d.batch_plan || "", label_packs:d.label_packs ?? null,
             label_id:d.label_id || "", batch_seq:d.batch_seq ?? null,
-            batch_of:d.batch_of ?? null, pack_type:d.pack_type,
+            batch_of:d.batch_of ?? null, pack_type:d.pack_type, buf_qty:Number(d.buf_qty)||0,
             started_by:null, started_at:null, done_by:null, done_at:null,
             qc:{}, qc_by:null, qc_at:null, ng_type:"", ng_note:"",
             ship_by:null, ship_at:null, note:"" });
@@ -7744,6 +7765,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-18", "채널 순서 — 끌어서 옮기기 · 여유분은 배치 단위로", "① 현장 작업의 [채널 순서]가 글자로 적는 방식에서 목록으로 바뀌었습니다 — 줄을 잡고 위아래로 끌거나 ▲▼ 로 옮긴 뒤 [저장] (마우스 · 터치 모두). ② 여유분 스위치를 꺼도 한 배치에 주문 수량과 여유분이 같이 들어 있으면 그 배치는 전부 생산하는 것으로 잡습니다 (목표 수량을 줄이지 않음). 배치 전체가 여유분인 지시만 숨겨집니다. 작업지시를 만들 때 여유분은 그 품목의 뒤쪽 배치부터 채웁니다."],
+  ["2026-11-18", "코스트코 / 컬리 / 여유분 켜기 · 끄기", "현장 작업과 검수 화면의 채널 칸 아래에 [코스트코] [컬리] [여유분] 스위치가 생겼습니다 — 누르면 켜짐/꺼짐이 바뀌고 모든 기기에 바로 적용됩니다 (현장 작업 · 검수 · 계획 권한). ① 코스트코 · 컬리를 끄면 그 채널의 대기 카드(현장 작업)와 검수 대기 카드(검수)가 숨겨지고 합계에서 빠지며, 생산계획도 그 채널 집계를 빼고 계산합니다. 작업지시는 지워지지 않고 생산중인 작업은 그대로 보입니다. 코스트코 원두의 자동 지시 생성은 계속됩니다. ② 여유분을 끄면 여유분만으로 된 배치(카드)는 숨겨지고, 주문 수량과 여유분이 한 배치에 같이 있으면 그 배치는 전부 생산합니다(목표 수량 그대로) — 생산계획에는 여유분을 더하지 않습니다. 여유분 수량은 이번 버전부터 작업지시를 만들 때 지시에 기록되므로, 그 전에 만든 지시에는 적용되지 않습니다. 서버 SQL(000_install_all.sql) 재실행이 필요합니다."],
   ["2026-11-18", "추가 버튼 — 여러 개 한 번에", "행을 추가하는 버튼마다 옆에 숫자 칸이 생겼습니다 — 숫자만큼 한 번에 추가됩니다 (최대 50). 작업지시 [지시 추가] · 라벨작업 [1차 직접 추가] · 재작업 [+ 품목 추가] · 로스팅 요청 카드의 [+ 원두 추가] · 부자재 [행 추가] · BOM [자재 추가]. 창으로 하나씩 입력하는 분쇄 [직접 추가] · 로스팅 [배치 추가]는 숫자만큼 이어서 묻고, 중간에 취소하면 멈춥니다. 숫자를 1로 두면 전과 같습니다."],
   ["2026-11-18", "생산계획 › 집계 — 직접 추가를 여러 줄 한 번에", "[직접 추가] 버튼 옆 숫자 칸에 줄 수를 넣고 누르면 그만큼 빈 줄이 한 번에 추가됩니다 (최대 50줄). 추가한 줄 중 맨 윗줄로 이동하므로 위에서부터 품목과 수량을 차례로 입력하면 됩니다. 숫자를 1로 두면 전과 같습니다."],
   ["2026-11-18", "화면 켜 두기", "앱이 화면에 떠 있는 동안 기기 화면이 꺼지지 않게 합니다 (휴대폰 · 태블릿은 화면이 꺼지면 실시간 연결이 끊깁니다). 모든 화면에서 처음부터 켜져 있고, 오른쪽 위 계정 메뉴(휴대폰은 메뉴 맨 아래)의 [화면 켜 두기]에서 기기마다 끄거나 [조작이 없으면 풀리는 시간](10분 · 30분 · 1시간 · 2시간 · 4시간 · 8시간 · 계속)을 정할 수 있습니다 — 기본 1시간. 그 시간 동안 화면을 건드리지 않으면 풀려서 기기 설정대로 꺼지고, 다시 건드리면 다시 켜 둡니다. 지원하지 않는 브라우저에서는 동작하지 않으며 창에 안내가 표시됩니다."],
@@ -8924,6 +8947,51 @@ function setTallyCh(v){ tallyCh = v || "일반"; renderPlan(); }
 const CH_MAIN = ["컬리","네이버","코스트코"], CH_BUCKETS = ["컬리","네이버","코스트코","기타"];
 const chBucket = ch => CH_MAIN.includes(ch) ? ch : "기타";
 const tallyChOf = t => t.channel || prodChan(prodById(t.product_id));
+/* ══ ★ 2026-11-18 코스트코 / 컬리 / 여유분 켜고 끄기 (Lee "코스트코 / 컬리 / 여유분 (여유수량) on/off 기능 · 현장에서 판단 할 수 있게 · 모든 기기에 적용 · 현장작업과 검수에서")
+   · 공용 설정 prod_switch = { costco, kurly, buf } — 한 곳에서 바꾸면 모든 기기에 적용 (현장 작업 · 검수 화면의 스위치)
+   · 코스트코 · 컬리 끔 = 그 채널의 대기 지시 · 검수 대기 카드가 숨겨지고 합계에서 빠진다 · 생산계획도 그 채널 집계를 빼고 계산한다 (지시는 지우지 않는다 · 코스트코 자동 지시는 계속 생성)
+   · 여유분 끔 = 카드는 한 장 그대로, 목표 수량에서 여유분만큼 뺀다 (지시에 적어 둔 buf_qty) · 생산계획에도 여유분을 더하지 않는다
+   · 생산중인 지시는 숨기지 않는다 */
+const SW_KEY = "prod_switch", SW_DEF = [["costco","코스트코"],["kurly","컬리"],["buf","여유분"]];
+const swState = () => ({ costco:true, kurly:true, buf:true, ...((typeof SETTINGS === "object" && SETTINGS && SETTINGS[SW_KEY]) || {}) });
+const swOn = k => swState()[k] !== false;
+const swChOff = ch => { const b = chBucket(ch||"일반"); return (b === "코스트코" && !swOn("costco")) || (b === "컬리" && !swOn("kurly")); };
+/* 여유분을 껐을 때 이 지시에서 빼는 수량
+   ★ 2026-11-18 (2) 한 배치(지시)에 주문 수량과 여유분이 섞여 있으면 그 배치는 전부 생산한다 — 목표를 줄이지 않는다 (Lee "한 배치에 여유수량이 있으면 그 배치는 전부 생산하는 걸로 잡아줘")
+     배치 전체가 여유분인 지시(주문분이 0)만 통째로 뺀다 — 아직 시작하지 않은 것만 */
+const bufOnly = o => !!o && Number(o.buf_qty) > 0 && Number(o.buf_qty) >= (Number(o.qty_plan)||0);
+const bufCut = o => (!o || swOn("buf") || stIdx(o) >= 2 || !bufOnly(o) || o.status !== "대기" || Number(o.qty_done) > 0) ? 0 : (Number(o.qty_plan)||0);
+const ordPlan = o => (Number(o?.qty_plan)||0) - bufCut(o);
+/* 꺼져 있어서 숨기는 지시인가 — 대기(현장) · 생산완료(검수 대기)만. 생산중 · 반려 재작업은 숨기지 않는다 */
+const swHide = o => !!o && (o.status === "대기" || o.status === "생산완료") && !(o.status === "대기" && Number(o.qty_done) > 0)
+  && (swChOff(ordShipCh(o)) || (o.status === "대기" && !swOn("buf") && Number(o.buf_qty) > 0 && ordPlan(o) <= 0));
+const canSw = () => can("work") || can("qc") || can("plan");
+async function setSw(k, on){
+  const nm = (SW_DEF.find(x=>x[0]===k)||[])[1]; if (!nm) return;
+  if (!canSw()) return toast("스위치는 현장 작업 · 검수 · 계획 권한이 있는 계정만 바꿀 수 있습니다");
+  if (!(await requireUser({ ask:`${nm} ${on ? "켜기" : "끄기"}` }))) return;
+  const msg = k === "buf"
+    ? (on ? "여유분을 다시 켭니다.\n숨겨 둔 여유분 배치 카드가 다시 나타나고 생산계획에 여유분이 다시 포함됩니다."
+          : "여유분을 끕니다.\n· 여유분만으로 된 배치(카드)는 현장 작업에서 숨겨집니다\n· 주문 수량과 여유분이 한 배치에 같이 있으면 그 배치는 전부 생산합니다 (목표 수량 그대로)\n· 생산계획에 여유분이 더해지지 않습니다")
+    : (on ? `${nm}를 다시 켭니다.\n숨겨 둔 ${nm} 카드가 현장 작업 · 검수에 다시 나타나고 생산계획에도 포함됩니다.`
+          : `${nm}를 끕니다.\n· 현장 작업의 ${nm} 대기 카드와 검수의 ${nm} 검수 대기 카드가 숨겨지고 합계에서 빠집니다\n· 생산계획에서 ${nm} 집계가 빠집니다\n· 작업지시는 지워지지 않으며, 생산중인 작업은 그대로 보입니다${k === "costco" ? "\n· 코스트코 원두의 자동 지시 생성은 계속됩니다" : ""}`);
+  if (!(await ask(`${msg}\n\n모든 기기에 바로 적용됩니다.`, { title:`${nm} ${on ? "켜기" : "끄기"}`, yes:on ? "켜기" : "끄기", danger:!on }))) return;
+  const val = { ...swState(), [k]:!!on, by:CURRENT_USER||"", at:nowISO() };
+  SETTINGS[SW_KEY] = val; renderAll();
+  const r = await saveSetting(SW_KEY, val);
+  if (r && r.ok === false) { toast(/prod_switch|권한|roast/i.test(String(r.message||"")) ? "서버에 최신 000_install_all.sql 을 실행해야 모든 기기에 적용됩니다 — 지금은 이 기기에만 적용" : "저장 실패 — " + (r.message||"서버")); return; }
+  logAudit("생산 스위치", nm, on ? "켬" : "끔");
+  toast(`${nm} ${on ? "켬" : "끔"} — 모든 기기에 적용됩니다`);
+}
+/* 스위치 줄 — 현장 작업 · 검수 화면 공용. hidden = 지금 숨겨져 있는 건수 { costco, kurly, buf } */
+function swBarHTML(hidden){
+  const S = swState(), ok = canSw();
+  return `<span class="hint" style="padding:0 4px 0 0;align-self:center;font-weight:700;white-space:nowrap;flex:none">켜기 · 끄기</span>` + SW_DEF.map(([k, nm])=>{
+    const on = S[k] !== false, h = (hidden && hidden[k]) || 0;
+    return `<button class="swb ${on ? "on" : "off"}" ${ok ? `onclick="setSw('${k}', ${on ? "false" : "true"})"` : "disabled"} title="${nm} ${on ? "켜져 있음 — 누르면 끕니다" : "꺼져 있음 — 누르면 켭니다"} · 모든 기기에 적용">
+      <span class="kn">${nm}</span><span class="st">${on ? "ON" : "OFF"}</span>${!on && h ? `<span class="hd">${k === "buf" ? `여유분 배치 ${h}건 숨김` : `${h}건 숨김`}</span>` : ""}</button>`; }).join("") +
+    (S.by && SW_DEF.some(([k])=>S[k] === false) ? `<span class="hint" style="padding:0 0 0 4px;align-self:center;white-space:nowrap">${xh(S.by)} · ${(()=>{ const t = new Date(S.at); return isNaN(t) ? "" : `${t.getMonth()+1}/${t.getDate()} ${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`; })()} 변경</span>` : "");
+}
 /* 품목 · 날짜 → 채널별 집계 수량 { 컬리: 30, 일반: 50 } */
 function tallyByCh(pid, d){
   const T = {}; talliesOf(d).filter(t=>t.product_id===pid).forEach(t=>{ const c = tallyChOf(t); T[c] = (T[c]||0) + Number(t.qty||0); });
@@ -8934,19 +9002,20 @@ function chQueue(p, d){
   const def = prodChan(p), T = tallyByCh(p.id, d), M = {};
   DB.orders.filter(o=>o.work_date===d && o.product_id===p.id && o.status!=="폐기").forEach(o=>{ const c = o.channel||"일반"; M[c] = (M[c]||0) + Number(o.qty_done||0); });
   const ord = c => { const i = ["코스트코","컬리","네이버"].indexOf(c); return i < 0 ? 9 : i; };
-  return { def, q:Object.keys(T).filter(c=>c !== def).sort((a,b)=>ord(a)-ord(b) || a.localeCompare(b))
+  return { def, buf:Math.max(0, Math.round(planCalc(p, d).buf || 0)), q:Object.keys(T).filter(c=>c !== def && !swChOff(c)).sort((a,b)=>ord(a)-ord(b) || a.localeCompare(b))
     .map(c=>({ ch:c, left:Math.max(0, Math.round(T[c] - (M[c]||0))) })).filter(x=>x.left > 0) };
 }
 /* 오늘 생산을 채널 네 칸으로 — 지시의 출고처 기준 */
 function chProdSum(os){
   const S = {}; CH_BUCKETS.forEach(b=>S[b] = { plan:0, done:0, n:0 });
-  os.forEach(o=>{ const b = S[chBucket(ordShipCh(o))]; b.plan += Number(o.qty_plan||0); b.done += Number(o.qty_done||0); b.n++; });
+  os.forEach(o=>{ const b = S[chBucket(ordShipCh(o))]; b.plan += ordPlan(o); b.done += Number(o.qty_done||0); b.n++; });
   return S;
 }
 function chProdHTML(os){
   const S = chProdSum(os);
   return `<div class="chprod">${CH_BUCKETS.map(b=>{ const x = S[b], pct = x.plan ? Math.min(100, Math.round(x.done/x.plan*100)) : 0;
-    return `<div class="cp ${x.n ? "" : "off"}"><div class="k">${CH_STYLE[b] ? `<span style="${CH_STYLE[b]};font-weight:800;font-size:11.5px;padding:1px 7px;border-radius:6px">${b}</span>` : `<span class="tag" style="font-size:11.5px">${b}</span>`}<em>${x.n}건</em></div>
+    const sw = (b === "코스트코" && !swOn("costco")) || (b === "컬리" && !swOn("kurly"));
+    return `<div class="cp ${x.n ? "" : "off"} ${sw ? "swoff" : ""}" ${sw ? `title="${b} 꺼짐 — 현장 작업 · 검수에서 숨겨져 있습니다"` : ""}><div class="k">${CH_STYLE[b] ? `<span style="${CH_STYLE[b]};font-weight:800;font-size:11.5px;padding:1px 7px;border-radius:6px">${b}</span>` : `<span class="tag" style="font-size:11.5px">${b}</span>`}<em>${sw ? "꺼짐 · " : ""}${x.n}건</em></div>
       <div class="v"><b>${fmt(x.done)}</b><span>/ ${fmt(x.plan)} EA</span></div><div class="pb"><i style="width:${pct}%"></i></div></div>`; }).join("")}</div>`;
 }
 /* 그 날 이미 만든 수량 — 생산중이어도 찍어 넣은 수량은 센다 */
@@ -14236,14 +14305,17 @@ function planNeedRaw(p, d){
   return Math.max(0, tallyQty(p.id, undefined, d) - madeQty(p.id, d));
 }
 function planCalc(p, day){
-  const d = day || tallyDay(), want = bufEA(p, d);
+  const d = day || tallyDay(), want = swOn("buf") ? bufEA(p, d) : 0;      // ★ 2026-11-18 여유분 스위치가 꺼져 있으면 더하지 않는다
   const buf = want > 0 ? (bufCapMap(d)[p.id] ?? want) : 0;
   /* ★ 2026-11-01 — 집계가 없으면 안전재고 부족분을 "자동 계획"으로 잡지 않는다 (Lee "쇼콜라 95개가 계속 자동으로 잡혀 — 안 그러게")
        생산계획 › [안전재고 자동 보충] 을 켠 경우에만 전처럼 잡는다. 꺼져 있으면 안전재고 미달은 표시만. */
   if (!hasTally(p.id, d)) {
     if (!safetyAuto()) return { need:0, buf:0, want, cut:0, total:0, mode:"none", short: shortage(p) };
     const need = shortage(p); return { need, buf, want, cut: want - buf, total: need + buf, mode:"safety" }; }
-  const tally = tallyQty(p.id, undefined, d), made = madeQty(p.id, d);
+  /* ★ 2026-11-18 꺼 둔 채널(코스트코 · 컬리)의 집계와 그 채널로 만든 수량은 계산에서 뺀다 */
+  const offT = (()=>{ const T = tallyByCh(p.id, d); return Object.keys(T).filter(swChOff).reduce((t,c)=>t+T[c],0); })();
+  const offM = offT || !swOn("costco") || !swOn("kurly") ? DB.orders.filter(o=>o.work_date===d && o.product_id===p.id && o.status!=="폐기" && swChOff(o.channel)).reduce((t,o)=>t+Number(o.qty_done||0),0) : 0;
+  const tally = tallyQty(p.id, undefined, d) - offT, made = madeQty(p.id, d) - offM;
   const need = Math.max(0, tally - made);
   const total = Math.max(0, tally + buf - made);
   return { need, buf: total - need, want, cut: want - (total - need), total, mode:"tally" };     // 이미 만든 수량이 주문을 넘으면 여유분에서 빠진다
@@ -19774,11 +19846,14 @@ const pctOf = o => { const q=Number(o.qty_plan||0); return q>0 ? Math.min(100, M
 function planOrderDiff(d){
   d = d || tallyDay();
   const gone = [], changed = [], many = [];
-  const ords = ordsOf(d).filter(o=>o.status !== "폐기" && !isCostcoOrd(o));   // ★ 2026-11-17 코스트코 지시는 원두 입고 기준 — 계획과 비교하지 않는다 (동기화로 지워지지 않게)
+  const ords = ordsOf(d).filter(o=>o.status !== "폐기" && !isCostcoOrd(o) && !swChOff(o.channel));   // ★ 2026-11-18 꺼 둔 채널 지시는 비교하지 않는다   // ★ 2026-11-17 코스트코 지시는 원두 입고 기준 — 계획과 비교하지 않는다 (동기화로 지워지지 않게)
   const byP = {}; ords.forEach(o=>{ (byP[o.product_id] = byP[o.product_id]||[]).push(o); });
   Object.entries(byP).forEach(([pid, list])=>{
     const p = prodById(pid); if (!p) return;
-    const target = (pid in planEA ? Number(planEA[pid]||0) : planCalc(p, d).total) + madeQty(pid, d);   // 계획 목표 (이미 만든 것 포함)
+    /* ★ 2026-11-18 꺼 둔 채널이 있으면 켜져 있는 채널 지시가 만든 수량만 더한다 · 여유분을 껐어도 이미 지시에 들어 있는 여유분은 그대로 인정한다 (스위치를 껐다고 지시 수량을 줄이라고 하지 않는다) */
+    const madeT = (!swOn("costco") || !swOn("kurly")) ? list.reduce((t,o)=>t+Number(o.qty_done||0),0) : madeQty(pid, d);
+    const bufKeep = swOn("buf") ? 0 : list.reduce((t,o)=>t+(Number(o.buf_qty)||0),0);
+    const target = (pid in planEA ? Number(planEA[pid]||0) : planCalc(p, d).total) + madeT + bufKeep;   // 계획 목표 (이미 만든 것 포함)
     const sum = list.reduce((s,o)=>s+Number(o.qty_plan||0),0);
     const wait = list.filter(o=>o.status === "대기");
     if (Math.round(target) === Math.round(sum)) return;
@@ -19972,11 +20047,17 @@ async function makeOrders(){
   const chQ = {}, chDay = tallyDay();
   const chTake = (p, n) => { const Q = chQ[p.id] || (chQ[p.id] = chQueue(p, chDay)); const out = []; let left = n;
     for (const x of Q.q) { if (left <= 0) break; if (x.left <= 0) continue; const k = Math.min(x.left, left); x.left -= k; left -= k; out.push({ ch:x.ch, qty:k }); }
-    if (left > 0) out.push({ ch:Q.def, qty:left }); return out; };
+    if (left > 0) out.push({ ch:Q.def, qty:left, def:true });          // 남는 수량 = 기본 채널 주문 + 여유분
+    return out; };
   const scaleKg = (txt, share) => String(txt||"").replace(/([\d,]+(?:\.\d+)?)\s*kg/gi, (_, k) => `${fmt(Math.round(Number(k.replace(/,/g,""))*share*100)/100)}kg`);
   const emit = x => { const parts = chTake(x.p, x.qty);
-    if (parts.length <= 1) { draft.push({ ...x, channel:parts[0]?.ch }); return; }
-    parts.forEach(pt => draft.push({ ...x, qty:pt.qty, channel:pt.ch, batches:scaleKg(x.batches, pt.qty / x.qty), packs:labelNeed(x.p, pt.qty).bundles })); };
+    if (parts.length <= 1) { draft.push({ ...x, channel:parts[0]?.ch, isDef:!!parts[0]?.def, buf_qty:0 }); return; }
+    parts.forEach(pt => draft.push({ ...x, qty:pt.qty, channel:pt.ch, isDef:!!pt.def, buf_qty:0, batches:scaleKg(x.batches, pt.qty / x.qty), packs:labelNeed(x.p, pt.qty).bundles })); };
+  /* 여유분이 몇 개 들었는지 지시에 적어 둔다 — 그 품목의 기본 채널 지시 중 맨 뒤 배치부터 채운다.
+     여유분을 껐을 때: 여유분만으로 된 배치는 빼고, 주문과 섞인 배치는 전부 생산한다 */
+  const markBuf = () => { const byP = {}; draft.forEach(x=>{ if (x.isDef) (byP[x.p.id] = byP[x.p.id] || []).push(x); });
+    Object.entries(byP).forEach(([pid, list])=>{ let left = (chQ[pid] && chQ[pid].buf) || 0;
+      for (let i = list.length - 1; i >= 0 && left > 0; i--) { const b = Math.min(list[i].qty, left); list[i].buf_qty = b; left -= b; } }); };
   const push = (r, qty, machine) => {
     if (!(qty>0)) return;
     const parts = planSplit ? splitByBatch(r, qty) : [];
@@ -20030,6 +20111,7 @@ async function makeOrders(){
   }
 
   /* 이미 오늘 대기 중인 품목이 있으면 — 빼고 만들지, 추가로 낼지 먼저 묻는다 (중복 지시 방지) */
+  markBuf();
   /* ★ 2026-11-17 품목 + 채널 기준 — 같은 품목이라도 새로 들어온 채널(예: 2차에 네이버 추가)은 "이미 발행" 이 아니다 */
   const wKey = (pid, ch) => `${pid}|${ch||"일반"}`, dCh = x => x.channel || x.p.channel || "일반";
   const waiting = new Set(ordsOf(d).filter(o=>o.status!=="출고완료" && !isMovedOrd(o)).concat(costcoCarry(d)).map(o=>wKey(o.product_id, o.channel)));   // 지난 날짜에 자동 생성되어 아직 남아 있는 코스트코 지시도 "이미 발행" 으로 본다
@@ -20054,7 +20136,7 @@ async function makeOrders(){
   const payload = draft.map(x => ({
     product_id:x.p.id, product_name:x.p.name, product_code:x.p.code || "",
     product_spec:x.p.spec_g ?? null,
-    qty:x.qty, channel:x.channel || x.p.channel || "일반",
+    qty:x.qty, channel:x.channel || x.p.channel || "일반", buf_qty:x.buf_qty || 0,
     machine:x.machine, machine_id:DB.machines.find(m=>m.name===x.machine)?.id || null,
     serial: x.sn?.short || fallbackSn(), serial_full: x.sn?.full || "",
     batch_plan:x.batches || "", label_packs:x.packs ?? null,
@@ -20186,7 +20268,7 @@ async function startWork(id){
 async function countWork(id){
   if (!(await requireUser())) return;
   const o = ordById(id); if(!o) return;
-  const plan = Math.round(Number(o.qty_plan)||0);
+  const plan = Math.round(ordPlan(o));                                 // ★ 2026-11-18 여유분을 껐으면 여유분을 뺀 수량이 목표
   const v = await askNum("현재까지 생산 수량",
     `${o.product_name || prodById(o.product_id)?.name || ""} · 지시 ${fmt(plan)}개`,
     o.qty_done||0,
@@ -21005,7 +21087,7 @@ async function finishWork(id){
     return qcState(o).rejected ? resubmitQc(id) : alreadyDone(o);
   const p = prodById(o.product_id); if(!p) return toast("품목을 찾을 수 없습니다");
   if (await labelBlocked(o)) return;                               // ★ 2026-11-15 한글표시사항 값이 없으면 완료도 못 함
-  const plan = Math.round(Number(o.qty_plan)||0);
+  const plan = Math.round(ordPlan(o));                                 // ★ 2026-11-18 여유분을 껐으면 여유분을 뺀 수량이 목표
   /* 미리 계산해서 보여 주기만 한다 — 지시 수량 기준 (완료 때 실제 수량으로 다시 계산) */
   /* ★ 입고된 원두 봉지(배치) — 없으면 완료할 수 없다 (서버도 원두가 없으면 거절한다) */
   const bags = orderMms(o, p);
@@ -21919,14 +22001,60 @@ function ordReady(o){
 }
 const chRank = ch => { const l = beanCfg().ch_order, i = l.indexOf(ch || "일반"); return i < 0 ? l.length : i; };
 const ordCh = o => o?.channel || prodById(o?.product_id)?.channel || "일반";
-async function editChOrder(){
+/* ★ 2026-11-18 채널 순서를 글자로 적지 않고 끌어서 옮긴다 (Lee "채널 순서 이렇게 하나하나 적는 것 보다는 드래그 형식으로 옮기는 게 맞을 거 같아")
+     줄을 잡고 위아래로 끌거나 ▲▼ 로 옮긴다 · 마우스 · 터치 모두 · [저장]을 눌러야 적용 */
+let CH_ORD_TMP = [];
+function editChOrder(){
   if (!can("plan")) return deny("plan");
-  const cur = beanCfg().ch_order;
-  const v = await askText(`채널 순서 — 앞에 입력한 채널부터 우선 작업합니다 (쉼표로 구분)\n\n사용 가능한 채널: ${CHANNELS.join(", ")}`, cur.join(", "), "채널 순서");
-  if (v === null) return;
-  const list = [...new Set(String(v).split(/[,，·\n]+/).map(x=>x.trim()).filter(Boolean))];
-  const c = beanCfg(); c.ch_order = list.length ? list : CH_ORDER_DEF; saveBeanCfg(c);
+  const cur = beanCfg().ch_order.filter(Boolean);
+  CH_ORD_TMP = [...new Set([...cur, ...CHANNELS])];                     // 빠져 있던 채널은 맨 뒤에
+  let d = $("chOrdDlg");
+  if (!d) { d = document.createElement("div"); d.id = "chOrdDlg"; d.addEventListener("click", e=>{ if (e.target === d) closeChOrder(); }); document.body.appendChild(d); }
+  renderChOrder();
+}
+function closeChOrder(){ const d = $("chOrdDlg"); if (d) d.remove(); }
+function renderChOrder(){
+  const d = $("chOrdDlg"); if (!d) return;
+  d.innerHTML = `<div class="mbox">
+    <div class="mh"><b>채널 순서</b><button class="x" onclick="closeChOrder()" title="닫기">✕</button></div>
+    <div class="mt hint">위에 있는 채널부터 우선 작업합니다. 줄을 잡고 위아래로 끌어 옮기거나 ▲▼ 를 누르십시오. [저장] 후 [자동 정렬]을 누르면 작업 순서에 반영됩니다.</div>
+    <div class="col" id="chOrdList">${CH_ORD_TMP.map((c,i)=>`<div class="cor" data-c="${xh(c)}">
+      <span class="grip" title="끌어서 옮기기">☰</span><span class="no">${i+1}</span>
+      <span class="nm">${CH_STYLE[c] ? `<span style="${CH_STYLE[c]};font-weight:800;font-size:12.5px;padding:2px 9px;border-radius:6px">${xh(c)}</span>` : `<b>${xh(chName(c))}</b>`}</span>
+      <button class="btn" data-nodrag onclick="chOrdMove(${i},-1)" ${i===0?"disabled":""} title="위로">▲</button><button class="btn" data-nodrag onclick="chOrdMove(${i},1)" ${i===CH_ORD_TMP.length-1?"disabled":""} title="아래로">▼</button></div>`).join("")}</div>
+    <div class="mf"><button class="btn" onclick="chOrdReset()" title="처음 순서로 되돌립니다">기본 순서</button><span style="flex:1"></span><button class="btn" onclick="closeChOrder()">취소</button><button class="btn primary" onclick="chOrdSave()">저장</button></div>
+  </div>`;
+  const list = $("chOrdList");
+  list.querySelectorAll(".cor").forEach(row=>row.addEventListener("pointerdown", e=>chOrdDrag(e, row)));
+}
+function chOrdMove(i, by){ const j = i + by; if (j < 0 || j >= CH_ORD_TMP.length) return; const a = CH_ORD_TMP; [a[i], a[j]] = [a[j], a[i]]; renderChOrder(); }
+function chOrdReset(){ CH_ORD_TMP = [...new Set([...CH_ORDER_DEF, ...CHANNELS])]; renderChOrder(); }
+function chOrdSave(){
+  const c = beanCfg(); c.ch_order = CH_ORD_TMP.length ? [...CH_ORD_TMP] : CH_ORDER_DEF; saveBeanCfg(c); closeChOrder();
   toast(`채널 순서 — ${c.ch_order.join(" → ")} · [자동 정렬]을 누르면 반영됩니다`);
+}
+/* 끌기 — 잡은 줄을 손가락/마우스가 지나가는 줄 자리로 옮긴다 (줄을 다시 만들지 않고 자리만 바꾼다 → 끄는 동안 끊기지 않는다) */
+function chOrdDrag(e, row){
+  if (e.target.closest("[data-nodrag]") || (e.pointerType === "mouse" && e.button !== 0)) return;
+  const list = row.parentElement, pid = e.pointerId; e.preventDefault();
+  row.classList.add("drag");
+  /* 줄을 옮기면 브라우저가 "잡고 있음" 상태를 풀어 버리므로, 줄이 아니라 창 전체에서 움직임을 받는다 · 자리가 바뀔 때만 옮긴다 */
+  const put = ref => { if (ref === row || ref === row.nextSibling) return; list.insertBefore(row, ref);
+    [...list.querySelectorAll(".cor .no")].forEach((n,i)=>n.textContent = i + 1); };
+  const move = ev => {
+    if (ev.pointerId !== pid) return; ev.preventDefault();
+    const rows = [...list.querySelectorAll(".cor")].filter(r=>r !== row); if (!rows.length) return;
+    const f = rows[0].getBoundingClientRect(), l = rows[rows.length-1].getBoundingClientRect();
+    if (ev.clientY < f.top) return put(rows[0]);
+    if (ev.clientY > l.bottom) return put(null);
+    const over = rows.find(r=>{ const b = r.getBoundingClientRect(); return ev.clientY >= b.top && ev.clientY <= b.bottom; }); if (!over) return;
+    const b = over.getBoundingClientRect();
+    put(ev.clientY > b.top + b.height / 2 ? over.nextSibling : over);
+  };
+  const end = ev => { if (ev && ev.pointerId !== pid) return;
+    window.removeEventListener("pointermove", move, true); window.removeEventListener("pointerup", end, true); window.removeEventListener("pointercancel", end, true);
+    row.classList.remove("drag"); CH_ORD_TMP = [...list.querySelectorAll(".cor")].map(r=>r.dataset.c); renderChOrder(); };
+  window.addEventListener("pointermove", move, true); window.addEventListener("pointerup", end, true); window.addEventListener("pointercancel", end, true);
 }
 /* ★ 2026-11-16 봉투 로스 — 생산 완료 때 "버린 봉투(봉투만)" 수만큼 봉투 재고에서 더 뺀다 (Lee "봉투 로스도 있어야") */
 async function mesBagLoss(a){
@@ -22160,7 +22288,11 @@ function renderWork(){
   const cCarry = costcoCarry(d), cCarryIds = new Set(cCarry.map(o=>o.id));
   if (wkCh && !WK_CHS.includes(wkCh)) wkCh = "";
   const inCh = o => !wkCh || chBucket(ordShipCh(o)) === wkCh;
-  const all0 = ordsOf(d).concat(redo, cCarry).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
+  const allRaw = ordsOf(d).concat(redo, cCarry).filter(o=>stIdx(o) < 2 && !rejIds.has(o.id));
+  const all0 = allRaw.filter(o=>!swHide(o));                         // ★ 2026-11-18 꺼 둔 채널 · 여유분만 있는 지시는 숨긴다
+  if ($("wkSw")) { const hid = allRaw.filter(swHide);
+    $("wkSw").innerHTML = swBarHTML({ costco:hid.filter(o=>chBucket(ordShipCh(o))==="코스트코").length, kurly:hid.filter(o=>chBucket(ordShipCh(o))==="컬리").length,
+      buf:hid.filter(o=>!swChOff(ordShipCh(o))).length }); }
   const all  = all0.filter(inCh);
   const done = ordsOf(d).filter(o=>stIdx(o) >= 2 && !isMovedOrd(o) && inCh(o));
   /* ★ 2026-11-11 — 검수 수량 다름(맨 위 · 깜빡임 · 날짜와 상관없이 확인할 때까지) / 검수 대기(아래 · 흐리게 · 그 날짜만) */
@@ -22196,7 +22328,7 @@ function renderWork(){
   const cWaitN = costcoNoOrder().length;
   $("wkChTabs").innerHTML = `<span class="hint" style="padding:0 4px 0 0;align-self:center;font-weight:700;white-space:nowrap;flex:none">채널</span>` + [["", "전체"], ...WK_CHS.map(c=>[c,c])].map(([v,t])=>{
     const its = v === "" ? all0 : all0.filter(o=>chBucket(ordShipCh(o)) === v), n = its.length, run = its.filter(o=>o.status==="생산중").length;
-    const ea = its.reduce((x,o)=>x+Number(o.qty_plan||0),0);
+    const ea = its.reduce((x,o)=>x+ordPlan(o),0);
     const on = wkCh === v, st = CH_STYLE[v] && !on ? `border-color:${(CH_STYLE[v].match(/background:(#[0-9A-Fa-f]+)/)||[])[1]||""}` : "";
     return `<button class="subtab ${on?"on":""}" style="${st}" onclick="setWkCh('${v}')" title="${v ? `${v} 지시만 표시 — 다시 누르면 전체` : "모든 채널"}">${CH_STYLE[v] ? `<span style="${CH_STYLE[v]};font-weight:800;font-size:11px;padding:1px 6px;border-radius:5px;margin-right:5px">${t}</span>` : t + " "}${n}${v && n ? ` <span style="opacity:.75;font-weight:500">· ${fmt(ea)}EA</span>` : ""}${run?` <span style="opacity:.8">· 생산중 ${run}</span>`:""}${v === "코스트코" && cWaitN ? ` <span style="color:var(--warn);font-weight:800">· 지시 없는 원두 ${cWaitN}</span>` : ""}</button>`;
   }).join("");
@@ -22241,13 +22373,14 @@ function renderWork(){
     const rd = ordReady(o), m = ordBatchMms(o), ps = batchParts(o.batch_plan), b = beanInfo(p?.bean);
     const left = m ? Number(m.stock_kg||0) : null, tot = m ? (Number(m.in_kg ?? 0) || null) : null;
     const per = p ? needKg(p, 1) : 0, canEa = m && per > 0 ? Math.floor((left + 0.0005) / per) : null;
-    const todo = Math.max(0, Math.round(Number(o.qty_plan||0) - Number(o.qty_done||0)));
+    const todo = Math.max(0, Math.round(ordPlan(o) - Number(o.qty_done||0)));
     const bt = ps.length === 1 ? ps[0].text : ps.length > 1 ? `배치 ${ps.length}개 혼재` : (o.batch_plan || "미지정");
     const mfg = mfgDateOf(o);
     return `<div class="wc wcz ${rd.beanNone?"none":""}" data-oid="${o.id}" data-co="${o.id}" onclick="wkOpen('${o.id}')">
-      <div class="z1"><span class="zn">${o.priority||"-"}</span>${specChip(specOf(o))}<span class="nm">${CH_STYLE[o.channel] ? chChip(o.channel) : ""}${p?.name||"품목 없음"}</span><span class="q"><b>${fmt(o.qty_done)}</b> / ${fmt(o.qty_plan)}개</span></div>
+      <div class="z1"><span class="zn">${o.priority||"-"}</span>${specChip(specOf(o))}<span class="nm">${CH_STYLE[o.channel] ? chChip(o.channel) : ""}${p?.name||"품목 없음"}</span><span class="q"><b>${fmt(o.qty_done)}</b> / ${fmt(ordPlan(o))}개</span></div>
       <div class="z2"><span>배치 <b class="${ps.length>1?"bad":""}">${bt}</b></span>${m ? `<span>중량 <b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}</b> · 사용 가능 <b>${fmt(left)}kg</b>${canEa!=null?` · <b class="${canEa<todo?"bad":""}">약 ${fmt(canEa)}개</b>`:""}</span>` : ""}</div>
       <div class="z2">${b ? `<span>컬러 <b class="${b.color?"":"bad"}">${b.color||"없음"}</b></span><span>제조일자 <b>${mfg||"—"}</b></span>${o.serial?`<span>일련번호 <b>${o.serial}</b></span>`:""}` : `<span class="bad">한글표시사항 없음 — 원두 마스터 확인</span>`}</div>
+      ${Number(o.buf_qty) > 0 && stIdx(o) < 2 ? `<div class="z2"><span class="tag buf" style="font-size:11px">${bufOnly(o) ? `여유분 ${fmt(o.buf_qty)}개 (배치 전체)` : `여유분 ${fmt(o.buf_qty)}개 포함${swOn("buf") ? "" : " · 배치 전부 생산"}`}</span></div>` : ""}
       ${cCarryIds.has(o.id) || /\[원두 이동\]/.test(String(o.note||"")) ? `<div class="z2">${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${/\[원두 이동\]/.test(String(o.note||"")) ? `<span class="warn">${xh(o.note)}</span>` : ""}</div>` : ""}
       ${rd.msgs.length ? `<div class="z3">${rd.msgs.map(t=>`<span>⚠ ${t}</span>`).join("")}</div>` : ""}
       <div class="z4">눌러서 펼치기 ▾</div>
@@ -22265,7 +22398,7 @@ function renderWork(){
           can("plan") ? `<span class="prib">
             <button onclick="moveOrd('${o.id}',-1)" title="순서 앞으로">▲</button>
             <button onclick="moveOrd('${o.id}',1)" title="순서 뒤로">▼</button></span>` : ""}</div>
-        <div class="sub">${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 재생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px;margin-right:4px" title="코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"일련번호":"일련번호"} ${o.serial}`:""}${
+        <div class="sub">${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 재생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${Number(o.buf_qty) > 0 && stIdx(o) < 2 ? `<span class="tag buf" style="font-size:11px;margin-right:4px" title="이 지시에 포함된 여유분 — 여유분 스위치를 끄면 목표 수량에서 빠집니다">${bufOnly(o) ? `여유분 ${fmt(o.buf_qty)}개 (배치 전체)` : `여유분 ${fmt(o.buf_qty)}개 포함${swOn("buf") ? "" : " · 배치 전부 생산"}`}</span>` : ""}${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px;margin-right:4px" title="코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"일련번호":"일련번호"} ${o.serial}`:""}${
           o.batch_of>1?` · 배치 ${o.batch_seq}/${o.batch_of}`:""}${
           run && o.started_at ? ` · <span title="작업 시작 일시">시작 ${dtFull(o.started_at)}${o.started_by?` ${o.started_by}`:""}</span>` : ""}</div>
       </div>
@@ -22291,7 +22424,7 @@ function renderWork(){
       ${(()=>{ if (rjd || stIdx(o) >= 2) return ""; const rd = ordReady(o); if (!rd.msgs.length) return "";
         return `<div class="rdy ${rd.beanNone?"none":""}">${rd.msgs.map((t,i)=>`<span class="${rd.beanNone && i===0 ? "b" : "w"}">⚠ ${t}</span>`).join("")}${rd.beanNone?`<span class="t">생산 시작 불가</span>`:""}</div>`; })()}
       ${kInfoHTML(p?.bean, o)}
-      ${rjd ? `<div class="big"><b style="color:var(--bad)">${fmt(o.qty_done)}</b> <span>개 반려 — 재작업</span></div>` : `<div class="big"><b>${fmt(o.qty_done)}</b> <span>/ ${fmt(o.qty_plan)} 개</span></div>`}
+      ${rjd ? `<div class="big"><b style="color:var(--bad)">${fmt(o.qty_done)}</b> <span>개 반려 — 재작업</span></div>` : `<div class="big"><b>${fmt(o.qty_done)}</b> <span>/ ${fmt(ordPlan(o))} 개</span></div>`}
       ${(()=>{ const sp = ordNeedSplit(o); if (!sp.buf) return "";
         const ok = Number(o.qty_done||0) >= sp.need;
         return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:-2px 0 6px">
@@ -22311,9 +22444,9 @@ function renderWork(){
           const ci = carryIn(m), ck = Math.round(ci.reduce((t,a)=>t+Number(a.delta||0),0)*1000)/1000;
           const from = [...new Set(ci.map(a=>String(a.note||"").replace(/^← /,"").replace(/ 배치에서 이월.*$/,"")))].join(", ");
           const per = needKg(p, 1), canEa = per > 0 ? Math.floor((left + 0.0005) / per) : null;
-          const todo = Math.max(0, Math.round(Number(o.qty_plan||0) - Number(o.qty_done||0)));
+          const todo = Math.max(0, Math.round(ordPlan(o) - Number(o.qty_done||0)));
           return `<div><span>배치 중량</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}${ck>0?` <span style="color:var(--ok)">+ 이월 ${fmt(ck)}kg</span>`:""}</b> <span class="hint" style="padding:0">· 사용 가능 <b>${fmt(left)}kg</b>${ck>0?` (← ${from})`:""}${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>
-            ${canEa != null && stIdx(o) < 2 ? `<div><span>생산 가능 수량</span><b class="${canEa < todo ? "bad" : ""}" style="white-space:nowrap">약 ${fmt(canEa)}개</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">(이 배치 ${fmt(left)}kg ÷ 1개 ${fmt(per)}kg${Number(o.qty_ng||0)?` · 부적합 ${fmt(o.qty_ng)}개`:""}${canEa < todo ? ` · 잔여 ${fmt(todo)}개 중 ${fmt(todo-canEa)}개는 다음 배치에서` : ""})</span></div>${(()=>{ const ex = extraEa(o); return ex.n > 0 && can("plan") && !rjd ? `<div class="xqty"><span>잔여 원두</span><button class="btn" onclick="event.stopPropagation();addExtraQty('${o.id}')" title="이 배치의 잔여 원두만큼 목표 수량을 증량합니다${ex.others?` · 동일 배치를 사용하는 다른 지시 ${fmt(ex.others)}개분은 제외했습니다`:""}">＋${fmt(ex.n)}개 추가 → 목표 ${fmt(Number(o.qty_plan||0)+ex.n)}개</button></div>` : ""; })()}` : ""}`; })()}
+            ${canEa != null && stIdx(o) < 2 ? `<div><span>생산 가능 수량</span><b class="${canEa < todo ? "bad" : ""}" style="white-space:nowrap">약 ${fmt(canEa)}개</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">(이 배치 ${fmt(left)}kg ÷ 1개 ${fmt(per)}kg${Number(o.qty_ng||0)?` · 부적합 ${fmt(o.qty_ng)}개`:""}${canEa < todo ? ` · 잔여 ${fmt(todo)}개 중 ${fmt(todo-canEa)}개는 다음 배치에서` : ""})</span></div>${(()=>{ const ex = extraEa(o); return ex.n > 0 && can("plan") && !rjd ? `<div class="xqty"><span>잔여 원두</span><button class="btn" onclick="event.stopPropagation();addExtraQty('${o.id}')" title="이 배치의 잔여 원두만큼 목표 수량을 증량합니다${ex.others?` · 동일 배치를 사용하는 다른 지시 ${fmt(ex.others)}개분은 제외했습니다`:""}">＋${fmt(ex.n)}개 추가 → 목표 ${fmt(ordPlan(o)+ex.n)}개</button></div>` : ""; })()}` : ""}`; })()}
         ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"일련번호":"일련번호"}</span><b>${o.serial || "완료 시 부여"}</b>${
           canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="사용할 배치(=일련번호)를 직접 선택하거나 일련번호를 직접 입력합니다">변경</button>` : ""}</div>`}
         ${(()=>{ const rows = ordLotRows(o), al = autoLotOf(o), lot = rows.length ? lotRowsText(rows) : (o.lot || al);
@@ -22322,7 +22455,7 @@ function renderWork(){
           if (isFloor()) return (lot || canLot) ? `<div><span>봉투 LOT</span><b>${lot || "—"}</b>${btn}</div>` : "";
           return `<div><span>봉투 LOT</span><b class="${lot?"":"bad"}" title="${rows.length?"LOT 관리 입력값":o.lot?"직접 입력값":al?"봉투 입고 시 입력한 LOT (선입선출)":"봉투 입고 시 LOT 를 입력하면 자동으로 지정됩니다"}">${lot || "봉투 LOT 없음"}</b>${!rows.length&&!o.lot&&al?` <span class="hint" style="padding:0;font-size:10.5px">자동</span>`:""}${rows.length>1?` <span class="tag warn" style="font-size:10.5px">LOT ${rows.length}개</span>`:""}${btn}</div>`; })()}
         ${(()=>{ if (rjd || stIdx(o) >= 2) return ""; const rd = ordReady(o), bl = bagLossPctOf(p), su = beanCfgOf(p?.bean).setup;
-          const todo = Math.max(0, Math.round(Number(o.qty_plan||0) - Number(o.qty_done||0)));
+          const todo = Math.max(0, Math.round(ordPlan(o) - Number(o.qty_done||0)));
           return (rd.bagMat ? `<div><span>${isFloor()?"봉투 수량":"필요 봉투"}</span><b class="${rd.bagShort?"bad":""}">${fmt(rd.bagNeed)}장</b> <span class="hint" style="padding:0">(${fmt(todo)}개${bl?` + 로스 ${bl}%`:""} · ${rd.bagUntracked ? "재고 미등록" : `재고 ${fmt(rd.bagStock)}장`}${rd.bagShort?` · <b class="bad">${fmt(rd.bagShort)}장 부족</b>`:""})</span></div>` : "")
             + (su ? `<div><span>설비 설정</span><b style="white-space:pre-wrap">${String(su).replace(/[<>&]/g, c=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[c]))}</b></div>` : ""); })()}
         ${(()=>{ const L = labelById(ordLabel(o)), st = ordIca(o) ? "풀패키지" : packState(p, ordLabel(o));
@@ -22402,7 +22535,7 @@ function renderWork(){
   /* ★ 2026-11-13 [검수 대기] 칸을 위로 (Lee "대기 열은 위로 올라 왔으면") — 순서: 수량 다름(빨강) → 검수 대기 → 반려 → 기계별 할 일 */
   $("wkCards").innerHTML = (wkCh === "코스트코" || (!wkCh && cWaitN) ? costcoStockPanel() : "") + qFlagPanel() + qWaitPanel() + rejPanelF() + (shown.length ? shown.map(g=>{
     const m   = DB.machines.find(x=>x.name===g.name);
-    const ea  = g.items.reduce((t,o)=>t+Number(o.qty_plan||0),0);
+    const ea  = g.items.reduce((t,o)=>t+ordPlan(o),0);
     const madeEa = g.items.reduce((t,o)=>t+Number(o.qty_done||0),0);
     const wait = g.items.filter(o=>o.status==="대기").length;
     const run  = g.items.filter(o=>o.status==="생산중").length;
@@ -22447,7 +22580,10 @@ function renderQc(){
   const wait = DB.orders.filter(o=>o.status==="생산완료").sort((a,b)=>String(qcDayOf(a)).localeCompare(String(qcDayOf(b))) || String(a.done_at).localeCompare(String(b.done_at)));   // ★ 밀린 것(오래된 날짜)이 위 · 오늘이 아래 (Lee 2026-11-15)
   qcBadge();
   if (qcCh && !WK_CHS.includes(qcCh)) qcCh = "";
-  const inQc = o => !qcCh || chBucket(ordShipCh(o)) === qcCh, waitS = wait.filter(inQc);
+  const waitOn = wait.filter(o=>!swHide(o));                          // ★ 2026-11-18 꺼 둔 채널은 숨긴다 (모든 기기)
+  const inQc = o => !qcCh || chBucket(ordShipCh(o)) === qcCh, waitS = waitOn.filter(inQc);
+  if ($("qcSw")) { const hid = wait.filter(swHide);
+    $("qcSw").innerHTML = swBarHTML({ costco:hid.filter(o=>chBucket(ordShipCh(o))==="코스트코").length, kurly:hid.filter(o=>chBucket(ordShipCh(o))==="컬리").length, buf:0 }); }
   const qcOld = wait.filter(o=>qcDayOf(o) < today()).length;
   $("qcInfo").innerHTML = wait.length ? `검수 대기 <b>${wait.length}</b>건${qcOld?` · <b style="color:var(--bad)">이전 일자 ${qcOld}건</b>`:""}` : `검수 대상이 없습니다`;
   const dayHead = (d, n, kind) => { const T = today(), late = d && d < T ? Math.round((new Date(T) - new Date(d))/86400000) : 0;
@@ -22463,10 +22599,10 @@ function renderQc(){
   /* ★ 2026-11-01 — 검수에서 바로 생산 완료 (Lee "생산은 다 됐는데 생산 완료될 때까지 기다리면 다른 작업을 못 해") */
   { const run0 = DB.orders.filter(o=>["대기","생산중"].includes(o.status) && !o.log_id && o.work_date <= today())
       .sort((a,b)=>(a.status==="생산중"?0:1)-(b.status==="생산중"?0:1) || String(a.work_date).localeCompare(String(b.work_date)) || (Number(a.priority)||0)-(Number(b.priority)||0));
-    const run = run0.filter(inQc);
+    const run = run0.filter(o=>!swHide(o)).filter(inQc);
     const nRun = run.filter(o=>o.status==="생산중").length;
     /* 채널 칸 — 지금 보고 있는 목록(검수 대기 / 오늘 생산 계획)의 채널별 건수 · 누르면 그 채널만, 다시 누르면 전체 */
-    if ($("qcChTabs")) { const base = QC_VIEW === "plan" ? run0 : wait;
+    if ($("qcChTabs")) { const base = (QC_VIEW === "plan" ? run0 : wait).filter(o=>!swHide(o));
       $("qcChTabs").innerHTML = `<span class="hint" style="padding:0 4px 0 0;align-self:center;font-weight:700;white-space:nowrap;flex:none">채널</span>` + [["", "전체"], ...WK_CHS.map(c=>[c,c])].map(([v,t])=>{
         const its = v === "" ? base : base.filter(o=>chBucket(ordShipCh(o)) === v), n = its.length;
         const ea = its.reduce((x,o)=>x+Number((QC_VIEW === "plan" ? o.qty_plan : o.qty_done)||0),0), late = QC_VIEW === "plan" ? 0 : its.filter(o=>qcDayOf(o) < today()).length;
@@ -22557,7 +22693,8 @@ function renderQc(){
         <button class="ng" onclick="qcReject('${o.id}')">반려</button>
       </div>
     </div>`;
-  }).join("") : (qcCh && wait.length ? `<div class="wempty">${qcCh} 채널에 검수 대기 중인 생산이 없습니다<br><span>채널 칸에서 [전체]를 누르면 다른 채널 ${wait.length}건이 표시됩니다</span></div>`
+  }).join("") : (qcCh && waitOn.length ? `<div class="wempty">${qcCh} 채널에 검수 대기 중인 생산이 없습니다<br><span>채널 칸에서 [전체]를 누르면 다른 채널 ${waitOn.length}건이 표시됩니다</span></div>`
+    : wait.length ? `<div class="wempty">검수 대기 ${wait.length}건이 꺼 둔 채널이라 숨겨져 있습니다<br><span>위의 [켜기 · 끄기]에서 다시 켜면 표시됩니다</span></div>`
     : `<div class="wempty">검수 대기 중인 생산이 없습니다<br><span>현장에서 [생산 완료]를 누르면 이 목록으로 이관됩니다</span></div>`);
 }
 
