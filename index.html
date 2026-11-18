@@ -83,6 +83,26 @@
   .qcday:first-child{margin-top:0;}
   tr.qcdayrow td{background:var(--head); font-size:13.5px; padding-top:8px; padding-bottom:8px; border-left:4px solid var(--ok);}
   tr.qcdayrow.late td{background:var(--bad-soft); border-left-color:var(--bad);}
+  /* ★ 2026-11-18 검수 › 오늘 생산 계획 — 휴대폰 한 줄 카드 */
+  .qrl{display:flex; flex-direction:column;}
+  .qrl .qrd{padding:9px 12px; background:var(--head); border-left:4px solid var(--ok); font-size:13.5px; display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .qrl .qrd.late{background:var(--bad-soft); border-left-color:var(--bad);}
+  .qrl .qr{display:flex; gap:10px; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line);}
+  .qrl .ql{flex:1; min-width:0;}
+  .qrl .nm{display:block; font-size:14.5px; line-height:1.35; overflow-wrap:anywhere;}
+  .qrl .mt{display:flex; gap:5px; flex-wrap:wrap; align-items:center; margin-top:5px;}
+  .qrl .mt .tag{font-size:11px;}
+  .qrl .sb{margin-top:4px; font-size:12px; color:var(--soft); line-height:1.4; overflow-wrap:anywhere;}
+  .qrl .sb b{color:var(--ink);}
+  .qrl .qn{flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:1px; min-width:86px; text-align:right;}
+  .qrl .qn .qv{display:flex; align-items:baseline; gap:3px; white-space:nowrap;}
+  .qrl .qn .qv b{font-size:26px; font-weight:800; letter-spacing:-1px; line-height:1.05; font-variant-numeric:tabular-nums; color:var(--ink);}
+  .qrl .qn .qv small{font-size:12px; color:var(--soft); font-weight:700;}
+  /* 켜기 · 끄기 줄 — 휴대폰에서는 옆으로 밀지 않고 줄을 바꿔 전부 보이게 */
+  @media(max-width:760px){ #wkSw, #qcSw{flex-wrap:wrap !important; overflow-x:visible !important;} }
+  body.mobile #wkSw, body.mobile #qcSw{flex-wrap:wrap !important; overflow-x:visible !important;}
+  .qrl .qn > i{font-style:normal; font-size:11px; color:var(--soft); font-weight:700;}
+  .qrl .qn .btn{height:34px; padding:0 10px; font-size:12.5px; margin-top:5px;}
   /* ★ 2026-11-15 엑셀 넣기 — CFE 코드 채우기 안내 (눈에 띄게) */
   .codefill{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:4px 0 12px; padding:14px 16px;
     border:2px solid var(--warn); border-radius:12px; background:var(--warn-soft);}
@@ -7820,6 +7840,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-18", "휴대폰 검수 › 오늘 생산 계획 — 수량이 보이게 · 옆으로 민 표가 돌아가지 않게", "휴대폰에서는 검수의 [오늘 생산 계획] 목록을 표 대신 한 줄 카드로 보여 줍니다 — 품목 · 상태 · 채널 · 일련번호는 왼쪽, 지시 수량은 오른쪽에 크게, [생산 완료] 버튼도 그 아래에 있어 옆으로 밀 필요가 없습니다. 또 현장 작업 · 검수 · 출고 화면에서 표를 옆으로 밀어 두면 3초마다 처음 위치로 돌아가던 것을 고쳤습니다."],
   ["2026-11-18", "PC 보기 왼쪽 메뉴 — 묶음 접기 · 메뉴 전체 접기", "왼쪽 메뉴를 묶음(현장 · 생산 관리 · 재고·이력 · 분석·기준 · 기타)으로 접어 평소에는 스크롤 없이 보입니다. 묶음을 누르면 그 자리 아래로 메뉴가 펼쳐지고(한 번에 하나), 접힌 묶음에는 그 안의 숫자를 합쳐서 보여 줍니다. 위쪽 바 왼쪽의 ☰ 를 누르면 왼쪽 메뉴 전체를 접어 화면을 넓게 쓰고, 다시 누르면 펼칩니다. 펼친 묶음과 접은 상태는 이 기기에 저장됩니다. 보이는 메뉴가 9개 이하인 계정과 모바일 보기는 전과 같습니다."],
   ["2026-11-18", "PC 보기 — 왼쪽 메뉴 · 위쪽 바 고정", "PC 보기에서 화면을 아래로 내려도 왼쪽 메뉴와 위쪽 바가 제자리에 남습니다. 전에는 페이지와 함께 위로 올라가 메뉴를 누르려면 맨 위로 돌아가야 했습니다. 메뉴가 화면보다 길면 메뉴 안에서 따로 스크롤됩니다. 모바일 보기는 전과 같습니다."],
   ["2026-11-18", "모바일 보기에 알림(🔔) 표시", "휴대폰 · 태블릿의 모바일 보기 위쪽 바에 알림 종이 나옵니다 — 읽지 않은 알림 수가 빨간 숫자로 붙고, 누르면 알림 목록이 화면 폭에 맞게 열립니다. 전에는 모바일 보기에서 종이 숨겨져 알림을 볼 곳이 없었습니다."],
@@ -8713,8 +8734,17 @@ $("baseTabs").addEventListener("click", e=>{
   document.querySelectorAll("#s-base .subpane").forEach(x=>x.classList.toggle("on",x.id==="p-"+b.dataset.p));
   updateFavBtn();
 });
+/* ★ 2026-11-18 다시 그려도 표를 옆으로 민 위치를 지킨다 (Lee "오른쪽으로 안 넘어가거나 넘겨도 다시 돌아오는 현상")
+   현장 작업 · 검수 · 출고 화면은 3초마다 새 내용을 받아 다시 그리는데, 그때마다 옆으로 민 표가 처음 위치로 돌아갔다 */
+function keepScrollX(fn){
+  const sc = document.querySelector(".screen.on"), sel = ".panel-b, .subtabs";
+  const pos = sc ? [...sc.querySelectorAll(sel)].map(e=>e.scrollLeft) : [];
+  fn();
+  if (sc && pos.some(v=>v > 0)) { const els = [...sc.querySelectorAll(sel)];
+    if (els.length === pos.length) els.forEach((e,i)=>{ if (pos[i] > 0 && e.scrollLeft !== pos[i]) e.scrollLeft = pos[i]; }); }
+}
 function render(s){
-  renderOne(s);
+  keepScrollX(()=>renderOne(s));
   if (typeof applyRoleLock === "function") applyRoleLock();
 }
 function renderOne(s){
@@ -22889,18 +22919,31 @@ function renderQc(){
       `<button class="btn ${QC_VIEW===v?"primary":""}" style="height:42px;padding:0 16px;font-size:15px;font-weight:700" onclick="setQcView('${v}')">${t}</button>`).join("");
     if ($("qcCards")) $("qcCards").style.display = QC_VIEW === "plan" ? "none" : "";
     if (el) { el.style.display = QC_VIEW === "plan" ? "" : "none";
-      el.innerHTML = run.length ? `<div class="panel-h">🏭 오늘 생산 계획 ${run.length}건 <span class="hint" style="padding:0">(생산 중 ${nRun} · 대기 ${run.length-nRun}) — 검수 전 단계 · 작업이 완료되면 이 화면에서 즉시 완료 처리</span> <span class="r hint">${can("work") ? "[생산 완료] 에서 수량을 입력하면 하단 검수 영역으로 이관됩니다" : "권한설정에서 검수·출고 역할에 [현장 생산] 을 허용해야 사용할 수 있습니다"}</span></div>
-        <div class="panel-b"><table><thead><tr><th class="l">품목</th><th>상태</th><th>채널</th><th>일련번호</th><th>지시</th><th>설비 · 시작</th><th></th></tr></thead><tbody>${
+      const multiDay = new Set(run.map(x=>x.work_date)).size > 1;
+      const runHTML = run.length ? `<div class="panel-h">🏭 오늘 생산 계획 ${run.length}건 <span class="hint" style="padding:0">(생산 중 ${nRun} · 대기 ${run.length-nRun}) — 검수 전 단계 · 작업이 완료되면 이 화면에서 즉시 완료 처리</span> <span class="r hint">${can("work") ? "[생산 완료] 에서 수량을 입력하면 하단 검수 영역으로 이관됩니다" : "권한설정에서 검수·출고 역할에 [현장 생산] 을 허용해야 사용할 수 있습니다"}</span></div>
+        ${isPhone() ? `<div class="qrl">${
+        /* ★ 2026-11-18 휴대폰 — 표가 화면보다 넓어 수량이 안 보였다 (Lee "숫자가 잘 보이게끔") → 한 줄 카드: 품목 · 상태 · 채널 · 일련번호 왼쪽, 수량 크게 오른쪽 */
+        run.map((o,i)=>{ const p = prodById(o.product_id), sp = ordNeedSplit(o);
+          const sameSt = i > 0 && run[i-1].status === o.status && run[i-1].work_date === o.work_date;
+          const gh = (multiDay && !sameSt) ? (()=>{ const h = dayHead(o.work_date, run.filter(x=>x.work_date===o.work_date && x.status===o.status).length, o.status==="생산중"?"생산 중":"대기");
+            return `<div class="qrd ${h.late?"late":""}">${h.html}</div>`; })() : "";
+          return gh + `<div class="qr"><div class="ql"><b class="nm">${p?.name||o.product_name||""}</b>
+              <div class="mt">${o.status==="생산중"?`<span class="tag warn">${o.paused_at?"정지":"생산 중"}</span>`:'<span class="tag">대기</span>'} ${chChip(o.channel||p?.channel||"일반")}${o.work_date<today()?` <span class="tag bad">${o.work_date.slice(5).replace("-","/")} 지연</span>`:""}</div>
+              <div class="sb">일련번호 <b>${o.serial||"—"}</b>${o.machine?` · ${o.machine}`:""}${o.started_at?` · ${o.started_by||""} ${dtFull(o.started_at)} 시작`:""}</div></div>
+            <div class="qn"><div class="qv"><b>${fmt(o.qty_plan)}</b><small>개</small></div>${Number(o.qty_done) > 0 ? `<i>현재 ${fmt(o.qty_done)}</i>` : ""}${sp.buf?`<i>필요 ${fmt(sp.need)}</i>`:""}
+              ${can("work") ? `<button class="btn primary" onclick="finishWork('${o.id}')">생산 완료</button>` : ""}</div></div>`; }).join("")}</div>` : `<div class="panel-b"><table><thead><tr><th class="l">품목</th><th>상태</th><th>채널</th><th>일련번호</th><th>지시</th><th>설비 · 시작</th><th></th></tr></thead><tbody>${
         run.map((o,i)=>{ const p = prodById(o.product_id); const sp = ordNeedSplit(o);
           /* 날짜가 둘 이상 섞여 있으면 날짜별 제목 줄 */
-          const multi = new Set(run.map(x=>x.work_date)).size > 1, sameSt = i > 0 && run[i-1].status === o.status && run[i-1].work_date === o.work_date;
+          const multi = multiDay, sameSt = i > 0 && run[i-1].status === o.status && run[i-1].work_date === o.work_date;
           const gh = (multi && !sameSt) ? (()=>{ const h = dayHead(o.work_date, run.filter(x=>x.work_date===o.work_date && x.status===o.status).length, o.status==="생산중"?"생산 중":"대기");
             return `<tr class="qcdayrow ${h.late?"late":""}"><td class="l" colspan="7">${h.html}</td></tr>`; })() : "";
           return gh + `<tr><td class="l"><b>${p?.name||o.product_name||""}</b>${o.work_date<today()?` <span class="tag bad" style="font-size:11px">${o.work_date.slice(5).replace("-","/")} 지연</span>`:""}</td>
             <td class="c">${o.status==="생산중"?`<span class="tag warn">${o.paused_at?"정지":"생산 중"}</span>`:'<span class="tag">대기</span>'}</td><td class="c">${chChip(o.channel||p?.channel||"일반")}</td><td class="c"><b>${o.serial||"—"}</b></td>
             <td>${fmt(o.qty_plan)}${sp.buf?`<br><span class="hint" style="padding:0;font-size:11px">필요 ${fmt(sp.need)}</span>`:""}</td>
             <td class="c" style="font-size:12px">${o.machine||"—"}<br>${o.started_at?`${o.started_by||""} ${dtFull(o.started_at)}`:'<span class="hint" style="padding:0">시작 전</span>'}</td>
-            <td class="c" style="white-space:nowrap">${can("work") ? `<button class="btn primary" style="height:36px" onclick="finishWork('${o.id}')">생산 완료</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : `<div class="panel-b"><div class="hint" style="padding:24px;text-align:center">오늘 잔여 생산 계획이 없습니다 — 모두 생산 완료되었습니다</div></div>`; } }
+            <td class="c" style="white-space:nowrap">${can("work") ? `<button class="btn primary" style="height:36px" onclick="finishWork('${o.id}')">생산 완료</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>`}` : `<div class="panel-b"><div class="hint" style="padding:24px;text-align:center">오늘 잔여 생산 계획이 없습니다 — 모두 생산 완료되었습니다</div></div>`;
+      if (el.dataset.h !== runHTML) { el.innerHTML = runHTML; el.dataset.h = runHTML; }       // 내용이 같으면 다시 쓰지 않는다 (옆으로 민 위치 · 누르던 손가락이 밀리지 않게)
+    } }
   let qcPrevDay = null;
   $("qcCards").innerHTML = waitS.length ? waitS.map(o=>{
     const p = prodById(o.product_id);
