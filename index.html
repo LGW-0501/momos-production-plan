@@ -585,6 +585,9 @@
   .wc.dropR{box-shadow:6px 0 0 0 var(--brand,#2F6BFF);}
   .mgrp.dropG{outline:3px dashed var(--brand,#2F6BFF); outline-offset:-3px;}
   .xqty button{height:34px; font-weight:800; color:var(--ok); border-color:var(--ok);}
+  .abuf{font-size:10.5px; font-weight:800; color:#0B7A75; white-space:nowrap;} .tag.abufT{background:#E3F4F2; color:#0B7A75; border:1px solid #9ED3CE;}
+  [data-theme="dark"] .abuf{color:#5FD3C8;} [data-theme="dark"] .tag.abufT{background:#123A38; color:#7FE0D6; border-color:#1F5B57;}
+  .xqty .xwhy{color:var(--ok); white-space:nowrap;} .xqty .xwhy.none{color:var(--soft);}
   .wc .big{padding:14px 18px 5px; font-size:15px; color:var(--soft);}
   .wc .big b{font-size:42px; font-weight:800; letter-spacing:-2px; color:var(--ink); font-variant-numeric:tabular-nums;}
   .wc .pbar{margin:0 18px;}
@@ -2194,6 +2197,12 @@
         (생산계획표에서 수동으로 수정하면 <span class="tag warn">수동</span>이 되며, 복원하려면 [집계 기준 복원]).</div>
       <div class="panel-b"><table id="tallyTbl"></table></div>
     </div>
+    <div class="panel" id="beanUseTallyP">
+      <div class="panel-h">원두별 사용 계획 <span class="r hint" id="beanUseTallyInfo"></span></div>
+      <div class="hint">같은 원두를 쓰는 품목을 합쳐 <b>주문분 + 요일별 여유분 + 기본 여유 = 합계 사용량</b>을 보여 주고, 사용 가능한 재고와 비교합니다.
+        <b>기본 여유</b>는 블렌드마다 한 번, 그날 주문이 가장 많은 품목에 자동으로 더하는 수량이며 로스팅 요청에도 포함됩니다.</div>
+      <div class="panel-b" style="overflow-x:auto"><table id="beanUseTally"></table></div>
+    </div>
     <div class="panel">
       <div class="panel-h">집계 입력 내역 <span class="r hint">입력 순 · 삭제하면 계획에 즉시 반영됩니다</span></div>
       <div class="selbar" id="selBar-tallies"></div>
@@ -2487,6 +2496,11 @@
   </div>
   <div class="body">
     <h2 class="page">로스팅 요청서<small id="asof-req"></small></h2>
+    <div class="panel noprint" id="beanUseReqP">
+      <div class="panel-h">원두별 사용 계획 <span class="r hint" id="beanUseReqInfo"></span></div>
+      <div class="hint">[부족분 불러오기]는 이 표의 <b>부족</b> 수량을 가져옵니다 — 주문분에 요일별 여유분과 <b>기본 여유</b>(블렌드마다 한 번)를 더한 합계에서 사용 가능한 재고를 뺀 값입니다.</div>
+      <div class="panel-b" style="overflow-x:auto"><table id="beanUseReq"></table></div>
+    </div>
     <div id="reqSheet">
       <div class="panel" id="reqHead">
         <div class="panel-h">로스팅 요청서 <span class="r hint" id="reqTot"></span></div>
@@ -2897,6 +2911,7 @@
             <button class="btn" id="bsetOnlyBtn" onclick="bsetOnly=!bsetOnly;renderBeanSet()">미입력 항목만 보기</button></span></div>
         <div class="hint">원두별로 <b>한글표시사항</b>(컬러 · 품목보고번호 · 원산지) · <b>라벨/봉투</b> · <b>원두 로스율</b> · <b>봉투 로스율</b> · <b>설비 설정값</b>을 한 행에서 관리합니다.
           적색 항목은 미입력 값입니다 — 컬러 · 품목보고번호 · 원산지가 미입력이면 현장에서 생산을 시작할 수 없습니다.
+          <b>기본 여유</b>는 주문이 있는 날 그 원두에서 주문이 가장 많은 품목 하나에 자동으로 더하는 수량입니다 (비워 두면 블렌드 4종 25개 · 그 외 0개).
           로스율을 비워 두면 기본값을 적용합니다 (원두 로스율은 품목에 입력한 값이 있으면 해당 값을 우선 적용). 설비 설정값은 현장 작업 카드에 그대로 표시됩니다.
           라벨은 <b>부자재 재고 · 제품별 BOM</b>에서 설정합니다.</div>
         <div class="panel-b"><table id="tBset"></table></div>
@@ -7765,6 +7780,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-18", "변경 표시 [확인] — 같은 아이디의 다른 기기와 연동", "변경 표시(메뉴의 파란 숫자 · 화면 위 변경 목록)에서 [확인]을 누르면 같은 아이디로 로그인한 다른 기기에서도 함께 사라집니다. 전에는 기기마다 따로 눌러야 했습니다. 다른 아이디의 확인 기록에는 영향이 없습니다. (서버 000_install_all.sql 재실행 필요 — 실행 전에는 전처럼 이 기기에만 저장)"],
+  ["2026-11-18", "기본 여유 (블렌드 4종 자동 +25개) · 원두별 사용 계획", "에스쇼콜라 · 프루티봉봉 · 부산 · 므쵸베리는 주문이 있는 날 주문이 가장 많은 품목 하나에 기본 여유 25개를 자동으로 더합니다 — 생산 목표와 로스팅 요청에 모두 포함되고, 요일별 여유분 · 여유분 스위치와는 따로입니다. 수량은 기준정보 › 원두별 설정의 [기본 여유]에서 원두마다 바꿉니다. 집계 탭과 로스팅 요청 화면에 「원두별 사용 계획」 표(주문분 + 여유분 + 기본 여유 = 합계 · 재고 대비 부족)가 생겼습니다. 현장 카드에는 「원두 사용」 줄이 생겨 같은 배치를 나눠 쓰는 지시의 사용량과 남음/부족을 보여 주고, 생산 가능 수량도 나눠 쓰는 만큼 빼고 계산합니다. 생산 중 수량을 입력하면 [+N개 추가]가 실제보다 많이 나오던 계산도 바로잡았습니다."],
+  ["2026-11-18", "이월할 때 다음 지시 목표도 같이 늘리기", "생산 완료 창에서 잔량 원두를 다음 배치로 이월할 때 「다음 지시 목표도 늘리기」 체크(기본 켜짐)가 나옵니다 — 완료하면 이월과 함께 다음 지시 목표가 늘어납니다. 늘릴 수 없으면 이유(이월 후 최대 수량 · +1개까지 부족한 kg)를 창에 적습니다. 현장 카드도 이월받은 배치인데 [+N개 추가]가 없으면 「추가 없음」과 계산 근거를 표시합니다."],
   ["2026-11-18", "채널 순서 — 끌어서 옮기기 · 여유분은 배치 단위로", "① 현장 작업의 [채널 순서]가 글자로 적는 방식에서 목록으로 바뀌었습니다 — 줄을 잡고 위아래로 끌거나 ▲▼ 로 옮긴 뒤 [저장] (마우스 · 터치 모두). ② 여유분 스위치를 꺼도 한 배치에 주문 수량과 여유분이 같이 들어 있으면 그 배치는 전부 생산하는 것으로 잡습니다 (목표 수량을 줄이지 않음). 배치 전체가 여유분인 지시만 숨겨집니다. 작업지시를 만들 때 여유분은 그 품목의 뒤쪽 배치부터 채웁니다."],
   ["2026-11-18", "코스트코 / 컬리 / 여유분 켜기 · 끄기", "현장 작업과 검수 화면의 채널 칸 아래에 [코스트코] [컬리] [여유분] 스위치가 생겼습니다 — 누르면 켜짐/꺼짐이 바뀌고 모든 기기에 바로 적용됩니다 (현장 작업 · 검수 · 계획 권한). ① 코스트코 · 컬리를 끄면 그 채널의 대기 카드(현장 작업)와 검수 대기 카드(검수)가 숨겨지고 합계에서 빠지며, 생산계획도 그 채널 집계를 빼고 계산합니다. 작업지시는 지워지지 않고 생산중인 작업은 그대로 보입니다. 코스트코 원두의 자동 지시 생성은 계속됩니다. ② 여유분을 끄면 여유분만으로 된 배치(카드)는 숨겨지고, 주문 수량과 여유분이 한 배치에 같이 있으면 그 배치는 전부 생산합니다(목표 수량 그대로) — 생산계획에는 여유분을 더하지 않습니다. 여유분 수량은 이번 버전부터 작업지시를 만들 때 지시에 기록되므로, 그 전에 만든 지시에는 적용되지 않습니다. 서버 SQL(000_install_all.sql) 재실행이 필요합니다."],
   ["2026-11-18", "추가 버튼 — 여러 개 한 번에", "행을 추가하는 버튼마다 옆에 숫자 칸이 생겼습니다 — 숫자만큼 한 번에 추가됩니다 (최대 50). 작업지시 [지시 추가] · 라벨작업 [1차 직접 추가] · 재작업 [+ 품목 추가] · 로스팅 요청 카드의 [+ 원두 추가] · 부자재 [행 추가] · BOM [자재 추가]. 창으로 하나씩 입력하는 분쇄 [직접 추가] · 로스팅 [배치 추가]는 숫자만큼 이어서 묻고, 중간에 취소하면 멈춥니다. 숫자를 1로 두면 전과 같습니다."],
@@ -8336,7 +8354,7 @@ document.addEventListener("keydown", e=>{ if (e.key === "Escape") closeMenuCfg()
    ★ 2026-11-17 변경 표시 (Lee "변경 이력이 있으면 검수처럼 모든 메뉴에 숫자 · 들어가면 빨갛게 · 확인할 때까지")
    · 근거 = 변경이력(DB.audit) 중 내가 마지막으로 [확인] 한 뒤에 "다른 사람"이 남긴 것
    · 메뉴에 파란 숫자(빨간 숫자 = 해야 할 일과 구분) · 화면 위에 누가·언제·무엇을 · 해당 줄/카드는 빨간 테두리
-   · [확인] 을 눌러야 사라진다 · 확인 시각은 이 기기의 내 계정에만 저장 · 주요 화면 6개부터 (현장 작업 · 작업지시 · 생산계획 · 라벨작업 · 검수 · 출고)
+   · [확인] 을 눌러야 사라진다 · 확인 시각은 계정별로 서버에 저장 — 같은 아이디로 켠 다른 기기와 같이 쓴다 (2026-11-18 · 전에는 이 기기에만) · 주요 화면 6개부터 (현장 작업 · 작업지시 · 생산계획 · 라벨작업 · 검수 · 출고)
    ══════════════════════════════════════════════════════════════ */
 const CHG_SCREENS = {
   work:  { ord:true, re:/^(작업지시|작업 시작|작업 중단|생산 완료|부적합|재작업|조치 후 재검수|검수 수량|검수 반려|출고 반려)/ },
@@ -8348,7 +8366,27 @@ const CHG_SCREENS = {
 };
 const CHG_MORE = new Set(), CHG_TC = new WeakMap();
 const chgKey = () => "momos.chgack." + ((LOGIN_USER && (LOGIN_USER.login_id || LOGIN_USER.id)) || "device");
-function chgAckMap(){ try { return JSON.parse(localStorage.getItem(chgKey()) || "{}") || {}; } catch(_){ return {}; } }
+/* ★ 2026-11-18 확인 기록을 같은 아이디의 다른 기기와 같이 쓴다 (Lee "연동을 같이 해줬으면 — 동일한 아이디 한정으로")
+   서버 공용 설정의 chgack.<계정 id> 줄 (서버 083 set_chg_ack) · 화면별로 이 기기 값과 서버 값 중 더 늦은 시각을 쓴다 · 서버에 083 이 없으면 전처럼 이 기기에만 */
+const chgSrvKey = () => (sb && LOGIN_USER && LOGIN_USER.id) ? "chgack." + LOGIN_USER.id : null;
+let CHG_SYNC_WARN = false;
+function chgAckMap(){
+  let m = {}; try { m = JSON.parse(localStorage.getItem(chgKey()) || "{}") || {}; } catch(_){ m = {}; }
+  const k = chgSrvKey(), sv = k && SETTINGS[k];
+  if (sv && typeof sv === "object") Object.keys(sv).forEach(sc=>{ const v = Number(sv[sc]) || 0; if (v > (Number(m[sc]) || 0)) m[sc] = v; });
+  return m;
+}
+function chgAckPush(ack, warn){
+  const k = chgSrvKey(); if (!k) return;
+  const out = {}; Object.keys(ack||{}).forEach(sc=>{ const v = Number(ack[sc]); if (v > 0 && /^[a-z_]{1,20}$/.test(sc)) out[sc] = v; });
+  if (!Object.keys(out).length) return;
+  applySetting(k, { ...((SETTINGS[k] && typeof SETTINGS[k] === "object") ? SETTINGS[k] : {}), ...out });
+  rpc("set_chg_ack", { p_ack: out }, ()=>({ ok:true }), { quiet:true }).then(r=>{
+    if (r && r.ok && r.ack && typeof r.ack === "object") { applySetting(k, r.ack); return; }
+    if (warn && r && r.ok === false && !CHG_SYNC_WARN) { CHG_SYNC_WARN = true;       // 직접 [확인] 을 눌렀을 때만 · 한 번만 알린다
+      toast("확인 기록을 이 기기에만 저장했습니다 — 다른 기기와 맞추려면 서버에 000_install_all.sql 을 다시 실행하십시오"); }
+  }).catch(()=>{});
+}
 function chgAckSave(m){ try { localStorage.setItem(chgKey(), JSON.stringify(m)); } catch(_){} }
 const chgT = a => { let t = CHG_TC.get(a); if (t === undefined) { t = Date.parse(a.at); if (isNaN(t)) t = 0; CHG_TC.set(a, t); } return t; };
 const chgMine = a => (!!a.user_id && !!LOGIN_USER && a.user_id === LOGIN_USER.id && !(typeof isSharedLogin === "function" && isSharedLogin())) || (!!a.user && a.user === me());
@@ -8357,13 +8395,25 @@ function chgEntries(sc, byNo){
   const cfg = CHG_SCREENS[sc]; if (!cfg) return [];
   const ack = chgAckMap();
   if (ack[sc] == null) {                   // 처음 쓰는 기기 · 계정 — 지금까지의 이력은 확인한 것으로 본다
-    ack[sc] = DB.audit.reduce((m,a)=>Math.max(m, chgT(a)), 0) || Date.now(); chgAckSave(ack); return []; }
+    ack[sc] = DB.audit.reduce((m,a)=>Math.max(m, chgT(a)), 0) || Date.now(); chgAckSave(ack);
+    if (SETTINGS_SERVER === true) chgAckPush({ [sc]: ack[sc] });     // 같은 아이디의 다른 기기도 같은 시점부터 보게 한다 (서버 설정을 받은 뒤에만)
+    return []; }
   const t0 = Number(ack[sc]) || 0;
   return DB.audit.filter(a=>chgT(a) > t0 && !chgMine(a) && (cfg.re.test(String(a.action||"")) || (cfg.ord && byNo.has(a.target))))
     .sort((a,b)=>chgT(b) - chgT(a));
 }
+/* 이 기기에만 있던 확인 기록(이 버전 전에 누른 것)을 서버로 한 번 올린다 — 서버 값보다 늦은 것만 */
+let CHG_MIG = "";
+function chgAckMigrate(){
+  const k = chgSrvKey(); if (!k || SETTINGS_SERVER !== true || CHG_MIG === k) return; CHG_MIG = k;
+  let loc = {}; try { loc = JSON.parse(localStorage.getItem(chgKey()) || "{}") || {}; } catch(_){}
+  const sv = (SETTINGS[k] && typeof SETTINGS[k] === "object") ? SETTINGS[k] : {}, out = {};
+  Object.keys(loc).forEach(sc=>{ if (Number(loc[sc]) > (Number(sv[sc]) || 0)) out[sc] = Number(loc[sc]); });
+  if (Object.keys(out).length) chgAckPush(out);
+}
 function chgApply(){
   if (sb && !LOGIN_USER) return;           // 로그인 전에는 계산하지 않는다
+  try { chgAckMigrate(); } catch(_){}
   const byNo = new Map(); DB.orders.forEach(o=>{ if (o.order_no) byNo.set(o.order_no, o); });
   Object.keys(CHG_SCREENS).forEach(sc=>{
     const es = chgEntries(sc, byNo), n = es.length, mb = menuBtn(sc);
@@ -8395,6 +8445,7 @@ function chgAckNow(sc){
   const byNo = new Map(); DB.orders.forEach(o=>{ if (o.order_no) byNo.set(o.order_no, o); });
   const es = chgEntries(sc, byNo), ack = chgAckMap();
   ack[sc] = es.reduce((m,a)=>Math.max(m, chgT(a)), Number(ack[sc]) || 0); chgAckSave(ack);
+  chgAckPush({ [sc]: ack[sc] }, true);          // 같은 아이디로 켠 다른 기기에서도 사라지게
   CHG_MORE.delete(sc); applyRoleLock(); toast(`변경 ${fmt(es.length)}건을 확인했습니다`);
 }
 function chgMoreToggle(sc){ if (CHG_MORE.has(sc)) CHG_MORE.delete(sc); else CHG_MORE.add(sc); chgApply(); }
@@ -9394,6 +9445,7 @@ function renderTally(){
   const made = ps.reduce((t,p)=>t+madeQty(p.id, d), 0);
   const left = ps.reduce((t,p)=>t+planCalc(p, d).total, 0);
   const bufT = PRODS().reduce((t,p)=>t+planCalc(p, d).buf, 0);
+  const autoT = PRODS().reduce((t,p)=>t+(p.id in planEA ? 0 : (planCalc(p, d).auto||0)), 0);
   const manual = ps.filter(p=>p.id in planEA).length;
   if ($("tallySum")) $("tallySum").innerHTML = ps.length
     ? `<span class="tag">${d}</span> <span class="tag ok">${rounds.join(" + ")||"—"}</span>` +
@@ -9401,6 +9453,7 @@ function renderTally(){
       (made ? ` <span class="tag ok">기생산분 ${fmt(made)}EA</span>` : "") +
       (bufT ? ` <span class="tag buf" style="cursor:pointer" onclick="gotoBuf()" title="요일별 기본값은 기준정보 > 여유분">${WD[dowOf(d)]}요일 여유분 +${fmt(bufT)}EA</span>`
             : ` <span class="tag" style="cursor:pointer" onclick="gotoBuf()" title="눌러서 품목별·요일별 여유분 설정">여유분 없음</span>`) +
+      (autoT ? ` <span class="tag abufT" title="블렌드마다 한 번 자동으로 더하는 수량 — 여유분 스위치와 무관하게 항상 포함 · 로스팅 요청에도 포함">기본 여유 +${fmt(autoT)}EA</span>` : "") +
       (Object.keys(bufToday()[d]||{}).length ? ` <span class="tag warn" style="cursor:pointer" onclick="resetBufToday()" title="오늘 수정한 값을 삭제하고 요일 기준으로 복원">오늘 ${Object.keys(bufToday()[d]).length}품목 수정 · 복원</span>` : "") +
       ` <span class="tag ${left?"warn":"ok"}">잔여 계획 ${fmt(left)}EA</span>` +
       (manual ? ` <span class="tag warn">수동 수정 ${manual}품목</span>` : "")
@@ -9424,7 +9477,7 @@ function renderTally(){
         <td class="fix"><b>${fmt(tot)}</b></td>
         <td class="bufc"><input type="text" inputmode="numeric" class="num" style="width:56px;text-align:right;${ov!=null?"border-color:#5b34b5;font-weight:800":""}"
               value="${ov!=null ? ov : (ea||"")}" placeholder="${base||0}" data-f="bt:${p.id}" ${edit&&live?"":"disabled"} title="당일 한정 변경 — 비워 두면 요일 기준(${base})으로"
-              onchange="setBufToday('${p.id}',this.value)">${!live?'<div class="hint bad" style="padding:0;font-size:10.5px">원두 없음</div>':''}</td>
+              onchange="setBufToday('${p.id}',this.value)">${!live?'<div class="hint bad" style="padding:0;font-size:10.5px">원두 없음</div>':''}${pc.auto?`<div class="abuf">기본 +${fmt(pc.auto)}</div>`:''}</td>
         <td class="fix ${lf>0?"":"ok"}"><b>${fmt(lf)}</b></td></tr>`; }
       return `<tr class="${lf<=0?"":""}">
         <td class="rowno">${i+1}</td>
@@ -9441,7 +9494,7 @@ function renderTally(){
               value="${ov!=null ? ov : (ea||"")}" placeholder="${base||0}" data-f="bt:${p.id}" ${edit&&live?"":"disabled"} title="당일 한정 변경 — 비워 두면 요일 기준(${base})으로"
               onchange="setBufToday('${p.id}',this.value)">
             <div class="hint" style="padding:0;font-size:10.5px;margin-top:2px">${!live ? '<span class="bad">원두 없음</span>'
-              : (ov!=null ? `오늘만 · 요일 기준 ${fmt(base)}` : `요일 기준`)}${ea?` · ${fmt(eaKg(p,ea))}kg`:""}<br>${beanStateText(p.bean)}</div>`; })()}</td>
+              : (ov!=null ? `오늘만 · 요일 기준 ${fmt(base)}` : `요일 기준`)}${ea?` · ${fmt(eaKg(p,ea))}kg`:""}<br>${beanStateText(p.bean)}</div>${pc.auto ? `<div class="abuf" title="블렌드마다 한 번 — 그날 주문이 가장 많은 품목에 자동으로 더합니다 · 수량은 기준정보 › 원두별 설정">기본 여유 +${fmt(pc.auto)} · ${fmt(eaKg(p,pc.auto))}kg</div>` : ""}`; })()}</td>
         <td class="fix ${lf>0?"":"ok"}"><b>${fmt(lf)}</b></td>
         <td class="c">${
           p.id in planEA ? '<span class="tag warn">수동 수정</span>'
@@ -9450,7 +9503,7 @@ function renderTally(){
           : '<span class="tag">생산 대기</span>'}</td></tr>`; }),
     ps.length ? `<td colspan="${CX?2:3}" class="c">합 계 · ${ps.length}품목</td>
       ${rounds.map(r=>`<td class="fix"><b>${fmt(ps.reduce((t,p)=>t+tallyQty(p.id,r,d),0))}</b></td>`).join("")}
-      <td class="fix"><b>${fmt(sum)}</b></td>${CX?"":`<td>${fmt(made)}</td>`}<td class="bufc">${(()=>{ const t = ps.reduce((a,p)=>a+planCalc(p, d).buf,0); return t?`+${fmt(t)}`:"—"; })()}</td>
+      <td class="fix"><b>${fmt(sum)}</b></td>${CX?"":`<td>${fmt(made)}</td>`}<td class="bufc">${(()=>{ const t = ps.reduce((a,p)=>a+planCalc(p, d).buf,0), u = ps.reduce((a,p)=>a+(planCalc(p, d).auto||0),0); return (t?`+${fmt(t)}`:"—") + (u?`<div class="abuf">기본 +${fmt(u)}</div>`:""); })()}</td>
       <td class="fix"><b>${fmt(left)}</b></td>${CX?"":"<td></td>"}` : null);
 
   /* 집계 입력 내역 */
@@ -9868,10 +9921,11 @@ function renderPlan(){
       const need = needKg(r.p,r.ea), avail = mmsByBean(r.p.bean);
       const warnPick = r.picks.some(x=>shelfState(x.b.roast_date)!=="ok");
       return `<tr><td class="rowno">${i+1}</td>
-        <td class="l">${r.p.name}${r.p.ica?' <span class="tag warn">이카</span>':''}${CX ? `${isGround(r.p.grind)?` <span class="tag warn">${r.p.grind}</span>`:''}${(()=>{ const pc = planCalc(r.p); return (!(r.p.id in planEA) && pc.buf) ? ` <span class="tag buf">+${fmt(pc.buf)}</span>` : ""; })()}<div class="hint" style="padding:0;font-size:10.5px">원두 ${fmt(need)}kg${warnPick?' · <span class="warn">상미기한 주의</span>':''}${r.lack>0?` · <span class="bad">로스팅요청 ${fmt(r.lack)}kg</span>`:''}</div>` : ''}</td>
+        <td class="l">${r.p.name}${r.p.ica?' <span class="tag warn">이카</span>':''}${CX ? `${isGround(r.p.grind)?` <span class="tag warn">${r.p.grind}</span>`:''}${(()=>{ const pc = planCalc(r.p); return r.p.id in planEA ? "" : (pc.buf ? ` <span class="tag buf">+${fmt(pc.buf)}</span>` : "") + (pc.auto ? ` <span class="tag abufT">기본 +${fmt(pc.auto)}</span>` : ""); })()}<div class="hint" style="padding:0;font-size:10.5px">원두 ${fmt(need)}kg${warnPick?' · <span class="warn">상미기한 주의</span>':''}${r.lack>0?` · <span class="bad">로스팅요청 ${fmt(r.lack)}kg</span>`:''}</div>` : ''}</td>
         ${CX ? '' : `<td class="c">${isGround(r.p.grind)?`<span class="tag warn">${r.p.grind}</span>`:"홀빈"}</td>
         <td>${fmt(r.p.safety)}</td><td>${fmt(r.p.cfe)}</td>
-        <td class="bufc">${(()=>{ const pc = planCalc(r.p); return (!(r.p.id in planEA) && pc.buf) ? `+${fmt(pc.buf)}<br><span class="hint" style="padding:0;font-size:10.5px">${fmt(eaKg(r.p,pc.buf))}kg</span>` : "—"; })()}</td>`}
+        <td class="bufc">${(()=>{ const pc = planCalc(r.p); if (r.p.id in planEA) return "—";
+          return ((pc.buf ? `+${fmt(pc.buf)}<br><span class="hint" style="padding:0;font-size:10.5px">${fmt(eaKg(r.p,pc.buf))}kg</span>` : "") + (pc.auto ? `<div class="abuf">기본 +${fmt(pc.auto)}</div>` : "")) || "—"; })()}</td>`}
         <td><input type="text" inputmode="numeric" class="num" value="${r.ea}" data-f="plan:${r.p.id}"
           oninput="setPlan('${r.p.id}',this.value)"><div class="hint" style="padding:0;font-size:10.5px;white-space:nowrap">${planWhy(r.p)}</div></td>
         ${CX ? '' : `<td>${fmt(need)}</td>
@@ -11204,7 +11258,7 @@ function beanNeedDetail(b){
   return planRows().filter(r=>r.p.bean===b).map(r=>{
     const c = planCalc(r.p), manual = planEA[r.p.id] != null;
     const src = manual ? "생산계획에서 직접 입력한 수량"
-      : c.mode === "tally" ? `주문 집계 ${fmt(c.need)}EA${c.buf?` + 여유분 ${fmt(c.buf)}EA`:""}`
+      : c.mode === "tally" ? `주문 집계 ${fmt(c.need)}EA${c.buf?` + 여유분 ${fmt(c.buf)}EA`:""}${c.auto?` + 기본 여유 ${fmt(c.auto)}EA`:""}`
       : [c.need ? `안전재고 ${fmt(r.p.safety||0)} − CFE 재고 ${fmt(r.p.cfe||0)} = ${fmt(c.need)}EA` : "", c.buf ? `요일별 여유분 ${fmt(c.buf)}EA` : ""].filter(Boolean).join(" + ");
     return { p:r.p, ea:r.ea, kg:needKg(r.p, r.ea), src, mode: manual ? "manual" : c.mode };
   }).sort((a,b)=>b.kg-a.kg);
@@ -14282,6 +14336,7 @@ function planWhy(p, day){
   if (c.mode === "tally") parts.push(`집계 ${fmt(tallyQty(p.id, undefined, d))}${madeQty(p.id, d) ? ` − 기생산 ${fmt(madeQty(p.id, d))}` : ""}`);
   else if (c.need > 0) parts.push(`안전재고 ${fmt(p.safety)} − 현재고 ${fmt(p.cfe)}`);
   if (c.buf > 0) parts.push(`${bufOverride(p, d) != null ? "오늘 " : WD[dowOf(d)] + "요일 "}여유 +${fmt(c.buf)}`);
+  if (c.auto > 0) parts.push(`<span class="abuf">기본 여유 +${fmt(c.auto)}</span>`);
   if (c.cut > 0) parts.push(`<span class="warn">여유 ${fmt(c.cut)} 미충족 (잔량 부족)</span>`);
   return parts.join(" · ") || "—";
 }
@@ -14289,36 +14344,53 @@ function planWhy(p, day){
      여유분 때문에 로스팅을 더 하지 않는다. 잔량이 모자라면 품목 순서대로 채우고 나머지는 깎인다. */
 let BUF_CAP_CACHE = { d:"", map:{} };
 function bufCapMap(d){
-  if (BUF_CAP_CACHE.d === d && BUF_CAP_CACHE.at === DB.mms.length + "|" + JSON.stringify(SETTINGS[BUF_KEY]||"")+"|"+JSON.stringify(SETTINGS[BUF_TODAY_KEY]||"")) return BUF_CAP_CACHE.map;
+  if (BUF_CAP_CACHE.d === d && BUF_CAP_CACHE.at === bufCapSig()) return BUF_CAP_CACHE.map;
   const left = {}; DB.mms.forEach(m=>{ if (Number(m.stock_kg)>0 && !isHeld(m)) left[m.bean] = (left[m.bean]||0) + Number(m.stock_kg); });
   const ps = PRODS();
-  ps.forEach(p=>{ const need = p.id in planEA ? 0 : planNeedRaw(p, d); left[p.bean] = (left[p.bean]||0) - needKg(p, need); });   // 필요분 먼저
+  ps.forEach(p=>{ const need = p.id in planEA ? 0 : planNeedRaw(p, d) + autoEA(p, d); left[p.bean] = (left[p.bean]||0) - needKg(p, need); });   // 필요분 + 기본 여유 먼저
   const map = {};
   ps.forEach(p=>{ const want = bufEA(p, d); if (!(want > 0)) { map[p.id] = 0; return; }
     const g = Number(p.std_g||0)/1000 * (1 + lossPctOf(p)/100), can = g > 0 ? Math.max(0, Math.floor((left[p.bean]||0) / g + 0.0001)) : 0;
     const ea = Math.min(want, can); map[p.id] = ea; left[p.bean] = (left[p.bean]||0) - ea*g; });
-  BUF_CAP_CACHE = { d, map, at: DB.mms.length + "|" + JSON.stringify(SETTINGS[BUF_KEY]||"")+"|"+JSON.stringify(SETTINGS[BUF_TODAY_KEY]||"") };
+  BUF_CAP_CACHE = { d, map, at: bufCapSig() };
   return map;
 }
 function planNeedRaw(p, d){
   if (!hasTally(p.id, d)) return shortage(p);
   return Math.max(0, tallyQty(p.id, undefined, d) - madeQty(p.id, d));
 }
+/* ★ 2026-11-18 기본 여유 (Lee "블렌드 4종은 자동으로 여유수량 25개 정도 포함 … 필요 100개인데 요청 100개면 너무 딱 맞아")
+   블렌드(원두)마다 한 번 — 그날 주문(집계)이 가장 많은 품목 하나에 N개 · 요일별 여유분과 따로 · 여유분 스위치와 무관 · 로스팅 요청에도 포함
+   수량은 기준정보 › 원두별 설정의 [기본 여유] (비워 두면 블렌드 4종 25개 · 그 외 0개) */
+const AUTO_BUF_BEANS = ["에스쇼콜라","프루티봉봉","부산","므쵸베리"], AUTO_BUF_N = 25;
+const autoBufDef = bean => AUTO_BUF_BEANS.includes(bean) ? AUTO_BUF_N : 0;
+const autoBufOf = bean => { const v = beanCfgOf(bean).auto_buf; return v != null && v !== "" ? Math.max(0, Math.round(Number(v)||0)) : autoBufDef(bean); };
+function autoBufPick(bean, d, n){
+  const c = PRODS().filter(p=>p.bean===bean && hasTally(p.id, d)).map(p=>({ p, q:tallyQty(p.id, undefined, d) })).filter(x=>x.q > 0)
+    .sort((a,b)=>b.q-a.q || Number(b.p.spec_g||0)-Number(a.p.spec_g||0) || String(a.p.id).localeCompare(String(b.p.id)));
+  if (c.length < 2) return c.length ? c[0].p.id : null;
+  /* 이미 기본 여유까지 지시를 낸 품목이 있으면 그 품목에 둔다 — 2차 집계로 "가장 많은 품목"이 바뀌어도 지시가 왔다 갔다 하지 않게 */
+  const ordQ = pid => DB.orders.filter(o=>o.work_date===d && o.product_id===pid && o.status!=="폐기").reduce((t,o)=>t+Math.max(Number(o.qty_plan)||0, Number(o.qty_done)||0),0);
+  const kept = c.find(x=>ordQ(x.p.id) >= x.q + (swOn("buf") ? bufEA(x.p, d) : 0) + n);
+  return (kept || c[0]).p.id;
+}
+const autoEA = (p, d) => { const n = autoBufOf(p.bean); return n > 0 && autoBufPick(p.bean, d, n) === p.id ? n : 0; };
+const bufCapSig = () => DB.mms.length + "|" + JSON.stringify(SETTINGS[BUF_KEY]||"")+"|"+JSON.stringify(SETTINGS[BUF_TODAY_KEY]||"")+"|"+JSON.stringify((SETTINGS[BEAN_CFG_KEY]||{}).items||"")+"|"+DB.tallies.length;
 function planCalc(p, day){
   const d = day || tallyDay(), want = swOn("buf") ? bufEA(p, d) : 0;      // ★ 2026-11-18 여유분 스위치가 꺼져 있으면 더하지 않는다
   const buf = want > 0 ? (bufCapMap(d)[p.id] ?? want) : 0;
   /* ★ 2026-11-01 — 집계가 없으면 안전재고 부족분을 "자동 계획"으로 잡지 않는다 (Lee "쇼콜라 95개가 계속 자동으로 잡혀 — 안 그러게")
        생산계획 › [안전재고 자동 보충] 을 켠 경우에만 전처럼 잡는다. 꺼져 있으면 안전재고 미달은 표시만. */
   if (!hasTally(p.id, d)) {
-    if (!safetyAuto()) return { need:0, buf:0, want, cut:0, total:0, mode:"none", short: shortage(p) };
-    const need = shortage(p); return { need, buf, want, cut: want - buf, total: need + buf, mode:"safety" }; }
+    if (!safetyAuto()) return { need:0, buf:0, auto:0, want, cut:0, total:0, mode:"none", short: shortage(p) };
+    const need = shortage(p); return { need, buf, auto:0, want, cut: want - buf, total: need + buf, mode:"safety" }; }
   /* ★ 2026-11-18 꺼 둔 채널(코스트코 · 컬리)의 집계와 그 채널로 만든 수량은 계산에서 뺀다 */
   const offT = (()=>{ const T = tallyByCh(p.id, d); return Object.keys(T).filter(swChOff).reduce((t,c)=>t+T[c],0); })();
   const offM = offT || !swOn("costco") || !swOn("kurly") ? DB.orders.filter(o=>o.work_date===d && o.product_id===p.id && o.status!=="폐기" && swChOff(o.channel)).reduce((t,o)=>t+Number(o.qty_done||0),0) : 0;
   const tally = tallyQty(p.id, undefined, d) - offT, made = madeQty(p.id, d) - offM;
-  const need = Math.max(0, tally - made);
-  const total = Math.max(0, tally + buf - made);
-  return { need, buf: total - need, want, cut: want - (total - need), total, mode:"tally" };     // 이미 만든 수량이 주문을 넘으면 여유분에서 빠진다
+  const need = Math.max(0, tally - made), auto = autoEA(p, d);
+  const total = Math.max(0, tally + buf + auto - made), extra = total - need, b2 = Math.min(buf, extra);
+  return { need, buf: b2, auto: extra - b2, want, cut: want - b2, total, mode:"tally" };     // 이미 만든 수량이 주문을 넘으면 기본 여유 → 여유분 순으로 빠진다
 }
 
 function loadNeed(){
@@ -14391,6 +14463,7 @@ function renderReq(){
   const by = $("rqBy").value;
   $("rqBy").innerHTML = DB.workers.map(w=>`<option ${w.name===by?"selected":""}>${w.name}</option>`).join("");
 
+  try { renderBeanUse(); } catch(e){ console.warn(e); }
   const all = reqRows.map(r=>({ r, c:reqCalc(r) }));
   const tN = all.reduce((s,x)=>s+x.c.n,0);
   const tG = all.reduce((s,x)=>s+x.c.green,0);
@@ -14531,6 +14604,45 @@ function bufBeanRows(d){
     return { b, have, held, shipKg, shipEa, shipParts, left, bufEa, bufKg, cut, bufParts, rest, main, canEa };
   }).filter(r=>r.have > 0 || r.shipKg > 0 || r.bufEa > 0);
 }
+/* ★ 2026-11-18 원두별 사용 계획 (Lee "동일한 원두를 포장하는데 얼만큼 사용할 것이며") — 집계 탭 · 로스팅 요청 화면 */
+function beanUseRows(d){
+  const by = {}, r2 = v => Math.round(v*100)/100;
+  PRODS().forEach(p=>{ const man = p.id in planEA, c = planCalc(p, d), ea = man ? Number(planEA[p.id]||0) : c.total; if (!(ea > 0)) return;
+    const r = by[p.bean] = by[p.bean] || { b:p.bean, need:0, buf:0, auto:0, autoEa:0, autoP:null, parts:[] };
+    r.need += needKg(p, man ? ea : c.need);
+    if (!man) { r.buf += needKg(p, c.buf); r.auto += needKg(p, c.auto||0); if (c.auto > 0) { r.autoEa += c.auto; r.autoP = p; } }
+    r.parts.push({ g:Number(p.spec_g)||0, t:`${specLabel(Number(p.spec_g)||0)}${isGround(p.grind)?` ${p.grind}`:""} ${fmt(ea)}개` }); });
+  return Object.values(by).map(r=>{ const tot = r2(r.need + r.buf + r.auto), have = r2(mmsByBean(r.b));
+    return { ...r, need:r2(r.need), buf:r2(r.buf), auto:r2(r.auto), tot, have, lack:r2(Math.max(0, tot - have)), rest:r2(have - tot), set:autoBufOf(r.b),
+      parts:r.parts.sort((a,b)=>b.g-a.g).map(x=>x.t) }; })
+    .sort((a,b)=>natCmp(codeOrd(mmsCodeOf(a.b)), codeOrd(mmsCodeOf(b.b))) || natCmp(a.b, b.b));
+}
+async function editAutoBuf(bean){
+  const b = beanInfo(bean); if (!b) return;
+  if (!(can("base") || can("roast"))) return toast("기본 여유 수량은 기준정보 또는 로스팅 권한이 있는 계정에서 바꿀 수 있습니다");
+  const v = await askText(`${bean}\n\n기본 여유 수량 (개) — 주문이 있는 날 이 원두에서 주문이 가장 많은 품목 하나에 자동으로 더합니다.\n0 = 사용 안 함 · 비우면 기본값(${autoBufDef(bean)}개)`, String(autoBufOf(bean)), "기본 여유");
+  if (v == null || v === false) return;
+  const t = String(v).trim(); if (t !== "" && !(Number(t) >= 0)) return toast("숫자를 입력하십시오");
+  const before = autoBufOf(bean); setBeanCfg(b.id, "auto_buf", t === "" ? "" : Math.round(Number(t)));
+  logAudit && logAudit("기본 여유 변경", bean, `${before}개 → ${autoBufOf(bean)}개`);
+  toast(`${bean} 기본 여유 ${fmt(autoBufOf(bean))}개`);
+}
+function renderBeanUse(){
+  const d = tallyDay(), rows = beanUseRows(d), edit = can("base") || can("roast");
+  const sum = k => Math.round(rows.reduce((t,r)=>t+r[k],0)*100)/100;
+  ["beanUseTally","beanUseReq"].forEach(id=>{ if (!$(id)) return;
+    if ($(id+"Info")) $(id+"Info").textContent = `${d} 기준 · 원두 ${rows.length}종`;
+    if (!rows.length) { $(id).innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">${d} 생산 계획이 없습니다 — 집계를 입력하면 원두별 사용량이 표시됩니다</td></tr></tbody>`; return; }
+    tbl(id, ["원두","주문분","요일별 여유분",'<span class="abuf" style="font-size:inherit">기본 여유</span>','<span class="fix">합계 사용</span>',"사용 가능 재고","재고 대비"],
+      rows.map(r=>`<tr><td class="l"><b>${r.b}</b><div class="hint" style="padding:0;font-size:10.5px;white-space:normal">${r.parts.join(" · ")}</div></td>
+        <td>${fmt(r.need)} kg</td>
+        <td class="bufc">${r.buf ? `+${fmt(r.buf)} kg` : "—"}</td>
+        <td style="white-space:nowrap">${r.autoEa ? `<b class="abuf" style="font-size:inherit">+${fmt(r.autoEa)}개 · ${fmt(r.auto)} kg</b><div class="hint" style="padding:0;font-size:10.5px">${specLabel(Number(r.autoP.spec_g)||0)}${isGround(r.autoP.grind)?` ${r.autoP.grind}`:""} 품목에 추가</div>` : `<span class="hint" style="padding:0">${r.set ? `설정 ${fmt(r.set)}개 · 오늘 반영 없음` : "—"}</span>`}${edit ? ` <button class="btn" style="height:24px;padding:0 8px;font-size:11.5px" onclick="editAutoBuf('${r.b.replace(/'/g,"\\'")}')" title="이 원두의 기본 여유 수량을 변경합니다">수정</button>` : ""}</td>
+        <td class="fix"><b>${fmt(r.tot)} kg</b></td>
+        <td>${fmt(r.have)} kg</td>
+        <td>${r.lack > 0 ? `<b class="bad">${fmt(r.lack)} kg 부족</b> <span class="tag bad" style="font-size:10.5px">로스팅 요청</span>` : `<span class="ok">${fmt(r.rest)} kg 남음</span>`}</td></tr>`),
+      `<td class="c">합 계 · ${rows.length}종</td><td>${fmt(sum("need"))} kg</td><td class="bufc">${sum("buf") ? `+${fmt(sum("buf"))} kg` : "—"}</td><td>${sum("auto") ? `+${fmt(sum("auto"))} kg` : "—"}</td><td class="fix"><b>${fmt(sum("tot"))} kg</b></td><td>${fmt(sum("have"))} kg</td><td>${sum("lack") ? `<b class="bad">${fmt(sum("lack"))} kg 부족</b>` : "—"}</td>`); });
+}
 function renderBufBean(){
   if (!$("bufBeanTbl")) return;
   const d = tallyDay(), rows = bufBeanRows(d);
@@ -14549,6 +14661,7 @@ function renderBufBean(){
 function renderBufPanel(){
   if (!$("bufTbl")) return;
   try { renderBufBean(); } catch(e){ console.warn(e); }
+  try { renderBeanUse(); } catch(e){ console.warn(e); }
   const c = bufCfg(), edit = can("plan") || can("base"), d = tallyDay(), today = dowOf(d);
   if ($("bufShelf")) $("bufShelf").textContent = SHELF_LIFE_DAYS;
   if ($("bufState")) $("bufState").innerHTML = (!sb ? "로컬 모드"
@@ -15662,7 +15775,7 @@ function renderStock(){
   const planToday = isCfe ? [] : planRows(), dd = tallyDay();
   const beanLeft = bn => {
     const rs = planToday.filter(x=>x.p.bean===bn);
-    const needKg_ = rs.reduce((t,x)=>t+needKg(x.p, planCalc(x.p, dd).need),0);
+    const needKg_ = rs.reduce((t,x)=>{ const c = planCalc(x.p, dd); return t+needKg(x.p, c.need + (c.auto||0)); },0);   // 기본 여유는 주문분과 같이 항상 만든다
     const bufKg  = rs.reduce((t,x)=>t+needKg(x.p, planCalc(x.p, dd).buf),0);
     const stock = mmsByBean(bn);
     return { needKg:needKg_, bufKg, all: stock-needKg_-bufKg, noBuf: stock-needKg_ };
@@ -16873,7 +16986,8 @@ function renderBeanSet(){
   tbl("tBset", ['<span class="fixl">원두명</span>',"MMS 코드","컬러","품목보고번호","원산지","완제품 · 라벨/봉투",
       `원두 로스율 %<br><span class="hint" style="padding:0;font-size:10.5px">기본 ${lc.def}%</span>`,
       `봉투 로스율 %<br><span class="hint" style="padding:0;font-size:10.5px">기본 ${c.def_bag}%</span>`,
-      "봉투 로스 실제<br><span class=\"hint\" style=\"padding:0;font-size:10.5px\">최근 30일</span>","설비 설정값","미입력 항목"],
+      "봉투 로스 실제<br><span class=\"hint\" style=\"padding:0;font-size:10.5px\">최근 30일</span>",
+      '기본 여유 (개)<br><span class="hint" style="padding:0;font-size:10.5px">블렌드마다 한 번</span>',"설비 설정값","미입력 항목"],
     show.map(({b, miss})=>{ const it = c.items[b.id] || {}, a = act[b.name];
       const ps = DB.products.filter(p=>p.bean===b.name && p.active !== false).sort((x,y)=>Number(x.spec_g||0)-Number(y.spec_g||0));
       const pk = ps.map(p=>{ const st = packState(p), L = labelOf(p), M = bagMatOf(p);
@@ -16888,9 +17002,10 @@ function renderBeanSet(){
         <td class="c"><input type="number" class="num" step="0.1" min="0" value="${it.loss ?? ""}" placeholder="${lc.def}" onchange="setBeanCfg('${b.id}','loss',this.value)"></td>
         <td class="c"><input type="number" class="num" step="0.1" min="0" value="${it.bag_loss ?? ""}" placeholder="${c.def_bag}" onchange="setBeanCfg('${b.id}','bag_loss',this.value)"></td>
         <td class="c">${a ? `<b>${fmt(a.loss)}장</b>${a.made?` <span class="hint" style="padding:0">(${Math.round(a.loss/a.made*1000)/10}%)</span>`:""}` : "—"}</td>
+        <td class="c"><input type="number" class="num" step="1" min="0" value="${it.auto_buf ?? ""}" placeholder="${autoBufDef(b.name)}" title="그날 주문이 가장 많은 품목 하나에 이 수량을 자동으로 더합니다 (생산 목표 + 로스팅 요청) · 0 = 사용 안 함 · 비우면 기본값" onchange="setBeanCfg('${b.id}','auto_buf',this.value)"></td>
         <td class="l"><input type="text" value="${String(it.setup||"").replace(/"/g,"&quot;")}" placeholder="예: 리팩 속도 32 · 온도 165 · 중량 +2g" style="width:100%;min-width:220px" onchange="setBeanCfg('${b.id}','setup',this.value)"></td>
         <td class="l">${miss.length ? miss.map(x=>`<span class="tag bad" style="margin:1px">${x}</span>`).join("") : '<span class="tag ok">완료</span>'}</td></tr>`; }),
-    `<td colspan="11" class="c">${bsetOnly?"미입력 항목":"사용중"} · ${show.length}종</td>`);
+    `<td colspan="12" class="c">${bsetOnly?"미입력 항목":"사용중"} · ${show.length}종</td>`);
 }
 let prodView = "live";
 function setProdView(v){ prodView = v; SEL.products.clear(); renderBase(); }
@@ -17991,6 +18106,9 @@ async function pullLive(){
     }
   }
   if (failed === res.length) return -1;
+  /* ★ 2026-11-18 변경 표시 확인 기록 — 실시간 연결이 끊겨 있어도 같은 아이디의 다른 기기에서 누른 [확인] 을 받는다 */
+  try { const k = chgSrvKey(); if (k) { const r = await sb.from(tb("settings")).select("key,value").eq("key", k).limit(1);
+    if (r && !r.error && r.data && r.data[0] && JSON.stringify(SETTINGS[k] || null) !== JSON.stringify(r.data[0].value)) { applySetting(k, r.data[0].value); changed++; } } } catch(_){}
   AUTO_OK_AT = new Date();
   return changed;
 }
@@ -20857,12 +20975,21 @@ function finishDialog(o, p, ctx){
           const cur = ctx._carryPick !== undefined ? ctx._carryPick : (nb ? nb.id : "");
           const list = sortBatches(cands); if (nb && !list.some(m=>m.id===nb.id)) list.unshift(nb);
           const tgt = list.find(m=>m.id===cur);
-          ctx._carry = tgt ? { from:lr.m.id, to:tgt.id, kg:lk } : null;
+          const nx = tgt ? carryNextOrd(o, tgt, lk) : null, nxOk = !!(nx && nx.ex.n > 0 && can("plan"));
+          const nxNm = nx ? `${String(nx.x.order_no||"").slice(-3)}번 ${esc(nx.x.product_name || prodById(nx.x.product_id)?.name || "")}` : "";
+          ctx._carry = tgt ? { from:lr.m.id, to:tgt.id, kg:lk, add: nxOk && !ctx._carryAddOff ? { id:nx.x.id, n:nx.ex.n } : null } : null;
           CR.style.display = "";
           CR.innerHTML = `잔량 원두 <b>${fmt(lk)}kg</b> (${batchShort(lr.m)}) →
             <select id="finCarrySel" style="height:34px;font-weight:700;max-width:100%">${list.map(m=>`<option value="${m.id}" ${m.id===cur?"selected":""}>${batchShort(m)} 배치로 이월 (${fmt(m.stock_kg)} → ${fmt(Math.round((Number(m.stock_kg||0)+lk)*1000)/1000)}kg)${nb&&m.id===nb.id?" · 다음 배치":""}</option>`).join("")}
               <option value="" ${!cur?"selected":""}>이월하지 않음 — ${batchShort(lr.m)} 에 유지</option></select>
-            ${tgt ? `<br><b>${batchShort(tgt)}</b> 사용 가능 ${fmt(tgt.stock_kg)}kg + 이월 ${fmt(lk)}kg = <b>${fmt(Math.round((Number(tgt.stock_kg||0)+lk)*1000)/1000)}kg</b>` : ""}`;
+            ${tgt ? `<br><b>${batchShort(tgt)}</b> 사용 가능 ${fmt(tgt.stock_kg)}kg + 이월 ${fmt(lk)}kg = <b>${fmt(Math.round((Number(tgt.stock_kg||0)+lk)*1000)/1000)}kg</b>` : ""}
+            ${!tgt ? "" : `<div id="finCarryNx" style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(0,0,0,.18)">${
+              !nx ? `<span style="color:var(--soft)">이 배치를 쓰는 대기 지시가 없어 목표 수량은 늘지 않습니다</span>`
+              : nxOk ? `<label style="display:flex;gap:8px;align-items:center;cursor:pointer;font-weight:700"><input type="checkbox" id="finCarryAdd" ${ctx._carryAddOff?"":"checked"} style="width:22px;height:22px;flex:none">
+                  <span>다음 지시 목표도 늘리기 — ${nxNm} ${fmt(nx.x.qty_plan)}개 → <b style="color:var(--ok)">${fmt(Number(nx.x.qty_plan||0)+nx.ex.n)}개 (＋${fmt(nx.ex.n)}개)</b></span></label>`
+              : nx.ex.n > 0 ? `다음 지시 ${nxNm} <b>＋${fmt(nx.ex.n)}개 추가 가능</b> <span style="color:var(--soft)">— '생산계획·작업지시' 권한이 있는 계정에서 추가할 수 있습니다</span>`
+              : `<span style="color:var(--soft)">다음 지시 ${nxNm} 목표 ${fmt(nx.x.qty_plan)}개 — 이월해도 추가 없음${nx.ex.per ? ` (이월 후 최대 ${fmt(nx.ex.max)}개${nx.ex.lack > 0 ? ` · ＋1개까지 ${fmt(nx.ex.lack)}kg 부족` : ""})` : ""}</span>`}</div>`}`;
+          const ADD = CR.querySelector("#finCarryAdd"); if (ADD) ADD.onchange = () => { ctx._carryAddOff = !ADD.checked; sync(); };
           const SEL = CR.querySelector("#finCarrySel"); if (SEL) SEL.onchange = () => { ctx._carryPick = SEL.value; sync(); };
         }
       }
@@ -21139,7 +21266,14 @@ async function finishWork(id){
   if (!r.replayed && F.carry && F.carry.to) {
     const cr = await carryBatchKg(F.carry.from, F.carry.to, F.carry.kg, r.serial || o.serial || "");
     if (!cr || cr.ok === false) toast(`잔량을 이월하지 못했습니다 — ${cr?.message || ""} (070 SQL 실행 여부 확인) · 원두는 원 배치에 유지됩니다`);
-    else if (cr.kg > 0) toast(`잔량 원두 ${fmt(cr.kg)}kg → ${batchShort(DB.mms.find(m=>m.id===F.carry.to)||{})} 로 이월 (사용 가능 ${fmt(cr.to_after ?? 0)}kg)`);
+    else if (cr.kg > 0) {
+      let addMsg = "";
+      if (F.carry.add) { const x = ordById(F.carry.add.id), n = x ? Math.min(F.carry.add.n, extraEa(x).n) : 0;   // 이월이 끝난 뒤 다시 계산 — 창에서 본 수보다 늘리지 않는다
+        if (n > 0) { const ar = await applyExtraQty(x, n);
+          addMsg = ar.ok ? ` · ${x.product_name || prodById(x.product_id)?.name || ""} 목표 ${fmt(ar.to)}개 (＋${fmt(n)}개)` : ` · 목표 수량은 늘리지 못했습니다 — ${ar.message}`; } }
+      toast(`잔량 원두 ${fmt(cr.kg)}kg → ${batchShort(DB.mms.find(m=>m.id===F.carry.to)||{})} 로 이월 (사용 가능 ${fmt(cr.to_after ?? 0)}kg)${addMsg}`);
+      F._carryMsg = `${fmt(cr.kg)}kg 이월${addMsg}`;
+    }
   }
   /* ★ 2026-11-16 봉투 로스 — 버린 봉투 수만큼 봉투 재고에서 더 뺀다 */
   if (!r.replayed && F.bagLoss > 0) { const M = ordIca(o) ? null : ordLotMat(o);
@@ -21159,7 +21293,7 @@ async function finishWork(id){
   quickRender();
   toast(r.replayed
     ? `이미 처리된 건입니다 (일련번호 ${r.serial}) — 중복 처리하지 않았습니다`
-    : `생산 완료 — 검수 대기로 이관됩니다 (일련번호 ${r.serial})${LZ.leftover>0 ? ` · 봉지에 ${fmt(LZ.leftover)}kg 잔여` : ""}${LZ.flag!=="ok" && LZ.flag!=="open" ? ` · 로스 ${LZ.loss_pct}% — 관리자 확인 필요` : ` · 로스 ${LZ.loss_pct}%`}`);
+    : `생산 완료 — 검수 대기로 이관됩니다 (일련번호 ${r.serial})${LZ.leftover>0 ? ` · 봉지에 ${fmt(LZ.leftover)}kg 잔여` : ""}${LZ.flag!=="ok" && LZ.flag!=="open" ? ` · 로스 ${LZ.loss_pct}% — 관리자 확인 필요` : ` · 로스 ${LZ.loss_pct}%`}${F._carryMsg ? ` · ${F._carryMsg}` : ""}`);
 }
 
 /* 실측 투입량을 물을지 — 기본은 안 묻는다 (Q-8).
@@ -21356,7 +21490,7 @@ function ordNeedSplit(o){
   let need;
   if (p.id in planEA) need = Infinity;
   else { const c = planCalc(p, d);
-    need = (c.mode === "none" || !(Number(c.buf) > 0)) ? Infinity : Math.max(0, Math.round(Number(c.need)||0)); }
+    need = (c.mode === "none" || !(Number(c.buf) + Number(c.auto||0) > 0)) ? Infinity : Math.max(0, Math.round(Number(c.need)||0)); }
   if (need === Infinity) return { need:q, buf:0 };
   /* 같은 날 같은 품목 지시들 — 우선순위 순서로 필요분을 먼저 채운다 (이미 만든 것은 집계에서 빠져 있으므로 남은 지시만) */
   const sibs = DB.orders.filter(x=>x.product_id===p.id && x.work_date===d && ["대기","생산중"].includes(x.status))
@@ -22147,31 +22281,51 @@ async function placeOrd(id, machine, targetId, before){
 }
 /* ★ 2026-11-15 배치에 원두가 남으면 그만큼 목표 수량을 늘린다 (Lee "최대 포장 할 수 있는 숫자가 늘어 났잖아 … 자동으로 계산해서 추가" · [+N개 추가] 버튼)
    늘릴 수 있는 수 = 이 배치로 만들 수 있는 수 − 이 지시 남은 수 − 같은 배치를 쓰는 다른 대기·생산중 지시의 남은 수 */
-function extraEa(o){
+function extraEa(o, ov){
   const p = prodById(o?.product_id), m = o && ordBatchMms(o);
-  if (!p || !m || !["대기","생산중"].includes(o.status) || isMixedOrder(o) || isHeld(m)) return { n:0, others:0 };
-  const per = needKg(p, 1); if (!(per > 0)) return { n:0, others:0 };
-  const todoOf = x => Math.max(0, Math.round(Number(x.qty_plan||0) - Number(x.qty_done||0)));
-  let othersKg = 0, others = 0;
-  DB.orders.forEach(x=>{ if (x.id === o.id || !["대기","생산중"].includes(x.status)) return;
+  if (!p || !m || !["대기","생산중"].includes(o.status)) return { n:0, others:0, why:"none" };
+  if (isMixedOrder(o)) return { n:0, others:0, m, why:"mixed" };
+  if (isHeld(m)) return { n:0, others:0, m, why:"held" };
+  const per = needKg(p, 1); if (!(per > 0)) return { n:0, others:0, m, why:"per" };
+  /* ★ 2026-11-18 원두는 생산 완료 때 한 번에 빠진다 — 생산 중에 수량을 입력해도 배치 잔량은 그대로이므로 "남은 수"가 아니라 목표 전체로 계산한다
+       (전에는 생산 중 20개를 입력하면 +20개 추가가 가능한 것처럼 보였다) · X-ray 로 먼저 빠진 수량만 제외 */
+  const todoOf = x => Math.max(0, Math.round(Number(x.qty_plan||0)) - (x.log_id ? Math.round(Number(x.qty_done||0)) : xrayHeldQty(x)));
+  let othersKg = 0, others = 0; const list = [];
+  DB.orders.forEach(x=>{ if (x.id === o.id || (ov && x.id === ov.skip) || !["대기","생산중"].includes(x.status)) return;
     const ps = batchParts(x.batch_plan); if (ps.length !== 1 || ordBatchMms(x) !== m) return;
     const xp = prodById(x.product_id); if (!xp) return;
-    othersKg += needKg(xp, todoOf(x)); others += todoOf(x); });
-  const left = Number(m.stock_kg||0) - othersKg;
-  return { n: Math.max(0, Math.floor((left + 0.0005) / per) - todoOf(o)), others, m, per };
+    const kg = needKg(xp, todoOf(x)); othersKg += kg; others += todoOf(x); list.push({ x, p:xp, todo:todoOf(x), kg:Math.round(kg*100)/100 }); });
+  const r3 = v => Math.round(v*1000)/1000;
+  const left = r3(Number(m.stock_kg||0) + (ov && ov.plus ? Number(ov.plus) : 0) - othersKg);   // ov.plus = 아직 옮기지 않은 이월 예정 kg
+  const max = Math.max(0, Math.floor((left + 0.0005) / per)), todo = todoOf(o), n = Math.max(0, max - todo);
+  return { n, others, othersKg:r3(othersKg), list, m, per, max, todo, left, lack: n > 0 ? 0 : Math.max(0, r3((todo + 1) * per - left)) };
+}
+/* ★ 2026-11-18 목표 수량을 n개 늘린다 — 카드의 [+N개 추가] 와 생산 완료 창의 "다음 지시 목표도 늘리기" 가 같이 쓴다 */
+async function applyExtraQty(o, n){
+  const p = prodById(o.product_id), to = Number(o.qty_plan||0) + n;
+  const patch = { qty_plan: to };
+  const bp = batchParts(o.batch_plan);                    // 지시에 적힌 배치 kg 도 같이 맞춘다
+  if (p && bp.length === 1 && bp[0].kg > 0) patch.batch_plan = String(o.batch_plan).replace(/([\d.]+)(\s*kg)/i, (_, x, u) => `${Math.round(needKg(p, to)*100)/100}${u}`);
+  const r = await mesEditOrder({ order_id:o.id, patch, idem:`ox-${o.id}-${uid()}` });
+  if (!r || !r.ok) return { ok:false, message: r?.message || "수량을 증량하지 못했습니다" };
+  Object.assign(o, patch);
+  logAudit && logAudit("작업지시 수량 증량(잔여 원두)", o.order_no, `＋${n}개 → ${to}개`);
+  return { ok:true, to };
+}
+/* ★ 2026-11-18 이월받을 배치를 쓰는 다음 지시 + 이월하면 늘릴 수 있는 수 (Lee "이월하면 수량을 추가 할 수 있게") */
+function carryNextOrd(o, tgt, kg){
+  const xs = DB.orders.filter(x=>x.id !== o.id && ["대기","생산중"].includes(x.status) && !isMixedOrder(x) && ordBatchMms(x) === tgt)
+    .sort((a,b)=>String(a.work_date).localeCompare(String(b.work_date)) || (Number(a.priority)||0)-(Number(b.priority)||0) || String(a.order_no).localeCompare(String(b.order_no)))
+    .map(x=>({ x, ex: extraEa(x, { plus:kg, skip:o.id }) }));
+  return xs.find(y=>y.ex.n > 0) || xs[0] || null;
 }
 async function addExtraQty(id){
   const o = ordById(id); if (!o || !can("plan")) return;
   const ex = extraEa(o); if (!(ex.n > 0)) { renderWork(); return toast("증량 가능한 잔여 원두가 없습니다"); }
   const p = prodById(o.product_id), to = Number(o.qty_plan||0) + ex.n;
   if (!(await ask(`${p?.name || o.product_name || ""}\n\n목표 ${fmt(o.qty_plan)}개 → ${fmt(to)}개 (＋${fmt(ex.n)}개)\n${batchShort(ex.m)} 배치 사용 가능 ${fmt(ex.m.stock_kg)}kg ÷ 1개 ${fmt(ex.per)}kg${ex.others?`\n동일 배치를 사용하는 다른 지시 ${fmt(ex.others)}개분은 제외했습니다`:""}`, { title:"잔여 원두 기준 수량 증량", yes:`＋${fmt(ex.n)}개 추가` }))) return;
-  const patch = { qty_plan: to };
-  const bp = batchParts(o.batch_plan);                    // 지시에 적힌 배치 kg 도 같이 맞춘다
-  if (bp.length === 1 && bp[0].kg > 0) patch.batch_plan = String(o.batch_plan).replace(/([\d.]+)(\s*kg)/i, (_, n, u) => `${Math.round(needKg(p, to)*100)/100}${u}`);
-  const r = await mesEditOrder({ order_id:id, patch, idem:`ox-${id}-${uid()}` });
-  if (!r || !r.ok) return toast(r?.message || "수량을 증량하지 못했습니다");
-  Object.assign(o, patch);
-  logAudit && logAudit("작업지시 수량 증량(잔여 원두)", o.order_no, `＋${ex.n}개 → ${to}개`);
+  const ar = await applyExtraQty(o, ex.n);
+  if (!ar.ok) return toast(ar.message);
   renderWork(); renderOrder();
   toast(`목표 ${fmt(to)}개로 증량했습니다 (＋${fmt(ex.n)}개)`);
 }
@@ -22443,10 +22597,20 @@ function renderWork(){
           const tot = Number(m.in_kg ?? 0) || null, left = Number(m.stock_kg||0);
           const ci = carryIn(m), ck = Math.round(ci.reduce((t,a)=>t+Number(a.delta||0),0)*1000)/1000;
           const from = [...new Set(ci.map(a=>String(a.note||"").replace(/^← /,"").replace(/ 배치에서 이월.*$/,"")))].join(", ");
-          const per = needKg(p, 1), canEa = per > 0 ? Math.floor((left + 0.0005) / per) : null;
-          const todo = Math.max(0, Math.round(ordPlan(o) - Number(o.qty_done||0)));
+          const per = needKg(p, 1), exS = stIdx(o) < 2 ? extraEa(o) : null, share = !!(exS && exS.per && exS.others > 0);
+          const canEa = share ? exS.max : per > 0 ? Math.floor((left + 0.0005) / per) : null;   // 같은 배치를 다른 지시와 나눠 쓰면 그만큼 빼고 계산
+          const todo = exS && exS.per ? exS.todo : Math.max(0, Math.round(ordPlan(o) - Number(o.qty_done||0)));
+          const useRow = (()=>{ if (!exS || !exS.per || rjd) return "";
+            const mine = Math.round(needKg(p, exS.todo)*100)/100, sum = Math.round((mine + exS.othersKg)*100)/100, df = Math.round((left - sum)*100)/100;
+            return `<div class="buse"><span>원두 사용</span><b style="white-space:nowrap">이 지시 ${fmt(mine)}kg</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">${share ? `+ ${exS.list.map(y=>`${specLabel(Number(y.p.spec_g)||0)}${isGround(y.p.grind)?` ${y.p.grind}`:""}${ordShipCh(y.x) !== "일반" ? `(${ordShipCh(y.x)})` : ""} ${fmt(y.todo)}개 ${fmt(y.kg)}kg`).join(" + ")} = <b>${fmt(sum)}kg</b> ` : ""}/ 배치 ${fmt(left)}kg · ${df >= 0 ? `<b class="ok">${fmt(df)}kg 남음</b>` : `<b class="bad">${fmt(-df)}kg 부족</b>`}</span></div>`; })();
           return `<div><span>배치 중량</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}${ck>0?` <span style="color:var(--ok)">+ 이월 ${fmt(ck)}kg</span>`:""}</b> <span class="hint" style="padding:0">· 사용 가능 <b>${fmt(left)}kg</b>${ck>0?` (← ${from})`:""}${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>
-            ${canEa != null && stIdx(o) < 2 ? `<div><span>생산 가능 수량</span><b class="${canEa < todo ? "bad" : ""}" style="white-space:nowrap">약 ${fmt(canEa)}개</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">(이 배치 ${fmt(left)}kg ÷ 1개 ${fmt(per)}kg${Number(o.qty_ng||0)?` · 부적합 ${fmt(o.qty_ng)}개`:""}${canEa < todo ? ` · 잔여 ${fmt(todo)}개 중 ${fmt(todo-canEa)}개는 다음 배치에서` : ""})</span></div>${(()=>{ const ex = extraEa(o); return ex.n > 0 && can("plan") && !rjd ? `<div class="xqty"><span>잔여 원두</span><button class="btn" onclick="event.stopPropagation();addExtraQty('${o.id}')" title="이 배치의 잔여 원두만큼 목표 수량을 증량합니다${ex.others?` · 동일 배치를 사용하는 다른 지시 ${fmt(ex.others)}개분은 제외했습니다`:""}">＋${fmt(ex.n)}개 추가 → 목표 ${fmt(ordPlan(o)+ex.n)}개</button></div>` : ""; })()}` : ""}`; })()}
+            ${useRow}${canEa != null && stIdx(o) < 2 ? `<div><span>생산 가능 수량</span><b class="${canEa < todo ? "bad" : ""}" style="white-space:nowrap">약 ${fmt(canEa)}개</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">(${share ? `이 배치 ${fmt(left)}kg − 다른 지시 ${fmt(exS.othersKg)}kg = ${fmt(exS.left)}kg` : `이 배치 ${fmt(left)}kg`} ÷ 1개 ${fmt(per)}kg${Number(o.qty_ng||0)?` · 부적합 ${fmt(o.qty_ng)}개`:""}${canEa < todo ? ` · 잔여 ${fmt(todo)}개 중 ${fmt(todo-canEa)}개는 다음 배치에서` : ""})</span></div>${(()=>{ const ex = extraEa(o); if (rjd) return "";
+              if (ex.n > 0 && can("plan")) return `<div class="xqty"><span>잔여 원두</span><button class="btn" onclick="event.stopPropagation();addExtraQty('${o.id}')" title="이 배치의 잔여 원두만큼 목표 수량을 증량합니다${ex.others?` · 동일 배치를 사용하는 다른 지시 ${fmt(ex.others)}개분은 제외했습니다`:""}">＋${fmt(ex.n)}개 추가 → 목표 ${fmt(ordPlan(o)+ex.n)}개</button></div>`;
+              if (ex.n > 0) return `<div class="xqty"><span>잔여 원두</span><b class="xwhy">＋${fmt(ex.n)}개 추가 가능</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">'생산계획·작업지시' 권한이 있는 계정에서 추가할 수 있습니다</span></div>`;
+              if (!(ck > 0)) return "";
+              const why = ex.why === "mixed" ? "배치를 여러 개 쓰는 지시는 자동으로 계산하지 않습니다" : ex.why === "held" ? "배치가 보류 중입니다"
+                : ex.per ? `사용 가능 ${fmt(ex.left)}kg${ex.others?` (같은 배치 다른 지시 ${fmt(ex.others)}개분 ${fmt(ex.othersKg)}kg 제외)`:""} ÷ 1개 ${fmt(ex.per)}kg = 최대 ${fmt(ex.max)}개 · 남은 목표 ${fmt(ex.todo)}개${ex.lack > 0 ? ` · ＋1개까지 ${fmt(ex.lack)}kg 부족` : ""}` : "";
+              return why ? `<div class="xqty"><span>잔여 원두</span><b class="xwhy none">추가 없음</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">이월 ${fmt(ck)}kg 포함 · ${why}</span></div>` : ""; })()}` : ""}`; })()}
         ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"일련번호":"일련번호"}</span><b>${o.serial || "완료 시 부여"}</b>${
           canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="사용할 배치(=일련번호)를 직접 선택하거나 일련번호를 직접 입력합니다">변경</button>` : ""}</div>`}
         ${(()=>{ const rows = ordLotRows(o), al = autoLotOf(o), lot = rows.length ? lotRowsText(rows) : (o.lot || al);
