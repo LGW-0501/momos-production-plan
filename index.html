@@ -144,7 +144,7 @@
   #pPrev td.l{white-space:normal; word-break:keep-all; overflow-wrap:anywhere; line-height:1.4; padding-top:9px; padding-bottom:9px; height:auto; text-align:left;}
   #pPrev details table{table-layout:auto;} #pPrev details th, #pPrev details td{width:auto !important;}
   html{height:100%;}
-  body{min-height:100vh; min-height:100dvh;
+  body{min-height:100vh; min-height:100dvh; min-height:var(--vhz,100dvh);
     font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
     font-size:13.5px; line-height:1.5; color:var(--ink); background:var(--bg);
     display:flex; flex-direction:column; -webkit-font-smoothing:antialiased; font-feature-settings:"tnum";}
@@ -176,7 +176,7 @@
   .gnb #favList button .lb{white-space:nowrap; max-width:76px; overflow:hidden; text-overflow:ellipsis;}
   .acct{position:fixed; right:12px; top:70px; width:300px; max-width:calc(100vw - 24px); background:var(--card,#fff); color:var(--ink);
     border:1px solid var(--line); border-radius:14px; box-shadow:0 18px 50px rgba(26,31,51,.22); z-index:70;
-    max-height:calc(100vh - 84px); overflow-y:auto;}
+    max-height:calc(var(--vhz,100vh) - 84px); overflow-y:auto;}
   .acct .ah{padding:16px 18px 12px; border-bottom:1px solid var(--line);}
   .acct .ah b{font-size:17px; display:block; margin-bottom:3px;}
   .acct .ah .hint{padding:0; font-size:12.5px; line-height:1.55;}
@@ -269,7 +269,7 @@
     body:not(.mobile) .topbar{position:sticky; top:0; z-index:46;}
     body:not(.mobile) .shell{overflow:visible;}
     body:not(.mobile) .gnb{position:sticky; top:64px; align-self:flex-start; z-index:5;
-      height:calc(100vh - 64px); height:calc(100dvh - 64px); overscroll-behavior:contain;}
+      height:calc(var(--vhz,100vh) - 64px); height:calc(var(--vhz,100dvh) - 64px); overscroll-behavior:contain;}
     /* ★ 2026-11-18 묶음 접기 — 묶음 머리를 누르면 그 자리 아래로 펼친다 */
     body.acc .gnb #menu .grp{display:flex; align-items:center; justify-content:center; gap:2px; height:34px; margin:8px 5px 0; padding:0 2px; background:none;
       border-radius:8px; cursor:pointer; position:relative; user-select:none; font-size:11px; font-weight:800; letter-spacing:-.4px; color:var(--soft); white-space:nowrap;
@@ -309,21 +309,22 @@
   #pane.float.min .pb, #pane.float.min .prs{display:none;}
   #pane .ph{flex:none; display:flex; align-items:center; gap:6px; min-height:44px; padding:5px 8px; background:var(--card); border-bottom:1px solid var(--line); position:relative;}
   #pane.float .ph{background:var(--navy-900); cursor:move; touch-action:none; border-bottom:none;}
-  #pane .pt{flex:1; min-width:0; display:flex; gap:5px; overflow-x:auto; scrollbar-width:none; align-items:center;}
-  #pane .pt::-webkit-scrollbar{display:none;}
+  /* ★ 2026-11-18 탭이 칸 폭을 넘으면 옆으로 숨지 않고 다음 줄로 내려간다 — 전에는 탭이 3~4개가 되면 [＋ 탭]이 오른쪽 밖으로 밀려 안 보였다 (Lee "텝 추가가 안되는데?") */
+  #pane .pt{flex:1; min-width:0; display:flex; gap:5px; flex-wrap:wrap; align-items:center;}
   #pane .ptab{flex:none; display:flex; align-items:center; gap:5px; height:34px; padding:0 6px 0 10px; border-radius:8px; border:1px solid var(--line-2); background:var(--card); color:var(--soft);
     font:inherit; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;}
   #pane .ptab.on{background:var(--blue-600); border-color:var(--blue-600); color:#fff;}
   #pane .ptab .x{font-style:normal; font-size:10px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; opacity:.65;}
   #pane .ptab .x:hover{background:rgba(0,0,0,.18); opacity:1;}
   #pane .bd{font-style:normal; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--bad); color:#fff; font-size:10.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;}
-  #pane .padd{flex:none; width:34px; height:34px; border-radius:8px; border:1px dashed var(--line-2); background:none; color:var(--soft); font-size:17px; font-weight:700; cursor:pointer;}
+  #pane .padd{flex:none; height:34px; padding:0 11px; border-radius:8px; border:1.5px dashed var(--blue-600); background:none; color:var(--blue-600); font:inherit; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap;}
   #pane .padd.on, #pane .padd:hover{border-style:solid; border-color:var(--blue-600); color:var(--blue-600);}
-  #pane.float .padd{border-color:rgba(255,255,255,.4); color:#fff;}
+  #pane.float .padd{border-color:rgba(255,255,255,.55); color:#fff;}
+  #pane .ph{align-items:flex-start;} #pane .pa{padding-top:1px;}
   #pane .pa{flex:none; display:flex; gap:5px;}
   #pane .pa button{height:32px; min-width:32px; padding:0 9px; border-radius:7px; border:1px solid var(--line-2); background:var(--card); color:var(--ink); font:inherit; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;}
   #pane.float .pa button{border-color:transparent; background:rgba(255,255,255,.14); color:#fff;}
-  #pane .pmenu{position:absolute; left:8px; top:calc(100% + 4px); z-index:3; background:var(--card); border:1px solid var(--line-2); border-radius:10px; box-shadow:0 12px 30px rgba(10,16,40,.22);
+  #pane .pmenu{position:absolute; left:8px; right:8px; max-width:420px; top:calc(100% + 4px); z-index:3; background:var(--card); border:1px solid var(--line-2); border-radius:10px; box-shadow:0 12px 30px rgba(10,16,40,.22);
     padding:6px; display:grid; grid-template-columns:repeat(2, minmax(120px, 1fr)); gap:2px; max-height:60vh; overflow-y:auto;}
   #pane .pmenu button{display:flex; align-items:center; gap:7px; height:38px; padding:0 10px; border:none; background:none; border-radius:7px; font:inherit; font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; text-align:left; white-space:nowrap;}
   #pane .pmenu button:hover{background:var(--blue-50); color:var(--blue-600);}
@@ -1036,7 +1037,7 @@
     .topbar .avatar{width:32px; height:32px; font-size:12px;}
 
     /* 사이드바 → 서랍 */
-    .gnb{position:fixed; top:56px; height:calc(100vh - 56px); height:calc(100dvh - 56px); left:0; width:196px; z-index:45;
+    .gnb{position:fixed; top:56px; height:calc(var(--vhz,100vh) - 56px); height:calc(var(--vhz,100dvh) - 56px); left:0; width:196px; z-index:45;
       transform:translateX(-100%); transition:transform .22s ease; box-shadow:4px 0 24px rgba(11,20,68,.18);
       padding:10px 0;}
     body.navopen .gnb{transform:translateX(0);}
@@ -1119,7 +1120,7 @@
     #editDlg label{font-size:12px; color:var(--soft); font-weight:600; margin-top:8px;}
     #editDlg input, #editDlg select{height:42px; font-size:15px;}
     #dlg{padding:12px;}
-    #dlg > div{width:100%; max-width:100%; margin:0; max-height:calc(100vh - 24px);}
+    #dlg > div{width:100%; max-width:100%; margin:0; max-height:calc(var(--vhz,100vh) - 24px);}
     #dlg input{height:42px; font-size:16px;}
     #dlg button{height:42px; flex:1;}
     #toast{bottom:16px; left:12px; right:12px; transform:none; text-align:center;}
@@ -1161,7 +1162,7 @@
     body.mobile .topbar .right .btn{padding:0 10px;}
     body.mobile .topbar .avatar{width:32px; height:32px; font-size:12px;}
     /* 사이드바 → 서랍 */
-    body.mobile .gnb{position:fixed; top:56px; height:calc(100vh - 56px); height:calc(100dvh - 56px); left:0; width:196px; z-index:45;
+    body.mobile .gnb{position:fixed; top:56px; height:calc(var(--vhz,100vh) - 56px); height:calc(var(--vhz,100dvh) - 56px); left:0; width:196px; z-index:45;
       transform:translateX(-100%); transition:transform .22s ease; box-shadow:4px 0 24px rgba(11,20,68,.18);
       padding:10px 0;}
     body.mobile.navopen .gnb{transform:translateX(0);}
@@ -1236,7 +1237,7 @@
     body.mobile #editDlg label{font-size:12px; color:var(--soft); font-weight:600; margin-top:8px;}
     body.mobile #editDlg input, body.mobile #editDlg select{height:42px; font-size:15px;}
     body.mobile #dlg{padding:12px;}
-    body.mobile #dlg > div{width:100%; max-width:100%; margin:0; max-height:calc(100vh - 24px);}
+    body.mobile #dlg > div{width:100%; max-width:100%; margin:0; max-height:calc(var(--vhz,100vh) - 24px);}
     body.mobile #dlg input{height:42px; font-size:16px;}
     body.mobile #dlg button{height:42px; flex:1;}
     body.mobile #toast{bottom:16px; left:12px; right:12px; transform:none; text-align:center;}
@@ -1256,7 +1257,7 @@
   body.mobile .topbar .right > button#bellBtn{display:flex !important; align-items:center; justify-content:center; flex:none; width:36px; height:36px; font-size:17px;}
   body.mobile .topbar .right > button#paneBtn{display:flex !important; align-items:center; justify-content:center; flex:none; width:36px; height:36px;}
   @media(max-width:699px){ .topbar #paneBtn, body.mobile .topbar .right > button#paneBtn{display:none !important;} }
-  body.mobile #bellMenu{width:min(420px, calc(100vw - 16px)) !important; right:8px; max-height:calc(100vh - 150px); overflow-y:auto;}
+  body.mobile #bellMenu{width:min(420px, calc(100vw - 16px)) !important; right:8px; max-height:calc(var(--vhz,100vh) - 150px); overflow-y:auto;}
   body.mobile .acct{top:62px; right:8px;}
   body.mobile .guide{display:none;}                       /* 설명은 서랍의 [설명 보기]로 */
   body.mobile.showguide .guide{display:block;}
@@ -1548,7 +1549,7 @@
   #menuDlg .mr button:disabled{opacity:.3; cursor:default;}
   #menuDlg .mf{display:flex; gap:8px; padding:12px 16px;}
   #menuDlg .mf .btn{flex:1; height:40px;}
-  @media(max-width:760px){ #menuDlg{padding:10px;} #menuDlg .mbox{max-height:calc(100dvh - 20px);} }
+  @media(max-width:760px){ #menuDlg{padding:10px;} #menuDlg .mbox{max-height:calc(var(--vhz,100dvh) - 20px);} }
 
   /* ★ 2026-11-17 변경 표시 — 다른 사람이 변경한 내용: 메뉴에 파란 숫자 · 화면 위 변경 목록 · 바뀐 줄/카드 빨간 테두리, [확인] 을 누를 때까지 (Lee) */
   #menu button[data-s] .cbadge{position:absolute; top:6px; left:10px; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--blue-600); color:#fff;
@@ -3349,7 +3350,7 @@
 <div id="dlg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:80;
      align-items:center;justify-content:center;padding:16px">
   <div style="background:var(--paper);width:430px;max-width:92vw;
-       max-height:calc(100vh - 32px);border-radius:12px;overflow:hidden;
+       max-height:calc(var(--vhz,100vh) - 32px);border-radius:12px;overflow:hidden;
        box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column">
     <div class="panel-h" id="dlgTitle" style="flex:0 0 auto">확인</div>
     <div id="dlgBody" style="padding:16px 18px;overflow-y:auto;flex:1 1 auto;min-height:0">
@@ -7901,6 +7902,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-18", "글자 크기를 바꿔도 왼쪽 메뉴가 화면 맨 아래까지", "계정 메뉴의 글자 크기를 100%가 아닌 값으로 두면 왼쪽 메뉴가 화면 아래까지 닿지 않거나(작게) 아래가 잘리던(크게) 것을 고쳤습니다. 확인 창 · 알림 목록의 최대 높이와 화면 하나 더 보기의 위치도 같은 방식으로 맞췄습니다."],
   ["2026-11-18", "화면 하나 더 보기 — 두 화면을 나란히 · 작은 창 · 탭", "위쪽 바의 [▯▯] 버튼을 누르면 화면이 하나 더 열려 두 화면을 같이 볼 수 있습니다. 추가 화면에는 탭을 여러 개 두고 눌러서 바꿉니다([＋]로 탭 추가, ✕로 닫기). [나란히]는 화면을 좌우로 나눠 보여 주며 가운데 선을 끌어 폭을 조절하고 좌우를 바꿀 수 있습니다. [작은 창]은 머리를 끌어 옮기고 오른쪽 아래 모서리로 크기를 조절하며 접어 둘 수 있습니다. PC와 태블릿에서 쓸 수 있고(화면 폭 700px 이상), 설정은 이 기기의 내 아이디에 저장됩니다."],
   ["2026-11-18", "왼쪽 메뉴 묶음 — 여러 개를 같이 펼치기", "묶음을 누르면 그 묶음만 펼쳐지거나 접히고, 이미 펼쳐 둔 다른 묶음은 그대로 남습니다. 전에는 한 번에 하나만 펼쳐졌습니다. 여러 묶음을 펼쳐 메뉴가 화면보다 길어지면 메뉴 안에서 스크롤됩니다."],
   ["2026-11-18", "휴대폰 검수 › 오늘 생산 계획 — 수량이 보이게 · 옆으로 민 표가 돌아가지 않게", "휴대폰에서는 검수의 [오늘 생산 계획] 목록을 표 대신 한 줄 카드로 보여 줍니다 — 품목 · 상태 · 채널 · 일련번호는 왼쪽, 지시 수량은 오른쪽에 크게, [생산 완료] 버튼도 그 아래에 있어 옆으로 밀 필요가 없습니다. 또 현장 작업 · 검수 · 출고 화면에서 표를 옆으로 밀어 두면 3초마다 처음 위치로 돌아가던 것을 고쳤습니다."],
@@ -8290,7 +8292,12 @@ function goHome(){ closeAcct(); closeNav();
 document.addEventListener("keydown", e=>{ if (e.key === "Escape") closeAcct(); });
 /* 글자 크기 — 90 / 100 / 115 / 130 %, 이 기기만 */
 function fontScale(){ let v = 100; try { v = Number(localStorage.getItem("momos.fontScale")) || 100; } catch(_){} return [70,80,90,100,115,130].includes(v) ? v : 100; }
-function applyFontScale(){ const v = fontScale(); document.body.style.zoom = v === 100 ? "" : (v/100); }
+/* ★ 2026-11-18 글자 크기(화면 배율)를 바꾸면 "화면 높이 100%"로 잡은 것들이 그 배율만큼 짧거나 길어졌다 (Lee "메뉴가 맨 밑에까지 안 되고 아래에서 짤리는 게 아쉬워" — 글자 90%면 메뉴가 10% 짧았다)
+   → 실제 화면 높이를 배율로 나눈 값(--vhz)을 따로 두고, 높이 계산은 전부 그 값을 쓴다 */
+const bodyZoom = () => { const z = parseFloat(document.body && document.body.style.zoom); return z > 0 ? z : 1; };
+function setVhz(){ try { document.documentElement.style.setProperty("--vhz", (window.innerHeight / bodyZoom()) + "px"); } catch(_){} }
+window.addEventListener("resize", setVhz); window.addEventListener("orientationchange", setVhz);
+function applyFontScale(){ const v = fontScale(); document.body.style.zoom = v === 100 ? "" : (v/100); setVhz(); try { if (typeof paneApply === "function" && PANE) paneApply(); } catch(_){} }
 /* ══ 다크 모드 (★ 2026-11-10) ══ 이 기기에만 저장 · 자동(기기 설정 따름) / 밝게 / 어둡게 */
 function themeMode(){ try { return localStorage.getItem("momos.theme") || "auto"; } catch(_){ return "auto"; } }
 const isDark = () => document.documentElement.getAttribute("data-theme") === "dark";
@@ -8439,19 +8446,20 @@ function paneApply(){
   /* 자리 */
   const tb = document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0, g = document.querySelector(".gnb"), gr = g && getComputedStyle(g).display !== "none" && getComputedStyle(g).position !== "fixed" ? g.getBoundingClientRect().right : 0;
   const st = document.documentElement.style;
-  st.setProperty("--ptb", Math.max(0, Math.round(tb)) + "px"); st.setProperty("--pgl", Math.max(0, Math.round(gr)) + "px");
-  const w = Math.min(70, Math.max(25, Number(PANE.w) || 50)); st.setProperty("--pw", w + "vw");
+  const Z = bodyZoom();                                   // 글자 크기 배율 — 화면 좌표(px)를 칸의 CSS 값으로 바꿀 때 나눈다
+  st.setProperty("--ptb", Math.max(0, Math.round(tb / Z)) + "px"); st.setProperty("--pgl", Math.max(0, Math.round(gr / Z)) + "px");
+  const w = Math.min(70, Math.max(25, Number(PANE.w) || 50)); st.setProperty("--pw", (w / bodyZoom()) + "vw");
   if (PANE.mode === "float") { const W = innerWidth, H = innerHeight, b = PANE.box || {};
     const bw = Math.min(W - 16, Math.max(360, Number(b.w) || Math.min(620, W * .5))), bh = Math.min(H - tb - 16, Math.max(300, Number(b.h) || Math.min(660, H * .7)));
     const bx = Math.min(W - bw - 8, Math.max(8, b.x != null ? Number(b.x) : W - bw - 24)), by = Math.min(H - 52, Math.max(tb + 4, b.y != null ? Number(b.y) : H - bh - 20));
-    el.style.left = bx + "px"; el.style.top = by + "px"; el.style.width = bw + "px"; el.style.height = PANE.min ? "" : bh + "px"; }
+    el.style.left = bx / Z + "px"; el.style.top = by / Z + "px"; el.style.width = bw / Z + "px"; el.style.height = PANE.min ? "" : bh / Z + "px"; }
   else { el.style.left = el.style.top = el.style.width = el.style.height = ""; }
   /* 머리 — 탭 */
   const all = paneScreens(), by = {}; all.forEach(x=>by[x.s] = x);
   const rest = all.filter(x=>!PANE.tabs.includes(x.s));
   const html = `<div class="pt">${PANE.tabs.map(x=>{ const m = by[x] || { n:x, ico:"", bd:"" };
       return `<button class="ptab ${x === PANE.cur ? "on" : ""}" onclick="paneGo('${x}')" title="${m.n}"><span class="ico">${m.ico}</span><span class="nm">${m.n}</span>${m.bd ? `<i class="bd">${m.bd}</i>` : ""}<i class="x" onclick="event.stopPropagation();paneCloseTab('${x}')" title="이 탭 닫기">✕</i></button>`; }).join("")}
-      ${rest.length ? `<button class="padd ${PANE_ADD ? "on" : ""}" onclick="paneAddMenu()" title="탭 추가 — 이 칸에서 볼 화면을 더합니다">＋</button>` : ""}</div>
+      ${rest.length ? `<button class="padd ${PANE_ADD ? "on" : ""}" onclick="paneAddMenu()" title="탭 추가 — 이 칸에서 볼 화면을 더합니다">＋ 탭</button>` : ""}</div>
     <div class="pa">${PANE.mode === "split"
         ? `<button onclick="paneSet('side','${PANE.side === "left" ? "right" : "left"}')" title="좌우 바꾸기">⇄</button><button onclick="paneSet('mode','float')" title="작은 창으로 띄우기">작은 창</button>`
         : `<button onclick="paneSet('min',${PANE.min ? "false" : "true"})" title="${PANE.min ? "펼치기" : "접기 — 머리만 남깁니다"}">${PANE.min ? "▢" : "—"}</button><button onclick="paneSet('mode','split')" title="화면을 나눠 나란히 보기">나란히</button>`}
@@ -8470,12 +8478,12 @@ function paneDragStart(e, move){
   el.classList.add("drag"); document.body.classList.add("panedrag");
   const mv = ev => { const dx = ev.clientX - sx, dy = ev.clientY - sy, W = innerWidth, H = innerHeight;
     if (PANE.mode === "split") { const px = PANE.side === "left" ? ev.clientX - r.left : W - ev.clientX; PANE.w = Math.min(70, Math.max(25, Math.round(px / W * 1000) / 10));
-      document.documentElement.style.setProperty("--pw", PANE.w + "vw"); return; }
+      document.documentElement.style.setProperty("--pw", (PANE.w / bodyZoom()) + "vw"); return; }
     const b = PANE.box = PANE.box || {};
     if (move) { b.x = Math.min(W - 80, Math.max(8 - r.width + 120, r.left + dx)); b.y = Math.min(H - 52, Math.max(tb + 4, r.top + dy)); b.w = r.width; b.h = b.h || r.height;
-      el.style.left = b.x + "px"; el.style.top = b.y + "px"; }
+      el.style.left = b.x / bodyZoom() + "px"; el.style.top = b.y / bodyZoom() + "px"; }
     else { b.x = r.left; b.y = r.top; b.w = Math.min(W - r.left - 8, Math.max(360, r.width + dx)); b.h = Math.min(H - r.top - 8, Math.max(300, r.height + dy));
-      el.style.width = b.w + "px"; el.style.height = b.h + "px"; } };
+      el.style.width = b.w / bodyZoom() + "px"; el.style.height = b.h / bodyZoom() + "px"; } };
   const up = () => { window.removeEventListener("pointermove", mv); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", up);
     el.classList.remove("drag"); document.body.classList.remove("panedrag"); paneSave(); paneApply(); };
   window.addEventListener("pointermove", mv); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", up);
@@ -14127,7 +14135,7 @@ function cntReasonDialog(kind, rows){
     const R = CNT_REASONS[kind] || CNT_REASONS.cfe;
     const ov = document.createElement("div");
     ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:90;display:flex;align-items:center;justify-content:center;padding:12px";
-    ov.innerHTML = `<div style="background:var(--paper);width:620px;max-width:96vw;max-height:calc(100vh - 24px);border-radius:12px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column">
+    ov.innerHTML = `<div style="background:var(--paper);width:620px;max-width:96vw;max-height:calc(var(--vhz,100vh) - 24px);border-radius:12px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column">
       <div class="panel-h" style="flex:0 0 auto">차이 ${rows.length}건 — 차이 사유</div>
       <div style="padding:10px 14px;overflow-y:auto;flex:1 1 auto;min-height:0">
         <div class="hint" style="padding:0 0 8px">행별로 사유를 선택하십시오 · 사유는 수불 이력과 변경이력에 기록됩니다${kind==="mms"?" · 로스(손실)·폐기·원인불명은 로스관리에 로스로 잡힙니다":kind==="cfe"?" · 오출고는 조회 › 재고조정에 별도로 기록됩니다":""}</div>
@@ -17995,7 +18003,7 @@ function wipePickDialog(){
   return new Promise(res=>{
     const ov = document.createElement("div");
     ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:90;display:flex;align-items:center;justify-content:center;padding:12px";
-    ov.innerHTML = `<div style="background:var(--paper);width:460px;max-width:96vw;max-height:calc(100vh - 24px);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.3)">
+    ov.innerHTML = `<div style="background:var(--paper);width:460px;max-width:96vw;max-height:calc(var(--vhz,100vh) - 24px);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.3)">
       <div class="panel-h">선택 삭제</div>
       <div style="padding:12px 16px;overflow-y:auto;line-height:1.5">
         <div class="hint" style="padding:0 0 8px">삭제 대상만 체크하십시오 · 품목 · 원두 · BOM · 설비 · 작업자 · 계정 · 변경이력은 이 기능으로 삭제되지 않습니다 · 재고 수량은 [② 재고 0으로] 로 별도 처리</div>
@@ -21170,7 +21178,7 @@ function finishDialog(o, p, ctx){
     ov.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:90;display:flex;align-items:center;justify-content:center;padding:12px";
     const btnS = "height:44px;min-width:56px;font-size:15px";
     ov.innerHTML = `
-    <div style="background:var(--paper);width:440px;max-width:96vw;max-height:calc(100vh - 24px);border-radius:12px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column">
+    <div style="background:var(--paper);width:440px;max-width:96vw;max-height:calc(var(--vhz,100vh) - 24px);border-radius:12px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column">
       <div class="panel-h" style="flex:0 0 auto">생산 완료</div>
       <div style="padding:14px 16px;overflow-y:auto;flex:1 1 auto;min-height:0;line-height:1.55">
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">${esc(p.name)}</div>
