@@ -250,7 +250,31 @@
     body:not(.mobile) .shell{overflow:visible;}
     body:not(.mobile) .gnb{position:sticky; top:64px; align-self:flex-start; z-index:5;
       height:calc(100vh - 64px); height:calc(100dvh - 64px); overscroll-behavior:contain;}
+    /* ★ 2026-11-18 묶음 접기 — 묶음 머리를 누르면 그 자리 아래로 펼친다 */
+    body.acc .gnb #menu .grp{display:flex; align-items:center; justify-content:center; gap:2px; height:34px; margin:8px 5px 0; padding:0 2px; background:none;
+      border-radius:8px; cursor:pointer; position:relative; user-select:none; font-size:11px; font-weight:800; letter-spacing:-.4px; color:var(--soft); white-space:nowrap;
+      border:1px solid var(--line);}
+    body.acc .gnb #menu .grp > .gt, body.acc .gnb #menu .grp > .ga{display:inline;}
+    body.acc .gnb #menu .grp > .ga{font-size:9px; opacity:.8;}
+    body.acc .gnb #menu .grp:hover{background:var(--blue-50); color:var(--blue-600);}
+    body.acc .gnb #menu .grp.gon{color:var(--blue-600); border-color:var(--blue-600);}
+    body.acc .gnb #menu .grp.gopen{background:var(--blue-50); color:var(--blue-600); border-color:transparent; border-radius:8px 8px 0 0;}
+    body.acc .gnb #menu .grp > .gb, body.acc .gnb #menu .grp > .gc{display:flex; align-items:center; justify-content:center; position:absolute; top:-6px; min-width:16px; height:16px; padding:0 4px;
+      border-radius:8px; color:#fff; font-size:10px; font-weight:800; font-style:normal; line-height:1;}
+    body.acc .gnb #menu .grp > .gb{right:-3px; background:var(--bad);} body.acc .gnb #menu .grp > .gc{left:-3px; background:var(--blue-600);}
+    body.acc .gnb #menu .grp > .gb:empty, body.acc .gnb #menu .grp > .gc:empty{display:none;}
+    body.acc .gnb #menu button.gshut{display:none !important;}
+    body.acc .gnb #menu button.gin{margin:0 5px; background:var(--d-tint,#F7F8FB); padding:9px 2px 8px;}
+    body.acc .gnb #menu button.gin:hover, body.acc .gnb #menu button.gin.on{background:var(--blue-50);}
+    /* 메뉴 전체 접기 — 위쪽 바의 ☰ */
+    body:not(.mobile) .hamb{display:flex; align-items:center; justify-content:center; flex:none; width:38px; height:38px; position:relative;
+      background:rgba(255,255,255,.1); border:none; border-radius:9px; color:#fff; font-size:17px; cursor:pointer;}
+    body:not(.mobile) .hamb:hover{background:rgba(255,255,255,.2);}
+    body:not(.mobile) .hamb[data-n]::after{content:""; position:absolute; top:-3px; right:-3px; width:11px; height:11px; border-radius:50%;
+      background:var(--bad); border:2px solid var(--navy-900);}        /* 접어 둔 메뉴에 확인할 숫자가 있으면 빨간 점 */
+    body.navhide:not(.mobile) .gnb{display:none;}
   }
+  #menu .grp > *{display:none;}
   .screen{flex:1; display:none; flex-direction:column; overflow:hidden;}
   .screen.on{display:flex;}
 
@@ -7713,6 +7737,7 @@ function go(s){
   updateFavBtn();
   /* ★ 2026-11-18 메뉴가 고정되면서 화면을 내린 채로 다른 메뉴를 누를 수 있게 됐다 — 다른 화면으로 바뀌면 맨 위에서 시작한다 */
   if (prevScr && prevScr !== "s-" + s) { try { window.scrollTo(0, 0); } catch(_){} }
+  try { accApply(); } catch(_){}
 }
 /* ══ 표 안 입력칸 — Enter 는 아래 칸, Tab 은 옆 칸으로 (다시 그려져도 커서가 따라간다) ══ */
 let PENDING_FOCUS_TARGET = null;
@@ -7795,6 +7820,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-18", "PC 보기 왼쪽 메뉴 — 묶음 접기 · 메뉴 전체 접기", "왼쪽 메뉴를 묶음(현장 · 생산 관리 · 재고·이력 · 분석·기준 · 기타)으로 접어 평소에는 스크롤 없이 보입니다. 묶음을 누르면 그 자리 아래로 메뉴가 펼쳐지고(한 번에 하나), 접힌 묶음에는 그 안의 숫자를 합쳐서 보여 줍니다. 위쪽 바 왼쪽의 ☰ 를 누르면 왼쪽 메뉴 전체를 접어 화면을 넓게 쓰고, 다시 누르면 펼칩니다. 펼친 묶음과 접은 상태는 이 기기에 저장됩니다. 보이는 메뉴가 9개 이하인 계정과 모바일 보기는 전과 같습니다."],
   ["2026-11-18", "PC 보기 — 왼쪽 메뉴 · 위쪽 바 고정", "PC 보기에서 화면을 아래로 내려도 왼쪽 메뉴와 위쪽 바가 제자리에 남습니다. 전에는 페이지와 함께 위로 올라가 메뉴를 누르려면 맨 위로 돌아가야 했습니다. 메뉴가 화면보다 길면 메뉴 안에서 따로 스크롤됩니다. 모바일 보기는 전과 같습니다."],
   ["2026-11-18", "모바일 보기에 알림(🔔) 표시", "휴대폰 · 태블릿의 모바일 보기 위쪽 바에 알림 종이 나옵니다 — 읽지 않은 알림 수가 빨간 숫자로 붙고, 누르면 알림 목록이 화면 폭에 맞게 열립니다. 전에는 모바일 보기에서 종이 숨겨져 알림을 볼 곳이 없었습니다."],
   ["2026-11-18", "변경 표시 [확인] — 같은 아이디의 다른 기기와 연동", "변경 표시(메뉴의 파란 숫자 · 화면 위 변경 목록)에서 [확인]을 누르면 같은 아이디로 로그인한 다른 기기에서도 함께 사라집니다. 전에는 기기마다 따로 눌러야 했습니다. 다른 아이디의 확인 기록에는 영향이 없습니다. (서버 000_install_all.sql 재실행 필요 — 실행 전에는 전처럼 이 기기에만 저장)"],
@@ -8224,6 +8250,56 @@ function woFullToggle(){ WO_FULL = !WO_FULL; renderOrder(); applyRoleLock(); }
    이 기기의 로그인 계정별로 저장한다 (localStorage) · PC 왼쪽 메뉴와 휴대폰 메뉴에 같이 적용 · 숨겨도 권한은 그대로
    ══════════════════════════════════════════════════════════════ */
 const MENU_DEFAULT = [...document.querySelectorAll("#menu > *")];
+/* ══ ★ 2026-11-18 PC 보기 왼쪽 메뉴 (Lee "평소에는 스크롤이 없었으면 · 숨기기 기능도 · 클릭하면 그 선택지가 나올 수 있게끔")
+   · 묶음(현장 · 생산 관리 · 재고·이력 · 분석·기준 · 기타)을 접어 두고, 묶음을 누르면 그 자리 아래로 펼친다 — 한 번에 하나만
+   · 다른 화면으로 가면 그 화면의 묶음이 펼쳐진다 · 접힌 묶음에는 그 안의 숫자(빨강 = 할 일 · 파랑 = 변경)를 합쳐서 보여 준다
+   · 위쪽 바의 ☰ 로 메뉴 전체를 접었다 편다 · 펼친 묶음 · 접은 상태는 이 기기에 저장
+   · 보이는 메뉴가 9개 이하인 계정(현장 작업자 등)은 접지 않는다 · 모바일 보기(서랍)는 전과 같다 ══ */
+const PC_MQ = (()=>{ try { return window.matchMedia("(min-width:761px)"); } catch(_){ return null; } })();
+const pcView = () => !document.body.classList.contains("mobile") && !!(PC_MQ && PC_MQ.matches);
+const MENU_GRP = {};
+(()=>{ let g = ""; MENU_DEFAULT.forEach(el=>{ if (el.classList.contains("grp")) g = el.dataset.t || ""; else if (el.dataset && el.dataset.s) MENU_GRP[el.dataset.s] = g; }); })();
+const menuShown = el => el.style.display !== "none" && !el.classList.contains("uhide") && !el.classList.contains("monly");
+const accOn = () => pcView() && [...document.querySelectorAll("#menu button[data-s]")].filter(menuShown).length > 9;
+let ACC_OPEN = (()=>{ try { return localStorage.getItem("momos.menu.acc"); } catch(_){ return null; } })();   // null = 고른 적 없음
+let ACC_LAST = null, ACC_RAF = 0;
+let NAV_HIDE = (()=>{ try { return localStorage.getItem("momos.navhide") === "1"; } catch(_){ return false; } })();
+function accSet(t){ ACC_OPEN = t; try { localStorage.setItem("momos.menu.acc", t); } catch(_){} accApply(); }
+function accApply(){
+  const menu = $("menu"); if (!menu) return;
+  const pc = pcView(), acc = accOn();
+  document.body.classList.toggle("acc", acc);
+  document.body.classList.toggle("navhide", pc && NAV_HIDE);
+  const hb = document.querySelector(".topbar .hamb");
+  if (hb) { hb.title = pc ? (NAV_HIDE ? "왼쪽 메뉴 펼치기" : "왼쪽 메뉴 접기 — 화면을 넓게 씁니다") : "메뉴";
+    const tot = pc && NAV_HIDE ? [...menu.querySelectorAll("button[data-s]")].filter(menuShown).reduce((t,b)=>t + (parseInt(b.querySelector(".badge")?.textContent, 10) || 0) + (parseInt(b.querySelector(".cbadge")?.textContent, 10) || 0), 0) : 0;
+    if (tot) { if (hb.dataset.n !== String(tot)) hb.dataset.n = tot > 99 ? "99+" : String(tot); } else if (hb.dataset.n) delete hb.dataset.n; }
+  if (!acc) { menu.querySelectorAll(".gshut,.gin").forEach(e=>e.classList.remove("gshut","gin")); return; }
+  const cur = (document.querySelector(".screen.on")?.id || "").replace(/^s-/, ""), curG = MENU_GRP[cur] || "";
+  if (ACC_LAST !== null && ACC_LAST !== cur && curG) { ACC_OPEN = curG; try { localStorage.setItem("momos.menu.acc", curG); } catch(_){} }   // 다른 화면으로 가면 그 묶음을 펼친다
+  ACC_LAST = cur;
+  const open = ACC_OPEN != null ? ACC_OPEN : curG;
+  let g = null, nb = 0, nc = 0;
+  const put = (el, sel, v) => { const x = el.querySelector(sel), t = v ? (v > 99 ? "99+" : String(v)) : ""; if (x && x.textContent !== t) x.textContent = t; };
+  const flush = () => { if (!g) return; const op = g.dataset.t === open; put(g, ".gb", op ? 0 : nb); put(g, ".gc", op ? 0 : nc); };
+  [...menu.children].forEach(el=>{
+    if (el.classList.contains("grp")) { flush(); g = el; nb = 0; nc = 0;
+      if (!el.querySelector(".gt")) el.innerHTML = `<span class="gt"></span><span class="ga"></span><i class="gb"></i><i class="gc"></i>`;
+      const op = el.dataset.t === open, tx = (el.dataset.t || "").replace(/\s*·\s*/g, "·");
+      if (el.querySelector(".gt").textContent !== tx) el.querySelector(".gt").textContent = tx;
+      if (el.querySelector(".ga").textContent !== (op ? "▾" : "▸")) el.querySelector(".ga").textContent = op ? "▾" : "▸";
+      el.classList.toggle("gopen", op); el.classList.toggle("gon", el.dataset.t === curG);
+      el.title = op ? `${el.dataset.t} — 누르면 접습니다` : `${el.dataset.t} — 누르면 펼칩니다`; return; }
+    if (!(el.dataset && el.dataset.s)) return;
+    if (!g) { el.classList.remove("gshut","gin"); return; }
+    el.classList.add("gin"); el.classList.toggle("gshut", g.dataset.t !== open);
+    if (menuShown(el)) { nb += parseInt(el.querySelector(".badge")?.textContent, 10) || 0; nc += parseInt(el.querySelector(".cbadge")?.textContent, 10) || 0; } });
+  flush();
+}
+/* 메뉴의 숫자가 바뀌면 묶음 합계도 따라가게 */
+try { new MutationObserver(()=>{ if (ACC_RAF) return; ACC_RAF = requestAnimationFrame(()=>{ ACC_RAF = 0; try { accApply(); } catch(_){} }); })
+  .observe(document.getElementById("menu"), { childList:true, subtree:true, characterData:true }); } catch(_){}
+try { PC_MQ && PC_MQ.addEventListener("change", ()=>{ try { applyRoleLock(); } catch(_){} }); } catch(_){}
 const menuPrefKey = () => "momos.menu." + ((LOGIN_USER && (LOGIN_USER.login_id || LOGIN_USER.id)) || "device");
 function menuPref(){
   try { const v = JSON.parse(localStorage.getItem(menuPrefKey()) || "null");
@@ -8238,10 +8314,18 @@ function saveMenuPref(p){
 function applyMenuPref(){
   const menu = $("menu"); if (!menu) return;
   const p = menuPref(), btns = MENU_DEFAULT.filter(el=>el.tagName === "BUTTON" && el.dataset.s);
-  const sig = menuPrefKey() + "|" + p.order.join(",");
+  const pcG = pcView();
+  const sig = menuPrefKey() + "|" + p.order.join(",") + (pcG ? "|pc" : "");
   if (menu.dataset.sig !== sig) {
     menu.dataset.sig = sig;
-    if (p.order.length) { const by = {}; btns.forEach(b=>{ by[b.dataset.s] = b; });
+    if (pcG && p.order.length) {               // PC 보기 — 묶음은 그대로 두고, 묶음 안에서만 내가 정한 순서
+      const idx = x => { const i = p.order.indexOf(x); return i < 0 ? 999 : i; };
+      const groups = []; let cur = { g:null, items:[] }; groups.push(cur);
+      MENU_DEFAULT.forEach(el=>{ if (el.classList.contains("grp")) { cur = { g:el, items:[] }; groups.push(cur); } else cur.items.push(el); });
+      groups.forEach(G=>{ if (G.g) menu.appendChild(G.g);
+        G.items.map((el,i)=>({ el, k: el.dataset && el.dataset.s && el.dataset.s !== "home" ? idx(el.dataset.s) : -1, i })).sort((a,b)=>a.k-b.k || a.i-b.i).forEach(x=>menu.appendChild(x.el)); });
+      menu.classList.remove("custom"); }
+    else if (p.order.length) { const by = {}; btns.forEach(b=>{ by[b.dataset.s] = b; });
       const seq = ["home", ...p.order.filter(s=>by[s] && s !== "home"), ...btns.map(b=>b.dataset.s).filter(s=>s !== "home" && !p.order.includes(s))];
       seq.forEach(s=>{ if (by[s]) menu.appendChild(by[s]); }); menu.classList.add("custom"); }
     else { MENU_DEFAULT.forEach(el=>menu.appendChild(el)); menu.classList.remove("custom"); }
@@ -8254,6 +8338,7 @@ function applyMenuPref(){
     if (el.classList.contains("grp")) { if (grp) grp.classList.toggle("uhide", !any); grp = el; any = false; }
     else if (el.dataset && el.dataset.s && el.style.display !== "none" && !el.classList.contains("uhide") && !el.classList.contains("monly")) any = true; });
   if (grp) grp.classList.toggle("uhide", !any);
+  try { accApply(); } catch(e){ console.warn(e); }
 }
 /* 설정 창 — 내 권한으로 보이는 메뉴를 지금 순서대로 (오늘 요약은 항상 맨 앞) */
 function menuCfgList(){
@@ -8585,9 +8670,17 @@ function toggleMobile(){
 (()=>{ let v = null; try { v = localStorage.getItem("momos.mobile"); } catch(_){}
   const auto = v == null && window.innerWidth <= 1100 && ("ontouchstart" in window);
   if (v === "on" || auto) applyMobile(true); })();
-function toggleNav(){ document.body.classList.toggle("navopen"); }
+function toggleNav(){
+  if (pcView()) {                               // PC 보기 — 왼쪽 메뉴 전체를 접었다 편다
+    NAV_HIDE = !NAV_HIDE; try { localStorage.setItem("momos.navhide", NAV_HIDE ? "1" : "0"); } catch(_){}
+    accApply(); toast(NAV_HIDE ? "왼쪽 메뉴를 접었습니다 — 위쪽 ☰ 를 누르면 다시 펼칩니다" : "왼쪽 메뉴를 펼쳤습니다"); return; }
+  document.body.classList.toggle("navopen");
+}
 function closeNav(){ document.body.classList.remove("navopen"); }
-$("menu").addEventListener("click", e=>{ const b=e.target.closest("button"); if(b){ go(b.dataset.s); closeNav(); } });
+$("menu").addEventListener("click", e=>{
+  const h = e.target.closest(".grp");
+  if (h && document.body.classList.contains("acc")) { accSet(h.classList.contains("gopen") ? "" : (h.dataset.t || "")); return; }
+  const b=e.target.closest("button"); if(b){ go(b.dataset.s); closeNav(); } });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeNav(); });
 $("planTabs").addEventListener("click", e=>{
   const b = e.target.closest(".subtab"); if(!b) return;
