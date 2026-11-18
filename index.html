@@ -1387,6 +1387,15 @@
   /* ★ 2026-11-17 메뉴 설정 — 순서 · 숨김 · 하단 탭을 각자 지정 (Lee "본인들이 메뉴를 커스텀") */
   #menu button.uhide, #menu .grp.uhide{display:none !important;}
   #menu.custom .grp{display:none !important;}
+  #wakeDlg{position:fixed; inset:0; z-index:90; background:rgba(11,20,68,.45); display:flex; align-items:center; justify-content:center; padding:16px;}
+  #wakeDlg .mbox{background:var(--card,#fff); color:var(--ink); width:440px; max-width:100%; border-radius:14px; display:flex; flex-direction:column; box-shadow:0 18px 50px rgba(0,0,0,.28);}
+  #wakeDlg .mh{display:flex; align-items:center; padding:14px 10px 4px 16px;} #wakeDlg .mh b{font-size:16px; font-weight:800; flex:1;}
+  #wakeDlg .mh .x{border:none; background:none; font-size:17px; color:var(--soft); cursor:pointer; width:36px; height:36px;}
+  #wakeDlg .mt{padding:0 16px 10px; font-size:12px; line-height:1.55;}
+  #wakeDlg .wrow{display:flex; align-items:center; gap:10px; padding:11px 16px; border-top:1px solid var(--line); font-size:14px; font-weight:700;}
+  #wakeDlg .wrow .v{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end;}
+  #wakeDlg .wrow .btn{height:36px; min-width:58px;}
+  #wakeDlg .wst{padding:11px 16px 14px; border-top:1px solid var(--line); font-size:12.5px; line-height:1.6;}
   #menuDlg{position:fixed; inset:0; z-index:90; background:rgba(11,20,68,.45); display:flex; align-items:center; justify-content:center; padding:16px;}
   #menuDlg .mbox{background:var(--card,#fff); color:var(--ink); width:440px; max-width:100%; max-height:min(86vh,760px); border-radius:14px; display:flex; flex-direction:column;
     overflow:hidden; box-shadow:0 24px 70px rgba(11,20,68,.25);}
@@ -1653,6 +1662,7 @@
   <div class="menu gnbOut" id="gnbTools">
     <button onclick="reloadDB();closeNav()"><span class="ico">↻</span><span class="lb">새로고침</span></button>
     <button onclick="openMenuCfg()"><span class="ico">⚙</span><span class="lb">메뉴 설정</span></button>
+    <button onclick="openWakeCfg()"><span class="ico">☀</span><span class="lb">화면 켜 두기</span></button>
     <button onclick="toggleGuide()" id="gnbGuide"><span class="ico">?</span><span class="lb">도움말 보기</span></button>
     <button onclick="toggleMobile()" id="gnbMob"><span class="ico">🖥</span><span class="lb">PC 보기</span></button>
     <button onclick="openManual()"><span class="ico">📖</span><span class="lb">사용 설명서</span></button>
@@ -4509,9 +4519,13 @@ async function initDB(){
       const m = (typeof window !== "undefined" && window.supabase) || null;
       if (!m || !m.createClient) throw new Error("접속 라이브러리를 불러오지 못했습니다 — index.html 파일이 손상되었을 수 있습니다");
       /* ★ 기기 토큰을 요청 헤더로 보냅니다 — 서버의 device_id() 가 이것을 봅니다 */
+      /* ★ 2026-11-18 실시간 연결 유지 신호(25초마다)를 화면과 분리된 Web Worker 가 보낸다 (Lee "오랫동안 사용 안하면 연결이 끊기는 거 같은데 … 그 시간을 더 늘릴 수 있어?")
+           브라우저는 가려진 탭의 타이머를 5분 뒤부터 1분에 한 번으로 늦추는데, 그러면 신호가 밀려 서버가 연결을 끊는다 — Worker 는 이 제한을 받지 않는다.
+           Worker 를 못 쓰는 브라우저에서는 전과 같이 동작한다 */
+      const RT_OPT = (typeof Worker !== "undefined" && typeof Blob !== "undefined" && typeof URL !== "undefined" && URL.createObjectURL) ? { realtime: { worker: true } } : {};
       sb = m.createClient(SB_URL, SB_KEY, DEV_TOKEN
-        ? { global: { headers: { "x-device-token": DEV_TOKEN } } }
-        : undefined);
+        ? { ...RT_OPT, global: { headers: { "x-device-token": DEV_TOKEN } } }
+        : (RT_OPT.realtime ? RT_OPT : undefined));
 
       /* ★ 로그인 — RLS 가 켜져 있어 로그인 없이는 한 줄도 못 읽습니다.
            세션이 없으면 여기서 멈추고 로그인 화면을 보여 줍니다.
@@ -7730,6 +7744,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-18", "화면 켜 두기", "앱이 화면에 떠 있는 동안 기기 화면이 꺼지지 않게 합니다 (휴대폰 · 태블릿은 화면이 꺼지면 실시간 연결이 끊깁니다). 모든 화면에서 처음부터 켜져 있고, 오른쪽 위 계정 메뉴(휴대폰은 메뉴 맨 아래)의 [화면 켜 두기]에서 기기마다 끄거나 [조작이 없으면 풀리는 시간](10분 · 30분 · 1시간 · 2시간 · 4시간 · 8시간 · 계속)을 정할 수 있습니다 — 기본 1시간. 그 시간 동안 화면을 건드리지 않으면 풀려서 기기 설정대로 꺼지고, 다시 건드리면 다시 켜 둡니다. 지원하지 않는 브라우저에서는 동작하지 않으며 창에 안내가 표시됩니다."],
+  ["2026-11-18", "실시간 연결 — 화면이 가려져 있어도 덜 끊기게", "다른 탭을 보거나 창을 내려 두면 약 5분 뒤부터 [실시간 연결 끊김]이 뜨던 것을 줄였습니다 — 연결 유지 신호를 화면과 분리된 곳(Web Worker)에서 보내 브라우저의 타이머 제한을 받지 않습니다. 기기 화면이 꺼지거나 절전에 들어간 경우에는 전처럼 끊겼다가, 돌아오면 자동으로 다시 연결하고 놓친 내용을 받습니다."],
   ["2026-11-17", "분쇄 — 분쇄도별 작업 카드 · 완료 체크 · 칼날 교체 기준 · 그래프", "① 분쇄 화면 맨 위에 [분쇄 작업]이 생겼습니다 — 그날 분쇄할 품목을 분쇄도별(핸드드립 · 커피메이커 · 더치 · 모카포트 · 에스프레소) 카드로 묶어 보여 주고, 줄마다 체크하면 분쇄 완료(작업자 · 시각)가 기록됩니다. 분쇄도 [전체 완료] · 완료 숨기기 · 완료 뒤 들어온 추가분은 [추가 N개 남음]으로 표시. 작업자는 처음 한 번만 묻고 이어서 체크하면 10분 동안 다시 묻지 않습니다. ② 칼날 교체 기준 kg 를 정해 두면 교체 후 누적량이 막대로 표시되고 80%부터 알림이 뜹니다. ③ 일별 분쇄량 · 분쇄도별 그래프 추가, 일별·주별·월별 표와 SKU별 표 · 입력 내역은 접어 두었습니다. ④ 메뉴의 분쇄에 오늘 남은 품목 수가 표시됩니다. 서버 SQL(000_install_all.sql) 재실행이 필요합니다."],
   ["2026-11-17", "배치 잔량 [수정] — 원두 차이 사유를 선택", "로스팅 › 배치 재고의 [수정]으로 잔량을 고칠 때 사유를 직접 쓰지 않고 선택합니다 — 줄었을 때: 로스(손실) · 폐기 · 샘플·테스트 · 음료용 · 실사 착오 · 원인불명 / 늘었을 때: 입고 누락 · 실사 착오 · 원인불명 / 기타 직접 입력. 재고 실사의 원두 차이 사유와 같은 목록이며, 로스(손실) · 폐기 · 원인불명은 로스관리에 로스로 집계됩니다."],
   ["2026-11-17", "생산 완료 — 작업자를 다시 묻지 않음", "생산 시작 때 작업자를 골랐으면 [생산 완료] 창이 그 작업자가 선택된 채로 열립니다 — 다시 고르지 않아도 되고, 다른 사람이 마무리했으면 이름을 눌러 바꿀 수 있습니다. 시작 기록이 없는 지시(검수 화면에서 바로 완료 등)는 전처럼 작업자를 골라야 완료됩니다."],
@@ -8084,6 +8100,7 @@ function openAcct(){
       <button class="it" onclick="closeAcct();toggleGuide()"><span class="ico">?</span>${guideOn ? "도움말 접기" : "도움말 보기"}</button>
       <button class="it" onclick="closeAcct();toggleMobile()"><span class="ico">${mobile ? "🖥" : "📱"}</span>${mobile ? "PC 보기" : "모바일 보기"}</button>
       <button class="it" onclick="openMenuCfg()"><span class="ico">☰</span>메뉴 설정 (순서 · 숨김 · 하단 탭)</button>
+      <button class="it" onclick="openWakeCfg()"><span class="ico">☀</span>화면 켜 두기 — ${wakeLabel()}</button>
       <button class="it" onclick="closeAcct();toggleFav()"><span class="ico">★</span>${isFav(curCtx().k) ? "현재 화면 즐겨찾기 해제" : "이 화면 즐겨찾기"}</button>
       <button class="it" onclick="setNotifSound(${notifSound()?"false":"true"})"><span class="ico">🔔</span>알림 소리 ${notifSound() ? "끄기" : "켜기"}</button>
     </div>
@@ -8182,6 +8199,64 @@ function applyMenuPref(){
 function menuCfgList(){
   return [...document.querySelectorAll("#menu button[data-s]")].filter(b=>b.dataset.s !== "home" && b.style.display !== "none")
     .map(b=>({ s:b.dataset.s, n:b.querySelector(".lb")?.textContent.trim().replace(/\s*\(.*$/, "") || b.dataset.s, ico:b.querySelector(".ico")?.textContent || "" }));
+}
+/* ══ ★ 2026-11-18 화면 켜 두기 (Lee "앱 화면 켜 두기 기능 넣어줘 모든 화면에 · 처음부터 켜주고 끌 수 있는 기능 · 일정 시간을 설정하게") ══
+   휴대폰 · 태블릿은 화면이 꺼지면 기기가 브라우저를 멈춰 실시간 연결이 끊긴다 → 앱이 떠 있는 동안 화면이 꺼지지 않게 브라우저에 요청한다 (Screen Wake Lock)
+   · 처음부터 켜짐 · 기기마다 끌 수 있다 (이 기기에만 저장)
+   · [조작이 없으면 풀리는 시간] — 그 시간 동안 화면을 건드리지 않으면 풀려서 기기 설정대로 꺼진다 · 다시 건드리면 다시 켜 둔다 · "계속" 도 가능
+   · 다른 앱 · 다른 탭으로 가면 브라우저가 스스로 풀고, 돌아오면 다시 건다 · 지원하지 않는 브라우저에서는 아무 일도 하지 않는다 */
+const WAKE_KEY = "momos.wake", WAKE_MINS = [10, 30, 60, 120, 240, 480, 0];
+let WAKE = { on:true, min:60 };
+try { const w = JSON.parse(localStorage.getItem(WAKE_KEY) || "null"); if (w && typeof w === "object") WAKE = { on:w.on !== false, min:WAKE_MINS.includes(Number(w.min)) ? Number(w.min) : 60 }; } catch(_){}
+let WAKE_LOCK = null, WAKE_LAST = Date.now(), WAKE_ERR = "", WAKE_BUSY = false;
+const wakeOk = () => typeof navigator !== "undefined" && "wakeLock" in navigator && !!navigator.wakeLock?.request;
+const wakeMinLabel = m => m === 0 ? "계속" : m < 60 ? `${m}분` : `${m/60}시간`;
+const wakeLabel = () => !wakeOk() ? "이 브라우저는 지원하지 않음" : WAKE.on ? `켜짐 · ${WAKE.min ? `${wakeMinLabel(WAKE.min)} 조작 없으면 해제` : "계속"}` : "꺼짐";
+const wakeIdle = () => WAKE.min > 0 && Date.now() - WAKE_LAST > WAKE.min * 60000;
+async function wakeAcquire(){
+  if (!wakeOk() || !WAKE.on || document.hidden || WAKE_LOCK || WAKE_BUSY || wakeIdle()) return;
+  WAKE_BUSY = true;
+  try { const l = await navigator.wakeLock.request("screen");
+    WAKE_LOCK = l; WAKE_ERR = "";
+    l.addEventListener("release", ()=>{ if (WAKE_LOCK === l) WAKE_LOCK = null; wakeDlgSync(); });
+  } catch(e){ WAKE_ERR = String(e && e.name || e || ""); }
+  WAKE_BUSY = false; wakeDlgSync();
+}
+function wakeRelease(){ const l = WAKE_LOCK; WAKE_LOCK = null; if (l) { try { l.release(); } catch(_){} } wakeDlgSync(); }
+function wakeSave(){ try { localStorage.setItem(WAKE_KEY, JSON.stringify(WAKE)); } catch(_){} }
+function setWakeOn(v){ WAKE.on = !!v; wakeSave(); WAKE_LAST = Date.now(); if (WAKE.on) wakeAcquire(); else wakeRelease(); renderWakeCfg(); toast(WAKE.on ? "화면 켜 두기 — 켜짐 (이 기기)" : "화면 켜 두기 — 꺼짐 (이 기기)"); }
+function setWakeMin(m){ WAKE.min = WAKE_MINS.includes(Number(m)) ? Number(m) : 60; wakeSave(); WAKE_LAST = Date.now(); if (WAKE.on) wakeAcquire(); renderWakeCfg(); }
+/* 화면을 건드릴 때마다 시간을 다시 잰다 — 풀려 있었으면 다시 건다 (일부 브라우저는 사용자가 건드린 뒤에만 허용한다) */
+["pointerdown","keydown","touchstart"].forEach(ev=>document.addEventListener(ev, ()=>{ WAKE_LAST = Date.now(); if (!WAKE_LOCK) wakeAcquire(); }, { passive:true, capture:true }));
+document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) { WAKE_LAST = Date.now(); wakeAcquire(); } });
+setInterval(()=>{ if (WAKE_LOCK && (!WAKE.on || wakeIdle())) wakeRelease(); else if (!WAKE_LOCK) wakeAcquire(); }, 20000);
+setTimeout(()=>{ wakeAcquire(); }, 1500);
+function openWakeCfg(){
+  try { closeAcct(); closeNav(); } catch(_){}
+  let d = $("wakeDlg");
+  if (!d) { d = document.createElement("div"); d.id = "wakeDlg"; d.addEventListener("click", e=>{ if (e.target === d) closeWakeCfg(); }); document.body.appendChild(d); }
+  renderWakeCfg();
+}
+function closeWakeCfg(){ const d = $("wakeDlg"); if (d) d.remove(); }
+function wakeDlgSync(){ if ($("wakeDlg")) renderWakeCfg(); }
+function renderWakeCfg(){
+  const d = $("wakeDlg"); if (!d) return;
+  const ok = wakeOk(), left = WAKE.min > 0 ? Math.max(0, Math.ceil((WAKE.min * 60000 - (Date.now() - WAKE_LAST)) / 60000)) : 0;
+  const st = !ok ? `<b style="color:var(--bad)">이 브라우저는 화면 켜 두기를 지원하지 않습니다.</b><br>기기 설정에서 화면 꺼짐 시간을 늘려 주십시오 — 아이폰 · 아이패드: 설정 › 디스플레이 및 밝기 › 자동 잠금 / 갤럭시: 설정 › 디스플레이 › 화면 자동 꺼짐.`
+    : !WAKE.on ? `지금 상태: <b>꺼짐</b> — 기기 설정대로 화면이 꺼집니다.`
+    : WAKE_LOCK ? `지금 상태: <b style="color:var(--ok)">화면 켜 두는 중</b>${WAKE.min ? ` — 조작이 없으면 약 ${left}분 뒤 해제` : " — 앱이 떠 있는 동안 계속"}`
+    : wakeIdle() ? `지금 상태: <b>해제됨</b> — ${wakeMinLabel(WAKE.min)} 동안 조작이 없었습니다. 화면을 누르면 다시 켜 둡니다.`
+    : `지금 상태: <b style="color:var(--warn)">대기</b> — ${WAKE_ERR === "NotAllowedError" ? "기기가 허용하지 않았습니다 (절전 모드 · 배터리 부족일 수 있음). 화면을 한 번 누르면 다시 시도합니다." : "화면을 한 번 누르면 켜 둡니다."}`;
+  d.innerHTML = `<div class="mbox">
+    <div class="mh"><b>화면 켜 두기</b><button class="x" onclick="closeWakeCfg()" title="닫기">✕</button></div>
+    <div class="mt hint">앱이 화면에 떠 있는 동안 기기 화면이 꺼지지 않게 합니다 — 화면이 꺼지면 실시간 연결이 끊기기 때문입니다.<br>이 기기에만 저장됩니다. 화면이 계속 켜져 있으면 배터리가 빨리 닳으므로 충전기를 연결해 두는 것이 좋습니다.</div>
+    <div class="wrow">화면 켜 두기<span class="v">
+      <button class="btn ${WAKE.on ? "primary" : ""}" onclick="setWakeOn(true)" ${ok ? "" : "disabled"}>켜짐</button>
+      <button class="btn ${WAKE.on ? "" : "primary"}" onclick="setWakeOn(false)" ${ok ? "" : "disabled"}>꺼짐</button></span></div>
+    <div class="wrow" style="align-items:flex-start"><span style="padding-top:8px">조작이 없으면<br>풀리는 시간</span><span class="v" style="max-width:290px">
+      ${WAKE_MINS.map(m=>`<button class="btn ${WAKE.min === m ? "primary" : ""}" onclick="setWakeMin(${m})" ${ok && WAKE.on ? "" : "disabled"}>${wakeMinLabel(m)}</button>`).join("")}</span></div>
+    <div class="wst">${st}<br><span class="hint" style="padding:0">다른 앱이나 다른 탭으로 가면 풀리고, 돌아오면 자동으로 다시 켜 둡니다. 전원 버튼으로 직접 끄는 것은 막지 않습니다.</span></div>
+  </div>`;
 }
 function openMenuCfg(){
   try { closeAcct(); closeNav(); } catch(_){}
