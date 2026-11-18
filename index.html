@@ -21,6 +21,7 @@
 <style>
   :root{
     --navy-900:#0B1444;   /* 상단바 · 짙은 카드 */
+    --grp-bg:#2A3763; --grp-in:#F1F4FB;     /* 왼쪽 메뉴 묶음 머리 · 묶음 안 항목 바탕 */
     --navy-800:#141E5B;
     --navy-700:#27306B;   /* 카드 하단 구획 */
     --navy-600:#3D4A7A;
@@ -57,6 +58,7 @@
       --bg:#0E111B; --card:#181E2F; --ink:#F1F3F9; --soft:#B6BED2; --line:#353E58; --line-2:#56617F;
       --ok:#2FB984; --ok-soft:#143A2F; --warn:#F2A63A; --warn-soft:#43330F; --bad:#F06478; --bad-soft:#47202A;
       --head:#20273B; --sum:#20273B;
+      --grp-bg:#46558A; --grp-in:#1F2740;
       --d-tint:#20273B; --d-ink:#F1F3F9; --d-soft:#B6BED2; --d-line:#353E58; --d-line2:#56617F;
       --d-ok-soft:#143A2F; --d-warn-soft:#43330F; --d-bad-soft:#47202A; --d-blue-soft:#1D2946; --d-vio-soft:#2E2552;
       --d-ok-ink:#6FE0AE; --d-warn-ink:#FFC46B; --d-bad-ink:#FF8A96; --d-vio-ink:#B79CFF;
@@ -271,20 +273,21 @@
     body:not(.mobile) .gnb{position:sticky; top:64px; align-self:flex-start; z-index:5;
       height:calc(var(--vhz,100vh) - 64px); height:calc(var(--vhz,100dvh) - 64px); overscroll-behavior:contain;}
     /* ★ 2026-11-18 묶음 접기 — 묶음 머리를 누르면 그 자리 아래로 펼친다 */
-    body.acc .gnb #menu .grp{display:flex; align-items:center; justify-content:center; gap:2px; height:34px; margin:8px 5px 0; padding:0 2px; background:none;
-      border-radius:8px; cursor:pointer; position:relative; user-select:none; font-size:11px; font-weight:800; letter-spacing:-.4px; color:var(--soft); white-space:nowrap;
-      border:1px solid var(--line);}
+    /* ★ 2026-11-18 묶음 머리를 짙은 띠로 — 메뉴 항목과 한눈에 구분 (Lee "메뉴의 큰 틀이 티가 잘 안나 … 구분이 되게") · 펼친 묶음은 머리 + 항목을 한 상자로 */
+    body.acc .gnb #menu .grp{display:flex; align-items:center; justify-content:space-between; gap:2px; height:36px; margin:10px 4px 0; padding:0 7px 0 9px; background:var(--grp-bg);
+      border-radius:8px; cursor:pointer; position:relative; user-select:none; font-size:12px; font-weight:800; letter-spacing:-.5px; color:#fff; white-space:nowrap; border:none;}
     body.acc .gnb #menu .grp > .gt, body.acc .gnb #menu .grp > .ga{display:inline;}
-    body.acc .gnb #menu .grp > .ga{font-size:9px; opacity:.8;}
-    body.acc .gnb #menu .grp:hover{background:var(--blue-50); color:var(--blue-600);}
-    body.acc .gnb #menu .grp.gon{color:var(--blue-600); border-color:var(--blue-600);}
-    body.acc .gnb #menu .grp.gopen{background:var(--blue-50); color:var(--blue-600); border-color:transparent; border-radius:8px 8px 0 0;}
+    body.acc .gnb #menu .grp > .ga{font-size:10px; opacity:.85;}
+    body.acc .gnb #menu .grp:hover{filter:brightness(1.22);}
+    body.acc .gnb #menu .grp.gon{background:var(--blue-600);}
+    body.acc .gnb #menu .grp.gopen{border-radius:8px 8px 0 0;}
     body.acc .gnb #menu .grp > .gb, body.acc .gnb #menu .grp > .gc{display:flex; align-items:center; justify-content:center; position:absolute; top:-6px; min-width:16px; height:16px; padding:0 4px;
       border-radius:8px; color:#fff; font-size:10px; font-weight:800; font-style:normal; line-height:1;}
     body.acc .gnb #menu .grp > .gb{right:-3px; background:var(--bad);} body.acc .gnb #menu .grp > .gc{left:-3px; background:var(--blue-600);}
     body.acc .gnb #menu .grp > .gb:empty, body.acc .gnb #menu .grp > .gc:empty{display:none;}
     body.acc .gnb #menu button.gshut{display:none !important;}
-    body.acc .gnb #menu button.gin{margin:0 5px; background:var(--d-tint,#F7F8FB); padding:9px 2px 8px;}
+    body.acc .gnb #menu button.gin{margin:0 4px; width:auto; background:var(--grp-in); padding:9px 2px 8px; border-left:2px solid var(--grp-bg); border-right:2px solid var(--grp-bg); border-radius:0;}
+    body.acc .gnb #menu button.gin.glast{border-bottom:2px solid var(--grp-bg); border-radius:0 0 8px 8px;}
     body.acc .gnb #menu button.gin:hover, body.acc .gnb #menu button.gin.on{background:var(--blue-50);}
     /* 메뉴 전체 접기 — 위쪽 바의 ☰ */
     body:not(.mobile) .hamb{display:flex; align-items:center; justify-content:center; flex:none; width:38px; height:38px; position:relative;
@@ -295,6 +298,7 @@
     body.navhide:not(.mobile) .gnb{display:none;}
   }
   #menu .grp > *{display:none;}
+  .tag.blue{background:var(--blue-50); color:var(--blue-600); border-color:transparent;}
   /* ★ 2026-11-18 현장 작업 · 검수 검색 줄 */
   .findbar{display:flex; align-items:center; gap:8px; padding:8px 24px 12px; background:var(--card); border-bottom:1px solid var(--line); flex-wrap:wrap;}
   .body .findbar{padding:0; margin:0 0 12px; background:none; border-bottom:none;}
@@ -313,43 +317,47 @@
   .topbar #paneBtn.on{background:#fff; color:var(--navy-900);}
   #pane{position:fixed; z-index:60; display:flex; flex-direction:column; background:var(--bg); box-sizing:border-box;}
   #pane.split{top:var(--ptb,64px); bottom:0; right:0; width:var(--pwr,50vw); border-left:3px solid var(--blue-600);}
-  #pane.full{top:var(--ptb,64px); bottom:0; right:0; left:var(--pgl,0px);}          /* 탭 화면만 크게 — 왼쪽 메뉴 오른쪽 전체 */
-  #pane.full .prs{display:none;}
+  /* [크게] — 이 화면 위의 탭 줄 (위쪽 바 바로 아래 고정) */
+  #tabBar{position:fixed; z-index:44; top:64px; left:84px; right:0; box-shadow:0 3px 8px rgba(10,16,40,.07);}
+  body.navhide #tabBar, body.mobile #tabBar{left:0;}
+  body.mobile #tabBar{top:56px;}
+  body.panefull .main{padding-top:var(--tabh,46px);}
+  @media print{ #tabBar{display:none !important;} body.panefull .main{padding-top:0 !important;} }
   #pane .ph{zoom:var(--pz,1);}
   #pane.split.left{right:auto; left:var(--pgl,0px); border-left:none; border-right:3px solid var(--blue-600);}
   body.panesplit .main{margin-right:var(--pw,50vw);}
   body.panesplit.paneleft .main{margin-right:0; margin-left:var(--pw,50vw);}
   #pane.float{border:1px solid var(--line-2); border-radius:12px; overflow:hidden; box-shadow:0 18px 50px rgba(10,16,40,.35);}
   #pane.float.min .pb, #pane.float.min .prs{display:none;}
-  #pane .ph{flex:none; display:flex; align-items:center; gap:6px; min-height:44px; padding:5px 8px; background:var(--card); border-bottom:1px solid var(--line); position:relative;}
+  :is(#pane,#tabBar) .ph{flex:none; display:flex; align-items:center; gap:6px; min-height:44px; padding:5px 8px; background:var(--card); border-bottom:1px solid var(--line); position:relative;}
   #pane.float .ph{background:var(--navy-900); cursor:move; touch-action:none; border-bottom:none;}
   /* ★ 2026-11-18 탭이 칸 폭을 넘으면 옆으로 숨지 않고 다음 줄로 내려간다 — 전에는 탭이 3~4개가 되면 [＋ 탭]이 오른쪽 밖으로 밀려 안 보였다 (Lee "텝 추가가 안되는데?") */
-  #pane .pt{flex:1; min-width:0; display:flex; gap:5px; flex-wrap:wrap; align-items:center;}
-  #pane .ptab{flex:none; display:flex; align-items:center; gap:5px; height:34px; padding:0 6px 0 10px; border-radius:8px; border:1px solid var(--line-2); background:var(--card); color:var(--soft);
+  :is(#pane,#tabBar) .pt{flex:1; min-width:0; display:flex; gap:5px; flex-wrap:wrap; align-items:center;}
+  :is(#pane,#tabBar) .ptab{flex:none; display:flex; align-items:center; gap:5px; height:34px; padding:0 6px 0 10px; border-radius:8px; border:1px solid var(--line-2); background:var(--card); color:var(--soft);
     font:inherit; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;}
-  #pane .ptab.on{background:var(--blue-600); border-color:var(--blue-600); color:#fff;}
-  #pane .ptab .x{font-style:normal; font-size:10px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; opacity:.65;}
-  #pane .ptab .x:hover{background:rgba(0,0,0,.18); opacity:1;}
-  #pane .bd{font-style:normal; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--bad); color:#fff; font-size:10.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;}
-  #pane .padd{flex:none; height:34px; padding:0 11px; border-radius:8px; border:1.5px dashed var(--blue-600); background:none; color:var(--blue-600); font:inherit; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap;}
-  #pane .padd.on, #pane .padd:hover{border-style:solid; border-color:var(--blue-600); color:var(--blue-600);}
+  :is(#pane,#tabBar) .ptab.on{background:var(--blue-600); border-color:var(--blue-600); color:#fff;}
+  :is(#pane,#tabBar) .ptab .x{font-style:normal; font-size:10px; width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; opacity:.65;}
+  :is(#pane,#tabBar) .ptab .x:hover{background:rgba(0,0,0,.18); opacity:1;}
+  :is(#pane,#tabBar) .bd{font-style:normal; min-width:17px; height:17px; padding:0 4px; border-radius:9px; background:var(--bad); color:#fff; font-size:10.5px; font-weight:800; display:inline-flex; align-items:center; justify-content:center;}
+  :is(#pane,#tabBar) .padd{flex:none; height:34px; padding:0 11px; border-radius:8px; border:1.5px dashed var(--blue-600); background:none; color:var(--blue-600); font:inherit; font-size:13px; font-weight:800; cursor:pointer; white-space:nowrap;}
+  :is(#pane,#tabBar) .padd.on, :is(#pane,#tabBar) .padd:hover{border-style:solid; border-color:var(--blue-600); color:var(--blue-600);}
   #pane.float .padd{border-color:rgba(255,255,255,.55); color:#fff;}
-  #pane .ph{align-items:flex-start;} #pane .pa{padding-top:1px;}
-  #pane .pa{flex:none; display:flex; gap:5px; align-items:center;}
-  #pane .pgrip{flex:none; width:26px; height:34px; display:flex; align-items:center; justify-content:center; color:#fff; opacity:.7; font-size:18px; cursor:move; user-select:none;}
-  #pane .pa .pm{display:flex; border:1px solid var(--line-2); border-radius:8px; overflow:hidden;}
-  #pane .pa .pm button{border:none; border-radius:0; border-left:1px solid var(--line-2); height:30px;}
-  #pane .pa .pm button:first-child{border-left:none;}
-  #pane .pa .pm button.on{background:var(--blue-600); color:#fff;}
+  :is(#pane,#tabBar) .ph{align-items:flex-start;} :is(#pane,#tabBar) .pa{padding-top:1px;}
+  :is(#pane,#tabBar) .pa{flex:none; display:flex; gap:5px; align-items:center;}
+  :is(#pane,#tabBar) .pgrip{flex:none; width:26px; height:34px; display:flex; align-items:center; justify-content:center; color:#fff; opacity:.7; font-size:18px; cursor:move; user-select:none;}
+  :is(#pane,#tabBar) .pa .pm{display:flex; border:1px solid var(--line-2); border-radius:8px; overflow:hidden;}
+  :is(#pane,#tabBar) .pa .pm button{border:none; border-radius:0; border-left:1px solid var(--line-2); height:30px;}
+  :is(#pane,#tabBar) .pa .pm button:first-child{border-left:none;}
+  :is(#pane,#tabBar) .pa .pm button.on{background:var(--blue-600); color:#fff;}
   #pane.float .pa .pm{border-color:rgba(255,255,255,.25);} #pane.float .pa .pm button{border-left-color:rgba(255,255,255,.25);}
   #pane.float .pa .pm button.on{background:#fff; color:var(--navy-900);}
-  #pane .pa button{height:32px; min-width:32px; padding:0 9px; border-radius:7px; border:1px solid var(--line-2); background:var(--card); color:var(--ink); font:inherit; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;}
+  :is(#pane,#tabBar) .pa button{height:32px; min-width:32px; padding:0 9px; border-radius:7px; border:1px solid var(--line-2); background:var(--card); color:var(--ink); font:inherit; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap;}
   #pane.float .pa button{border-color:transparent; background:rgba(255,255,255,.14); color:#fff;}
-  #pane .pmenu{position:absolute; left:8px; right:8px; max-width:420px; top:calc(100% + 4px); z-index:3; background:var(--card); border:1px solid var(--line-2); border-radius:10px; box-shadow:0 12px 30px rgba(10,16,40,.22);
+  :is(#pane,#tabBar) .pmenu{position:absolute; left:8px; right:8px; max-width:420px; top:calc(100% + 4px); z-index:3; background:var(--card); border:1px solid var(--line-2); border-radius:10px; box-shadow:0 12px 30px rgba(10,16,40,.22);
     padding:6px; display:grid; grid-template-columns:repeat(2, minmax(120px, 1fr)); gap:2px; max-height:60vh; overflow-y:auto;}
-  #pane .pmenu button{display:flex; align-items:center; gap:7px; height:38px; padding:0 10px; border:none; background:none; border-radius:7px; font:inherit; font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; text-align:left; white-space:nowrap;}
-  #pane .pmenu button:hover{background:var(--blue-50); color:var(--blue-600);}
-  #pane .pmenu .ico{width:18px; text-align:center; color:var(--soft);}
+  :is(#pane,#tabBar) .pmenu button{display:flex; align-items:center; gap:7px; height:38px; padding:0 10px; border:none; background:none; border-radius:7px; font:inherit; font-size:13px; font-weight:700; color:var(--ink); cursor:pointer; text-align:left; white-space:nowrap;}
+  :is(#pane,#tabBar) .pmenu button:hover{background:var(--blue-50); color:var(--blue-600);}
+  :is(#pane,#tabBar) .pmenu .ico{width:18px; text-align:center; color:var(--soft);}
   #pane .pb{flex:1; min-height:0; position:relative;}
   #pane iframe{position:absolute; inset:0; width:100%; height:100%; border:0; background:var(--bg);}
   #pane.drag iframe{pointer-events:none;}
@@ -2181,7 +2189,9 @@
         <button class="btn primary" style="height:36px" onclick="snapTakeNow()">현재 시점 저장</button>
         <button class="btn" style="height:36px" onclick="loadSnaps(true)">새로고침</button>
       </div>
-      <div class="hint" style="padding:0 16px 8px">정정·전체 입고 취소·이카운트 표 일괄 입고·일자별 초기화 등 대량 작업 전에는 자동으로 저장됩니다 (자동 저장은 최근 40개 보관) · 품목·부자재·BOM은 재고와 함께 복원되며, 원두·설비·작업자·권한·변경이력은 복원 대상이 아닙니다</div>
+      <div class="hint" id="snInfo" style="padding:0 16px 6px"></div>
+      <div class="hint" style="padding:0 16px 8px"><b>매일 오전 5시</b>에 그 시점의 운영 기록 전체가 저장됩니다. 정정·전체 입고 취소·이카운트 표 일괄 입고·일자별 초기화 등 대량 작업 전에도 자동으로 저장됩니다.
+        자동으로 저장된 것은 <b>14일이 지나면 저장본만 자동으로 삭제</b>됩니다 — 작업지시·생산실적·재고 같은 실제 기록은 지워지지 않으며, 직접 저장한 것(수동 저장)도 남습니다 · 품목·부자재·BOM은 재고와 함께 복원되며, 원두·설비·작업자·권한·변경이력은 복원 대상이 아닙니다</div>
       <div class="panel-b"><table id="snTbl"></table></div>
     </div>
     <div class="panel">
@@ -7827,8 +7837,6 @@ function stationRender(){
   document.querySelectorAll(".stWho").forEach(el=>{ el.innerHTML = ""; });      // 고르는 칸 없음 (2026-11-15)
 }
 function go(s){
-  /* ★ 2026-11-18 탭 화면을 [크게] 보고 있을 때는 화면 이동(알림 · 즐겨찾기 · 바로가기 포함)도 탭으로 연다 — 가려진 뒤쪽 화면이 혼자 바뀌지 않게 */
-  try { if (typeof paneFull === "function" && paneFull() && paneScreens().some(x=>x.s === s)) { paneGo(s); return; } } catch(_){}
   if (typeof basePendCount === "function" && basePendCount() && s !== "base" && document.querySelector(".screen.on")?.id === "s-base") {
     (async()=>{ const c = await ask(`기준정보의 미저장 변경 ${basePendCount()}건이 있습니다.`, { title:"저장하시겠습니까?", choices:[ { label:"저장", v:"save", cls:"primary" }, { label:"저장하지 않고 이동", v:"drop" }, { label:"계속 편집", v:null } ] });
       if (c === "save") { await baseSave(); go(s); } else if (c === "drop") { for (const k in BASE_PEND) delete BASE_PEND[k]; baseSaveBarUpdate(); renderBase(); go(s); } })();
@@ -7845,6 +7853,7 @@ function go(s){
   if (prevScr && prevScr !== "s-" + s) { try { window.scrollTo(0, 0); } catch(_){} }
   try { accApply(); } catch(_){}
   if (EMBED) { try { window.parent.postMessage({ momosPane:s }, "*"); } catch(_){} }
+  else { try { paneNote(s); } catch(_){} }                // ★ 2026-11-18 탭 줄 — 연 화면을 탭에 올린다
 }
 /* ══ 표 안 입력칸 — Enter 는 아래 칸, Tab 은 옆 칸으로 (다시 그려져도 커서가 따라간다) ══ */
 let PENDING_FOCUS_TARGET = null;
@@ -7927,6 +7936,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-18", "시점 복원 — 매일 오전 5시 자동 저장 · 2주 보관", "결재 › 시점 복원에 매일 오전 5시 기준 저장본이 자동으로 생깁니다. 자동으로 저장된 것(매일 05시 · 대량 작업 전 · 복원 전)은 14일이 지나면 저장본만 자동으로 삭제됩니다 — 작업지시 · 생산실적 · 재고 같은 실제 기록은 지워지지 않고, 직접 저장한 것도 남습니다. 목록에 저장본 크기와 자동 저장 상태(서버 예약 여부 · 마지막 저장 시각 · 전체 크기)를 표시합니다. (서버 000_install_all.sql 재실행 필요)"],
+  ["2026-11-18", "탭 줄이 기본 화면 · 메뉴 묶음 구분", "PC · 태블릿에서는 이제 처음부터 화면 위에 탭 줄이 있습니다. 메뉴로 연 화면이 탭으로 쌓이고, 탭을 누르면 바로 그 화면으로 바뀝니다(✕로 탭 닫기, [＋ 탭]으로 추가). 두 화면을 같이 보려면 탭 줄 오른쪽의 [나란히]나 [작은 창]을 누릅니다. 탭 줄이 필요 없으면 위쪽 바의 [▯▯]로 끕니다. 왼쪽 메뉴의 묶음(현장 · 생산 관리 · …)은 짙은 띠로 바꿔 메뉴 항목과 구분되게 했고, 펼친 묶음은 머리와 항목이 한 상자로 묶여 보입니다."],
   ["2026-11-18", "탭 화면 [크게] · 노트북에서 오른쪽이 잘리던 것", "위쪽 바의 [▯▯]를 누르면 이제 탭 화면 하나가 화면 전체에 열립니다([크게]). 탭을 눌러 화면을 바꾸고, 왼쪽 메뉴를 누르면 그 화면이 탭으로 열립니다. 두 화면을 같이 보려면 [나란히], 떠 있는 창은 [작은 창]을 누릅니다. 글자 크기를 100%가 아닌 값으로 쓰면 추가 화면의 글자가 더 작아지고 오른쪽이 비어 보이던 문제도 고쳤습니다."],
   ["2026-11-18", "현장 작업 · 검수에 검색", "현장 작업과 검수 화면 위쪽에 검색 칸이 생겼습니다. 품목명 · 원두 · 일련번호 · 배치 · 지시번호 · 봉투 LOT · 설비 · 채널에서 찾고, 띄어 쓰면 모두 들어 있는 것만 보여 주며 초성(ㅇㅅㅅ)으로도 찾습니다. 치는 대로 카드가 걸러지고 몇 건을 찾았는지 옆에 표시됩니다. 검수에서는 [검수 대기]와 [오늘 생산 계획] 모두 같은 검색어로 찾습니다. [지우기]를 누르면 전체가 다시 보입니다."],
   ["2026-11-18", "글자 크기를 바꿔도 왼쪽 메뉴가 화면 맨 아래까지", "계정 메뉴의 글자 크기를 100%가 아닌 값으로 두면 왼쪽 메뉴가 화면 아래까지 닿지 않거나(작게) 아래가 잘리던(크게) 것을 고쳤습니다. 확인 창 · 알림 목록의 최대 높이와 화면 하나 더 보기의 위치도 같은 방식으로 맞췄습니다."],
@@ -8407,7 +8418,8 @@ function accApply(){
   const open = new Set(ACC_OPEN != null ? ACC_OPEN : (curG ? [curG] : []));
   let g = null, nb = 0, nc = 0;
   const put = (el, sel, v) => { const x = el.querySelector(sel), t = v ? (v > 99 ? "99+" : String(v)) : ""; if (x && x.textContent !== t) x.textContent = t; };
-  const flush = () => { if (!g) return; const op = open.has(g.dataset.t); put(g, ".gb", op ? 0 : nb); put(g, ".gc", op ? 0 : nc); };
+  const flush = () => { if (!g) return; const op = open.has(g.dataset.t); put(g, ".gb", op ? 0 : nb); put(g, ".gc", op ? 0 : nc);
+    if (g._last) { g._last.classList.add("glast"); g._last = null; } };
   [...menu.children].forEach(el=>{
     if (el.classList.contains("grp")) { flush(); g = el; nb = 0; nc = 0;
       if (!el.querySelector(".gt")) el.innerHTML = `<span class="gt"></span><span class="ga"></span><i class="gb"></i><i class="gc"></i>`;
@@ -8418,7 +8430,8 @@ function accApply(){
       el.title = op ? `${el.dataset.t} — 누르면 접습니다` : `${el.dataset.t} — 누르면 펼칩니다`; return; }
     if (!(el.dataset && el.dataset.s)) return;
     if (!g) { el.classList.remove("gshut","gin"); return; }
-    el.classList.add("gin"); el.classList.toggle("gshut", !open.has(g.dataset.t));
+    el.classList.add("gin"); el.classList.toggle("gshut", !open.has(g.dataset.t)); el.classList.remove("glast");
+    if (menuShown(el) && open.has(g.dataset.t)) g._last = el;
     if (menuShown(el)) { nb += parseInt(el.querySelector(".badge")?.textContent, 10) || 0; nc += parseInt(el.querySelector(".cbadge")?.textContent, 10) || 0; } });
   flush();
 }
@@ -8429,8 +8442,7 @@ function accApply(){
    · 설정은 이 기기의 내 아이디에 저장 · 화면 폭 700px 미만(휴대폰)에서는 쓰지 않는다 ══ */
 /* ★ 2026-11-18 [크게] — 탭 화면 하나만 화면 전체에 (Lee "내가 원하는 화면은 오른쪽 화면만 나오는거야 · 듀얼 기능도 있으면 좋기는 해")
    처음 열면 [크게]. 이때 왼쪽 메뉴를 누르면 그 화면이 탭으로 열린다(이미 있으면 그 탭으로). [나란히] = 두 화면(듀얼) · [작은 창] */
-const PANE_MIN_W = 700, PANE_DEF = { on:false, mode:"full", side:"right", tabs:[], cur:"", w:50, box:null, min:false };
-const paneFull = () => !EMBED && !!PANE && PANE.on && PANE.mode === "full" && document.body.classList.contains("paneon");
+const PANE_MIN_W = 700, PANE_DEF = { on:true, mode:"full", side:"right", tabs:[], cur:"", w:50, box:null, min:false };       // 기본 = 탭 줄 켬 · [크게]
 let PANE = null, PANE_KEY = "", PANE_ADD = false;
 const paneKey = () => "momos.pane." + ((LOGIN_USER && (LOGIN_USER.login_id || LOGIN_USER.id)) || "device");
 const paneSave = () => { try { localStorage.setItem(paneKey(), JSON.stringify(PANE)); } catch(_){} };
@@ -8443,64 +8455,102 @@ function paneInit(){
   PANE = { ...PANE_DEF, ...((v && typeof v === "object") ? v : {}) };
   if (!Array.isArray(PANE.tabs)) PANE.tabs = [];
 }
+/* ★ 2026-11-18 탭 줄을 기본 화면으로 (Lee "기본창이 저렇게 되었으면 좋겠는데")
+   [크게] = 이 화면 자체에 탭 줄을 단다 — 앱을 한 벌 더 띄우지 않는다(가볍다). 메뉴로 화면을 열면 탭으로 쌓이고, 탭을 누르면 그 화면으로 간다.
+   [나란히] · [작은 창] 일 때만 두 번째 화면(칸)을 띄우고, 탭 줄은 그 칸 위로 옮겨 간다. 탭 목록은 같이 쓴다. */
+const mainScr = () => (document.querySelector(".screen.on")?.id || "").replace(/^s-/, "");
+const PANE_MAX_TABS = 8;                 // 메뉴로 열어 자동으로 쌓이는 탭은 8개까지 ([＋ 탭]으로는 더 넣을 수 있다)
 function paneToggle(){
   if (EMBED) return; paneInit();
-  if (!paneOk()) return toast("화면 하나 더 보기는 PC · 태블릿에서 쓸 수 있습니다 (화면 폭이 좁습니다)");
-  PANE.on = !PANE.on; PANE.min = false;
-  if (PANE.on) { const all = paneScreens().map(x=>x.s), cur = (document.querySelector(".screen.on")?.id || "").replace(/^s-/, "");
-    PANE.tabs = PANE.tabs.filter(x=>all.includes(x));
-    if (!PANE.tabs.length) PANE.tabs = ["qc","work","ship","order","mt","grind"].filter(x=>all.includes(x) && x !== cur).slice(0, 2);
-    if (!PANE.tabs.length && all.length) PANE.tabs = [all.find(x=>x !== cur) || all[0]];
-    if (!PANE.tabs.includes(PANE.cur)) PANE.cur = PANE.tabs[0] || ""; }
-  paneSave(); paneApply();
-  toast(PANE.on ? "탭 화면을 열었습니다 — 탭으로 화면을 바꾸고 [＋ 탭]으로 더합니다 · [나란히]를 누르면 두 화면" : "탭 화면을 닫았습니다");
+  if (!paneOk()) return toast("탭 줄은 PC · 태블릿에서 쓸 수 있습니다 (화면 폭이 좁습니다)");
+  PANE.on = !PANE.on; PANE.min = false; paneSave(); paneApply();
+  toast(PANE.on ? "탭 줄을 켰습니다 — 메뉴로 연 화면이 탭으로 쌓입니다 · [나란히]를 누르면 두 화면을 같이 봅니다" : "탭 줄을 껐습니다 — 위쪽 바의 [▯▯]를 누르면 다시 켭니다");
 }
-function paneGo(x){ paneInit(); if (!PANE.tabs.includes(x)) PANE.tabs.push(x); PANE.cur = x; PANE.min = false; PANE_ADD = false; paneSave(); paneApply(); }
-function paneCloseTab(x){ paneInit(); PANE.tabs = PANE.tabs.filter(t=>t !== x);
-  if (!PANE.tabs.length) { PANE.on = false; } else if (PANE.cur === x) PANE.cur = PANE.tabs[0];
-  paneSave(); paneApply(); }
-function paneSet(k, v){ paneInit(); PANE[k] = v; if (k === "mode") PANE.min = false; paneSave(); paneApply(); }
+/* 화면을 열 때 자동으로 올리는 탭 — 계속 쌓이지 않게 가장 오래된 탭부터 정리한다 */
+function paneAutoTab(s){ if (PANE.tabs.includes(s)) return; PANE.tabs.push(s); while (PANE.tabs.length > PANE_MAX_TABS) PANE.tabs.splice(PANE.tabs.findIndex(x=>x !== s), 1); }
+function paneTabsFix(){
+  const all = paneScreens().map(x=>x.s), cur = mainScr(); if (!all.length) return;        // 메뉴가 아직 준비되지 않았으면 건드리지 않는다
+  PANE.tabs = PANE.tabs.filter(x=>all.includes(x));
+  if (PANE.mode === "full") { if (all.includes(cur)) { paneAutoTab(cur); PANE.cur = cur; } return; }
+  if (!PANE.tabs.length) PANE.tabs = ["qc","work","ship","order","mt","grind"].filter(x=>all.includes(x) && x !== cur).slice(0, 2);
+  if (!PANE.tabs.length) PANE.tabs = [all.find(x=>x !== cur) || all[0]];
+  if (!PANE.tabs.includes(PANE.cur)) PANE.cur = PANE.tabs.find(x=>x !== cur) || PANE.tabs[0];
+}
+/* 화면이 바뀔 때마다 (go) — [크게]에서는 그 화면을 탭에 올리고 지금 탭으로 표시한다 */
+function paneNote(s){
+  if (EMBED || !PANE || !PANE.on || PANE.mode !== "full") return;
+  if (paneScreens().some(x=>x.s === s)) {
+    paneAutoTab(s); PANE.cur = s; paneSave(); }
+  paneApply();
+}
+function paneGo(x){
+  paneInit(); PANE_ADD = false; if (!PANE.tabs.includes(x)) PANE.tabs.push(x); PANE.cur = x; PANE.min = false; paneSave();
+  if (PANE.mode === "full" && mainScr() !== x) { go(x); return; }      // [크게] — 이 화면을 그 탭으로 (go 가 탭 줄을 다시 그린다)
+  paneApply();
+}
+function paneCloseTab(x){
+  paneInit(); const i = PANE.tabs.indexOf(x); if (i < 0) return;
+  if (PANE.mode === "full" && PANE.tabs.length < 2) return;            // 마지막 탭은 닫지 않는다
+  PANE.tabs.splice(i, 1);
+  if (PANE.mode === "full") { if (mainScr() === x) { PANE.cur = PANE.tabs[Math.max(0, i - 1)]; paneSave(); go(PANE.cur); return; } }
+  else if (!PANE.tabs.length) PANE.mode = "full";                     // 칸의 탭을 다 닫으면 [크게]로 돌아간다
+  else if (PANE.cur === x) PANE.cur = PANE.tabs[Math.max(0, i - 1)];
+  paneSave(); paneApply();
+}
+function paneSet(k, v){
+  paneInit();
+  if (k === "mode" && v !== PANE.mode) { PANE.min = false; const cur = mainScr();
+    if (v !== "full" && PANE.mode === "full") PANE.cur = PANE.tabs.find(x=>x !== cur) || PANE.cur;   // 두 번째 화면에는 지금 화면이 아닌 탭부터
+  }
+  PANE[k] = v; paneSave(); paneApply();
+}
 function paneAddMenu(){ PANE_ADD = !PANE_ADD; paneApply(); }
+function paneHeadHTML(){
+  const all = paneScreens(), by = {}; all.forEach(x=>by[x.s] = x);
+  const rest = all.filter(x=>!PANE.tabs.includes(x.s)), full = PANE.mode === "full", one = full && PANE.tabs.length < 2;
+  return `${PANE.mode === "float" ? `<span class="pgrip" title="여기를 잡고 끌어서 창을 옮깁니다">⠿</span>` : ""}<div class="pt">${PANE.tabs.map(x=>{ const m = by[x] || { n:x, ico:"", bd:"" };
+      return `<button class="ptab ${x === PANE.cur ? "on" : ""}" onclick="paneGo('${x}')" title="${m.n}"><span class="ico">${m.ico}</span><span class="nm">${m.n}</span>${m.bd ? `<i class="bd">${m.bd}</i>` : ""}${one ? "" : `<i class="x" onclick="event.stopPropagation();paneCloseTab('${x}')" title="이 탭 닫기">✕</i>`}</button>`; }).join("")}
+      ${rest.length ? `<button class="padd ${PANE_ADD ? "on" : ""}" onclick="paneAddMenu()" title="탭 추가 — 볼 화면을 탭으로 더합니다">＋ 탭</button>` : ""}</div>
+    <div class="pa">${PANE.mode === "split" ? `<button onclick="paneSet('side','${PANE.side === "left" ? "right" : "left"}')" title="좌우 바꾸기">⇄</button>` : ""}${
+        PANE.mode === "float" ? `<button onclick="paneSet('min',${PANE.min ? "false" : "true"})" title="${PANE.min ? "펼치기" : "접기 — 머리만 남깁니다"}">${PANE.min ? "▢" : "—"}</button>` : ""}
+      <span class="pm">${[["full","크게","화면 하나를 크게 봅니다 — 탭을 눌러 화면을 바꿉니다"],["split","나란히","두 화면을 좌우로 나란히 봅니다 (듀얼)"],["float","작은 창","두 번째 화면을 떠 있는 작은 창으로 봅니다"]]
+        .map(([m,t,h])=>`<button class="${PANE.mode === m ? "on" : ""}" onclick="paneSet('mode','${m}')" title="${h}">${t}</button>`).join("")}</span>
+      ${full ? "" : `<button onclick="paneSet('mode','full')" title="두 번째 화면 닫기 — [크게]로 돌아갑니다">✕</button>`}</div>
+    ${PANE_ADD && rest.length ? `<div class="pmenu">${rest.map(x=>`<button onclick="paneGo('${x.s}')"><span class="ico">${x.ico}</span>${x.n}${x.bd ? `<i class="bd">${x.bd}</i>` : ""}</button>`).join("")}</div>` : ""}`;
+}
 function paneApply(){
   if (EMBED) return; paneInit();
-  const show = PANE.on && paneOk() && PANE.tabs.length > 0, B = document.body;
+  const B = document.body, show = PANE.on && paneOk(), st = document.documentElement.style;
+  if (show) paneTabsFix();
+  const full = show && PANE.mode === "full", pane = show && PANE.mode !== "full" && PANE.tabs.length > 0;
+  B.classList.toggle("paneon", pane); B.classList.toggle("panefull", full); B.classList.toggle("panesplit", pane && PANE.mode === "split"); B.classList.toggle("paneleft", pane && PANE.mode === "split" && PANE.side === "left");
+  const pb = $("paneBtn"); if (pb) { pb.classList.toggle("on", show); pb.title = show ? "탭 줄 끄기" : "탭 줄 켜기 — 메뉴로 연 화면을 탭으로 두고 바꿔 봅니다 · 두 화면 나란히 보기"; }
+  /* ── [크게] : 이 화면 위의 탭 줄 */
+  let bar = $("tabBar");
+  if (!full) { if (bar) bar.remove(); st.removeProperty("--tabh"); }
+  else { if (!bar) { bar = document.createElement("div"); bar.id = "tabBar"; bar.innerHTML = `<div class="ph"></div>`; B.appendChild(bar); }
+    const h = paneHeadHTML(), ph = bar.querySelector(".ph"); if (ph.dataset.h !== h) { ph.innerHTML = h; ph.dataset.h = h; }
+    const hh = bar.offsetHeight; if (hh > 0) st.setProperty("--tabh", hh + "px"); }
+  /* ── [나란히] · [작은 창] : 두 번째 화면(칸) */
   let el = $("pane");
-  B.classList.toggle("paneon", show); B.classList.toggle("panefull", show && PANE.mode === "full"); B.classList.toggle("panesplit", show && PANE.mode === "split"); B.classList.toggle("paneleft", show && PANE.mode === "split" && PANE.side === "left");
-  const pb = $("paneBtn"); if (pb) pb.classList.toggle("on", show);
-  if (!show) { if (el) { el.remove(); } return; }
+  if (!pane) { if (el) el.remove(); return; }
   if (!el) { el = document.createElement("div"); el.id = "pane";
-    el.innerHTML = `<div class="ph"></div><div class="pb"><iframe id="paneFrame" title="추가 화면"></iframe></div><div class="prs" title="끌어서 크기 조절"></div>`;
+    el.innerHTML = `<div class="ph"></div><div class="pb"><iframe id="paneFrame" title="두 번째 화면"></iframe></div><div class="prs" title="끌어서 크기 조절"></div>`;
     B.appendChild(el);
     el.querySelector(".prs").addEventListener("pointerdown", paneDragStart);
     el.querySelector(".ph").addEventListener("pointerdown", e=>{ if (PANE.mode === "float" && !e.target.closest("button")) paneDragStart(e, true); }); }
-  el.className = PANE.mode === "float" ? "float" + (PANE.min ? " min" : "") : PANE.mode === "full" ? "full" : "split" + (PANE.side === "left" ? " left" : "");
-  /* 자리 */
+  el.className = PANE.mode === "float" ? "float" + (PANE.min ? " min" : "") : "split" + (PANE.side === "left" ? " left" : "");
   const tb = document.querySelector(".topbar")?.getBoundingClientRect().bottom || 0, g = document.querySelector(".gnb"), gr = g && getComputedStyle(g).display !== "none" && getComputedStyle(g).position !== "fixed" ? g.getBoundingClientRect().right : 0;
-  const st = document.documentElement.style;
-  /* ★ 2026-11-18 글자 크기 배율(body zoom)이 칸 안의 화면에 이중으로 걸리거나(크롬: 글자가 더 작아짐) 칸보다 좁게 그려져 오른쪽이 비는(Lee 노트북 "짤리는 현상") 문제
-       → 칸(#pane)에는 배율의 역수를 걸어 배율 1 로 되돌린다. 칸의 자리 · 크기는 실제 화면 px 로 계산하고, 칸 안의 화면이 자기 글자 크기를 한 번만 적용한다 (탭 줄만 바깥 글자 크기에 맞춘다) */
+  /* 글자 크기 배율(body zoom)이 칸 안의 화면에 이중으로 걸리지 않게 — 칸(#pane)에는 배율의 역수를 걸어 1 로 되돌리고, 자리 · 크기는 실제 화면 px 로 잡는다 (탭 줄만 바깥 글자 크기에 맞춘다) */
   const Z = bodyZoom(); el.style.zoom = Z === 1 ? "" : String(1 / Z); st.setProperty("--pz", String(Z));
   st.setProperty("--ptb", Math.max(0, Math.round(tb)) + "px"); st.setProperty("--pgl", Math.max(0, Math.round(gr)) + "px");
-  const w = Math.min(70, Math.max(25, Number(PANE.w) || 50)); st.setProperty("--pw", (w / bodyZoom()) + "vw"); st.setProperty("--pwr", w + "vw");   // --pw = 왼쪽 화면 여백(배율 안) · --pwr = 칸 폭(실제)
+  const w = Math.min(70, Math.max(25, Number(PANE.w) || 50)); st.setProperty("--pw", (w / Z) + "vw"); st.setProperty("--pwr", w + "vw");   // --pw = 왼쪽 화면 여백(배율 안) · --pwr = 칸 폭(실제)
   if (PANE.mode === "float") { const W = innerWidth, H = innerHeight, b = PANE.box || {};
     const bw = Math.min(W - 16, Math.max(360, Number(b.w) || Math.min(620, W * .5))), bh = Math.min(H - tb - 16, Math.max(300, Number(b.h) || Math.min(660, H * .7)));
     const bx = Math.min(W - bw - 8, Math.max(8, b.x != null ? Number(b.x) : W - bw - 24)), by = Math.min(H - 52, Math.max(tb + 4, b.y != null ? Number(b.y) : H - bh - 20));
     el.style.left = bx + "px"; el.style.top = by + "px"; el.style.width = bw + "px"; el.style.height = PANE.min ? "" : bh + "px"; }
   else { el.style.left = el.style.top = el.style.width = el.style.height = ""; }
-  /* 머리 — 탭 */
-  const all = paneScreens(), by = {}; all.forEach(x=>by[x.s] = x);
-  const rest = all.filter(x=>!PANE.tabs.includes(x.s));
-  const html = `${PANE.mode === "float" ? `<span class="pgrip" title="여기를 잡고 끌어서 창을 옮깁니다">⠿</span>` : ""}<div class="pt">${PANE.tabs.map(x=>{ const m = by[x] || { n:x, ico:"", bd:"" };
-      return `<button class="ptab ${x === PANE.cur ? "on" : ""}" onclick="paneGo('${x}')" title="${m.n}"><span class="ico">${m.ico}</span><span class="nm">${m.n}</span>${m.bd ? `<i class="bd">${m.bd}</i>` : ""}<i class="x" onclick="event.stopPropagation();paneCloseTab('${x}')" title="이 탭 닫기">✕</i></button>`; }).join("")}
-      ${rest.length ? `<button class="padd ${PANE_ADD ? "on" : ""}" onclick="paneAddMenu()" title="탭 추가 — 이 칸에서 볼 화면을 더합니다">＋ 탭</button>` : ""}</div>
-    <div class="pa">${PANE.mode === "split" ? `<button onclick="paneSet('side','${PANE.side === "left" ? "right" : "left"}')" title="좌우 바꾸기">⇄</button>` : ""}${
-        PANE.mode === "float" ? `<button onclick="paneSet('min',${PANE.min ? "false" : "true"})" title="${PANE.min ? "펼치기" : "접기 — 머리만 남깁니다"}">${PANE.min ? "▢" : "—"}</button>` : ""}
-      <span class="pm">${[["full","크게","탭 화면 하나만 크게 봅니다 — 왼쪽 메뉴를 누르면 탭으로 열립니다"],["split","나란히","두 화면을 좌우로 나란히 봅니다 (듀얼)"],["float","작은 창","떠 있는 작은 창으로 봅니다"]]
-        .map(([m,t,h])=>`<button class="${PANE.mode === m ? "on" : ""}" onclick="paneSet('mode','${m}')" title="${h}">${t}</button>`).join("")}</span>
-      <button onclick="paneToggle()" title="닫기">✕</button></div>
-    ${PANE_ADD && rest.length ? `<div class="pmenu">${rest.map(x=>`<button onclick="paneGo('${x.s}')"><span class="ico">${x.ico}</span>${x.n}${x.bd ? `<i class="bd">${x.bd}</i>` : ""}</button>`).join("")}</div>` : ""}`;
-  const ph = el.querySelector(".ph"); if (ph.dataset.h !== html) { ph.innerHTML = html; ph.dataset.h = html; }
-  if (PANE.mode === "full") document.querySelectorAll("#menu button[data-s]").forEach(b=>b.classList.toggle("on", b.dataset.s === PANE.cur));
+  const html = paneHeadHTML(), ph = el.querySelector(".ph"); if (ph.dataset.h !== html) { ph.innerHTML = html; ph.dataset.h = html; }
   /* 칸 안의 화면 — 앱은 한 번만 띄우고, 탭을 바꾸면 주소 끝(#pane=화면)만 바꾼다 */
   const fr = $("paneFrame"), want = "pane=" + PANE.cur;
   if (!fr.dataset.on) { fr.dataset.on = "1"; fr.src = location.href.split("#")[0] + "#" + want; }
@@ -8525,7 +8575,7 @@ function paneDragStart(e, move){
 }
 if (!EMBED) {
   window.addEventListener("message", e=>{ try { const x = e.data && e.data.momosPane; if (!x || !PANE || !PANE.on || e.source !== $("paneFrame")?.contentWindow) return;
-    if (PANE.tabs.includes(x) && PANE.cur !== x) { PANE.cur = x; paneSave(); paneApply(); } } catch(_){} });
+    if (PANE.mode !== "full" && PANE.tabs.includes(x) && PANE.cur !== x) { PANE.cur = x; paneSave(); paneApply(); } } catch(_){} });
   window.addEventListener("resize", ()=>{ try { if (PANE) paneApply(); } catch(_){} });
   document.addEventListener("click", e=>{ if (PANE_ADD && !e.target.closest("#pane .padd, #pane .pmenu")) { PANE_ADD = false; try { paneApply(); } catch(_){} } }, true);   // 버튼이 다시 그려지기 전에(캡처 단계) 판단
 }
@@ -8913,7 +8963,7 @@ function closeNav(){ document.body.classList.remove("navopen"); }
 $("menu").addEventListener("click", e=>{
   const h = e.target.closest(".grp");
   if (h && document.body.classList.contains("acc")) { accToggle(h.dataset.t || ""); return; }
-  const b=e.target.closest("button"); if(b){ if (paneFull() && paneScreens().some(x=>x.s === b.dataset.s)) paneGo(b.dataset.s); else go(b.dataset.s); closeNav(); } });
+  const b=e.target.closest("button"); if(b){ go(b.dataset.s); closeNav(); } });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeNav(); });
 $("planTabs").addEventListener("click", e=>{
   const b = e.target.closest(".subtab"); if(!b) return;
@@ -24343,8 +24393,26 @@ async function autoSnap(note){
   if (!sb) return;
   try { const r = await mesSnapTake(note, "auto"); if (r && r.ok) { SNAPS_LOADED = false; toast(`복원할 수 있도록 현재 시점을 저장했습니다 (결재 › 시점 복원)`); } } catch(_){}
 }
+/* ★ 2026-11-18 매일 오전 5시 기준 자동 저장 (서버 084) — Lee "시점 복원은 매일 오전 5시 기준으로 저장되었으면 해 · 2주치 정도만 … 복원기준으로만 · 안에 자료는 다 있어야해"
+   서버 예약(pg_cron)이 05:00 에 저장한다. 예약이 없거나 실패한 날을 대비해, 켜져 있는 앱도 1분마다 "오늘(05시 기준) 저장본이 있는지"를 서버에 묻는다 —
+   서버가 하루 한 번만 만들기 때문에 여러 기기가 물어도 하나만 생긴다. 14일 지난 자동 저장본은 서버가 지운다(손으로 저장한 것 · 실제 운영 기록은 그대로). */
+const snapDayKey = () => new Date(Date.now() + 4 * 3600e3).toISOString().slice(0, 10);      // 한국 시간(UTC+9)에서 5시간을 뺀 날짜 = 05:00 에 바뀌는 "하루"
+let SNAP_DAILY_BUSY = false, SNAP_INFO = null;
+async function snapDailyCheck(){
+  if (!sb || EMBED || !LOGIN_USER || SNAP_DAILY_BUSY) return;
+  const key = snapDayKey(); let done = ""; try { done = localStorage.getItem("momos.snapDaily") || ""; } catch(_){}
+  if (done === key) return;
+  SNAP_DAILY_BUSY = true;
+  try { const r = await rpc("snapshot_daily", {}, null, { quiet:true });
+    if (r && r.ok) { try { localStorage.setItem("momos.snapDaily", r.day || key); } catch(_){} if (!r.skipped) SNAPS_LOADED = false; }
+    else if (r && /snapshot_daily|schema cache|function/i.test(r.message || "")) { try { localStorage.setItem("momos.snapDaily", key); } catch(_){} }   // 서버에 084 가 아직 없음 — 오늘은 다시 묻지 않는다
+  } catch(_){} finally { SNAP_DAILY_BUSY = false; }
+}
+setInterval(()=>{ try { snapDailyCheck(); } catch(_){} }, 60000);
+const fmtBytes = n => { n = Number(n) || 0; return n >= 1048576 ? (Math.round(n / 104857.6) / 10) + " MB" : n >= 1024 ? Math.round(n / 1024) + " KB" : n + " B"; };
 async function loadSnaps(show){
   if (!sb) { SNAPS = []; SNAPS_LOADED = "local"; if (show) renderSnaps(); return; }
+  rpc("snapshot_info", {}, null, { quiet:true }).then(i=>{ SNAP_INFO = (i && i.ok) ? i : null; renderSnaps(); }).catch(()=>{});
   const r = await rpc("snapshot_list", {}, null, { quiet:true });
   if (Array.isArray(r)) { SNAPS = r; SNAPS_LOADED = true; }
   else SNAPS_LOADED = /snapshot_list|schema cache|function/i.test(r?.message||"") ? "missing" : true;
@@ -24385,12 +24453,16 @@ function renderSnaps(){
   const sys = isSystemAdmin();
   if (SNAPS_LOADED === "missing") { $("snTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px"><span class="bad">서버에 077_snapshots.sql 을 실행해야 시점 복원을 사용할 수 있습니다</span></td></tr></tbody>`; return; }
   if (SNAPS_LOADED === "local") { $("snTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">서버에 연결되어야 사용할 수 있습니다</td></tr></tbody>`; return; }
-  const K = { manual:["", "수동 저장"], auto:["warn", "자동"], pre_restore:["ok", "복원 전"] };
-  tbl("snTbl", ["저장 시각","종류","메모","행 수","저장자",""],
+  const K = { manual:["", "수동 저장"], auto:["warn", "작업 전 자동"], pre_restore:["ok", "복원 전"], daily:["blue", "매일 05시"] };
+  if ($("snInfo")) { const I = SNAP_INFO;
+    $("snInfo").innerHTML = !I ? `<span class="bad">매일 05시 자동 저장을 쓰려면 서버에 000_install_all.sql 을 다시 실행하십시오</span>`
+      : `<b>매일 오전 5시 기준 자동 저장</b> · ${I.cron ? `<span class="ok">서버 예약 켜짐</span>` : `<span class="warn">서버 예약 없음 — 오전 5시 이후 처음 앱이 열릴 때 저장됩니다</span>`}`
+        + ` · 마지막 ${I.last_daily ? dtFull(I.last_daily) : "없음"} · 저장본 ${fmt(I.count)}개 · 전체 ${fmtBytes(I.bytes)}`; }
+  tbl("snTbl", ["저장 시각","종류","메모","행 수","크기","저장자",""],
     SNAPS.map(S=>{ const k = K[S.kind] || ["", S.kind]; return `<tr><td class="c" style="white-space:nowrap"><b>${dtFull(S.taken_at)}</b></td><td class="c"><span class="tag ${k[0]}">${k[1]}</span></td>
-      <td class="l">${(S.note||"").replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</td><td>${fmt(S.row_count)}</td><td class="c">${S.by_name||"—"}</td>
+      <td class="l">${(S.note||"").replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}${S.kind === "manual" ? ` <span class="hint" style="padding:0">· 자동 삭제 안 함</span>` : ""}</td><td>${fmt(S.row_count)}</td><td style="white-space:nowrap">${S.bytes != null ? fmtBytes(S.bytes) : "—"}</td><td class="c">${S.by_name||"—"}</td>
       <td class="c" style="white-space:nowrap">${sys ? `<button class="btn primary" style="height:30px" onclick="snapRestore('${S.id}')">이 시점으로 복원</button> <button class="btn" style="height:30px;color:var(--bad)" onclick="snapDelete('${S.id}')">삭제</button>` : `<span class="hint" style="padding:0">총 관리자만</span>`}</td></tr>`; }), null);
-  if (!SNAPS.length) $("snTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">저장된 시점이 없습니다 — [현재 시점 저장] 을 누르거나, 대량 작업 시 자동으로 저장됩니다</td></tr></tbody>`;
+  if (!SNAPS.length) $("snTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">저장된 시점이 없습니다 — 매일 오전 5시에 자동으로 저장되고, [현재 시점 저장] 을 누르거나 대량 작업을 하기 전에도 저장됩니다</td></tr></tbody>`;
 }
 function renderApprove(){
   if (!$("apTbl")) return;
@@ -25265,7 +25337,7 @@ function applyRoleLock(){
   ["mtClosePanel","mtAllPanel","mtDiff"].forEach(id=>{ const e = $(id); if (e) e.style.display = isFloor() ? "none" : ""; });
   applyGuide();
   roleBanner();
-  if (!EMBED) { try { if (!sb || LOGIN_USER) paneApply(); else if ($("pane")) { document.body.classList.remove("paneon","panesplit","paneleft","panefull"); $("pane").remove(); } } catch(e){ console.warn(e); } }   // ★ 2026-11-18 화면 하나 더 보기
+  if (!EMBED) { try { if (!sb || LOGIN_USER) paneApply(); else { document.body.classList.remove("paneon","panesplit","paneleft","panefull"); if ($("pane")) $("pane").remove(); if ($("tabBar")) $("tabBar").remove(); } } catch(e){ console.warn(e); } }   // ★ 2026-11-18 화면 하나 더 보기
   try { chgApply(); } catch(e){ console.warn(e); }                      // ★ 2026-11-17 변경 표시 (파란 숫자 · 위쪽 목록 · 빨간 테두리)
   try { renderMNav(); kpiReopen(); } catch(e){ console.warn(e); }      // ★ 2026-11-17 휴대폰 하단 탭 · 펼친 숫자 상자 유지
 }
@@ -25326,6 +25398,7 @@ async function firstRun(){
     setRole(loginRole(), true);
     renderAll();
     if (EMBED) { const x = paneHashScr(); if (x) go(x); return; }          // ★ 2026-11-18 칸 안에서 열린 경우 — 바깥에서 고른 화면으로
+    setTimeout(()=>{ try { snapDailyCheck(); } catch(_){} }, 4000);       // ★ 2026-11-18 매일 05시 기준 시점 저장 — 오늘 것이 없으면 만든다
     if (isPhone()) go("home");            // ★ 2026-11-17 휴대폰은 [오늘 요약] 이 첫 화면
     return;
   }
