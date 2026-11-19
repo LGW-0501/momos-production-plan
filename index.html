@@ -4667,6 +4667,16 @@ const mmsByBean  = bean => DB.mms.filter(m=>m.bean===bean && !isHeld(m)).reduce(
 const heldByBean = bean => DB.mms.filter(m=>m.bean===bean &&  isHeld(m)).reduce((s,m)=>s+Number(m.stock_kg||0),0);
 const heldAll    = () => sortBatches(DB.mms.filter(m=>isHeld(m) && Number(m.stock_kg)>0));
 const shortage = p => Math.max(0, Number(p.safety||0) - Number(p.cfe||0));
+/* ★ 2026-11-19 검수 대기 수량을 재고와 따로 보여 준다 (Lee "검수 대기 n개를 따로" — 장부는 그대로)
+     완제품 재고(CFE 현재고)는 생산 완료 때 올라가므로 아직 검수하지 않은 수량이 섞여 있다. 그 수량만 옆에 따로 적는다
+     · 검수 대기 = 상태가 '생산완료'(검수 전)인 지시의 완료 수량 합 · 검수 끝난 재고 = 현재고 − 검수 대기 · 부족 계산 · 생산계획은 전과 같다 */
+function qcWaitMap(){ if (QCW.at && Date.now() - QCW.at < 1500 && QCW.n === DB.orders.length) return QCW.m;
+  const m = {}; DB.orders.forEach(o=>{ if (o.status === "생산완료" && o.product_id && Number(o.qty_done) > 0 && !/^\[반려 삭제/.test(String(o.note||""))) m[o.product_id] = (m[o.product_id]||0) + Number(o.qty_done); });
+  QCW = { at:Date.now(), n:DB.orders.length, m }; return m; }
+let QCW = { at:0, n:0, m:{} };
+const qcWaitQty = pid => qcWaitMap()[pid] || 0;
+const qcWaitLine = p => { const w = p ? qcWaitQty(p.id) : 0; if (!w) return "";
+  return `<br><span class="tag warn" style="font-size:10.5px;white-space:nowrap" title="생산은 끝났지만 아직 검수하지 않은 수량입니다 — 위 재고에 포함되어 있습니다">검수 대기 ${fmt(w)}</span> <span class="hint" style="padding:0;font-size:10.5px;white-space:nowrap">검수 끝난 재고 ${fmt(Number(p.cfe||0) - w)}</span>`; };
 const stdKg = (p,ea) => (Number(ea)||0) * Number(p.std_g||0) / 1000;
 /* ★ 로스율 — 포장할 때 흘리고 남는 원두. 필요원두 = 표준투입 × (1 + 로스율%). 계획·배치 나누기·생산 차감에 전부 적용.
      기본값은 생산계획 상단, 품목별 값은 기준정보 › 품목 표 (공용 설정 loss_pct) */
@@ -8161,6 +8171,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "검수 대기 수량을 재고와 따로 표시", "완제품 재고(CFE 현재고) 옆에 「검수 대기 n」과 「검수 끝난 재고」를 따로 보여 줍니다 — 재고 현황(CFE) · 생산계획 · 대시보드 부족 표 · 완제품 재고는 생산 완료 때 올라가므로 아직 검수하지 않은 수량이 섞여 있습니다 · 장부 숫자 · 부족 계산 · 생산계획은 전과 같습니다 (표시만 추가)"],
   ["2026-11-19", "기준정보 정리 — 탭 13개 → 묶음 4개 · 원두(MMS) 배치별 실측 복구", "① 기준정보 위에 묶음 4개(품목 / 원두 / 부자재 · 설비 · 사람 / 시스템) — 묶음을 누르면 그 묶음의 탭만 보입니다 · 초기화 / 개통은 시스템 묶음 맨 뒤 · ② MMS 원두재고 탭은 기준정보에서 뺐습니다 — 원두 재고는 로스팅 › 배치 재고에서 보고, 수량은 배치별 실측으로 맞춥니다 · ③ 품목 표는 평소 핵심 칸만 보입니다 — [모든 칸 보기 (18칸)]로 전부 (기기마다 기억) · ④ 긴 안내문은 한 줄만 보이고 [설명 더 보기]로 펼칩니다 · ⑤ 원두(MMS) 배치별 실측표가 뜨지 않던 것을 복구했습니다 — 재고 실사 › [원두 (MMS) →] 또는 로스팅 › 수불 › [배치별 실측]"],
   ["2026-11-19", "라벨 자동 차감 (089 SQL) · 점검에서 찾은 오류 정리", "① 라벨작업 기록 없이 생산을 끝내면 양품 수량만큼 라벨이 자동으로 빠집니다 (089_label_auto.sql 실행 필요) — 뒤늦게 그날 라벨작업을 완료로 적으면 자동으로 뺀 만큼 되돌려 두 번 빠지지 않습니다 · 풀패키지 · 코스트코 · 이카 품목은 해당 없음 · ② 로스팅 › 수불의 [배치별 실측] 버튼이 눌러도 반응이 없던 것을 고쳤습니다 · ③ 기준정보 › 품목 안내문의 라벨 차감 설명을 실제 동작에 맞게 고쳤습니다 · ④ 품목 표 · 로스관리 기준표의 로스율 칸 아래에 지금 적용 중인 값과 출처(품목 · 원두 · 기본)를 표시합니다 · ⑤ 자료를 1000줄씩 나눠 받을 때 순서를 정해 줄이 빠지거나 겹치지 않게 했습니다 · ⑥ 시작 전 점검에 [앱 오류 기록] — 화면에 뜨지 않고 지나가던 오류를 이 기기에 모아 보여 줍니다 (복사 · 비우기)"],
   ["2026-11-19", "화면 그리기 가볍게 — 모든 화면 공통", "화면을 그릴 때마다 전체 버튼 · 입력칸 수천 개의 권한을 처음부터 다시 판정하던 것을, 한 번 판정한 것은 다시 쓰게 했습니다 · 현장 작업 · 검수 · 출고 · 라벨작업 · 재고 실사 등 모든 화면에서 그리는 시간이 줄어듭니다 · 권한 규칙은 그대로입니다"],
@@ -9595,7 +9606,7 @@ function renderDash(){
   tbl("dashShort", ["No","품목명","안전재고","CFE 현재고","부족","필요원두(kg)","MMS 가용(kg)","상태"],
     shorts.map((p,i)=>{
       const need = needKg(p, shortage(p)), avail = mmsByBean(p.bean);
-      return `<tr><td class="rowno">${i+1}</td><td class="l">${p.name}</td><td>${fmt(p.safety)}</td><td>${fmt(p.cfe)}</td>
+      return `<tr><td class="rowno">${i+1}</td><td class="l">${p.name}</td><td>${fmt(p.safety)}</td><td>${fmt(p.cfe)}${qcWaitLine(p)}</td>
         <td class="bad">${fmt(shortage(p))}</td><td>${fmt(need)}</td><td>${fmt(avail)}</td>
         <td class="c">${avail>=need?'<span class="tag ok">MMS 충당가능</span>':`<span class="tag bad">로스팅요청 ${fmt(need-avail)}kg</span>`}</td></tr>`;
     }));
@@ -10802,7 +10813,7 @@ function renderPlan(){
       return `<tr><td class="rowno">${i+1}</td>
         <td class="l">${r.p.name}${r.p.ica?' <span class="tag warn">이카</span>':''}${CX ? `${isGround(r.p.grind)?` <span class="tag warn">${r.p.grind}</span>`:''}${(()=>{ const pc = planCalc(r.p); return r.p.id in planEA ? "" : (pc.buf ? ` <span class="tag buf">+${fmt(pc.buf)}</span>` : "") + (pc.auto ? ` <span class="tag abufT">기본 +${fmt(pc.auto)}</span>` : ""); })()}<div class="hint" style="padding:0;font-size:10.5px">원두 ${fmt(need)}kg${duePick?' · <span class="due">⚠ 금일 사용 필요</span>':warnPick?' · <span class="warn">상미기한 주의</span>':''}${r.lack>0?` · <span class="bad">로스팅요청 ${fmt(r.lack)}kg</span>`:''}</div>` : ''}</td>
         ${CX ? '' : `<td class="c">${isGround(r.p.grind)?`<span class="tag warn">${r.p.grind}</span>`:"홀빈"}</td>
-        <td>${fmt(r.p.safety)}</td><td>${fmt(r.p.cfe)}</td>
+        <td>${fmt(r.p.safety)}</td><td>${fmt(r.p.cfe)}${qcWaitLine(r.p)}</td>
         <td class="bufc">${(()=>{ const pc = planCalc(r.p); if (r.p.id in planEA) return "—";
           return ((pc.buf ? `+${fmt(pc.buf)}<br><span class="hint" style="padding:0;font-size:10.5px">${fmt(eaKg(r.p,pc.buf))}kg</span>` : "") + (pc.auto ? `<div class="abuf">기본 +${fmt(pc.auto)}</div>` : "")) || "—"; })()}</td>`}
         <td><input type="text" inputmode="numeric" class="num" value="${r.ea}" data-f="plan:${r.p.id}"
@@ -16690,13 +16701,14 @@ function renderStock(){
   const extraH = isCfe ? [] : ['<span class="tag buf">오늘 여유분(kg)</span>', "전량 생산 후 잔여 원두", "여유분 미생산 시 잔여 원두"];
   const extraC = r => { if (isCfe) return ""; const L = beanLeft(r.name);
     return `<td class="bufc">${L.bufKg?`+${fmt(L.bufKg)}`:"—"}${L.needKg?`<br><span class="hint" style="padding:0;font-size:10.5px">주문분 ${fmt(L.needKg)}</span>`:""}</td>${leftCell(L.all)}${leftCell(L.noBuf)}`; };
+  const qw = r => { if (!isCfe) return ""; const p = DB.products.find(x=>x.id === r.key || ("cfe:" + x.id) === r.key) || DB.products.find(x=>x.name === r.name); return p ? qcWaitLine(p) : ""; };
   tbl("stTbl", [isCfe?"CFE코드":"MMS코드", isCfe?"품목명":"원두", `장부 재고(${unit})`, ...extraH, `실제 재고(${unit})`, "차이", "차이율", "상태", ""],
     stList.map(r=>{
       if (r.act==null) return `<tr><td class="l">${r.code||"—"}</td><td class="l">${r.name}${r.sub?` <span class="tag warn">${r.sub}</span>`:""}</td>
-        <td>${fmt(r.app)}</td>${extraC(r)}<td colspan="4" class="c hint" style="padding:0">엑셀 미입력</td><td></td></tr>`;
+        <td>${fmt(r.app)}${qw(r)}</td>${extraC(r)}<td colspan="4" class="c hint" style="padding:0">엑셀 미입력</td><td></td></tr>`;
       const d = r.act-r.app, same = Math.abs(d)<=.005;
       return `<tr><td class="l">${r.code||"—"}</td><td class="l">${r.name}${r.sub?` <span class="tag warn">${r.sub}</span>`:""}</td>
-        <td>${fmt(r.app)}</td>${extraC(r)}<td><b>${fmt(r.act)}</b></td>
+        <td>${fmt(r.app)}${qw(r)}</td>${extraC(r)}<td><b>${fmt(r.act)}</b></td>
         <td class="${same?'ok':(d<0?'bad':'warn')}">${same?"0":(d>0?"+":"")+fmt(d)}</td>
         <td>${r.app?fmt(d/r.app*100)+"%":"—"}</td>
         <td class="c">${same?'<span class="tag ok">일치</span>':d<0?'<span class="tag bad">실제 부족</span>':'<span class="tag warn">실제 초과</span>'}</td>
