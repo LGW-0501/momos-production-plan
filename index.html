@@ -8048,6 +8048,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "배치가 입고 전이면 「원두 없음」 — 생산 시작 불가", "카드에 적힌 배치(예: 1901)가 아직 로스팅 입고되지 않았는데도 [생산 시작]이 열려 있던 것을 고쳤습니다 — 전에는 같은 원두의 다른 남은 배치를 대신 세어 「원두 부족」으로만 표시했습니다 · 이제 적힌 배치가 입고 전이면 「원두 없음 — 1901 배치 입고 전」으로 표시하고 시작을 막습니다 · 남아 있는 다른 배치로 생산하려면 카드의 일련번호 [변경]에서 그 배치를 고르면 됩니다"],
   ["2026-11-19", "배치 번호 부여 — 보유 배치 먼저", "[배치 번호 부여]가 항상 그날의 새 번호(입고 예정 배치)만 매기던 것을 고쳤습니다 — 전날 남은 원두가 있어도 아직 입고되지 않은 번호가 일련번호로 붙어 「일련번호는 있는데 원두 없음」 카드가 생기던 원인입니다 · 이제 보유 배치(보류 · 상미기한 초과 제외, 다른 지시가 이미 잡은 몫 제외)를 오래된 순으로 먼저 쓰고, 모자란 만큼만 입고 예정 번호를 붙입니다 · 확인 창에 예정 번호는 「입고 예정」으로 표시"],
   ["2026-11-19", "메뉴 설정 — 끌어서 순서 바꾸기", "[메뉴 설정] 창에서 각 줄 왼쪽의 ☰ 를 잡고 위아래로 끌면 메뉴 순서가 바뀝니다 (마우스 · 터치). ▲▼ 도 그대로 쓸 수 있습니다 · 놓는 즉시 저장"],
   ["2026-11-19", "작업 소요시간 — 실제 + 예상", "① 현장 작업 카드: 대기 중인 지시에 「⏱ 예상 약 N분」(최근 90일 그 설비 × 규격 생산속도 기준), 생산 중인 지시에는 실제 생산시간 옆에 「남은 예상」 · 설비 제목 줄에 그 설비의 남은 예상 시간 합계 · ② 분쇄 화면: 분쇄도마다 [▶ 분쇄 시작]을 누르면 그때부터 마지막 완료 체크까지 소요시간을 잽니다 — 진행 중에는 「▶ 진행 N분」, 끝나면 「⏱ 소요 N분」 · 시작을 누르지 않고 완료를 체크하면 첫 체크 시각이 시작이 되고 * 표시 · 기록이 쌓이면 분쇄도별 「예상 약 N분」도 표시 · 위쪽에 오늘 소요 · 남은 예상 합계"],
@@ -22827,8 +22828,13 @@ function ordReady(o){
   const todo = Math.max(0, Math.round(Number(o.qty_plan||0) - Number(o.qty_done||0)));
   const per = needKg(p, 1), m = isMixedOrder(o) ? null : ordBatchMms(o);
   const kg = m ? (isHeld(m) ? 0 : Number(m.stock_kg||0)) : (batchParts(o.batch_plan).length ? orderMms(o, p).reduce((t,x)=>t+Number(x.stock_kg||0),0) : mmsByBean(p.bean));
-  R.beanKg = kg;
-  if (per > 0) { const can = Math.floor((kg + 0.0005) / per);
+  /* ★ 2026-11-19 카드에 적힌 배치가 아직 입고 전이면 「원두 없음」 (Lee "오늘 원두를 안 받았고 원두가 없는데 어떻게 생산이 잡힐 수가 있는거지?")
+       전에는 적힌 배치(예: 1901)가 장부에 없으면 같은 원두의 다른 남은 배치 1개를 대신 세어 「원두 부족」으로만 표시하고 시작을 열어 두었다.
+       이제: 적힌 배치가 하나도 입고되지 않았으면 0kg 으로 보고 생산 시작을 막는다 — 남은 다른 배치를 쓰려면 일련번호 [변경]으로 그 배치를 고른다 */
+  const bps = batchParts(o.batch_plan), notIn = bps.length > 0 && !DB.mms.some(x=>x.bean === p.bean && bps.some(b=>b.full === batchFull(x)));
+  R.beanKg = notIn ? 0 : kg; R.batchNotIn = notIn;
+  if (notIn && todo > 0 && per > 0) { R.beanNone = true; R.msgs.push(`원두 없음 — ${bps.map(b=>b.short).join(" · ")} 배치 입고 전`); }
+  else if (per > 0) { const can = Math.floor((kg + 0.0005) / per);
     if (can < 1 && todo > 0) { R.beanNone = true; R.msgs.push(m ? `원두 없음 — ${batchShort(m)} 배치 사용 가능 ${fmt(kg)}kg` : "원두 없음"); }
     else if (can < todo) { R.beanShort = true; R.msgs.push(`원두 부족 — ${fmt(todo-can)}개 분량`); } }
   const ln = labelNeed(p, todo, ordLabel(o));
