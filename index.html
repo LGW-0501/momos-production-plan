@@ -4675,13 +4675,23 @@ function openLeftovers(bean){
 }
 
 const ageDays = d => d ? Math.floor((new Date(today()) - new Date(d))/86400000) : 0;
-const daysLeft = d => SHELF_LIFE_DAYS - ageDays(d);
+/* ★ 2026-11-19 코스트코 전용 원두는 상미기한을 보지 않는다 (Lee "코스트코는 상미기한 신경 안쓴다고 보면 될 거 같아")
+   코스트코 전용 = 코스트코 품목만 쓰는 원두 (다른 채널 품목도 같이 쓰는 원두는 일반 원두로 본다 — 코스트코 자동 지시의 기준과 같다)
+   → 임박 · 금일 사용 필요 · 초과 표시 없음, 자동 배정에서 빼지 않음, 표에는 「기한 무관」 */
+const SHELF_FREE = 9999;
+let CB_MEMO = { at:0, s:new Set() };
+function costcoOnlyBean(bean){ if (!bean) return false;
+  if (Date.now() - CB_MEMO.at > 5000) { const co = new Set(), other = new Set();
+    (DB.products||[]).forEach(p=>{ if (!p || p.off || !p.bean) return; (isCostcoProd(p) ? co : other).add(p.bean); });
+    CB_MEMO = { at:Date.now(), s:new Set([...co].filter(b=>!other.has(b))) }; }
+  return CB_MEMO.s.has(bean); }
+const daysLeft = (d, bean) => costcoOnlyBean(bean) ? SHELF_FREE : SHELF_LIFE_DAYS - ageDays(d);
 /* ★ 2026-11-19 상태 4가지 — bad 초과(출고 불가) · due 금일 사용 필요(내일부터 출고 불가) · warn 임박 · ok 정상 */
-const shelfState = d => { const L=daysLeft(d); return L<0?"bad":L===0?"due":L<=SHELF_WARN_LEFT?"warn":"ok"; };
+const shelfState = (d, bean) => { const L=daysLeft(d, bean); return L<0?"bad":L===0?"due":L<=SHELF_WARN_LEFT?"warn":"ok"; };
 const DUE_TEXT = "⚠ 금일 사용 필요 / 내일부터 출고 불가";
 /* 작업일 d 기준 잔여일 — 계획은 내일 날짜로도 세우므로 오늘이 아니라 그 날짜로 본다 */
-const daysLeftOn = (roast, d) => roast ? SHELF_LIFE_DAYS - Math.floor((new Date(d || today()) - new Date(roast))/86400000) : SHELF_LIFE_DAYS;
-const shelfLabel = d => { const L=daysLeft(d); return L<0?`초과 ${-L}일`:L===0?"⚠ 금일 사용 필요":`D-${L}`; };
+const daysLeftOn = (roast, d, bean) => costcoOnlyBean(bean) ? SHELF_FREE : roast ? SHELF_LIFE_DAYS - Math.floor((new Date(d || today()) - new Date(roast))/86400000) : SHELF_LIFE_DAYS;
+const shelfLabel = (d, bean) => { const L=daysLeft(d, bean); return L>=SHELF_FREE?"기한 무관":L<0?`초과 ${-L}일`:L===0?"⚠ 금일 사용 필요":`D-${L}`; };
 
 /* 배치번호 — 현장에서 쓰는 "28일 1번 = 2801" 을 그대로 두고 앞에 연·월만 붙인다
    2026-10-28 1번 배치 → 26102801  (뒤 4자리 2801 이 현장에서 쓰는 번호) */
@@ -8048,6 +8058,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "코스트코 원두 — 상미기한 표시 제외", "코스트코 전용 원두(코스트코 품목만 쓰는 원두)는 상미기한을 보지 않습니다 — 임박 · 금일 사용 필요 · 초과 표시가 붙지 않고, 현장 작업 카드의 「상미기한 초과 — 출고 불가」와 위쪽 알림에서도 빠지며, 배치 재고 표에는 「기한 무관」으로 나옵니다 · 다른 채널 품목도 같이 쓰는 원두는 전과 같이 5일 기준을 적용합니다"],
   ["2026-11-19", "배치가 입고 전이면 「원두 없음」 — 생산 시작 불가", "카드에 적힌 배치(예: 1901)가 아직 로스팅 입고되지 않았는데도 [생산 시작]이 열려 있던 것을 고쳤습니다 — 전에는 같은 원두의 다른 남은 배치를 대신 세어 「원두 부족」으로만 표시했습니다 · 이제 적힌 배치가 입고 전이면 「원두 없음 — 1901 배치 입고 전」으로 표시하고 시작을 막습니다 · 남아 있는 다른 배치로 생산하려면 카드의 일련번호 [변경]에서 그 배치를 고르면 됩니다"],
   ["2026-11-19", "배치 번호 부여 — 보유 배치 먼저", "[배치 번호 부여]가 항상 그날의 새 번호(입고 예정 배치)만 매기던 것을 고쳤습니다 — 전날 남은 원두가 있어도 아직 입고되지 않은 번호가 일련번호로 붙어 「일련번호는 있는데 원두 없음」 카드가 생기던 원인입니다 · 이제 보유 배치(보류 · 상미기한 초과 제외, 다른 지시가 이미 잡은 몫 제외)를 오래된 순으로 먼저 쓰고, 모자란 만큼만 입고 예정 번호를 붙입니다 · 확인 창에 예정 번호는 「입고 예정」으로 표시"],
   ["2026-11-19", "메뉴 설정 — 끌어서 순서 바꾸기", "[메뉴 설정] 창에서 각 줄 왼쪽의 ☰ 를 잡고 위아래로 끌면 메뉴 순서가 바뀝니다 (마우스 · 터치). ▲▼ 도 그대로 쓸 수 있습니다 · 놓는 즉시 저장"],
@@ -9374,7 +9385,7 @@ function beanBars(elId, logs){
 function renderDash(){
   renderDashWO();
   const shorts = PRODS().filter(p=>shortage(p)>0);
-  const shelfN = DB.mms.filter(m=>Number(m.stock_kg)>0 && shelfState(m.roast_date)!=="ok").length;
+  const shelfN = DB.mms.filter(m=>Number(m.stock_kg)>0 && shelfState(m.roast_date, m.bean)!=="ok").length;
   const tl = DB.logs.filter(l=>l.work_date===today());
   const mLoss = DB.logs.filter(l=>monthKey(l.work_date)===monthKey(today())).reduce((s,l)=>s+lossOf(l),0);
   const negN = PRODS().filter(p=>Number(p.cfe||0)<0).length + DB.mms.filter(m=>Number(m.stock_kg||0)<0).length;
@@ -9441,7 +9452,7 @@ function renderDash(){
     shorts.length?`${shorts.length}품목 미달`:"전 품목 충족", `전체 ${PRODS().length} · 충족 ${okCnt}`, "충족",
     chip(`부족 ${fmt(shorts.reduce((s,p)=>s+shortage(p),0))} EA`, shorts.length?"bad":"ok"));
 
-  const freshB = liveB.filter(m=>shelfState(m.roast_date)==="ok").length;
+  const freshB = liveB.filter(m=>shelfState(m.roast_date, m.bean)==="ok").length;
   const freshPct = liveB.length ? freshB/liveB.length*100 : 0;
   $("gShelf").innerHTML = gauge(freshPct, shelfN?tc("#D93B4C","#FF7A8A"):tc("#17A06B","#3DD598"),
     shelfN?`${shelfN}배치 임박·초과`:"전 배치 여유", `보유 ${liveB.length}배치 · ${fmt(mmsKg)}kg`, "여유",
@@ -9905,7 +9916,7 @@ function batchPlanOf(d){
     const held = {};
     DB.orders.forEach(x=>{ if (!ordOpen(x) || batchParts(x.batch_plan).length !== 1) return; const xp = prodById(x.product_id), m = ordBatchMms(x); if (!xp || !m || m.bean !== bean) return;
       held[m.id] = (held[m.id]||0) + needKg(xp, ordTodoEa(x)); });
-    const real = sortBatches(DB.mms.filter(m=>m.bean === bean && Number(m.stock_kg) > 0 && !isHeld(m) && daysLeftOn(m.roast_date, d) >= 0))
+    const real = sortBatches(DB.mms.filter(m=>m.bean === bean && Number(m.stock_kg) > 0 && !isHeld(m) && daysLeftOn(m.roast_date, d, m.bean) >= 0))
       .map(m=>({ b:m, remain:Math.round((Number(m.stock_kg) - (held[m.id]||0))*1000)/1000 })).filter(x=>x.remain > 0.0005);
     let no = nextBatchNo(bean, d), remain = 0, cur = null;
     byBean[bean].forEach(({o,p})=>{
@@ -9960,7 +9971,7 @@ function planBatches(rows){
      전일 미생산 지시가 잡아 둔 원두는 그 채널 몫으로 남겨 둔다 (자동 재배정 제외) · 나머지는 오래된 배치부터(선입선출) */
   const fx = fixedBindKg(d), info = { expired:[], fixed:fx.list };
   DB.mms.forEach(m=>{ if(!(Number(m.stock_kg)>0) || isHeld(m)) return;
-    if (daysLeftOn(m.roast_date, d) < 0) { info.expired.push(m); return; }
+    if (daysLeftOn(m.roast_date, d, m.bean) < 0) { info.expired.push(m); return; }
     const left = Math.round((Number(m.stock_kg) - (fx.kg[m.id]||0))*1000)/1000;
     if (left > 0.0005) remain[m.id] = left; });
   planBatches.info = info;
@@ -10593,7 +10604,7 @@ function renderPlan(){
                      : ["No","품목명","분쇄도","안전","CFE",'<span class="tag buf">여유분</span>',"계획EA",`필요원두(kg)${lossCfg().def||Object.keys(lossCfg().items).length?'<br><span class="hint" style="padding:0;font-size:10px">로스율 포함</span>':""}`,"사용할 배치 (선입선출)",...mh,"미배정","배정"],
     rows.map((r,i)=>{
       const need = needKg(r.p,r.ea), avail = mmsByBean(r.p.bean);
-      const warnPick = r.picks.some(x=>shelfState(x.b.roast_date)!=="ok"), duePick = r.picks.some(x=>!x.virtual && shelfState(x.b.roast_date)==="due");
+      const warnPick = r.picks.some(x=>shelfState(x.b.roast_date, x.b.bean)!=="ok"), duePick = r.picks.some(x=>!x.virtual && shelfState(x.b.roast_date, x.b.bean)==="due");
       return `<tr><td class="rowno">${i+1}</td>
         <td class="l">${r.p.name}${r.p.ica?' <span class="tag warn">이카</span>':''}${CX ? `${isGround(r.p.grind)?` <span class="tag warn">${r.p.grind}</span>`:''}${(()=>{ const pc = planCalc(r.p); return r.p.id in planEA ? "" : (pc.buf ? ` <span class="tag buf">+${fmt(pc.buf)}</span>` : "") + (pc.auto ? ` <span class="tag abufT">기본 +${fmt(pc.auto)}</span>` : ""); })()}<div class="hint" style="padding:0;font-size:10.5px">원두 ${fmt(need)}kg${duePick?' · <span class="due">⚠ 금일 사용 필요</span>':warnPick?' · <span class="warn">상미기한 주의</span>':''}${r.lack>0?` · <span class="bad">로스팅요청 ${fmt(r.lack)}kg</span>`:''}</div>` : ''}</td>
         ${CX ? '' : `<td class="c">${isGround(r.p.grind)?`<span class="tag warn">${r.p.grind}</span>`:"홀빈"}</td>
@@ -10605,11 +10616,11 @@ function renderPlan(){
         ${CX ? '' : `<td>${fmt(need)}</td>
         <td class="l" style="white-space:normal;line-height:1.7;padding:7px 14px">${
           r.picks.length
-            ? r.picks.map(x=>{ const st=shelfState(x.b.roast_date);
+            ? r.picks.map(x=>{ const st=shelfState(x.b.roast_date, x.b.bean);
                 if (x.virtual) return `<span class="tag warn" style="border-style:dashed" title="${x.b.bean} · ${x.b.roast_date} ${x.b.batch}번 배치 로스팅 예정 · 1배치 ${fmt(x.b.stock_kg)}kg">
                   예정 ${batchLabel(x.b)} <b>${fmt(x.kg)}kg</b></span>`;
                 return `<span class="tag ${st==="bad"?"bad":st==="due"?"due":st==="warn"?"warn":"ok"}" title="${x.b.bean} · 로스팅 ${x.b.roast_date} · 잔여 ${fmt(x.b.stock_kg)}kg${st==="due"?" · 오늘 사용하지 않으면 내일부터 출고 불가":""}">
-                  ${batchLabel(x.b)} <b>${fmt(x.kg)}kg</b>${st!=="ok"?` ${shelfLabel(x.b.roast_date)}`:""}</span>`; }).join(" ")
+                  ${batchLabel(x.b)} <b>${fmt(x.kg)}kg</b>${st!=="ok"?` ${shelfLabel(x.b.roast_date, x.b.bean)}`:""}</span>`; }).join(" ")
             : '<span class="hint" style="padding:0">사용 가능한 배치 없음</span>'
         }${r.lack>0?` <span class="tag bad">로스팅요청 ${fmt(r.lack)}kg${r.picks.some(x=>x.virtual)?` · 예정 배치 ${r.picks.filter(x=>x.virtual).length}개 (1배치 ${fmt(virtBatchKg(r.p.bean))}kg${ruleKgFor(r.p.bean)&&!allowedRoasters(r.p.bean).some(x=>capFor(r.p.bean,x.id)>0)?` · ${ruleKgFor(r.p.bean).why}`:""})`:" — 1배치 kg 미등록"}</span>`:""}</td>`}
         ${DB.machines.map(m=>{
@@ -12075,22 +12086,22 @@ function roastDaySet(d){ if (d === "all") ROAST_DAY = "all"; else if (d === 0) R
   renderRoast(); }
 function renderRoast(){
   if (document.querySelector("#s-roast .subpane.on")?.id !== "rp-"+roastTab) setRoastTab(roastTab);
-  const shelf = sortBatches(DB.mms.filter(m=>Number(m.stock_kg)>0 && shelfState(m.roast_date)!=="ok"));
+  const shelf = sortBatches(DB.mms.filter(m=>Number(m.stock_kg)>0 && shelfState(m.roast_date, m.bean)!=="ok"));
   /* ★ 2026-11-01 — 상미기한별로 따로 (초과 · 임박 · 여유) · 잔여일 짧은 순 → 원두 순서(블렌드 > 하바나 > 싱글) */
   { const liveAll = DB.mms.filter(m=>Number(m.stock_kg)>0);
     const cnt = { bad:0, due:0, warn:0, ok:0 }, kg = { bad:0, due:0, warn:0, ok:0 };
-    liveAll.forEach(m=>{ const st = shelfState(m.roast_date); cnt[st]++; kg[st] += Number(m.stock_kg||0); });
+    liveAll.forEach(m=>{ const st = shelfState(m.roast_date, m.bean); cnt[st]++; kg[st] += Number(m.stock_kg||0); });
     const LBL = { bad:"초과", due:"금일 사용 필요", warn:"임박", ok:"여유" };
     if ($("shelfBtn")) $("shelfBtn").innerHTML = `<button class="btn ${!SHELF_VIEW?"primary":""}" onclick="SHELF_VIEW='';renderRoast()">전체 ${liveAll.length}</button> ` +
       (SHELF_SEL.size ? `<button class="btn" style="color:var(--bad);font-weight:800;border-color:var(--bad)" onclick="lossBatches([...SHELF_SEL])">선택한 ${SHELF_SEL.size}배치 로스 처리</button> <button class="btn" onclick="SHELF_SEL.clear();renderRoast()">선택 해제</button> ` : "") + ["bad","due","warn","ok"].map(k=>`<button class="btn ${SHELF_VIEW===k?"primary":""}" style="${(k==="bad"&&cnt.bad)||(k==="due"&&cnt.due)?"color:var(--bad);font-weight:800":""}" onclick="SHELF_VIEW='${k}';renderRoast()">${LBL[k]} ${cnt[k]} <span class="hint" style="padding:0;font-size:11px">${fmt(Math.round(kg[k]*10)/10)}kg</span></button>`).join(" ");
-    const rows = liveAll.filter(m=>!SHELF_VIEW || shelfState(m.roast_date)===SHELF_VIEW)
-      .sort((a,b)=>daysLeft(a.roast_date)-daysLeft(b.roast_date) || beanCmp(a.bean,b.bean) || Number(a.batch)-Number(b.batch));
+    const rows = liveAll.filter(m=>!SHELF_VIEW || shelfState(m.roast_date, m.bean)===SHELF_VIEW)
+      .sort((a,b)=>daysLeft(a.roast_date, a.bean)-daysLeft(b.roast_date, b.bean) || beanCmp(a.bean,b.bean) || Number(a.batch)-Number(b.batch));
     $("shelfWrap").style.display = "";
     tbl("shelfTbl", [`<input type="checkbox" onchange="shelfSelAll(this.checked)" ${rows.length && rows.every(m=>SHELF_SEL.has(m.id))?"checked":""}>`,"현장번호","배치","원두","로스팅일","재고(kg)","경과","잔여","상태","보류","잔량"],
-      rows.map(m=>{ const st=shelfState(m.roast_date);
+      rows.map(m=>{ const st=shelfState(m.roast_date, m.bean);
         return `<tr class="${isHeld(m)?"heldrow":""}${SHELF_SEL.has(m.id)?" selrow":""}"><td class="c"><input type="checkbox" ${SHELF_SEL.has(m.id)?"checked":""} onchange="shelfSel('${m.id}',this.checked)"></td><td class="c"><b style="font-size:15px">${batchShort(m)}</b></td><td class="l">${batchLabel(m)}</td><td class="l"><b>${m.bean}</b></td><td class="c">${m.roast_date}</td>
           <td>${fmt(m.stock_kg)}</td><td class="c">D+${ageDays(m.roast_date)}</td>
-          <td class="c ${st}">${shelfLabel(m.roast_date)}</td>
+          <td class="c ${st}">${shelfLabel(m.roast_date, m.bean)}</td>
           <td class="c">${st==="bad"?'<span class="tag bad">초과 — 사용금지·처리</span>':st==="due"?'<span class="tag due">⚠ 금일 사용 필요 / 내일부터 출고 불가</span>':st==="warn"?'<span class="tag warn">임박 — 우선 사용</span>':'<span class="tag ok">여유</span>'}</td>
           <td class="c">${isHeld(m)?`<span class="tag bad">${m.hold_why||"보류"}</span>`:`<button class="btn" onclick="holdBatch('${m.id}')">보류</button>`}</td>
           <td class="c"><button class="btn" style="color:var(--bad)" onclick="lossBatches(['${m.id}'])" title="잔여 원두를 로스로 처리 — 부적합(재포장) kg 는 유지 가능">로스 처리</button></td></tr>`; }),
@@ -12179,7 +12190,7 @@ function renderRoast(){
   renderHoldLog();                    // 보류 이력 (최근 90일)
   (()=>{ const tb = $("roastTabs"); if (!tb) return;
     const set = (k, txt) => { const b = tb.querySelector(`[data-p="${k}"]`); if (b) b.innerHTML = txt; };
-    const wait = openLines().length, held = heldAll().length, bad = shelf.filter(m=>shelfState(m.roast_date)==="bad").length, due = shelf.filter(m=>shelfState(m.roast_date)==="due").length;
+    const wait = openLines().length, held = heldAll().length, bad = shelf.filter(m=>shelfState(m.roast_date, m.bean)==="bad").length, due = shelf.filter(m=>shelfState(m.roast_date, m.bean)==="due").length;
     set("in", `입고 · 계획${wait?` <span class="tag warn" style="font-size:10px">입고 예정 배치 ${wait}</span>`:""}`);
     set("hold", `보류${held?` <span class="tag bad" style="font-size:10px">${held}</span>`:""}`);
     set("shelf", `상미기한${bad?` <span class="tag bad" style="font-size:10px">초과 ${bad}</span>`:""}${due?` <span class="tag due" style="font-size:10px">금일 사용 ${due}</span>`:""}${shelf.length-bad-due>0?` <span class="tag warn" style="font-size:10px">임박 ${shelf.length-bad-due}</span>`:""}`);
@@ -12226,9 +12237,9 @@ function renderRoast(){
   const live = allLive.filter(m=>!beanIsOff(m.bean)), offLive = allLive.filter(m=>beanIsOff(m.bean));
   if ($("offBatchWrap")) { $("offBatchWrap").style.display = offLive.length ? "" : "none";
     tbl("offBatchTbl", ["배치","현장번호","원두","로스팅일","잔여(kg)","종료일","상미 잔여","처리"],
-      offLive.map(m=>{ const b = beanInfo(m.bean), st = shelfState(m.roast_date);
+      offLive.map(m=>{ const b = beanInfo(m.bean), st = shelfState(m.roast_date, m.bean);
         return `<tr style="opacity:.75"><td class="l"><b>${batchLabel(m)}</b></td><td class="c"><b>${batchShort(m)}</b></td><td class="l">${m.bean} <span class="tag">사용 중단</span></td>
-          <td class="c">${m.roast_date}</td><td><b>${fmt(m.stock_kg)}</b></td><td class="c">${b?.end_date||"—"}</td><td class="c ${st}">${shelfLabel(m.roast_date)}</td>
+          <td class="c">${m.roast_date}</td><td><b>${fmt(m.stock_kg)}</b></td><td class="c">${b?.end_date||"—"}</td><td class="c ${st}">${shelfLabel(m.roast_date, m.bean)}</td>
           <td class="c" style="white-space:nowrap"><button class="btn" onclick="holdBatch('${m.id}')">보류</button> <button class="btn" onclick="fixBatchQty('${m.id}')">수정</button>${batchUntouched(m)?` <button class="btn" onclick="fixBatchNo('${m.id}')" title="배치번호 변경">번호</button>`:""}${can("base")?` <button class="btn" style="color:var(--bad)" onclick="delBatchOne('${m.id}')">삭제</button>`:""}${b?` <button class="btn" onclick="toggleBeanOff('${b.id}')">원두 사용 재개</button>`:""}</td></tr>`; }),
       `<td colspan="4" class="c">합 계 · ${offLive.length}배치</td><td>${fmt(offLive.reduce((s,m)=>s+Number(m.stock_kg||0),0))}</td><td colspan="3"></td>`); }
   const planRs = planRows(); planBatches(planRs);
@@ -12239,7 +12250,7 @@ function renderRoast(){
     : batchUntouched(m) && DB.roast_lines.some(l=>l.mms_id===m.id) ? ` <button class="btn" style="color:var(--bad)" onclick="unreceiveBatch('${m.id}')" title="오입고 시 — 배치를 삭제하고 로스팅 행을 '입고 예정 배치'로 복원합니다">입고 취소</button>`
     : ` <button class="btn" style="color:var(--bad)" onclick="delBatchOne('${m.id}')" title="이 배치를 삭제합니다 — 생산에 사용한 배치는 관리자만 가능 (사유 기록)">삭제</button>`;
   tbl("liveTbl", ["배치","현장번호","원두","로스팅일","잔여(kg)","계획 사용(kg)","사용(kg)","상미 잔여","상태",'<span class="fix">보류</span>','<span class="fix">수정 · 이동 · 삭제</span>'],
-    live.map(m=>{ const st=shelfState(m.roast_date), h=isHeld(m);
+    live.map(m=>{ const st=shelfState(m.roast_date, m.bean), h=isHeld(m);
       const used = DB.consumptions.filter(c=>consLive(c) && c.mms_id===m.id).reduce((s,c)=>s+Number(c.used_kg||0),0);
       return `<tr class="${h?"heldrow":""}"><td class="l"><b>${batchLabel(m)}</b></td>
         <td class="c" title="${batchTip(m)}"><b style="font-size:15px;letter-spacing:-.5px">${batchShort(m)}</b></td>
@@ -12247,7 +12258,7 @@ function renderRoast(){
         <td><b>${fmt(m.stock_kg)}</b></td>
         <td class="${resv[m.id]?'warn':''}">${h?'<span class="hint" style="padding:0">보류</span>':(resv[m.id]?fmt(resv[m.id]):"—")}</td>
         <td>${used?fmt(used):"—"}</td>
-        <td class="c ${st}">${shelfLabel(m.roast_date)}</td>
+        <td class="c ${st}">${shelfLabel(m.roast_date, m.bean)}</td>
         <td class="c">${h?`<span class="tag bad">보류 — ${m.hold_why||"사유 미기재"}</span>`
           :st==="bad"?'<span class="tag bad">초과</span>':st==="due"?'<span class="tag due">금일 사용 필요</span>':st==="warn"?'<span class="tag warn">임박</span>':'<span class="tag ok">사용가능</span>'}</td>
         <td class="c fix">${h
@@ -13653,7 +13664,7 @@ async function freeBatch(id){
    부적합은 로스가 아니다 — 다시 포장할 원두라 그 배치에 남김 (이물 있는 것만 빼면 그냥 원두) · 나머지만 로스 */
 var SHELF_SEL = new Set();
 function shelfSel(id, on){ on ? SHELF_SEL.add(id) : SHELF_SEL.delete(id); renderRoast(); }
-function shelfSelAll(on){ const vis = DB.mms.filter(m=>Number(m.stock_kg)>0 && (!SHELF_VIEW || shelfState(m.roast_date)===SHELF_VIEW)); vis.forEach(m=> on ? SHELF_SEL.add(m.id) : SHELF_SEL.delete(m.id)); renderRoast(); }
+function shelfSelAll(on){ const vis = DB.mms.filter(m=>Number(m.stock_kg)>0 && (!SHELF_VIEW || shelfState(m.roast_date, m.bean)===SHELF_VIEW)); vis.forEach(m=> on ? SHELF_SEL.add(m.id) : SHELF_SEL.delete(m.id)); renderRoast(); }
 async function lossBatches(ids){
   if (!(await requireUser())) return;
   const ms = ids.map(id=>DB.mms.find(x=>x.id===id)).filter(m=>m && Number(m.stock_kg)>0);
@@ -13789,7 +13800,7 @@ function renderHold(){
       <td><b>${fmt(m.stock_kg)}</b></td>
       <td class="l"><span class="tag bad">${m.hold_why||"사유 미기재"}</span>${m.hold_note?` <span class="hint" style="padding:0">${m.hold_note}</span>`:""}</td>
       <td class="c">${m.hold_by||"—"}<br><span class="hint" style="padding:0;font-size:11px">${String(m.hold_at||"").slice(0,16).replace("T"," ")}</span></td>
-      <td class="c ${shelfState(m.roast_date)}">${shelfLabel(m.roast_date)}</td>
+      <td class="c ${shelfState(m.roast_date, m.bean)}">${shelfLabel(m.roast_date, m.bean)}</td>
       <td class="c fix"><button class="btn primary" onclick="freeBatch('${m.id}')">보류 해제</button>
         <button class="btn danger" onclick="scrapBatch('${m.id}')">폐기</button></td></tr>`),
     held.length ? `<td colspan="4" class="c">합 계 · ${held.length}배치</td>
@@ -14393,7 +14404,7 @@ function renderCount(){
       if (has) { sum += kg; n++; }
       const d = has ? Math.round((kg - x.kg)*100)/100 : null;
       if (d!=null && Math.abs(d)>.005) off++;
-      const st = shelfState(x.m.roast_date);
+      const st = shelfState(x.m.roast_date, x.m.bean);
       return `<tr class="${has?"":"wait"}">
         <td class="c" title="${batchTip(x.m)}"><b style="font-size:17px;letter-spacing:-.5px">${batchShort(x.m)}</b></td>
         <td class="l">${batchLabel(x.m)}</td>
@@ -14404,7 +14415,7 @@ function renderCount(){
              oninput="setCnt('${x.m.id}', this.value)"></td>
         <td class="${d==null?"":(Math.abs(d)<.005?"ok":(d<0?"bad":"warn"))}">${
           d==null ? "—" : (Math.abs(d)<.005 ? "일치" : (d>0?"+":"-")+fmt(Math.abs(d)))}</td>
-        <td class="c ${st}">${shelfLabel(x.m.roast_date)}</td>
+        <td class="c ${st}">${shelfLabel(x.m.roast_date, x.m.bean)}</td>
         <td class="c fix">${d!=null && Math.abs(d)>.005
           ? `<button class="btn" onclick="cntFix('${x.m.id}')">적용</button>` : ""}</td></tr>`;
     }),
@@ -14763,7 +14774,7 @@ const csvBatches = () => csv("MMS배치재고",
   ["배치","전체번호","현장번호","MMS코드","원두","로스팅일","그날몇번째","잔여kg","상미잔여","보류","보류사유","보류처리자","보류시각"],
   sortBatches(DB.mms.filter(m=>Number(m.stock_kg)>0))
     .map(m=>[batchLabel(m), batchFull(m), batchShort(m), mmsCodeOf(m.bean), m.bean, m.roast_date, m.batch,
-      m.stock_kg, shelfLabel(m.roast_date), isHeld(m)?"보류":"", m.hold_why||"", m.hold_by||"",
+      m.stock_kg, shelfLabel(m.roast_date, m.bean), isHeld(m)?"보류":"", m.hold_why||"", m.hold_by||"",
       String(m.hold_at||"").slice(0,16).replace("T"," ")]));
 const csvCons = () => csv("배치사용이력",
   ["작업일","일련번호","배치","전체번호","현장번호","MMS코드","원두","로스팅일","그날몇번째","사용kg","투입품목"],
@@ -14991,8 +15002,8 @@ function beanStateText(bn){
   if (!bn) return "";
   const live = sortBatches(DB.mms.filter(m=>m.bean===bn && !isHeld(m) && Number(m.stock_kg)>0));
   if (!live.length) return `<span class="bad">원두 재고 없음</span>`;
-  const o = live[0], st = shelfState(o.roast_date);
-  return `재고 ${fmt(mmsByBean(bn))}kg · <span class="${st}">${batchNo(o)} ${shelfLabel(o.roast_date)}</span>`;
+  const o = live[0], st = shelfState(o.roast_date, o.bean);
+  return `재고 ${fmt(mmsByBean(bn))}kg · <span class="${st}">${batchNo(o)} ${shelfLabel(o.roast_date, o.bean)}</span>`;
 }
 const SAFETY_AUTO_KEY = "plan.safety_auto";
 const safetyAuto = () => SETTINGS[SAFETY_AUTO_KEY] === true;
@@ -15617,7 +15628,7 @@ function fillBatch(){
   const list = p ? sortBatches(DB.mms.filter(m=>m.bean===p.bean && Number(m.stock_kg)>0)) : [];
   $("fBatch").innerHTML = `<option value="">자동 (선입 배치부터 · 보류 제외)</option>` +
     list.map(m=>`<option value="${m.id}" ${m.id===cur?"selected":""} ${isHeld(m)?"disabled":""}>${
-      batchLabel(m)} · ${fmt(m.stock_kg)}kg · ${isHeld(m)?`보류 — ${m.hold_why||"사유 미기재"}`:shelfLabel(m.roast_date)}</option>`).join("");
+      batchLabel(m)} · ${fmt(m.stock_kg)}kg · ${isHeld(m)?`보류 — ${m.hold_why||"사유 미기재"}`:shelfLabel(m.roast_date, m.bean)}</option>`).join("");
 }
 function calcPreview(){
   const p = prodById($("fProd").value), qty = Number($("fQty").value)||0;
@@ -17953,13 +17964,13 @@ function renderBaseInner(){
   const mmsList = sorted("tMms", DB.mms);
   SHOWN.mms = mmsList.map(m=>m.id);
   tbl("tMms", [selAllBox("mms"),"배치","원두","로스팅일","당일 순번","재고(kg)","상미 잔여",""],
-    mmsList.map((m,i)=>{ const st=shelfState(m.roast_date), live=Number(m.stock_kg)>0;
+    mmsList.map((m,i)=>{ const st=shelfState(m.roast_date, m.bean), live=Number(m.stock_kg)>0;
       return `<tr class="${SEL.mms.has(m.id)?"selrow":""}"><td class="rowno" style="white-space:nowrap">${selBox("mms",m.id,i)}${i+1}</td><td class="l"><b>${batchLabel(m)}</b></td>
         <td class="l">${inp("mms",m.id,"bean",m.bean,"text",'list="beanDL" data-bean="1"')}</td>
         <td class="c">${inp("mms",m.id,"roast_date",m.roast_date,"date")}</td>
         <td>${inp("mms",m.id,"batch",m.batch,"number")}</td>
         <td>${inp("mms",m.id,"stock_kg",m.stock_kg,"number",'step="0.01"')}</td>
-        <td class="c ${live?st:''}">${shelfLabel(m.roast_date)}</td>
+        <td class="c ${live?st:''}">${shelfLabel(m.roast_date, m.bean)}</td>
         <td class="c"><button class="btn danger" onclick="delRow('mms','${m.id}')">삭제</button></td></tr>`; }),
     `<td colspan="5" class="c">합 계</td><td>${fmt(DB.mms.reduce((s,m)=>s+Number(m.stock_kg||0),0))}</td><td colspan="2"></td>`);
 
@@ -22168,11 +22179,11 @@ function batchPickDialog(a){
         const hay = `${batchShort(m)} ${batchNo(m)} ${m.roast_date} ${m.roast_date.slice(5)} ${Number(m.batch)}번 ${fmt(m.stock_kg)}`;
         return q.split(/\s+/).every(w=>hay.includes(w) || hay.includes(w.replace(/^0/,"")));
       });
-      $("bpBody").innerHTML = rows.length ? rows.map(x=>{ const m = x.m, st = shelfState(m.roast_date);
+      $("bpBody").innerHTML = rows.length ? rows.map(x=>{ const m = x.m, st = shelfState(m.roast_date, m.bean);
         return `<tr data-id="${m.id}" style="cursor:pointer;${x.now?"background:var(--d-blue-soft,#EAF0FF);":""}">
           <td class="c"><b style="font-size:16px">${batchShort(m)}</b></td><td class="c">${m.roast_date}</td><td class="c">${Number(m.batch)}번</td>
           <td>${m.in_kg!=null?fmt(m.in_kg):"—"}</td><td><b>${fmt(m.stock_kg)}</b></td>
-          <td class="c ${st}">${shelfLabel(m.roast_date)}</td>
+          <td class="c ${st}">${shelfLabel(m.roast_date, m.bean)}</td>
           <td class="l">${x.now?'<span class="tag ok">현재</span> ':""}${isHeld(m)?`<span class="tag bad">보류</span> `:""}${x.used?`<span class="tag warn">다른 지시 ${x.used}</span>`:""}</td></tr>`; }).join("")
         : `<tr><td colspan="7" class="c hint" style="padding:20px">${a.list.length?"해당 배치가 없습니다":`${a.bean||"이 원두"} 의 잔여 배치가 없습니다`}</td></tr>`;
       $("bpBody").querySelectorAll("tr[data-id]").forEach(tr=>tr.onclick = () => done({ type:"batch", value:tr.dataset.id }));
@@ -23404,7 +23415,7 @@ function renderWork(){
           const useRow = (()=>{ if (!exS || !exS.per || rjd) return "";
             const mine = Math.round(needKg(p, exS.todo)*100)/100, sum = Math.round((mine + exS.othersKg)*100)/100, df = Math.round((left - sum)*100)/100;
             return `<div class="buse"><span>원두 사용</span><b style="white-space:nowrap">이 지시 ${fmt(mine)}kg</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">${share ? `+ ${exS.list.map(y=>`${specLabel(Number(y.p.spec_g)||0)}${isGround(y.p.grind)?` ${y.p.grind}`:""}${ordShipCh(y.x) !== "일반" ? `(${ordShipCh(y.x)})` : ""} ${fmt(y.todo)}개 ${fmt(y.kg)}kg`).join(" + ")} = <b>${fmt(sum)}kg</b> ` : ""}/ 배치 ${fmt(left)}kg · ${df >= 0 ? `<b class="ok">${fmt(df)}kg 남음</b>` : `<b class="bad">${fmt(-df)}kg 부족</b>`}</span></div>`; })();
-          return `<div><span>배치 중량</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}${ck>0?` <span style="color:var(--ok)">+ 이월 ${fmt(ck)}kg</span>`:""}</b> <span class="hint" style="padding:0">· 사용 가능 <b>${fmt(left)}kg</b>${ck>0?` (← ${from})`:""}${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>${stIdx(o) < 2 && shelfState(m.roast_date)==="due" ? `<div><span>상미기한</span><b><span class="tag due" style="white-space:normal">${DUE_TEXT}</span></b></div>` : stIdx(o) < 2 && shelfState(m.roast_date)==="bad" ? `<div><span>상미기한</span><b><span class="tag bad" style="white-space:normal">${shelfLabel(m.roast_date)} — 출고 불가</span></b></div>` : ""}
+          return `<div><span>배치 중량</span><b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}${ck>0?` <span style="color:var(--ok)">+ 이월 ${fmt(ck)}kg</span>`:""}</b> <span class="hint" style="padding:0">· 사용 가능 <b>${fmt(left)}kg</b>${ck>0?` (← ${from})`:""}${isHeld(m)?' · <b class="bad">보류</b>':""}</span></div>${stIdx(o) < 2 && shelfState(m.roast_date, m.bean)==="due" ? `<div><span>상미기한</span><b><span class="tag due" style="white-space:normal">${DUE_TEXT}</span></b></div>` : stIdx(o) < 2 && shelfState(m.roast_date, m.bean)==="bad" ? `<div><span>상미기한</span><b><span class="tag bad" style="white-space:normal">${shelfLabel(m.roast_date, m.bean)} — 출고 불가</span></b></div>` : ""}
             ${useRow}${canEa != null && stIdx(o) < 2 ? `<div><span>생산 가능 수량</span><b class="${canEa < todo ? "bad" : ""}" style="white-space:nowrap">약 ${fmt(canEa)}개</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">(${share ? `이 배치 ${fmt(left)}kg − 다른 지시 ${fmt(exS.othersKg)}kg = ${fmt(exS.left)}kg` : `이 배치 ${fmt(left)}kg`} ÷ 1개 ${fmt(per)}kg${Number(o.qty_ng||0)?` · 부적합 ${fmt(o.qty_ng)}개`:""}${canEa < todo ? ` · 잔여 ${fmt(todo)}개 중 ${fmt(todo-canEa)}개는 다음 배치에서` : ""})</span></div>${(()=>{ const ex = extraEa(o); if (rjd) return "";
               if (ex.n > 0 && can("plan")) return `<div class="xqty"><span>잔여 원두</span><button class="btn" onclick="event.stopPropagation();addExtraQty('${o.id}')" title="이 배치의 잔여 원두만큼 목표 수량을 증량합니다${ex.others?` · 동일 배치를 사용하는 다른 지시 ${fmt(ex.others)}개분은 제외했습니다`:""}">＋${fmt(ex.n)}개 추가 → 목표 ${fmt(ordPlan(o)+ex.n)}개</button></div>`;
               if (ex.n > 0) return `<div class="xqty"><span>잔여 원두</span><b class="xwhy">＋${fmt(ex.n)}개 추가 가능</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">'생산계획·작업지시' 권한이 있는 계정에서 추가할 수 있습니다</span></div>`;
@@ -23922,7 +23933,7 @@ function batchCard(m){
   return `<div class="panel" style="margin-bottom:14px">
     <div class="panel-h">${canPurge() ? `<input type="checkbox" class="selbox" ${TR_SEL.has("mms:"+m.id)?"checked":""} onclick="trToggle('mms:${m.id}',this.checked)" title="선택 일괄 삭제" style="margin-right:8px">` : ""}배치 ${batchFull(m)} <span class="r hint">현장번호 ${batchShort(m)} · 라벨 ${batchLabel(m)}${canPurge() ? ` <button class="btn" style="height:26px;color:var(--bad);margin-left:8px" onclick="purgeOne('mms','${m.id}')" title="시스템 관리자 — 이 배치를 기록과 함께 삭제합니다">이 기록 삭제</button>` : ""}</span></div>
     <div class="hint"><b>${m.bean}</b> · 로스팅 ${m.roast_date} ${Math.round(Number(m.batch)||0)}번 ·
-      ${shelfLabel(m.roast_date)} · 현재 잔여 재고 <b>${fmt(m.stock_kg)}kg</b></div>
+      ${shelfLabel(m.roast_date, m.bean)} · 현재 잔여 재고 <b>${fmt(m.stock_kg)}kg</b></div>
     <div class="panel-b"><table><thead><tr><th>일자</th><th>구분</th><th>수량</th><th class="l">내용</th><th>일련번호·기록자</th></tr></thead>
       <tbody>${rows.length ? rows.map(r=>`<tr><td class="c">${r[0]}</td>
         <td class="c"><span class="tag ${r[1]==="입고"||r[1]==="보류 해제"?"ok":(r[1]==="조정"||r[1]==="보류"||r[1]==="폐기")?"bad":"warn"}">${r[1]}</span></td>
@@ -25463,7 +25474,7 @@ function fixedCarryOf(d){
   const prev = DB.orders.reduce((mx,o)=>o.work_date && o.work_date < d && o.work_date > mx ? o.work_date : mx, "");
   return { day:prev, list:xs.filter(o=>o.work_date === prev).sort((a,b)=>String(ordShipCh(a)).localeCompare(String(ordShipCh(b))) || (Number(a.priority)||0)-(Number(b.priority)||0)) };
 }
-const dueBatches = () => sortBatches(DB.mms.filter(m=>Number(m.stock_kg) > 0 && !isHeld(m) && shelfState(m.roast_date) === "due"));
+const dueBatches = () => sortBatches(DB.mms.filter(m=>Number(m.stock_kg) > 0 && !isHeld(m) && shelfState(m.roast_date, m.bean) === "due"));
 /* 현장 작업 · 생산계획 위쪽 알림 — where: "work" | "plan" */
 function beanNoteHTML(d, where){
   const out = [];
@@ -25473,8 +25484,8 @@ function beanNoteHTML(d, where){
   const fc = fixedCarryOf(d);
   if (fc.list.length) out.push(`<div class="bn fix">📌 ${fc.day} 채널 지정 원두 — 미생산 ${fc.list.length}건 (그 상품으로 나가야 하는 원두 · 자동 재배정하지 않습니다)
       ${where === "work" ? `<button class="btn" style="height:28px;margin-left:6px" onclick="$('wkDate').value='${fc.day}';renderWork()">${fc.day} 열기</button>` : ""}<br>` +
-    fc.list.slice(0, 12).map(o=>{ const m = ordBatchMms(o), st = m ? shelfState(m.roast_date) : "";
-      return `${chChip(ordShipCh(o))} ${o.product_name || prodById(o.product_id)?.name || ""} <b>${fmt(ordTodoEa(o))}개</b>${m ? ` · ${batchShort(m)} 잔량 ${fmt(m.stock_kg)}kg <span class="${st === "ok" ? "" : st}" style="${st === "due" ? "background:var(--bad);color:#fff;padding:0 5px;border-radius:5px" : ""}">${shelfLabel(m.roast_date)}</span>` : o.serial ? ` · ${o.serial}` : ""}`; }).join("<br>") +
+    fc.list.slice(0, 12).map(o=>{ const m = ordBatchMms(o), st = m ? shelfState(m.roast_date, m.bean) : "";
+      return `${chChip(ordShipCh(o))} ${o.product_name || prodById(o.product_id)?.name || ""} <b>${fmt(ordTodoEa(o))}개</b>${m ? ` · ${batchShort(m)} 잔량 ${fmt(m.stock_kg)}kg <span class="${st === "ok" ? "" : st}" style="${st === "due" ? "background:var(--bad);color:#fff;padding:0 5px;border-radius:5px" : ""}">${shelfLabel(m.roast_date, m.bean)}</span>` : o.serial ? ` · ${o.serial}` : ""}`; }).join("<br>") +
     (fc.list.length > 12 ? `<br>… 외 ${fc.list.length-12}건` : "") + `</div>`);
   if (where === "plan") { const inf = planBatches.info || { expired:[] };
     if (inf.expired.length) out.push(`<div class="bn exp">상미기한 초과 ${inf.expired.length}배치 · ${fmt(Math.round(inf.expired.reduce((t,m)=>t+Number(m.stock_kg||0),0)*100)/100)}kg — 자동 배정에서 제외했습니다 : ${inf.expired.slice(0,10).map(m=>`${m.bean} ${batchShort(m)} ${fmt(m.stock_kg)}kg`).join(" · ")}${inf.expired.length>10?" …":""}</div>`); }
@@ -25514,9 +25525,9 @@ function renderCloseBean(d, rec){
   if (S.costco.length) h += row(`③ 코스트코 — 미완료 ${S.costco.length}건 (완료될 때까지 날짜와 상관없이 현장 작업에 계속 표시)`, S.costco.map(o=>"· " + ordLine(o)).join("<br>"));
   h += row(`④ 이 날짜 지시가 사용한 배치의 잔량 ${S.left.length}배치`,
       S.left.length ? `<table style="width:100%"><thead><tr><th>현장번호</th><th class="l">원두</th><th>로스팅일</th><th>잔량(kg)</th><th>상미 잔여</th><th class="l">내일</th></tr></thead><tbody>` +
-        S.left.map(m=>{ const st = shelfState(m.roast_date), L = daysLeft(m.roast_date);
+        S.left.map(m=>{ const st = shelfState(m.roast_date, m.bean), L = daysLeft(m.roast_date, m.bean);
           return `<tr><td class="c" title="${batchTip(m)}"><b>${batchShort(m)}</b></td><td class="l">${m.bean}</td><td class="c">${m.roast_date}</td><td><b>${fmt(m.stock_kg)}</b></td>
-            <td class="c ${st}">${shelfLabel(m.roast_date)}</td><td class="l">${L <= 0 ? '<span class="bad">출고 불가</span>' : L === 1 ? '<span class="due">내일까지만 출고 가능</span>' : "사용 가능"}</td></tr>`; }).join("") + `</tbody></table>`
+            <td class="c ${st}">${shelfLabel(m.roast_date, m.bean)}</td><td class="l">${L <= 0 ? '<span class="bad">출고 불가</span>' : L === 1 ? '<span class="due">내일까지만 출고 가능</span>' : "사용 가능"}</td></tr>`; }).join("") + `</tbody></table>`
         : `<span class="hint" style="padding:0">잔량이 남은 배치가 없습니다</span>`);
   if (!B) h += can("plan")
     ? `<button class="btn primary" onclick="beanCloseRun()">원두 일 마감 실행${S.rel.length ? ` — ${S.rel.length}건 배정 해제` : ""}</button> <span class="hint" style="padding:0">[현장 마감 완료]를 눌러도 같이 실행됩니다</span>`
