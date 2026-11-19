@@ -2097,8 +2097,8 @@
 <section class="screen" id="s-trace">
   <div class="cond">
     <label>품목</label><select id="trProd" onchange="renderTrace()" style="min-width:220px"><option value="">(전체)</option></select>
-    <label>검색</label><input type="text" id="trQ" placeholder="일련번호 · 봉투/부자재 LOT · 지시번호 · 배치번호(2801 / 26102801 / 2026-10-28)" style="width:360px" oninput="renderTrace()">
-    <button class="btn primary" onclick="renderTrace()">조회</button>
+    <label>검색</label><input type="text" id="trQ" placeholder="일련번호 · 봉투/부자재 LOT · 지시번호 · 배치번호(2801 / 26102801 / 2026-10-28)" style="width:360px" oninput="renderTrace()" onkeydown="if(event.key==='Enter')traceSearch()">
+    <button class="btn primary" onclick="traceSearch()">조회</button> <span id="trOld"></span>
   </div>
   <div class="body">
     <h2 class="page">이력추적<small id="asof-trace"></small></h2>
@@ -4093,6 +4093,21 @@ const halfTyped = v => { const t = String(v??"").trim();
   return t==="" || t==="-" || t==="." || /[.,]$/.test(t) || /^-?[.,]/.test(t) || /[.,]\d*0$/.test(t); };
 const numOf = v => { const n = parseFloat(String(v??"").replace(/,/g,"")); return isFinite(n) ? n : 0; };
 
+/* ══ ★ 2026-11-19 숫자를 칠 때 끊기던 것 (Lee "지금도 숫자 입력하면 끊김 현상이 발생해")
+   원인 ① 글자 하나마다 화면 전체를 그 자리에서 다시 그렸다 (재고 실사 · 라벨작업 · 로스팅 입고 · 요청서 · 재작업) → 치는 동안은 모았다가 손을 멈추면 한 번만 그린다
+   원인 ② 누가 저장할 때마다 · 계획 숫자를 칠 때마다 안 보이는 화면 20여 개를 뒤에서 하나씩 다시 그렸는데, 그 사이에 키를 누르면 그리기가 끝날 때까지 글자가 안 찍혔다 → 치는 중에는 뒤 작업을 미룬다
+   · typedRender(이름, 그리는 함수) — 0.4초 동안 더 치지 않으면 그린다 · 칸을 벗어나면 바로 그린다 · 값은 치는 즉시 저장 대상에 들어가 있다(그리기만 늦춘다) ══ */
+let LAST_TYPE_AT = 0;
+["keydown","input","compositionupdate"].forEach(ev=>document.addEventListener(ev, e=>{ const t = e.target;
+  if (t && /^(INPUT|TEXTAREA)$/.test(t.tagName || "") && t.type !== "checkbox" && t.type !== "button") LAST_TYPE_AT = Date.now(); }, true));
+const typingNow = () => Date.now() - LAST_TYPE_AT < 1200;
+const TYPED = {};
+function typedRender(key, fn, ms){
+  if (TYPED[key]) clearTimeout(TYPED[key].tm);
+  TYPED[key] = { fn, tm:setTimeout(()=>{ delete TYPED[key]; keepFocus(fn); }, ms || 400) };
+}
+function typedFlush(){ Object.keys(TYPED).forEach(k=>{ const x = TYPED[k]; clearTimeout(x.tm); delete TYPED[k]; try { keepFocus(x.fn); } catch(e){ console.warn(e); } }); }
+document.addEventListener("focusout", ()=>{ if (Object.keys(TYPED).length) setTimeout(()=>{ if (!typingNow() || !/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) typedFlush(); }, 60); });
 function keepFocus(fn, tries){
   let el = document.activeElement;
   /* Tab 으로 넘어가는 순간(blur→change→focus 사이)엔 아직 다음 칸에 커서가 없다 — 한 박자 뒤에 그리면 다음 칸이 잡힌다
@@ -7825,6 +7840,7 @@ async function applyOpening(id){
 }
 
 async function runReconcile(){
+  if (!(await needAll("재고 대조"))) return;                 // 받아 둔 범위만으로 대조하면 지난 기록을 "없는 것"으로 보고 다시 옮겨 적는다
   const moved = migrateStock();
   const rows = reconcileStock();
   renderRec();
@@ -8098,6 +8114,11 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "화면 그리기 가볍게 — 모든 화면 공통", "화면을 그릴 때마다 전체 버튼 · 입력칸 수천 개의 권한을 처음부터 다시 판정하던 것을, 한 번 판정한 것은 다시 쓰게 했습니다 · 현장 작업 · 검수 · 출고 · 라벨작업 · 재고 실사 등 모든 화면에서 그리는 시간이 줄어듭니다 · 권한 규칙은 그대로입니다"],
+  ["2026-11-19", "처음 열 때 최근 90일 자료만 받기", "앱을 열 때 서버 자료를 전부 받던 것을 최근 90일만 받게 했습니다 — 자료가 쌓여도 여는 시간과 화면 속도가 유지됩니다 · 기준정보는 전부 받습니다 · 끝나지 않은 지시 · 재고가 남은 배치 · 확인이 끝나지 않은 실적 · 부자재 입고 기록은 날짜와 상관없이 받습니다 · 그 전 자료는 이력추적 [조회] · 통합 조회 · 생산분석 · 로스관리 · 생산실적 · 부자재 사용·로스에서 기간을 넓히면 서버에서 받아 옵니다 · 전체 백업 · 재고 대조 · 초기화는 지난 자료를 전부 받은 뒤에 진행합니다 · 서버 자료는 지우거나 옮기지 않습니다 · 되돌리기: 시작 전 점검 › 자료 양 › [이 기기는 전부 받기]"],
+  ["2026-11-19", "지난 자료를 필요할 때 서버에서 받기 (준비 단계)", "앱이 최근 자료만 받아 두게 바꾸기 전의 준비입니다 — 지금은 전과 같이 전부 받으므로 화면에 달라지는 것은 없습니다 · 이력추적 [조회](또는 Enter)는 일련번호 · LOT · 지시번호 · 배치번호로 서버 전체에서 찾고, 그 건에 연결된 원두 차감 · 배치 · 검수 · 출고 · 부자재 기록을 따라가 받아 옵니다 · 통합 조회 · 생산분석 · 로스관리 · 생산실적 · 부자재 사용·로스는 받아 둔 범위보다 앞 기간을 고르면 그 구간을 서버에서 받아 옵니다 · 서버 자료는 지우거나 옮기지 않습니다"],
+  ["2026-11-19", "숫자 입력 끊김 개선", "숫자를 칠 때 글자가 늦게 찍히던 것을 고쳤습니다 · ① 재고 실사 · 라벨작업 · 로스팅 입고 · 요청서 · 재작업 — 글자 하나마다 화면 전체를 다시 그리던 것을, 치는 동안은 모았다가 손을 멈추면(0.4초) 한 번만 그립니다 · 칸을 벗어나면 바로 그립니다 · ② 다른 기기에서 저장할 때마다 · 계획 숫자를 칠 때마다 안 보이는 화면 20여 개를 뒤에서 다시 그리던 것 — 치는 중에는 미루고, 조회 · 분석 화면(통합 조회 · 생산분석 · 생산실적 · 로스관리 · 이력추적 · 재고 현황 · 기준정보 등)은 메뉴로 열 때만 그립니다 · ③ 생산계획 숫자 입력 후 다시 계산까지 0.2초 → 0.4초 · 값이 저장되는 방식은 그대로입니다"],
+  ["2026-11-19", "전체 백업 보강 · 자료 양 표시", "시작 전 점검에 [자료 양 · 백업] 칸 — 표별 줄 수와 마지막으로 백업 받은 날을 보여 주고 [전체 백업 받기] 버튼이 있습니다 · 7일 넘게 받지 않으면 「확인」으로 뜹니다 · 백업 파일에 설정과 출고장 재고(CFE 묶음 · 출고 기록)도 담습니다 — 전에는 빠져 있었습니다 · 서버 자동 백업이 없는 동안의 대비입니다 · 백업 파일을 서버로 다시 넣는 기능은 아직 없습니다"],
   ["2026-11-19", "부자재 사용 · 로스 화면", "메뉴 › 분석 · 기준 › [부자재 사용·로스] (관리자 · 현장 관리자) — 기간(오늘 · 이번 주 · 이번 달 · 직접)과 구분(봉투 · 풀패키지 / 라벨 / 전체)을 골라 자재별 기초 재고 · 입고(불출 받은 양) · 생산 사용 · 폐기 · 실사 조정 · 로스 · 로스율 · 기말 재고를 봅니다 · 로스 = 폐기 + 재고 실사에서 줄어든 양 · 로스율 = 로스 ÷ (생산 사용 + 로스) · 줄을 누르면 그 자재의 기록이 펼쳐집니다 · [엑셀 다운로드] · 이미 쌓이고 있는 부자재 입출고 기록을 더한 것이라 SQL 은 필요 없습니다 · 시작 전 점검에 088 설치 확인 추가"],
   ["2026-11-19", "CFE 완제품 — 상미기한 지난 묶음은 출고 확정에서 제외 (088 SQL)", "출고 › 출고장 재고 — 상미기한이 지난 묶음은 [출고 확정] 때 빠지지 않습니다 (088_cfe_shelf.sql 실행 필요) · 전에는 경고만 뜨고 출고는 되었습니다 · 출고장 재고 칸에 「상미 초과 n개 — 출고 제외」 표시 · 확정 후 잔량 · 부족 계산도 출고 가능한 수량 기준 · 기한 지난 묶음은 그대로 남으니 실물 확인 후 재고 세기로 정리 · 상미기한 일수를 넣지 않았으면 전과 같습니다 · 코스트코 품목 · 제조일자를 모르는 묶음은 보지 않습니다"],
   ["2026-11-19", "현장 카드 — 근거 없는 예상 시간은 숨김", "현장 작업 카드의 「⏱ 예상 약 …」은 그 설비 · 그 규격의 최근 실적이 있을 때만 보입니다 · 전에는 실적이 없으면 전체 평균으로 계산해 「약 6시간 31분」처럼 부풀려 나왔습니다 · 생산분석 › 예상 화면은 그대로입니다"],
@@ -11242,7 +11263,7 @@ function setMt(id, k, v){
   /* 치는 중에는 화면에만 두고, 칸을 벗어날 때 한 번 보냅니다 */
   if (k==="order_qty" || k==="ng_qty") { if (halfTyped(v)) return; t[k] = Math.max(0, Math.round(numOf(v))); t.auto = 0; }
   else t[k] = v;
-  keepFocus(renderMt);
+  typedRender("mt", renderMt);
 }
 /* 칸에서 손을 뗐을 때 — 여기서 한 번 보냅니다 */
 async function commitMt(id, k){
@@ -11844,15 +11865,16 @@ document.addEventListener("focusout", ()=>{ if (Object.keys(SAVE_SOON).length) s
 let PLAN_TM = null, PLAN_REST = null;
 function renderRestIdle(cur){
   if (PLAN_REST) PLAN_REST.cancel = true;
-  const job = { cancel:false }, rest = SCREENS.filter(x=>x !== cur); PLAN_REST = job;
-  const step = () => { if (job.cancel) return; if (!rest.length) return; try { renderOne(rest.shift()); } catch(e){ console.warn(e); } idle(step); };
+  const job = { cancel:false }, rest = bgScreens(cur); PLAN_REST = job;
+  const step = () => { if (job.cancel) return; if (!rest.length) return; if (typingNow()) { setTimeout(step, 500); return; }      // ★ 치는 중에는 뒤 화면을 그리지 않는다
+    try { renderOne(rest.shift()); } catch(e){ console.warn(e); } idle(step); };
   idle(step);
 }
 function planRenderSoon(ms){
   clearTimeout(PLAN_TM);
   PLAN_TM = setTimeout(()=>{ PLAN_TM = null; const cur = curScreen();
     keepFocus(()=>{ try { render(cur); } catch(e){ console.warn(e); } });
-    renderRestIdle(cur); }, ms || 200);
+    renderRestIdle(cur); }, ms || 400);
 }
 function setPlan(id,v){
   planEA[id] = numOf(v);
@@ -12477,7 +12499,7 @@ function setRwIn(id,k,v){
   const r = rwIn.find(x=>x.id===id); if(!r) return;
   if (k==="qty"){ if (halfTyped(v)) return; r.qty = Math.max(0, Math.round(numOf(v))); }
   else { r[k] = v; if (k==="product_id") r.log_id = (logsOf(v)[0]||{}).id || ""; }
-  keepFocus(renderRw);
+  typedRender("rw", renderRw);
 }
 const delRwIn = id => { rwIn = rwIn.filter(x=>x.id!==id); renderRw(); };
 
@@ -14043,7 +14065,7 @@ function setLine(id, k, v){
   else if (k==="batch_no") { if (halfTyped(v)) return;
     l.batch_no = String(v).trim()==="" ? null : Math.round(numOf(v)); }
   else l[k] = v;
-  keepFocus(()=>{ renderIn(); renderRoast(); });
+  typedRender("line", ()=>{ renderIn(); renderRoast(); });
 }
 /* 칸에서 손을 뗐을 때 한 번 보냅니다 */
 async function commitLine(id, k){
@@ -14566,12 +14588,12 @@ function setCnt(mmsId, v){
   if (t === ""){                                   // 지움
     const cur = cntRowOf(D, mmsId);
     if (cur){ DB.counts = DB.counts.filter(c=>c.id!==cur.id);
-      keepFocus(()=>renderRoast()); }
+      typedRender("cnt", ()=>renderRoast()); }
     return;
   }
   if (halfTyped(t)) return;                        // "62." 처럼 아직 숫자가 아니면 계속 치게 둔다
   putCnt(D, m, Math.round(numOf(t)*100)/100);
-  keepFocus(()=>renderRoast());
+  typedRender("cnt", ()=>renderRoast());
 }
 async function cntFillBook(){
   if (!(await requireUser())) return;
@@ -15237,7 +15259,7 @@ function setReq(id,k,v){
   }
   else row[k] = v;
   if (k!=="bean" && k!=="note" && halfTyped(v)) return;    // 아직 치는 중
-  keepFocus(renderReq);
+  typedRender("req", renderReq);
 }
 function snapReq(id, el){
   const row = reqRows.find(r=>r.id===id); if(!row) return;
@@ -15955,6 +15977,7 @@ function renderLog(){
   if (!$("fDate").value) $("fDate").value = today();
   fillSelects();
   const d = $("fDate").value, logs = DB.logs.filter(l=>l.work_date===d);
+  wantFrom("log", d, renderLog);
   if ($("logDay")) $("logDay").textContent = "· " + d;
 
   // 수령 확인 대기 · 수정요청 (날짜 무관, 전체)
@@ -17101,6 +17124,8 @@ async function emptyBagToLog(mmsId){
   renderAll(); toast(`정정했습니다 — ${l.serial||""} 로스 ${fmt(lossKg)}kg (${pct}%)`);
 }
 function renderLoss(){
+  { const r = $("lossRange")?.value, d = new Date(); d.setMonth(d.getMonth() - 1);
+    wantFrom("loss", r === "all" ? "2000-01-01" : r === "lm" ? d.toISOString().slice(0,7) + "-01" : today().slice(0,8) + "01", renderLoss); }
   const all = lossLogs(), logs = all.filter(logLive);
   renderLossRule(); renderLossLogs(all); renderLossAvg(all);
   const c = lossCfg(), lo = Math.max(0, c.def - c.tol), hi = c.def + c.tol;
@@ -17363,7 +17388,7 @@ function setPackQty(labelId, v){
   if (halfTyped(v)) return;
   L.pack_qty = Math.max(1, Math.round(numOf(v)));
   save("materials", L);
-  keepFocus(renderAll);
+  typedRender("pack", renderAll, 700);
 }
 /* ══ 품목 포장재 자동 연동 (Lee 2026-11-01) ══
    "풀패키지로 클릭하면 자동으로 연동 · 이카 전용이면 롤패키지 · 풀패키지가 아니면 공용봉투, 하바나 라인은 하바나 봉투만"
@@ -18390,13 +18415,22 @@ function printWorkOrder(){
 }
 
 /* ── 초기화 / 백업 ── */
-function backupAll(){
-  const blob = new Blob([JSON.stringify(DB,null,1)], {type:"application/json"});
+/* ★ 2026-11-19 백업에 설정 · 출고장 재고(CFE 묶음 · 출고 기록)도 담는다 — 전에는 DB 표만 담겨 설정과 출고장 재고가 빠졌다
+     · 마지막으로 받은 날을 이 기기에 적어 두고 [시작 전 점검]에 보여 준다 (서버 자동 백업이 없는 동안의 대비) */
+const BACKUP_AT_KEY = "momos.backupAt";
+async function backupAll(){
+  if (!(await needAll("전체 백업"))) return;
+  const pack = Object.assign({}, DB, { __meta:{ at:nowISO(), by:CURRENT_USER || "", app:"MOMOS 생산계획", rows:dbRowCount().total }, __settings:SETTINGS, __yard_lots:YARD_LOTS, __yard_outs:YARD_OUTS });
+  const blob = new Blob([JSON.stringify(pack)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `MOMOS생산계획_백업_${today()}.json`; a.click();
-  toast("백업 파일을 저장했습니다");
+  try { localStorage.setItem(BACKUP_AT_KEY, nowISO()); } catch(_){}
+  toast(`백업 파일을 저장했습니다 — ${fmt(blob.size/1024/1024)}MB`);
+  try { if (curScreen() === "ready") renderReady(); } catch(_){}
 }
+function dbRowCount(){ const by = Object.keys(DB).filter(k=>Array.isArray(DB[k])).map(k=>({ k, n:DB[k].length })).sort((a,b)=>b.n - a.n);
+  return { by, total: by.reduce((t,x)=>t + x.n, 0) }; }
 /* ★ 2026-10-29 — 실적·이력에 나중에 생긴 표(반려 · 지시 이력 · 출고 · 수불 · 참여 · 재작업 …)까지.
      전에는 5개 표만 지워서 초기화해도 조회·이력추적·반려 이력에 예전 기록이 나왔다 */
 const WIPE_TX = ["orders","order_events","order_workers","qc_rejections","shipments","stock_moves","ng_adjustments",
@@ -18412,6 +18446,7 @@ const WIPE_SETS = {
 async function wipe(kind){
   const set = WIPE_SETS[kind]; if(!set) return;
   if (!(await requireUser())) return;
+  if (!(await needAll("초기화"))) return;
   const WIPE_DESC = {
     tx:"작업지시 · 생산실적 · 원두사용 · 로스팅 · 품질 · 검수 · 출고 · 집계 · 실측 · 수불 · 라벨작업 · 재작업 · 일정 · 생산계획",
     stock:"CFE 현재고 · MMS 배치 kg · 부자재 현재고를 0 으로 초기화 (수불 원장 포함)",
@@ -18527,6 +18562,7 @@ async function wipePick(){
   if (!(await requireUser())) return;
   if (!isManager()) return ask("관리자 계정만 수행할 수 있습니다.", { title:"선택 삭제", yes:"확인", only:true });
   const ks = await wipePickDialog(); if (!ks) return;
+  if (!(await needAll("선택 삭제"))) return;
   const cats = WIPE_CATS.filter(c=>ks.includes(c.k));
   const tables = [...new Set(cats.flatMap(c=>c.tb))];
   if (!(await ask(`아래 항목을 삭제합니다. 복원할 수 없습니다 — 먼저 [백업]을 실행하십시오.\n\n${cats.map(c=>`· ${c.t}`).join("\n")}`, { title:"선택 삭제", yes:"계속", danger:true }))) return;
@@ -18723,21 +18759,181 @@ async function fetchTable(t){
   }
   return out;
 }
+/* ══ ★ 2026-11-19 처음 열 때 최근 90일만 받는다 (Lee "속도를 올리고 싶은것 뿐" · "90일로 하자")
+   · 기준정보(품목 · 원두 · BOM · 부자재 · 설비 · 작업자 · 권한 · 보류 …)는 전부 받는다
+   · 날짜가 있는 표(지시 · 실적 · 원두 차감 · 배치 · 부자재 입출고 · 수불 · 집계 · 변경 이력 …)는 최근 LOAD_DAYS 일만
+   · 날짜와 상관없이 받는 것 — 끝나지 않은 지시(대기 · 생산중 · 생산완료 · 검수완료) · 재고가 남은 배치 · 확인이 끝나지 않은 실적 · 부자재 입고 기록
+     + 그 건들에 딸린 기록(원두 차감 · 지시 이력 · 출고 · 수불 · 실측 …)
+   · 그 전 자료는 조회할 때 서버에서 받는다 (ensureFrom · ensureTrace). 서버 자료는 지우지 않는다
+   · 이 기기만 전처럼 전부 받게 하려면: 시작 전 점검 › 자료 양 › [이 기기는 전부 받기] ══ */
+const LOAD_DAYS = 90, LOAD_ALL_KEY = "momos.loadAll";
+const loadAllWanted = () => { try { return localStorage.getItem(LOAD_ALL_KEY) === "1"; } catch(_){ return false; } };
+function setLoadAll(on){ try { on ? localStorage.setItem(LOAD_ALL_KEY, "1") : localStorage.removeItem(LOAD_ALL_KEY); } catch(_){}
+  toast(on ? "이 기기는 다음에 열 때부터 자료를 전부 받습니다 — 지금 다시 불러옵니다" : "이 기기는 최근 90일 자료만 받습니다 — 지금 다시 불러옵니다"); reloadDB({ silent:true }).then(()=>{ try { render(curScreen()); } catch(_){} }); }
+/* 최근 90일 받기가 어떤 이유로든 실패하면(서버가 조건을 거부 등) 전처럼 전부 받는다 — 앱이 열리지 않는 일은 없게 */
+let LOAD_WIN_ERR = "";
 async function loadTables(onProgress){
+  if (loadAllWanted()) { LOAD_WIN_ERR = ""; return loadTablesRun(onProgress, true); }
+  try { const r = await loadTablesRun(onProgress, false); LOAD_WIN_ERR = ""; return r; }
+  catch(e){ LOAD_WIN_ERR = String(e?.message || e); console.warn("[MES] 최근 90일 받기 실패 — 전부 받습니다", e); return loadTablesRun(onProgress, true); }
+}
+async function loadTablesRun(onProgress, full){
   const t0 = performance.now();
+  const since = addDaysStr(today(), -LOAD_DAYS), ts = since + "T00:00:00+09:00";
   const list = TABLES.filter(t => !LOAD_SKIP.includes(t));
   const loaded = {}; LOAD_SKIP.forEach(t => loaded[t] = []);
+  const getT = t => full ? fetchTable(t)
+    : WIN_COL[t] ? fetchQ(t, q=>q.gte(WIN_COL[t], since))
+    : WIN_TS[t] ? fetchQ(t, q=>q.gte(WIN_TS[t], ts))
+    : t === "rework_in" ? Promise.resolve([])                // 아래에서 재작업 건에 맞춰 받는다
+    : fetchTable(t);
   let next = 0, done = 0;
   const worker = async () => {
     while (next < list.length) {
       const t = list[next++];
-      loaded[t] = await fetchTable(t);
+      loaded[t] = await getT(t);
       done++; if (onProgress) onProgress(done, list.length);
     }
   };
   await Promise.all(Array.from({ length: Math.min(8, list.length) }, worker));
-  console.info(`[MES] 표 ${list.length}개 불러옴 — ${Math.round(performance.now() - t0)}ms`);
+  if (full) DATA_FROM = null;
+  else { await loadKeep(loaded, since); DATA_FROM = since; }
+  OLD_FAIL = "";
+  console.info(`[MES] 표 ${list.length}개 불러옴 — ${Math.round(performance.now() - t0)}ms · ${full ? "전체" : since + " 이후"} · ${Object.values(loaded).reduce((t,r)=>t+r.length,0)}줄`);
   return loaded;
+}
+/* 날짜와 상관없이 있어야 하는 것 + 거기에 딸린 기록 */
+async function loadKeep(L, since){
+  const add = (t, rows) => { if (!L[t]) L[t] = []; const has = new Set(L[t].map(r=>r.id)); (rows || []).forEach(r=>{ if (r && !has.has(r.id)) { L[t].push(r); has.add(r.id); } }); };
+  const [oOpen, mStock, lOpen, mvIn] = await Promise.all([
+    fetchQ("orders", q=>q.lt("work_date", since).or('status.is.null,status.in.("대기","생산중","생산완료","검수완료")')),
+    fetchQ("mms", q=>q.lt("roast_date", since).neq("stock_kg", 0)),
+    fetchQ("logs", q=>q.lt("work_date", since).or("status.neq.approved,and(status.is.null,received_by.is.null)")),
+    fetchQ("material_moves", q=>q.lt("date", since).eq("kind", "입고")) ]);
+  add("orders", oOpen); add("mms", mStock); add("logs", lOpen); add("material_moves", mvIn);
+  const oIds = oOpen.map(o=>o.id), mIds = mStock.map(m=>m.id);
+  const haveL = new Set(L.logs.map(l=>l.id));
+  add("logs", await fetchIn("logs", "id", oOpen.map(o=>o.log_id).filter(id=>id && !haveL.has(id))));
+  const [cM, cL0] = await Promise.all([ fetchIn("consumptions", "mms_id", mIds), fetchIn("consumptions", "log_id", [...lOpen.map(l=>l.id), ...oOpen.map(o=>o.log_id)]) ]);
+  add("consumptions", cM); add("consumptions", cL0);
+  const haveL2 = new Set(L.logs.map(l=>l.id));
+  add("logs", await fetchIn("logs", "id", cM.map(c=>c.log_id).filter(id=>id && !haveL2.has(id))));                 // 남은 배치를 쓴 지난 생산 (배치별 로스 계산)
+  const lIds = L.logs.filter(l=>String(l.work_date || "") < since).map(l=>l.id);
+  const R = await Promise.all([
+    fetchIn("order_events","order_id",oIds), fetchIn("order_workers","order_id",oIds), fetchIn("shipments","order_id",oIds), fetchIn("qc_rejections","order_id",oIds), fetchIn("pqc","order_id",oIds), fetchIn("ng_adjustments","order_id",oIds),
+    fetchIn("stock_moves","ref_id",[...oIds, ...lIds, ...mIds]), fetchIn("stock_moves","mms_id",mIds), fetchIn("usages","mms_id",mIds), fetchIn("counts","mms_id",mIds), fetchIn("adjust","ref_id",mIds), fetchIn("roast_lines","mms_id",mIds),
+    fetchIn("log_amendments","log_id",lIds), fetchIn("material_moves","ref",lIds.map(String)) ]);
+  ["order_events","order_workers","shipments","qc_rejections","pqc","ng_adjustments","stock_moves","stock_moves","usages","counts","adjust","roast_lines","log_amendments","material_moves"].forEach((t,i)=>add(t, R[i]));
+  add("rework_in", await fetchIn("rework_in", "rework_id", (L.rework || []).map(r=>r.id)));
+}
+/* 지난 자료 전체가 있어야 하는 작업(전체 백업 · 재고 대조 · 초기화) 앞에서 — 전부 받아 온 뒤에 진행한다 */
+async function needAll(what){
+  if (!sb || !DATA_FROM) return true;
+  oldBusy(true, `${what} — 지난 자료 전체를 서버에서 받는 중…`);
+  try { await ensureFrom("2000-01-01"); oldBusy(false); return true; }
+  catch(e){ oldBusy(false); console.warn(e); await ask(`지난 자료를 받지 못해 ${what}을(를) 진행하지 않았습니다.\n연결을 확인한 뒤 다시 시도하십시오.`, { title:what, yes:"확인", only:true }); return false; }
+}
+/* ══ ★ 2026-11-19 지난 자료는 필요할 때 서버에서 받는다 (Lee "심사가 있어 이력 추적을 하려면 그 자료가 필요해 · 다 찾을 수 있는거야?")
+   · DATA_FROM = 이 날짜부터의 자료만 앱이 받아 둔 상태 (null = 전부 받아 둠 → 아래 함수들은 아무것도 하지 않는다)
+   · ensureFrom(날짜)   — 기간을 넓혀 볼 때: 그 날짜 ~ DATA_FROM 사이의 자료를 서버에서 받아 합친다 (통합 조회 · 생산분석 · 로스관리 · 부자재 사용·로스)
+   · ensureTrace(검색어) — 이력추적: 일련번호 · LOT · 지시번호 · 배치번호로 서버 전체에서 찾고, 그 건에 연결된 기록(원두 차감 · 배치 · 검수 · 출고 · 부자재)을 따라가 받아 합친다
+   · 서버 자료는 지우거나 옮기지 않는다 — 받는 범위만 다르다. 받아 온 지난 자료는 이 기기의 화면에만 더해진다 ══ */
+let DATA_FROM = null, OLD_BUSY = false, OLD_FAIL = "";
+const oldLimited = () => !!DATA_FROM && DATA_FROM > "2001";      // 화면 안내용 — 지난 자료를 전부 받아 온 뒤(2000-01-01)에는 안내를 띄우지 않는다
+const WIN_COL = { orders:"work_date", logs:"work_date", consumptions:"work_date", mms:"roast_date", material_moves:"date", label_moves:"date", material_tasks:"date", material_task_reverts:"date",
+  tallies:"date", counts:"count_date", usages:"use_date", adjust:"adj_date", pqc:"date", rework:"date", roasting:"plan_date", roast_lines:"roast_date", grind_tallies:"date", shipments:"ship_date", stock_moves:"move_date" };
+const WIN_TS = { audit:"at", order_events:"at", qc_rejections:"created_at", order_workers:"in_at", ng_adjustments:"adjusted_at", log_amendments:"amended_at" };
+function mergeRows(t, rows){
+  if (!rows || !rows.length) return 0; if (!Array.isArray(DB[t])) DB[t] = [];
+  const has = new Set(DB[t].map(r=>r.id)); let n = 0;
+  rows.forEach(r=>{ if (r && r.id != null && !has.has(r.id)) { DB[t].push(r); has.add(r.id); n++; } }); return n;
+}
+async function fetchQ(t, build, max){
+  const out = [], cap = max || 200000;
+  for (let from = 0; from < cap; from += 1000) {
+    const { data, error } = await build(sb.from(tb(t)).select("*")).order("id").range(from, from + 999);
+    if (error) { if (OPTIONAL_TABLES.includes(t)) return out; throw error; }
+    out.push(...(data || [])); if (!data || data.length < 1000) break;
+  }
+  return out;
+}
+async function fetchIn(t, col, ids){
+  const list = [...new Set((ids || []).filter(x=>x != null && x !== ""))], out = [];
+  for (let i = 0; i < list.length; i += 120) { const part = list.slice(i, i + 120); out.push(...await fetchQ(t, q=>q.in(col, part))); }
+  return out;
+}
+const idsNotIn = (t, ids) => { const has = new Set((DB[t] || []).map(r=>r.id)); return [...new Set(ids.filter(x=>x && !has.has(x)))]; };
+async function ensureFrom(from){
+  if (!sb || !DATA_FROM || !from || from >= DATA_FROM) return 0;
+  const to = DATA_FROM, ts = d => d + "T00:00:00+09:00"; let n = 0;
+  const jobs = [...Object.entries(WIN_COL).map(([t,c])=>[t, q=>q.gte(c, from).lt(c, to)]), ...Object.entries(WIN_TS).map(([t,c])=>[t, q=>q.gte(c, ts(from)).lt(c, ts(to))])];
+  const got = {}; let next = 0;
+  const worker = async () => { while (next < jobs.length) { const [t, f] = jobs[next++]; got[t] = await fetchQ(t, f); } };
+  await Promise.all(Array.from({ length:6 }, worker));
+  const rwIds = (got.rework || []).map(r=>r.id); got.rework_in = await fetchIn("rework_in","rework_id",rwIds);
+  Object.keys(got).forEach(t=>{ n += mergeRows(t, got[t]); });
+  DATA_FROM = from; console.info(`[MES] 지난 자료 ${from} ~ ${to} — ${n}줄 받음`);
+  return n;
+}
+async function ensureTrace(qRaw, pid){
+  if (!sb || !DATA_FROM) return 0;
+  const q = String(qRaw || "").trim().replace(/[,()*%\\"']/g, ""); if (q.length < 2 && !pid) return 0;
+  const lk = cols => cols.map(c=>`${c}.ilike."*${q}*"`).join(","), G = {};      // 값은 따옴표로 감싼다 — 검색어에 점 · 빈칸이 있어도 조건이 깨지지 않게
+  const put = (t, rows) => { G[t] = (G[t] || []).concat(rows || []); };
+  if (q) {
+    const [lg, od, cs, mv, cn, us] = await Promise.all([
+      fetchQ("logs", x=>{ x = x.or(lk(["serial","serial_full","lot","batch_codes","from_serials"])); return pid ? x.eq("product_id", pid) : x; }, 3000),
+      fetchQ("orders", x=>{ x = x.or(lk(["order_no","serial","serial_full","lot","batch_plan"])); return pid ? x.eq("product_id", pid) : x; }, 3000),
+      fetchQ("consumptions", x=>x.or(lk(["batch_code","batch_full"])), 5000),
+      fetchQ("material_moves", x=>x.or(lk(["note","ref"])), 3000),
+      fetchQ("counts", x=>x.or(lk(["batch_code","batch_full"])), 2000), fetchQ("usages", x=>x.or(lk(["batch_code","batch_full"])), 2000) ]);
+    put("logs", lg); put("orders", od); put("consumptions", cs); put("material_moves", mv); put("counts", cn); put("usages", us);
+    /* 날짜(2026-10-28) · 전체번호(26102801 · 2026-10-28-01) → 그날 로스팅한 배치 */
+    const m8 = q.match(/^(\d{2})(\d{2})(\d{2})(\d{2})?$/), d = /^\d{4}-\d{2}-\d{2}/.test(q) ? q.slice(0,10) : m8 ? `20${m8[1]}-${m8[2]}-${m8[3]}` : null;
+    if (d && !isNaN(new Date(d).getTime())) put("mms", await fetchQ("mms", x=>x.eq("roast_date", d), 500));
+  } else put("logs", await fetchQ("logs", x=>x.eq("product_id", pid), 5000));
+  /* 연결된 기록 따라가기 — 배치 → 차감 → 생산 → 지시 → 검수 · 출고 · 부자재 */
+  const mm0 = [...(G.mms || []).map(m=>m.id), ...(G.counts || []).map(c=>c.mms_id), ...(G.usages || []).map(c=>c.mms_id)];
+  put("consumptions", await fetchIn("consumptions", "mms_id", mm0));
+  let lIds = [...new Set([...(G.logs || []).map(l=>l.id), ...(G.consumptions || []).map(c=>c.log_id), ...(G.orders || []).map(o=>o.log_id)].filter(Boolean))];
+  put("logs", await fetchIn("logs", "id", lIds.filter(id=>!(G.logs || []).some(l=>l.id === id) && !DB.logs.some(l=>l.id === id))));
+  put("orders", await fetchIn("orders", "log_id", lIds));
+  const oIds = [...new Set([...(G.orders || []).map(o=>o.id), ...(G.logs || []).map(l=>l.order_id)].filter(Boolean))];
+  put("orders", await fetchIn("orders", "id", oIds.filter(id=>!(G.orders || []).some(o=>o.id === id) && !DB.orders.some(o=>o.id === id))));
+  put("consumptions", await fetchIn("consumptions", "log_id", lIds));
+  const mIds = [...new Set([...mm0, ...(G.consumptions || []).map(c=>c.mms_id)].filter(Boolean))];
+  const R = await Promise.all([
+    fetchIn("mms","id",idsNotIn("mms", mIds)), fetchIn("usages","mms_id",mIds), fetchIn("counts","mms_id",mIds), fetchIn("adjust","ref_id",mIds), fetchIn("holds","mms_id",mIds), fetchIn("roast_lines","mms_id",mIds),
+    fetchIn("shipments","order_id",oIds), fetchIn("order_events","order_id",oIds), fetchIn("qc_rejections","order_id",oIds), fetchIn("order_workers","order_id",oIds), fetchIn("ng_adjustments","order_id",oIds), fetchIn("pqc","order_id",oIds),
+    fetchIn("log_amendments","log_id",lIds), fetchIn("stock_moves","ref_id",lIds), fetchIn("rework","log_id",lIds), fetchIn("material_moves","ref",lIds.map(String)) ]);
+  ["mms","usages","counts","adjust","holds","roast_lines","shipments","order_events","qc_rejections","order_workers","ng_adjustments","pqc","log_amendments","stock_moves","rework","material_moves"].forEach((t,i)=>put(t, R[i]));
+  let n = 0; Object.keys(G).forEach(t=>{ n += mergeRows(t, G[t]); });
+  console.info(`[MES] 이력추적 — 지난 자료에서 ${n}줄 받음 (${q || "품목"})`);
+  return n;
+}
+/* 화면에서 쓰는 입구 — 기간이 받아 둔 범위보다 앞이면 서버에서 받고 다시 그린다 (지금 보고 있는 화면일 때만) */
+function oldNote(){ return DATA_FROM ? `<span class="hint" style="padding:0">· ${DATA_FROM} 이후 자료를 받아 둔 상태 — 그 전 기간은 조회할 때 서버에서 받아 옵니다</span>` : ""; }
+function oldBusy(on, msg){ let el = $("oldBusy");
+  if (!on) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement("div"); el.id = "oldBusy"; el.style.cssText = "position:fixed;left:50%;bottom:84px;transform:translateX(-50%);z-index:9000;background:#0b1340;color:#fff;padding:10px 18px;border-radius:10px;font-weight:700;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.25)"; document.body.appendChild(el); }
+  el.textContent = msg || "지난 자료를 서버에서 받는 중…"; }
+function wantFrom(scr, from, again){
+  if (!sb || !DATA_FROM || !from || from >= DATA_FROM || OLD_BUSY || curScreen() !== scr || OLD_FAIL === from) return false;
+  OLD_BUSY = true; oldBusy(true, `${from} 부터의 지난 자료를 서버에서 받는 중…`);
+  ensureFrom(from).then(n=>{ OLD_BUSY = false; oldBusy(false); if (curScreen() === scr) again(); if (n) toast(`지난 자료 ${fmt(n)}줄을 받아 왔습니다`); })
+    .catch(e=>{ OLD_BUSY = false; OLD_FAIL = from; oldBusy(false); console.warn(e); toast("지난 자료를 받지 못했습니다 — 연결을 확인하고 다시 조회하십시오"); });
+  return true;
+}
+function oldAll(scr){ wantFrom(scr, "2000-01-01", ()=>{ try { render(scr); } catch(e){ console.warn(e); } }); }
+async function traceSearch(){
+  const q = ($("trQ")?.value || "").trim(), pid = $("trProd")?.value || "";
+  if (sb && DATA_FROM && (q.length >= 2 || pid) && !OLD_BUSY) {
+    OLD_BUSY = true; oldBusy(true, "지난 자료 전체에서 찾는 중…");
+    try { const n = await ensureTrace(q, pid); if (n) toast(`지난 자료에서 ${fmt(n)}줄을 받아 왔습니다`); }
+    catch(e){ console.warn(e); toast("지난 자료를 찾지 못했습니다 — 연결을 확인하고 다시 조회하십시오"); }
+    OLD_BUSY = false; oldBusy(false);
+  }
+  renderTrace();
 }
 async function reloadDB(opt = {}){
   if (!sb) { renderAll(); if (!opt.silent) toast("로컬 모드 — 화면만 갱신했습니다 (DB 미연결)"); return; }
@@ -18779,6 +18975,10 @@ function rtBadge(){
    · 지금 화면에서 숫자를 치고 있을 때만 손을 뗄 때까지 기다린다 */
 const SCREENS = ["dash","plan","roast","req","log","stock","pqc","cal","loss","base",
                  "work","qc","ship","order","trace","rw","mt","capa","find","grind","ready","matuse"];
+/* ★ 2026-11-19 조회 · 분석 화면은 뒤에서 미리 그리지 않는다 — 메뉴로 열 때(go) 어차피 새로 그린다 (마감 · 재고 실사 · 문의 · 결재와 같은 방식)
+     자료가 쌓일수록 이 화면들이 가장 무거워서(통합 조회 · 생산분석 · 생산실적 · 로스관리 …), 누가 저장할 때마다 전부 다시 그리느라 입력이 끊겼다 */
+const BG_SKIP = new Set(["find","capa","loss","trace","log","matuse","ready","base","cal","stock","dash","rw","req"]);
+const bgScreens = cur => SCREENS.filter(x => x !== cur && !BG_SKIP.has(x));
 const curScreen = () => (document.querySelector(".screen.on")?.id || "s-dash").replace(/^s-/, "");
 const idle = f => (window.requestIdleCallback ? requestIdleCallback(f, { timeout:600 }) : setTimeout(f, 30));
 let RT_REST = null;
@@ -18796,10 +18996,11 @@ function liveRender(){
     const t0 = performance.now();
     keepFocus(()=>{ fillBeanList(); render(cur); });
     if (RT_REST) RT_REST.cancel = true;                // 앞에 남은 뒷작업은 버린다 — 새 데이터로 다시
-    const job = { cancel:false }, rest = SCREENS.filter(x => x !== cur); RT_REST = job;
+    const job = { cancel:false }, rest = bgScreens(cur); RT_REST = job;
     const step = () => {
       if (job.cancel) return;
       if (!rest.length) { try { syncUserUI(); } catch(_){} return; }
+      if (typingNow()) { setTimeout(step, 500); return; }      // ★ 2026-11-19 치는 중에는 뒤 화면을 그리지 않는다 — 손을 멈추면 이어서
       try { renderOne(rest.shift()); } catch(e){ console.warn(e); }
       idle(step);
     };
@@ -23045,6 +23246,7 @@ function muToggle(id){ MU_OPEN[id] = !MU_OPEN[id]; renderMatUse(); }
 function renderMatUse(){
   if (!$("muTbl")) return;
   const { f, e } = muRange(), rows = matUseRows(f, e, $("muKind")?.value || "bag", !!$("muAll")?.checked);
+  wantFrom("matuse", f, renderMatUse);
   const S = k => rows.reduce((t,r)=>t + Number(r[k]||0), 0), use = S("use"), loss = S("loss");
   const card = (t, v, sub, cls) => `<div class="panel" style="flex:1 1 150px;margin:0;padding:12px 16px"><div class="hint" style="padding:0;font-size:12px">${t}</div><div style="font-size:22px;font-weight:800" class="${cls||""}">${v}</div><div class="hint" style="padding:0;font-size:11.5px">${sub||"&nbsp;"}</div></div>`;
   $("muHero").innerHTML = card("입고 (불출 받은 양)", fmt(S("inQ")), `${f.slice(5)} ~ ${e.slice(5)}`) + card("생산 사용", fmt(use), "양품 수량만큼 자동 차감")
@@ -23131,6 +23333,14 @@ function readyChecks(){
   const yl = yardShelfDays();
   add("CFE 완제품 (출고팀)", "yardDays", "warn", "CFE 완제품 상미기한 일수", yl ? `현재 ${yl}일` : "정해지지 않아 금일 출고 필요 · 상미 초과 경고가 뜨지 않습니다. 출고 › 출고장 재고에서 일수를 넣으십시오", yl ? [] : ["일수 미설정"], "ship", "출고");
   add("CFE 완제품 (출고팀)", "yardOld", "warn", "상미기한이 지난 CFE 완제품", "출고장 재고 기준. 실물 확인 후 정리하십시오", yardShelfLots("bad").map(l=>`${xh(yardLotName(l))} · ${String(l.mfg_date).slice(5)} 제조 · ${fmt(l.left_qty)}개`), "ship", "출고");
+  /* ⑤-2 자료 양 · 백업 — 서버 자동 백업이 없는 요금제에서는 이 파일이 유일한 사본이다 */
+  const RC = dbRowCount(); let bAt = ""; try { bAt = localStorage.getItem(BACKUP_AT_KEY) || ""; } catch(_){}
+  const bAge = bAt ? Math.floor((Date.now() - new Date(bAt)) / 86400000) : null, mb = Math.round(JSON.stringify(DB).length / 1024 / 1024 * 10) / 10;
+  out.push({ grp:"자료 양 · 백업", key:"rows", lv: LOAD_WIN_ERR ? "warn" : "ok", title:`자료 ${fmt(RC.total)}줄 · 약 ${fmt(mb)}MB`, why:(LOAD_WIN_ERR ? `<b class="bad">최근 90일만 받기에 실패해 전부 받았습니다 — ${xh(LOAD_WIN_ERR).slice(0,120)}</b> (이 문구를 그대로 알려 주십시오). ` : "") + (oldLimited() ? `<b>${DATA_FROM} 이후 자료만 받아 둔 상태</b> — 그 전 자료는 조회할 때 서버에서 받습니다. ` : sb ? "자료를 전부 받아 둔 상태. " : "") + "앱이 받아 온 자료 기준 (서버 실제 용량은 Supabase 화면의 Database 사용량에서 확인)",
+    items:RC.by.filter(x=>x.n > 0).slice(0, 15).map(x=>`${xh(x.k)} — ${fmt(x.n)}줄`), to:"", toLabel:"",
+    btn: sb ? (loadAllWanted() ? `<button class="btn" onclick="event.stopPropagation();setLoadAll(false)" title="처음 열 때 최근 90일만 받습니다 (빠름)">이 기기는 최근 90일만 받기</button>` : `<button class="btn" onclick="event.stopPropagation();setLoadAll(true)" title="전처럼 서버 자료를 전부 받습니다 (느려질 수 있음) — 문제가 있을 때 되돌리는 용도">이 기기는 전부 받기</button>`) : "" });
+  out.push({ grp:"자료 양 · 백업", key:"backup", lv: bAge == null || bAge > 7 ? "warn" : "ok", title: bAge == null ? "이 기기에서 백업을 받은 적이 없습니다" : `마지막 백업 ${bAge === 0 ? "오늘" : bAge + "일 전"} (${bAt.slice(0,10)})`,
+    why:"서버 자동 백업이 없는 동안에는 주 1회 이상 [전체 백업]을 받아 회사 드라이브에 보관하십시오. 이 기기에서 받은 날만 기억합니다", items:[], to:"", toLabel:"", btn:`<button class="btn primary" onclick="event.stopPropagation();backupAll()">전체 백업 받기</button>` });
   /* ⑥ 서버 */
   if (sb) { const S = READY_SRV;
     add("서버 (Supabase)", "srv", "bad", "서버 SQL 설치", !S ? "확인 중…" : "086 · 087 · 088 이 없으면 원두 · 라벨 · 봉투 · 완제품 기한 확인이 화면에서만 됩니다. Supabase SQL Editor 에서 번호 순서대로 실행하십시오 (085 분쇄 시간 저장은 여기서 확인할 수 없습니다 — 분쇄 화면에서 [시작]이 저장되는지 보십시오)",
@@ -23161,8 +23371,8 @@ function renderReady(){
   const LV = { bad:"막힘", warn:"확인", ok:"정상" }, grps = [...new Set(C.map(c=>c.grp))];
   el.innerHTML = grps.map(g=>`<div class="panel" style="margin-bottom:12px"><div class="panel-h">${g}</div>${C.filter(c=>c.grp === g).map(c=>{
     const open = !!READY_OPEN[c.key] && c.items.length;
-    return `<div class="rdRow" onclick="readyToggle('${c.key}')"><span class="tag ${c.lv}">${LV[c.lv]}</span><span class="t">${c.title}${c.items.length ? ` <b style="color:var(--${c.lv === "bad" ? "bad" : "warn"},#b45309)">${fmt(c.items.length)}건</b>` : ""}</span><span class="w">${c.why}</span>
-      ${c.items.length && c.to ? `<button class="btn" onclick="event.stopPropagation();go('${c.to}')">${c.toLabel} 열기</button>` : ""}${c.items.length ? `<span class="hint" style="padding:0">${open ? "▲" : "▼"}</span>` : ""}</div>
+    return `<div class="rdRow" onclick="readyToggle('${c.key}')"><span class="tag ${c.lv}">${LV[c.lv]}</span><span class="t">${c.title}${c.items.length && c.lv !== "ok" ? ` <b style="color:var(--${c.lv === "bad" ? "bad" : "warn"},#b45309)">${fmt(c.items.length)}건</b>` : ""}</span><span class="w">${c.why}</span>
+      ${c.btn || ""}${c.items.length && c.to ? `<button class="btn" onclick="event.stopPropagation();go('${c.to}')">${c.toLabel} 열기</button>` : ""}${c.items.length ? `<span class="hint" style="padding:0">${open ? "▲" : "▼"}</span>` : ""}</div>
       ${open ? `<div class="rdList">${c.items.slice(0,100).map(x=>`<div>${x}</div>`).join("")}${c.items.length > 100 ? `<div>… 외 ${fmt(c.items.length-100)}건</div>` : ""}</div>` : ""}`; }).join("")}</div>`).join("");
 }
 /* ══ ★ 2026-11-19 설비별 원두 순서 (Lee "현장 작업에서 원두 순서를 내 멋대로 세팅 · 수동이랑 리팩 이카 전부 다 생산하는게 다르잖아")
@@ -24220,6 +24430,7 @@ function renderTrace(){
   const ps = $("trProd"); if (ps) { const cur = ps.value; const opts = `<option value="">(전체 품목)</option>` + PRODS().map(p=>`<option value="${p.id}" ${p.id===cur?"selected":""}>${p.name}</option>`).join("");
     if (ps.innerHTML !== opts) { ps.innerHTML = opts; ps.value = cur; } }
   const pid = ps ? ps.value : "";
+  if ($("trOld")) $("trOld").innerHTML = oldLimited() ? `<span class="hint" style="padding:0">${DATA_FROM} 이후 자료에서 바로 찾습니다 — <b>[조회]</b>(또는 Enter)를 누르면 지난 자료 전체에서 찾습니다</span>` : "";
   setTimeout(trSelBar, 0);
   if (!q && !pid) { $("trOut").innerHTML = `<div class="wempty">일련번호 · LOT · 지시번호 · 배치번호 중 하나를 입력하거나, 위에서 품목을 선택하십시오<br>
     <span>예) 20261005-001 · 2801 · 26102801 · 2026-10-28 — 로스팅 일자 · 생산 설비 · 작업자 · 출고처를 일괄 조회합니다</span></div>`; return; }
@@ -24380,8 +24591,10 @@ function fdSel(k, label, opts){ return `<label style="font-size:12.5px">${label}
 function fdTxt(k, label, ph){ return `<label style="font-size:12.5px">${label} <input type="text" value="${FD[k]||""}" placeholder="${ph||""}" style="width:110px" onchange="FD.${k}=this.value;renderFind()" onkeydown="if(event.key==='Enter'){FD.${k}=this.value;renderFind()}"></label>`; }
 function renderFind(){
   if (!$("fdTbl")) return;
+  { const ff = $("fdFrom")?.value; if (ff) wantFrom("find", ff, renderFind); }      // 기간을 적었을 때만 자동으로 — 기간이 비어 있으면(전체) 아래 [그 전 자료도 받기]로
   $("fdTabs").innerHTML = FD_TABS.map(([v,t])=>`<button class="subtab ${fdTab===v?"on":""}" onclick="setFdTab('${v}')">${t}</button>`).join("");
   $("fdQuick").innerHTML = [["today","오늘"],["yday","어제"],["7d","최근 7일"],["week","이번 주"],["lweek","지난주"],["month","이번 달"],["lmonth","지난달"],["year","올해"],["all","전체"]].map(([k,t])=>`<button class="btn" style="height:28px;padding:0 8px;font-size:12px" onclick="fdQuickSet('${k}')">${t}</button>`).join(" ");
+  if (oldLimited() && !$("fdFrom")?.value) $("fdQuick").innerHTML += ` <span class="hint" style="padding:0 0 0 6px">${DATA_FROM} 이후 자료만 보이는 중</span> <button class="btn" style="height:28px;padding:0 9px;font-size:12px" onclick="oldAll('find')" title="서버에 있는 그 전 자료를 모두 받아 옵니다 (자료가 많으면 시간이 걸립니다)">그 전 자료도 받기</button>`;
   const all = fdRows(); const uniq = k => [...new Set(all.map(r=>r[k]).filter(Boolean))].sort(natCmp);
   const specs = [...new Set(DB.products.map(p=>specLabel(Number(p.spec_g)||0)))].sort(natCmp);
   const F = [];
@@ -24509,6 +24722,7 @@ function renderCapa(){
   if (!$("capaRetroMon").value) $("capaRetroMon").value = today().slice(0,7);
   if (!$("capaYear").value) $("capaYear").value = today().slice(0,4);
   const from = $("capaFrom").value, to = $("capaTo").value || from;
+  wantFrom("capa", from, renderCapa);
   const rows = capaRows(from, to), S = capaSum(rows);
   const pq = PQCL().filter(x=>x.date >= from && x.date <= to), rj = DB.qc_rejections.filter(r=>String(r.created_at||"").slice(0,10) >= from && String(r.created_at||"").slice(0,10) <= to);
   const rw = DB.rework.filter(x=>(x.date||"") >= from && (x.date||"") <= to);
@@ -25579,11 +25793,11 @@ function cntRows(){
     .map(M=>({ key:M.id, name:M.name, sub:[M.kind, M.spec].filter(Boolean).join(" · "), pack:Math.max(1, Math.round(Number(M.pack_qty)||1)),
                unit:unitOf(M), app:Number(M.stock||0), act:D.mat[M.id] ?? null, safety:Number(M.safety||0), done:D.done.mat[M.id] || null }));
 }
-function setCntOne(key, v){ cntPut(cntType, key, v === "" ? null : Math.max(0, Math.round(numOf(v)))); keepFocus(renderCount); }
+function setCntOne(key, v){ cntPut(cntType, key, v === "" ? null : Math.max(0, Math.round(numOf(v)))); typedRender("count", renderCount); }
 function setCntPack(key, b, p){ const n = Math.max(0, Math.round(numOf(b)))*(p||1) + Math.max(0, Math.round(numOf($("cp-"+key)?.value||0)));
-  cntPut(cntType, key, n); keepFocus(renderCount); }
+  cntPut(cntType, key, n); typedRender("count", renderCount); }
 function setCntPiece(key, p){ const b = Math.max(0, Math.round(numOf($("cb-"+key)?.value||0))), n = b*p + Math.max(0, Math.round(numOf($("cp-"+key)?.value||0)));
-  cntPut(cntType, key, n); keepFocus(renderCount); }
+  cntPut(cntType, key, n); typedRender("count", renderCount); }
 var CNT_FLOW = true;
 function renderCount(){
   if ($("cntDay") && !$("cntDay").value) { $("cntDay").value = today(); $("cntDay").max = today(); }
@@ -26238,18 +26452,23 @@ function guard(names, k){
   });
 }
 /* 내 역할이 못 고치는 버튼·입력칸을 잠근다 */
+const ROLE_LOCK_MEMO = new Map();
 function applyRoleLock(){
   document.querySelectorAll("[onclick],[oninput],[onchange]").forEach(el=>{
     const h = (el.getAttribute("onclick")||"") + (el.getAttribute("oninput")||"") + (el.getAttribute("onchange")||"");
-    let k = null;
-    // [엑셀 붙여넣기] 는 어떤 모드로 여는지에 따라 필요한 권한이 다르다
-    const pm = h.match(/openPaste\(\s*['"]([a-z_]+)['"]\s*\)/);
-    if (pm) k = PASTE_CAP[pm[1]] || null;
-    else if (/openPaste\(\s*stockMode\(\)/.test(h)) k = "stock";
-    if (k === null) for (const n in MUT) if (h.includes(n+"(")) { k = MUT[n]; break; }
+    /* ★ 2026-11-19 같은 버튼 · 입력칸은 한 번만 판정한다 — 전에는 그릴 때마다 화면 전체의 버튼 수천 개를 권한 목록 전체와 하나씩 대조했다 (모든 화면에서 그리기 시간의 절반) */
+    let k = ROLE_LOCK_MEMO.get(h);
+    if (k === undefined) { k = null;
+      // [엑셀 붙여넣기] 는 어떤 모드로 여는지에 따라 필요한 권한이 다르다
+      const pm = h.match(/openPaste\(\s*['"]([a-z_]+)['"]\s*\)/);
+      if (pm) k = PASTE_CAP[pm[1]] || null;
+      else if (/openPaste\(\s*stockMode\(\)/.test(h)) k = "stock";
+      if (k === null) for (const n in MUT) if (h.includes(n+"(")) { k = MUT[n]; break; }
+      if (ROLE_LOCK_MEMO.size > 30000) ROLE_LOCK_MEMO.clear();
+      ROLE_LOCK_MEMO.set(h, k); }
     if (k === null) return;
-    const ro = !can(k);
-    el.disabled = ro || el.dataset.dis === "1"; el.classList.toggle("lock", ro);
+    const ro = !can(k), dis = ro || el.dataset.dis === "1";
+    if (el.disabled !== dis) el.disabled = dis; if (el.classList.contains("lock") !== ro) el.classList.toggle("lock", ro);
     if (ro) el.title = `조회 전용 — ${CAP_NAME[k]} 담당만 수정할 수 있습니다`;
     else if (el.title && el.title.includes("수정할 수 없습니다")) el.removeAttribute("title");
   });
