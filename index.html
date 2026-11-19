@@ -14,7 +14,33 @@
 <meta name="apple-mobile-web-app-title" content="MOMOS 생산계획">
 <meta name="theme-color" content="#0B1444">
 <title>MOMOS 생산계획</title>
-<script>/* 다크 모드 — 화면이 그려지기 전에 먼저 정한다 (밝았다가 어두워지는 깜빡임 방지) */
+<script>
+/* ══ ★ 2026-11-19 앱 오류 기록 (Lee 선택 "점검 화면에 모아 보기")
+   · 화면에는 띄우지 않고 이 기기에 최근 200건을 적어 둔다 → [시작 전 점검] › 앱 오류 기록에서 본다
+   · 적는 것: 처리되지 않은 오류 · 경고(console.warn) · 조용히 넘기던 자리(184곳)에서 난 "코드 오류"(TypeError · ReferenceError · RangeError)
+     — 저장소를 못 쓰는 경우처럼 원래 넘겨도 되는 오류는 적지 않는다 ══ */
+var ERRLOG_KEY = "momos.errlog", ERRLOG = [];
+try { ERRLOG = JSON.parse(localStorage.getItem(ERRLOG_KEY) || "[]") || []; } catch(e){ ERRLOG = []; }
+function errNote(kind, e){
+  try { var msg = String((e && (e.message || e)) || "").slice(0, 300); if (!msg) return;
+    var where = ""; try { where = String((e && e.stack) || "").split("\n").slice(1, 3).map(function(x){ return x.trim().replace(/^at\s+/, "").replace(/\(?file:[^)]*\/|https?:[^)]*\//g, "").slice(0, 70); }).join(" ← "); } catch(x){}
+    var scr = ""; try { scr = (document.querySelector(".screen.on") || {}).id || ""; } catch(x){}
+    var who = ""; try { who = CURRENT_USER || ""; } catch(x){}
+    var last = ERRLOG[ERRLOG.length - 1], now = new Date().toISOString();
+    if (last && last.m === msg && last.k === kind) { last.n = (last.n || 1) + 1; last.at = now; }
+    else ERRLOG.push({ at:now, k:kind, m:msg, w:where, s:scr.replace(/^s-/, ""), u:who, n:1 });
+    if (ERRLOG.length > 200) ERRLOG = ERRLOG.slice(-200);
+    localStorage.setItem(ERRLOG_KEY, JSON.stringify(ERRLOG));
+  } catch(x){}
+}
+function errQuiet(e){ if (e instanceof TypeError || e instanceof ReferenceError || e instanceof RangeError) errNote("숨은 오류", e); }
+window.addEventListener("error", function(ev){ errNote("오류", ev.error || ev.message); });
+window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev.reason); });
+(function(){ var w = console.warn.bind(console); console.warn = function(){ w.apply(null, arguments);
+  try { var a = [].slice.call(arguments), er = a.filter(function(x){ return x instanceof Error; })[0];
+    var t = a.map(function(x){ return x instanceof Error ? x.message : typeof x === "string" ? x : (function(){ try { return JSON.stringify(x); } catch(_e){ return String(x); } })(); }).join(" ");
+    errNote(er ? "오류" : "경고", er ? Object.assign(new Error(t), { stack:er.stack }) : t); } catch(x){} }; })();
+/* 다크 모드 — 화면이 그려지기 전에 먼저 정한다 (밝았다가 어두워지는 깜빡임 방지) */
 (function(){ try { var t = localStorage.getItem("momos.theme") || "auto";
   var d = t === "dark" || (t === "auto" && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.setAttribute("data-theme", d ? "dark" : "light"); } catch(e){} })();</script>
@@ -424,6 +450,10 @@
 
   /* ── 패널 ── */
   .panel{background:var(--card); border:1px solid var(--line); border-radius:10px; margin-bottom:18px; overflow:hidden;}
+  #tProd.compact th:nth-child(3), #tProd.compact td:nth-child(3), #tProd.compact th:nth-child(8), #tProd.compact td:nth-child(8), #tProd.compact th:nth-child(9), #tProd.compact td:nth-child(9),
+  #tProd.compact th:nth-child(10), #tProd.compact td:nth-child(10), #tProd.compact th:nth-child(11), #tProd.compact td:nth-child(11), #tProd.compact th:nth-child(12), #tProd.compact td:nth-child(12),
+  #tProd.compact th:nth-child(15), #tProd.compact td:nth-child(15), #tProd.compact th:nth-child(16), #tProd.compact td:nth-child(16), #tProd.compact th:nth-child(18), #tProd.compact td:nth-child(18){display:none}
+  details.hintFold{padding:6px 18px 4px} details.hintFold > summary{cursor:pointer;list-style:none} details.hintFold > summary::-webkit-details-marker{display:none} details.hintFold[open] > summary{margin-bottom:4px}
   .rdRow{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--line);cursor:pointer}
   .rdRow:hover{background:rgba(0,0,0,.025)} .rdRow .t{font-weight:700;flex:0 0 auto} .rdRow .w{color:var(--soft);font-size:12.5px;flex:1;min-width:0}
   .rdRow .tag{flex:0 0 auto;min-width:52px;text-align:center} .rdList{padding:6px 16px 12px 78px;font-size:12.5px;line-height:1.75} .rdList div{border-bottom:1px dashed var(--line)}
@@ -3046,6 +3076,7 @@
 
 <!-- ══════ 7. 기준정보 ══════ -->
 <section class="screen" id="s-base">
+  <div class="subtabs" id="baseGroups" style="margin-bottom:0;padding-bottom:6px"></div>
   <div class="subtabs" id="baseTabs">
     <button class="subtab on" data-p="prod">품목 · 안전재고</button>
     <button class="subtab" data-p="beans">원두 · MMS코드</button>
@@ -3053,7 +3084,7 @@
     <button class="subtab" data-p="label">부자재 재고</button>
     <button class="subtab" data-p="lots">부자재 LOT</button>
     <button class="subtab" data-p="bom">제품별 BOM</button>
-    <button class="subtab" data-p="mms">MMS 원두재고</button>
+    <button class="subtab" data-p="mms" style="display:none">MMS 원두재고</button>
     <button class="subtab" data-p="mach">설비</button>
     <button class="subtab" data-p="work">작업자</button>
     <button class="subtab" data-p="perm">권한설정</button>
@@ -3073,7 +3104,7 @@
             <button class="btn primary" onclick="openBulk('products')" title="여러 품목을 표에 일괄 입력하여 저장">일괄 입력</button>
             <button class="btn" onclick="csvProducts()">엑셀 다운로드</button></span></div>
         <div class="hint"><b>기본 라벨</b>은 해당 품목에 <b>기본으로 부착하는 라벨</b>입니다 —
-          생산계획·현장 화면은 이 정보를 기준으로 <b>개봉할 묶음 수를</b> 계산하며, 생산 완료 시 해당 라벨 재고에서 차감됩니다.
+          생산계획·현장 화면은 이 정보를 기준으로 <b>개봉할 묶음 수를</b> 계산합니다. 라벨 재고는 <b>라벨작업을 마칠 때</b> 빠지고, 라벨작업 기록 없이 생산을 끝내면 <b>생산 완료 때 양품 수량만큼</b> 자동으로 빠집니다.
           특정 일자에만 다른 라벨을 부착하는 경우 생산계획·현장 카드에서 건별로 변경할 수 있습니다 ·
           <b>묶음</b>은 해당 라벨의 <b>1묶음당 장수</b>이며, 이 화면에서 바로 수정합니다
           (동일 라벨을 여러 품목이 사용하면 <b>함께 변경됩니다</b> — 라벨에 귀속된 값이기 때문입니다) ·
@@ -3654,12 +3685,12 @@ function readConf(){
   try {
     const c = (typeof window !== "undefined" && window.MES_CONFIG) || null;
     if (c && c.SB_URL && c.SB_KEY) return { url:String(c.SB_URL).trim(), key:String(c.SB_KEY).trim(), from:"config.js" };
-  } catch(_) {}
+  } catch(_){ errQuiet(_); }
   try {
     const raw = localStorage.getItem(CONF_KEY);
     if (raw) { const j = JSON.parse(raw);
       if (j && j.url && j.key) return { url:String(j.url).trim(), key:String(j.key).trim(), from:"이 브라우저" }; }
-  } catch(_) {}
+  } catch(_){ errQuiet(_); }
   return out;
 }
 function saveConf(url, key){
@@ -3688,7 +3719,7 @@ const SB_KEY = CONF.key || "";
 /* ★ 2026-11-19 구조 정리 3단계 — 기준값을 코드에서 설정으로 (로스팅 › 상미기한 [기준 변경] · 공용 설정 shelf_cfg = { life, warn } · 모든 기기 공통)
    설정이 없으면 전과 같은 값: 상미기한 로스팅 후 5일 · 잔여 2일 이하 임박 */
 const SHELF_LIFE_DEF = 5, SHELF_WARN_DEF = 2, SHELF_KEY = "shelf_cfg";
-function shelfCfg(){ let v = {}; try { v = SETTINGS[SHELF_KEY] || {}; } catch(_){}
+function shelfCfg(){ let v = {}; try { v = SETTINGS[SHELF_KEY] || {}; } catch(_){ errQuiet(_); }
   const life = Math.round(Number(v.life)), L = life >= 1 && life <= 90 ? life : SHELF_LIFE_DEF, warn = Math.round(Number(v.warn));
   return { life:L, warn: (v.warn != null && warn >= 0 && warn < L) ? warn : Math.min(SHELF_WARN_DEF, L - 1) }; }
 const shelfLife = () => shelfCfg().life, shelfWarn = () => shelfCfg().warn;
@@ -3719,17 +3750,17 @@ async function connClear(){
 
 const MES_LOGIN_DOMAIN = "mes.momos.local";
 const MES_LOGIN_OK_KEY = "momos_mes_login_verified_v61";
-function markMesLoginVerified(){ try{ sessionStorage.setItem(MES_LOGIN_OK_KEY,"1"); }catch(_){} }
+function markMesLoginVerified(){ try{ sessionStorage.setItem(MES_LOGIN_OK_KEY,"1"); }catch(_){ errQuiet(_); } }
 function hasMesLoginVerified(){ try{ return sessionStorage.getItem(MES_LOGIN_OK_KEY)==="1"; }catch(_){ return false; } }
-function clearMesLoginVerified(){ try{ sessionStorage.removeItem(MES_LOGIN_OK_KEY); }catch(_){} }
+function clearMesLoginVerified(){ try{ sessionStorage.removeItem(MES_LOGIN_OK_KEY); }catch(_){ errQuiet(_); } }
 let LOGIN_USER = null;
 /* ★ 2026-11-18 화면 하나 더 보기 — 이 앱이 다른 화면의 칸(iframe) 안에서 열린 경우 (주소 끝에 #pane=화면)
    위쪽 바 · 메뉴 없이 화면 내용만 보여 주고, 바깥에서 탭을 누르면 그 화면으로 바꾼다 · 소리 알림 · 화면 켜 두기는 바깥 화면이 맡는다 */
 const EMBED = (()=>{ try { return window.self !== window.top && /(^|[#&])pane=/.test(location.hash); } catch(_){ return false; } })();
 const paneHashScr = () => { const m = /(?:^|[#&])pane=([a-z_]+)/.exec(location.hash); return m ? m[1] : ""; };
-if (EMBED) { try { document.body.classList.add("embed"); } catch(_){}
-  window.addEventListener("hashchange", ()=>{ const x = paneHashScr(); try { if (x && LOGIN_USER && typeof go === "function") go(x); } catch(_){} });
-  window.addEventListener("storage", e=>{ try { if (e.key === "momos.theme") applyTheme(true); else if (e.key === "momos.fontScale") applyFontScale(); } catch(_){} }); }
+if (EMBED) { try { document.body.classList.add("embed"); } catch(_){ errQuiet(_); }
+  window.addEventListener("hashchange", ()=>{ const x = paneHashScr(); try { if (x && LOGIN_USER && typeof go === "function") go(x); } catch(_){ errQuiet(_); } });
+  window.addEventListener("storage", e=>{ try { if (e.key === "momos.theme") applyTheme(true); else if (e.key === "momos.fontScale") applyFontScale(); } catch(_){ errQuiet(_); } }); }
 function isSystemAdmin(){ return !!(LOGIN_USER && LOGIN_USER.system_admin === true); }
 function loginWorker(){ return LOGIN_USER ? DB.workers.find(w=>w.id===LOGIN_USER.worker_id) : null; }
 function loginRole(){ return (LOGIN_USER && ROLES[LOGIN_USER.role]) ? LOGIN_USER.role : "floor"; }
@@ -4117,7 +4148,7 @@ function keepFocus(fn, tries){
     if (PENDING_FOCUS_TARGET) el = PENDING_FOCUS_TARGET;
     else if ((tries||0) < 2) { setTimeout(()=>keepFocus(fn, (tries||0)+1), 0); return; }
     else { const keepId = el && el !== document.body ? el.id : ""; fn();
-      if (keepId) { const b = document.getElementById(keepId); if (b && b !== document.activeElement) { try { b.focus({ preventScroll:true }); } catch(_){} } }
+      if (keepId) { const b = document.getElementById(keepId); if (b && b !== document.activeElement) { try { b.focus({ preventScroll:true }); } catch(_){ errQuiet(_); } } }
       return; }
   }
   const key = (el && el.dataset) ? el.dataset.f : null;
@@ -4253,7 +4284,7 @@ function xlsxPretty(name, head, rows){
   const meta = `MOMOS 생산계획 · 출력 ${today()} ${p2(d.getHours())}:${p2(d.getMinutes())}${who ? ` · ${who}` : ""} · ${rows.length.toLocaleString("en-US")}건`;
   const b = XL.blob(title, head.map(h=>String(h ?? "")), rows, { meta, noTitle: XLSX_NO_TITLE.test(String(name)) });
   const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `${name}_${today()}.xlsx`; a.click();
-  setTimeout(()=>{ try { URL.revokeObjectURL(a.href); } catch(_){} }, 4000);
+  setTimeout(()=>{ try { URL.revokeObjectURL(a.href); } catch(_){ errQuiet(_); } }, 4000);
   return b;
 }
 function tbl(id, head, rows, foot){
@@ -4325,7 +4356,7 @@ function sortState(id){ try { return JSON.parse(localStorage.getItem(sortKey(id)
 function setSort(id, col){
   const cur = sortState(id);
   const next = (!cur || cur.col !== col) ? { col, dir:1 } : cur.dir === 1 ? { col, dir:-1 } : null;
-  try { next ? localStorage.setItem(sortKey(id), JSON.stringify(next)) : localStorage.removeItem(sortKey(id)); } catch(_){}
+  try { next ? localStorage.setItem(sortKey(id), JSON.stringify(next)) : localStorage.removeItem(sortKey(id)); } catch(_){ errQuiet(_); }
   const sc = SORT_SCREEN[id];
   keepFocus(()=>{ if (!sc) renderBase(); else renderOne(sc); if (id==="tallyLog" || id==="tallyTbl") renderTally(); });
   sortHeads(id);
@@ -4664,6 +4695,10 @@ function setBagLossDefault(v){ const c = beanCfg(); c.def_bag = Math.max(0, Numb
 /* 원두 로스율 — 품목에 적은 값 > 원두에 적은 값 > 기본 */
 const lossPctOf = p => { const c = lossCfg(); const v = p && cfgNum(c.items[p.id]); if (v != null) return v;
   const bv = p && cfgNum(beanCfgOf(p.bean).loss); return bv != null ? bv : c.def; };
+/* ★ 2026-11-19 지금 이 품목에 적용 중인 로스율과 그 값이 어디서 왔는지 (Lee 선택 "적용 중인 값만 표시") — 품목 > 원두 > 기본 */
+function lossSrcOf(p){ const c = lossCfg(), v = p && cfgNum(c.items[p.id]); if (v != null) return { v, src:"품목" };
+  const bv = p && cfgNum(beanCfgOf(p.bean).loss); return bv != null ? { v:bv, src:"원두" } : { v:c.def, src:"기본" }; }
+const lossSrcTag = p => { const x = lossSrcOf(p); return `<div class="hint" style="padding:1px 0 0;font-size:10.5px;white-space:nowrap" title="적용 순서: 품목에 적은 값 > 원두별 설정 > 기본값">적용 <b>${x.v}%</b> · ${x.src}${x.src === "품목" ? "" : " 값"}</div>`; };
 /* 봉투 로스율 — 원두에 적은 값 > 기본 */
 const bagLossPctOf = p => { const bv = p && cfgNum(beanCfgOf(p.bean).bag_loss); return bv != null ? bv : beanCfg().def_bag; };
 const bagNeedEa = (p, ea) => Math.ceil((Number(ea)||0) * (1 + bagLossPctOf(p)/100) - 1e-9);
@@ -4780,7 +4815,7 @@ async function autoProductsFor(beans, opt={}){
   for (const x of plan) for (const g of x.specs) {
     const p = P(x.b.name, g, 0, 0, { grind:"홀빈" }); p.code = makeCode(p); p.pack_type = PACK_LABEL;
     const r = await saveRowAsync("products", p);
-    if (r && r.ok) { DB.products.push(p); n++; try { syncProdPack(p, { quiet:true }); } catch(_){} } else fail.push(`${p.name} — ${r?.message||"실패"}`);
+    if (r && r.ok) { DB.products.push(p); n++; try { syncProdPack(p, { quiet:true }); } catch(_){ errQuiet(_); } } else fail.push(`${p.name} — ${r?.message||"실패"}`);
   }
   if (n) logAudit("완제품 자동 추가", `${n}개`, plan.map(x=>`${x.b.name}: ${x.specs.map(specLabel).join("/")}`).join(", "));
   renderAll();
@@ -4901,11 +4936,11 @@ async function initDB(){
       if (DEV_TOKEN) {
         try { const { data } = await sb.rpc("touch_device");
               if (data && data.ok) { DEV_OK = true; DEV_NAME = data.name || "현장 기기"; } }
-        catch(_) {}
+        catch(_){ errQuiet(_); }
       }
       if (!(sess && sess.session) || !hasMesLoginVerified()) {
         if (sess && sess.session) {
-          try { await sb.auth.signOut(); } catch(_) {}
+          try { await sb.auth.signOut(); } catch(_){ errQuiet(_); }
         }
         clearMesLoginVerified();
         dbMode = "need_login";
@@ -5058,7 +5093,7 @@ async function rpc(name, params, localFn, opt = {}){
           return MES_ERR(isNetErr(m) ? "network" : "server", m);
         }
         /* 지시 한 건을 바꾼 처리는 그 줄을 바로 다시 받아 둔다 (실시간 누락 대비) */
-        if (data && data.ok !== false && params && params.p_order_id) { try { await Promise.all([ pullOrder(params.p_order_id), pullWhere("order_events", "order_id", params.p_order_id) ]); } catch(_){} }
+        if (data && data.ok !== false && params && params.p_order_id) { try { await Promise.all([ pullOrder(params.p_order_id), pullWhere("order_events", "order_id", params.p_order_id) ]); } catch(_){ errQuiet(_); } }
         return data;
       } catch(e){
         const m = String(e?.message || e);
@@ -5169,7 +5204,7 @@ async function mesRegisterNgHold(a){
     if (r2 && r2.ok) r2.hold_missing = true;
     return r2;
   }
-  if (r && r.ok && sb) { try { await Promise.all([ pullWhere("pqc", "id", r.pqc_id), bag ? pullWhere("mms", "id", bag.id) : null, pullOrder(a.order_id) ]); } catch(_){} }
+  if (r && r.ok && sb) { try { await Promise.all([ pullWhere("pqc", "id", r.pqc_id), bag ? pullWhere("mms", "id", bag.id) : null, pullOrder(a.order_id) ]); } catch(_){ errQuiet(_); } }
   if (r && r.ok) r.bag = bag;
   return r;
 }
@@ -5193,7 +5228,7 @@ async function xrayRelease(id){
     logAudit("X-ray 선별 완료 · 원두 환원", q.product_name||"", `${fmt(q.hold_kg)}kg 중 ${fmt(back)}kg 환원`);
     return { ok:true, back_kg:back, scrap_kg:scrap }; }, { quiet:true });
   if (!r || r.ok === false) { renderAll(); return ask(/xray_release|schema cache|does not exist/i.test(r?.message||"") ? "서버에 이 기능이 설치되지 않았습니다.\n\nSupabase SQL Editor 에서 000_install_all.sql 을 다시 실행하십시오 (끝의 'X-ray 부적합 → 원두 바로 빼기' 절)." : (r?.message || "처리하지 못했습니다"), { title:"선별 완료", yes:"확인" }); }
-  if (sb) { try { await Promise.all([ pullWhere("pqc", "id", id), pullWhere("mms", "id", q.hold_mms_id), pullWhere("usages", "mms_id", q.hold_mms_id) ]); } catch(_){} }
+  if (sb) { try { await Promise.all([ pullWhere("pqc", "id", id), pullWhere("mms", "id", q.hold_mms_id), pullWhere("usages", "mms_id", q.hold_mms_id) ]); } catch(_){ errQuiet(_); } }
   renderAll(); toast(`원두 ${fmt(r.back_kg ?? back)}kg 을 배치로 환원했습니다${Number(r.scrap_kg) > 0 ? ` · ${fmt(r.scrap_kg)}kg 폐기` : ""} — 생산에 다시 사용할 수 있습니다`);
 }
 /* 부적합 줄에 붙는 "원두 빼 둠" 표시 */
@@ -6756,7 +6791,7 @@ async function mesCountStock(a){
     const r = await rpc("count_stock_to_log", { p_mms_id:a.mms_id, p_counted:a.counted, p_date:a.date||null, p_note:a.note||null, p_idempotency:a.idem ? a.idem + "-L" : null }, null, { quiet:true });
     if (r && r.ok !== false) {
       if (r.attributed) { setTimeout(()=>toast(`감소한 ${fmt(r.add_kg)}kg 를 ${r.product||"마지막 생산"} (일련번호 ${r.serial||"—"}) 의 로스로 반영했습니다`), 400);
-        try { await Promise.all([ pullWhere("logs","id",r.log_id), pullWhere("consumptions","log_id",r.log_id) ]); } catch(_){} }
+        try { await Promise.all([ pullWhere("logs","id",r.log_id), pullWhere("consumptions","log_id",r.log_id) ]); } catch(_){ errQuiet(_); } }
       return r;
     }
     if (!/count_stock_to_log|schema cache|function/i.test(r?.message||"")) return r;
@@ -7609,6 +7644,18 @@ function consumeMaterials(T, logRow, p, qty, date, who, ref){
       qty:-need, unit:unitOf(M), reason:"생산", move_date:date, user_name:who });
     n++;
   }
+  /* ★ 2026-11-19 라벨 자동 차감 (서버 089 와 같은 규칙) — 그날 그 품목의 라벨작업 기록이 없으면 양품 수량만큼 라벨을 뺀다
+       풀패키지 · 코스트코 · 이카는 보지 않는다 · 실적 취소 때는 다른 부자재와 같이 돌아온다 */
+  try { const o = DB.orders.find(x=>x.log_id === logRow.id) || ordById(logRow.order_id), L = labelById(logRow.label_id || o?.label_id || p.label_id);
+    const skip = isFullPack(p) || /이카|ica/i.test(String(o?.machine || logRow.machine || ""));
+    const done = DB.material_tasks.some(t=>t.date === date && t.product_id === p.id && (t.task_type || "label") === "label" && (t.status === "작업완료" || Number(t.done_qty) > 0));
+    if (L && L.kind === "라벨" && consumeAtOf(L) === "label_task" && !skip && !done && qty > 0) {
+      const before = Number(L.stock)||0; T.upd(L, { stock: Math.round((before-qty)*1000)/1000, last_use:date }); save("materials", L);
+      const mv = T.add("material_moves", { id:uid(), date, at:nowISO(), material_id:L.id, material_name:L.name, label_id:L.id, label_name:L.name,
+        kind:"생산사용", qty:-qty, before, after:Math.round((before-qty)*1000)/1000, note:`${p.name} 라벨 자동 차감 (라벨작업 기록 없음)`, ref, user:who });
+      save("material_moves", mv);
+      putMove(T, { kind:"부자재", ref_type:"log", ref_id:logRow.id, material_id:L.id, qty:-qty, unit:unitOf(L), reason:"생산", note:"라벨 자동 차감", move_date:date, user_name:who });
+      n++; } } catch(e){ console.warn("[MES] 라벨 자동 차감", e); }
   return n;
 }
 
@@ -7995,7 +8042,7 @@ const stationWorkers = st => DB.workers.filter(w=>(STATION_PERMS[st]||[]).includ
 const stationWho = st => "";
 function setStationWho(st, n){
   const all = stationAll(); if (n) all[st] = n; else delete all[st];
-  try { localStorage.setItem(STATION_KEY, JSON.stringify(all)); } catch(_){}
+  try { localStorage.setItem(STATION_KEY, JSON.stringify(all)); } catch(_){ errQuiet(_); }
   stationApply(st);
   if (n) toast(`${STATION_SCREENS[st]} 작업자: ${n}`);
   render(st); stationRender();
@@ -8009,7 +8056,7 @@ function stationApply(st){
 function stationLeave(){
   /* 세 화면을 벗어나면 — 일반 계정은 본인으로, 시스템 관리자·공용 계정은 위 [작업자 선택] 값으로 */
   if (LOGIN_USER && !isSystemAdmin() && !isSharedLogin()) { const own = loginWorker(); if (own) CURRENT_USER = own.name; }
-  else { try { const n = localStorage.getItem("momos_user"); if (n && workerByName(n)) CURRENT_USER = n; } catch(_){} }
+  else { try { const n = localStorage.getItem("momos_user"); if (n && workerByName(n)) CURRENT_USER = n; } catch(_){ errQuiet(_); } }
 }
 function stationRender(){
   document.querySelectorAll(".stWho").forEach(el=>{ el.innerHTML = ""; });      // 고르는 칸 없음 (2026-11-15)
@@ -8028,10 +8075,10 @@ function go(s){
   render(s);
   updateFavBtn();
   /* ★ 2026-11-18 메뉴가 고정되면서 화면을 내린 채로 다른 메뉴를 누를 수 있게 됐다 — 다른 화면으로 바뀌면 맨 위에서 시작한다 */
-  if (prevScr && prevScr !== "s-" + s) { try { window.scrollTo(0, 0); } catch(_){} }
-  try { accApply(); } catch(_){}
-  if (EMBED) { try { window.parent.postMessage({ momosPane:s }, "*"); } catch(_){} }
-  else { try { paneNote(s); } catch(_){} }                // ★ 2026-11-18 탭 줄 — 연 화면을 탭에 올린다
+  if (prevScr && prevScr !== "s-" + s) { try { window.scrollTo(0, 0); } catch(_){ errQuiet(_); } }
+  try { accApply(); } catch(_){ errQuiet(_); }
+  if (EMBED) { try { window.parent.postMessage({ momosPane:s }, "*"); } catch(_){ errQuiet(_); } }
+  else { try { paneNote(s); } catch(_){ errQuiet(_); } }                // ★ 2026-11-18 탭 줄 — 연 화면을 탭에 올린다
 }
 /* ══ 표 안 입력칸 — Enter 는 아래 칸, Tab 은 옆 칸으로 (다시 그려져도 커서가 따라간다) ══ */
 let PENDING_FOCUS_TARGET = null;
@@ -8065,12 +8112,12 @@ document.addEventListener("keydown", e=>{
   const key = target.dataset.f;
   setTimeout(()=>{ PENDING_FOCUS_TARGET = null;
     const t = key ? document.querySelector(`[data-f="${key.replace(/"/g,'\\"')}"]`) : (document.contains(target) ? target : null);
-    if (t) { t.focus({ preventScroll:false }); try { t.select(); } catch(_){} } }, 0);   // … 다시 그린 뒤 그 칸을 잡는다
+    if (t) { t.focus({ preventScroll:false }); try { t.select(); } catch(_){ errQuiet(_); } } }, 0);   // … 다시 그린 뒤 그 칸을 잡는다
 });
 /* ══ 즐겨찾기 ★ — 자주 가는 화면(탭까지)을 왼쪽 메뉴 맨 위에 둔다. 이 기기가 기억한다. ══ */
 const PLAN_TAB_NAME = { tally:"집계", grid:"설비 배정", order:"작업 순서", mat:"부자재·라벨", buf:"여유분" };
 function favList(){ try { return JSON.parse(localStorage.getItem("momos.favs") || "[]") || []; } catch(_){ return []; } }
-function saveFavs(a){ try { localStorage.setItem("momos.favs", JSON.stringify(a)); } catch(_){} renderFavs(); updateFavBtn(); }
+function saveFavs(a){ try { localStorage.setItem("momos.favs", JSON.stringify(a)); } catch(_){ errQuiet(_); } renderFavs(); updateFavBtn(); }
 function curCtx(){
   const s = document.querySelector(".screen.on")?.id?.replace(/^s-/, "") || "";
   let tab = "", tabName = "";
@@ -8107,13 +8154,15 @@ function goFav(k){
   if (f.s === "plan"  && f.tab) setPlanTab(f.tab);
   if (f.s === "roast" && f.tab) setRoastTab(f.tab);
   if (f.s === "base"  && f.tab) document.querySelector(`#baseTabs [data-p="${f.tab}"]`)?.click();
-  if (f.s === "work" && typeof setWkMach === "function") { wkMach = f.tab || ""; try { localStorage.setItem("momos.wkMach", wkMach); } catch(_){} }
+  if (f.s === "work" && typeof setWkMach === "function") { wkMach = f.tab || ""; try { localStorage.setItem("momos.wkMach", wkMach); } catch(_){ errQuiet(_); } }
   go(f.s); closeNav();
 }
 renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "기준정보 정리 — 탭 13개 → 묶음 4개 · 원두(MMS) 배치별 실측 복구", "① 기준정보 위에 묶음 4개(품목 / 원두 / 부자재 · 설비 · 사람 / 시스템) — 묶음을 누르면 그 묶음의 탭만 보입니다 · 초기화 / 개통은 시스템 묶음 맨 뒤 · ② MMS 원두재고 탭은 기준정보에서 뺐습니다 — 원두 재고는 로스팅 › 배치 재고에서 보고, 수량은 배치별 실측으로 맞춥니다 · ③ 품목 표는 평소 핵심 칸만 보입니다 — [모든 칸 보기 (18칸)]로 전부 (기기마다 기억) · ④ 긴 안내문은 한 줄만 보이고 [설명 더 보기]로 펼칩니다 · ⑤ 원두(MMS) 배치별 실측표가 뜨지 않던 것을 복구했습니다 — 재고 실사 › [원두 (MMS) →] 또는 로스팅 › 수불 › [배치별 실측]"],
+  ["2026-11-19", "라벨 자동 차감 (089 SQL) · 점검에서 찾은 오류 정리", "① 라벨작업 기록 없이 생산을 끝내면 양품 수량만큼 라벨이 자동으로 빠집니다 (089_label_auto.sql 실행 필요) — 뒤늦게 그날 라벨작업을 완료로 적으면 자동으로 뺀 만큼 되돌려 두 번 빠지지 않습니다 · 풀패키지 · 코스트코 · 이카 품목은 해당 없음 · ② 로스팅 › 수불의 [배치별 실측] 버튼이 눌러도 반응이 없던 것을 고쳤습니다 · ③ 기준정보 › 품목 안내문의 라벨 차감 설명을 실제 동작에 맞게 고쳤습니다 · ④ 품목 표 · 로스관리 기준표의 로스율 칸 아래에 지금 적용 중인 값과 출처(품목 · 원두 · 기본)를 표시합니다 · ⑤ 자료를 1000줄씩 나눠 받을 때 순서를 정해 줄이 빠지거나 겹치지 않게 했습니다 · ⑥ 시작 전 점검에 [앱 오류 기록] — 화면에 뜨지 않고 지나가던 오류를 이 기기에 모아 보여 줍니다 (복사 · 비우기)"],
   ["2026-11-19", "화면 그리기 가볍게 — 모든 화면 공통", "화면을 그릴 때마다 전체 버튼 · 입력칸 수천 개의 권한을 처음부터 다시 판정하던 것을, 한 번 판정한 것은 다시 쓰게 했습니다 · 현장 작업 · 검수 · 출고 · 라벨작업 · 재고 실사 등 모든 화면에서 그리는 시간이 줄어듭니다 · 권한 규칙은 그대로입니다"],
   ["2026-11-19", "처음 열 때 최근 90일 자료만 받기", "앱을 열 때 서버 자료를 전부 받던 것을 최근 90일만 받게 했습니다 — 자료가 쌓여도 여는 시간과 화면 속도가 유지됩니다 · 기준정보는 전부 받습니다 · 끝나지 않은 지시 · 재고가 남은 배치 · 확인이 끝나지 않은 실적 · 부자재 입고 기록은 날짜와 상관없이 받습니다 · 그 전 자료는 이력추적 [조회] · 통합 조회 · 생산분석 · 로스관리 · 생산실적 · 부자재 사용·로스에서 기간을 넓히면 서버에서 받아 옵니다 · 전체 백업 · 재고 대조 · 초기화는 지난 자료를 전부 받은 뒤에 진행합니다 · 서버 자료는 지우거나 옮기지 않습니다 · 되돌리기: 시작 전 점검 › 자료 양 › [이 기기는 전부 받기]"],
   ["2026-11-19", "지난 자료를 필요할 때 서버에서 받기 (준비 단계)", "앱이 최근 자료만 받아 두게 바꾸기 전의 준비입니다 — 지금은 전과 같이 전부 받으므로 화면에 달라지는 것은 없습니다 · 이력추적 [조회](또는 Enter)는 일련번호 · LOT · 지시번호 · 배치번호로 서버 전체에서 찾고, 그 건에 연결된 원두 차감 · 배치 · 검수 · 출고 · 부자재 기록을 따라가 받아 옵니다 · 통합 조회 · 생산분석 · 로스관리 · 생산실적 · 부자재 사용·로스는 받아 둔 범위보다 앞 기간을 고르면 그 구간을 서버에서 받아 옵니다 · 서버 자료는 지우거나 옮기지 않습니다"],
@@ -8375,14 +8424,14 @@ const CHANGELOG = [
 /* 새 항목이 생기면 위에 띠로 한 번 알려 준다 — [닫기] 누르면 이 기기에선 다시 안 뜬다 (다음 업데이트 때 다시) */
 const CHANGELOG_VER = () => `${CHANGELOG[0]?.[0]||""}#${CHANGELOG.length}`;
 function checkChangelog(){
-  let seen = ""; try { seen = localStorage.getItem("momos.changelog.seen") || ""; } catch(_){}
+  let seen = ""; try { seen = localStorage.getItem("momos.changelog.seen") || ""; } catch(_){ errQuiet(_); }
   const bar = $("updBar"); if (!bar) return;
   if (seen === CHANGELOG_VER()) { bar.style.display = "none"; return; }
   const n = seen ? Math.max(1, CHANGELOG.length - Number(seen.split("#")[1]||0)) : CHANGELOG.length;
   $("updBarTxt").textContent = `업데이트 ${CHANGELOG[0]?.[0]||""} — 변경 사항 ${n}건`;
   bar.style.display = "flex";
 }
-function seenChangelog(){ try { localStorage.setItem("momos.changelog.seen", CHANGELOG_VER()); } catch(_){} const b = $("updBar"); if (b) b.style.display = "none"; }
+function seenChangelog(){ try { localStorage.setItem("momos.changelog.seen", CHANGELOG_VER()); } catch(_){ errQuiet(_); } const b = $("updBar"); if (b) b.style.display = "none"; }
 function showChangelog(){
   const by = {}; CHANGELOG.forEach(([d,w,t])=>{ (by[d]=by[d]||[]).push([w,t]); });
   const html = Object.keys(by).sort().reverse().map(d=>`<div style="margin:0 0 12px"><b style="font-size:13.5px">${d}</b>` +
@@ -8402,27 +8451,27 @@ function showChangelog(){
    · 문의 접수 : 관리자                     · 문의 답변·상태 : 쓴 사람
    내가 한 일은 나한테 안 뜬다. 이 기기에 50개까지 남는다.
    ══════════════════════════════════════════════════════════════ */
-let NOTIFS = []; try { NOTIFS = JSON.parse(localStorage.getItem("momos.notifs") || "[]") || []; } catch(_){}
+let NOTIFS = []; try { NOTIFS = JSON.parse(localStorage.getItem("momos.notifs") || "[]") || []; } catch(_){ errQuiet(_); }
 const notifSound = () => { try { return localStorage.getItem("momos.notif.sound") !== "off"; } catch(_){ return true; } };
-function setNotifSound(on){ try { localStorage.setItem("momos.notif.sound", on ? "on" : "off"); } catch(_){} openAcct(); toast(on ? "알림 소리 켬" : "알림 소리 끔"); }
+function setNotifSound(on){ try { localStorage.setItem("momos.notif.sound", on ? "on" : "off"); } catch(_){ errQuiet(_); } openAcct(); toast(on ? "알림 소리 켬" : "알림 소리 끔"); }
 const me = () => CURRENT_USER || LOGIN_USER?.name || "";
 const roleIn = (...rs) => ROLE === "admin" || rs.includes(ROLE);
 function pushNotif(n){
   if (!n || EMBED) return;                    // 칸 안의 화면은 알림을 따로 울리지 않는다 (바깥 화면이 한 번만)
   NOTIFS.unshift({ id:uid(), at:nowISO(), read:false, ...n }); NOTIFS = NOTIFS.slice(0,50);
-  try { localStorage.setItem("momos.notifs", JSON.stringify(NOTIFS)); } catch(_){}
+  try { localStorage.setItem("momos.notifs", JSON.stringify(NOTIFS)); } catch(_){ errQuiet(_); }
   bellUpdate();
   /* 화면 위 토스트 (길게) */
   const t = $("toast"); if (t) { t.textContent = `${n.ic||"🔔"} ${n.tx}`; t.classList.add("show","big"); clearTimeout(t._nt); t._nt = setTimeout(()=>t.classList.remove("show","big"), 4500); }
   if (notifSound()) beep();
-  try { if (navigator.vibrate) navigator.vibrate([80,40,80]); } catch(_){}
+  try { if (navigator.vibrate) navigator.vibrate([80,40,80]); } catch(_){ errQuiet(_); }
   /* 다른 탭 보고 있을 때는 브라우저 알림 */
-  try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification("MOMOS 생산계획", { body:n.tx, tag:n.id }); } catch(_){}
+  try { if (document.hidden && "Notification" in window && Notification.permission === "granted") new Notification("MOMOS 생산계획", { body:n.tx, tag:n.id }); } catch(_){ errQuiet(_); }
 }
 function beep(){ try { const C = window.AudioContext || window.webkitAudioContext; if (!C) return; const ctx = beep.ctx || (beep.ctx = new C());
   const o = ctx.createOscillator(), g = ctx.createGain(); o.type = "sine"; o.frequency.value = 880; g.gain.value = 0.08;
-  o.connect(g); g.connect(ctx.destination); o.start(); o.frequency.setValueAtTime(1175, ctx.currentTime + 0.12); o.stop(ctx.currentTime + 0.25); } catch(_){} }
-function askNotifPermission(){ try { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); } catch(_){} }
+  o.connect(g); g.connect(ctx.destination); o.start(); o.frequency.setValueAtTime(1175, ctx.currentTime + 0.12); o.stop(ctx.currentTime + 0.25); } catch(_){ errQuiet(_); } }
+function askNotifPermission(){ try { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); } catch(_){ errQuiet(_); } }
 function bellUpdate(){
   const n = NOTIFS.filter(x=>!x.read).length, b = $("bellN"); if (!b) return;
   b.style.display = n ? "flex" : "none"; b.textContent = n > 99 ? "99+" : n;
@@ -8440,9 +8489,9 @@ function openBell(){
       : `<div class="hint" style="padding:18px">알림이 없습니다<br>다른 사용자의 생산 완료·반려·문의가 이곳에 표시됩니다</div>`);
   m.style.display = ""; document.body.classList.add("acctopen");
 }
-function openNotif(id){ const n = NOTIFS.find(x=>x.id===id); if (!n) return; n.read = true; try { localStorage.setItem("momos.notifs", JSON.stringify(NOTIFS)); } catch(_){} bellUpdate(); closeBell(); if (n.s) goTo(n.s, n.tab||""); }
-function readAllNotif(){ NOTIFS.forEach(n=>n.read=true); try { localStorage.setItem("momos.notifs", JSON.stringify(NOTIFS)); } catch(_){} bellUpdate(); openBell(); }
-function clearNotif(){ NOTIFS = []; try { localStorage.removeItem("momos.notifs"); } catch(_){} bellUpdate(); openBell(); }
+function openNotif(id){ const n = NOTIFS.find(x=>x.id===id); if (!n) return; n.read = true; try { localStorage.setItem("momos.notifs", JSON.stringify(NOTIFS)); } catch(_){ errQuiet(_); } bellUpdate(); closeBell(); if (n.s) goTo(n.s, n.tab||""); }
+function readAllNotif(){ NOTIFS.forEach(n=>n.read=true); try { localStorage.setItem("momos.notifs", JSON.stringify(NOTIFS)); } catch(_){ errQuiet(_); } bellUpdate(); openBell(); }
+function clearNotif(){ NOTIFS = []; try { localStorage.removeItem("momos.notifs"); } catch(_){ errQuiet(_); } bellUpdate(); openBell(); }
 bellUpdate();
 /* 표 변경 → 알림으로 */
 function notifyChange(t, prev, row, ev){
@@ -8533,14 +8582,14 @@ function goHome(){ closeAcct(); closeNav();
   if (b) go(b.dataset.s); }
 document.addEventListener("keydown", e=>{ if (e.key === "Escape") closeAcct(); });
 /* 글자 크기 — 90 / 100 / 115 / 130 %, 이 기기만 */
-function fontScale(){ let v = 100; try { v = Number(localStorage.getItem("momos.fontScale")) || 100; } catch(_){} return [70,80,90,100,115,130].includes(v) ? v : 100; }
+function fontScale(){ let v = 100; try { v = Number(localStorage.getItem("momos.fontScale")) || 100; } catch(_){ errQuiet(_); } return [70,80,90,100,115,130].includes(v) ? v : 100; }
 /* ★ 2026-11-18 글자 크기(화면 배율)를 바꾸면 "화면 높이 100%"로 잡은 것들이 그 배율만큼 짧거나 길어졌다 (Lee "메뉴가 맨 밑에까지 안 되고 아래에서 짤리는 게 아쉬워" — 글자 90%면 메뉴가 10% 짧았다)
    → 실제 화면 높이를 배율로 나눈 값(--vhz)을 따로 두고, 높이 계산은 전부 그 값을 쓴다 */
 const bodyZoom = () => { const z = parseFloat(document.body && document.body.style.zoom); return z > 0 ? z : 1; };
 function setVhz(){ try { const z = bodyZoom(), st = document.documentElement.style; st.setProperty("--vhz", (window.innerHeight / z) + "px");
-  st.setProperty("--vwz", (window.innerWidth / z) + "px"); } catch(_){} }      // --vwz: 휴대폰 배치의 "화면 폭까지만"(max-width:100vw)이 배율만큼 좁아져 오른쪽이 비던 것 (글자 90% → 화면의 90%만 사용)
+  st.setProperty("--vwz", (window.innerWidth / z) + "px"); } catch(_){ errQuiet(_); } }      // --vwz: 휴대폰 배치의 "화면 폭까지만"(max-width:100vw)이 배율만큼 좁아져 오른쪽이 비던 것 (글자 90% → 화면의 90%만 사용)
 window.addEventListener("resize", setVhz); window.addEventListener("orientationchange", setVhz);
-function applyFontScale(){ const v = fontScale(); document.body.style.zoom = v === 100 ? "" : (v/100); setVhz(); try { if (typeof paneApply === "function" && PANE) paneApply(); } catch(_){} }
+function applyFontScale(){ const v = fontScale(); document.body.style.zoom = v === 100 ? "" : (v/100); setVhz(); try { if (typeof paneApply === "function" && PANE) paneApply(); } catch(_){ /* 앱을 여는 순간에는 탭 줄이 아직 준비 전일 수 있다 — 곧 applyRoleLock 이 다시 부른다 */ } }
 /* ══ 다크 모드 (★ 2026-11-10) ══ 이 기기에만 저장 · 자동(기기 설정 따름) / 밝게 / 어둡게 */
 function themeMode(){ try { return localStorage.getItem("momos.theme") || "auto"; } catch(_){ return "auto"; } }
 const isDark = () => document.documentElement.getAttribute("data-theme") === "dark";
@@ -8553,16 +8602,16 @@ function applyTheme(redraw){
   document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
   const b = $("themeBtn"); if (b) { b.textContent = dark ? "☀" : "☾"; b.title = dark ? "밝은 화면으로" : "어두운 화면으로 (다크 모드)"; }
   if (redraw && was !== dark) {            // 그래프는 색을 다시 읽어 새로 그린다
-    try { Object.keys(charts).forEach(k=>{ try { charts[k].destroy(); } catch(_){} delete charts[k]; }); } catch(_){}
-    try { renderAll(); } catch(_){}
+    try { Object.keys(charts).forEach(k=>{ try { charts[k].destroy(); } catch(_){ errQuiet(_); } delete charts[k]; }); } catch(_){ errQuiet(_); }
+    try { renderAll(); } catch(_){ errQuiet(_); }
   }
 }
-function setTheme(m){ try { localStorage.setItem("momos.theme", m); } catch(_){} applyTheme(true);
+function setTheme(m){ try { localStorage.setItem("momos.theme", m); } catch(_){ errQuiet(_); } applyTheme(true);
   if ($("acctMenu") && $("acctMenu").style.display !== "none") openAcct(); }
 function toggleTheme(){ setTheme(isDark() ? "light" : "dark"); }
-try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ()=>applyTheme(true)); } catch(_){}
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ()=>applyTheme(true)); } catch(_){ errQuiet(_); }
 document.addEventListener("DOMContentLoaded", ()=>applyTheme(false));
-function setFontScale(p){ try { localStorage.setItem("momos.fontScale", String(p)); } catch(_){} applyFontScale(); openAcct(); toast(`글자 크기 ${p===100?"기본":p+"%"}`); }
+function setFontScale(p){ try { localStorage.setItem("momos.fontScale", String(p)); } catch(_){ errQuiet(_); } applyFontScale(); openAcct(); toast(`글자 크기 ${p===100?"기본":p+"%"}`); }
 applyFontScale();
 checkChangelog();
 /* ══════════════════════════════════════════════════════════════
@@ -8600,7 +8649,7 @@ let ACC_OPEN = (()=>{ try { const v = localStorage.getItem("momos.menu.acc"); if
   if (v.charAt(0) === "[") { const a = JSON.parse(v); return Array.isArray(a) ? a.filter(x=>typeof x === "string") : []; } return v ? [v] : []; } catch(_){ return null; } })();   // null = 고른 적 없음
 let ACC_LAST = null, ACC_RAF = 0;
 let NAV_HIDE = (()=>{ try { return localStorage.getItem("momos.navhide") === "1"; } catch(_){ return false; } })();
-const accSave = () => { try { localStorage.setItem("momos.menu.acc", JSON.stringify(ACC_OPEN || [])); } catch(_){} };
+const accSave = () => { try { localStorage.setItem("momos.menu.acc", JSON.stringify(ACC_OPEN || [])); } catch(_){ errQuiet(_); } };
 function accToggle(t){                          // 누른 묶음만 펼치거나 접는다 — 다른 묶음은 그대로
   const cur = (document.querySelector(".screen.on")?.id || "").replace(/^s-/, ""), a = ACC_OPEN != null ? [...ACC_OPEN] : (MENU_GRP[cur] ? [MENU_GRP[cur]] : []);
   const i = a.indexOf(t); if (i >= 0) a.splice(i, 1); else a.push(t);
@@ -8649,13 +8698,13 @@ function accApply(){
 const PANE_MIN_W = 700, PANE_DEF = { on:true, mode:"full", side:"right", tabs:[], cur:"", w:50, box:null, min:false };       // 기본 = 탭 줄 켬 · [크게]
 let PANE = null, PANE_KEY = "", PANE_ADD = false;
 const paneKey = () => "momos.pane." + ((LOGIN_USER && (LOGIN_USER.login_id || LOGIN_USER.id)) || "device");
-const paneSave = () => { try { localStorage.setItem(paneKey(), JSON.stringify(PANE)); } catch(_){} };
+const paneSave = () => { try { localStorage.setItem(paneKey(), JSON.stringify(PANE)); } catch(_){ errQuiet(_); } };
 const paneOk = () => !EMBED && window.innerWidth >= PANE_MIN_W && (!sb || !!LOGIN_USER);
 const paneScreens = () => [...document.querySelectorAll("#menu button[data-s]")].filter(menuShown)
   .map(b=>({ s:b.dataset.s, n:b.querySelector(".lb")?.textContent.trim().replace(/\s*\(.*$/, "") || b.dataset.s, ico:b.querySelector(".ico")?.textContent || "", bd:b.querySelector(".badge")?.textContent || "" }));
 function paneInit(){
   const k = paneKey(); if (PANE && PANE_KEY === k) return;
-  PANE_KEY = k; let v = null; try { v = JSON.parse(localStorage.getItem(k) || "null"); } catch(_){}
+  PANE_KEY = k; let v = null; try { v = JSON.parse(localStorage.getItem(k) || "null"); } catch(_){ errQuiet(_); }
   PANE = { ...PANE_DEF, ...((v && typeof v === "object") ? v : {}) };
   if (!Array.isArray(PANE.tabs)) PANE.tabs = [];
 }
@@ -8779,23 +8828,23 @@ function paneDragStart(e, move){
 }
 if (!EMBED) {
   window.addEventListener("message", e=>{ try { const x = e.data && e.data.momosPane; if (!x || !PANE || !PANE.on || e.source !== $("paneFrame")?.contentWindow) return;
-    if (PANE.mode !== "full" && PANE.tabs.includes(x) && PANE.cur !== x) { PANE.cur = x; paneSave(); paneApply(); } } catch(_){} });
-  window.addEventListener("resize", ()=>{ try { if (PANE) paneApply(); } catch(_){} });
-  document.addEventListener("click", e=>{ if (PANE_ADD && !e.target.closest("#pane .padd, #pane .pmenu")) { PANE_ADD = false; try { paneApply(); } catch(_){} } }, true);   // 버튼이 다시 그려지기 전에(캡처 단계) 판단
+    if (PANE.mode !== "full" && PANE.tabs.includes(x) && PANE.cur !== x) { PANE.cur = x; paneSave(); paneApply(); } } catch(_){ errQuiet(_); } });
+  window.addEventListener("resize", ()=>{ try { if (PANE) paneApply(); } catch(_){ errQuiet(_); } });
+  document.addEventListener("click", e=>{ if (PANE_ADD && !e.target.closest("#pane .padd, #pane .pmenu")) { PANE_ADD = false; try { paneApply(); } catch(_){ errQuiet(_); } } }, true);   // 버튼이 다시 그려지기 전에(캡처 단계) 판단
 }
 /* 메뉴의 숫자가 바뀌면 묶음 합계도 따라가게 */
-try { new MutationObserver(()=>{ if (ACC_RAF) return; ACC_RAF = requestAnimationFrame(()=>{ ACC_RAF = 0; try { accApply(); } catch(_){} }); })
-  .observe(document.getElementById("menu"), { childList:true, subtree:true, characterData:true }); } catch(_){}
-try { PC_MQ && PC_MQ.addEventListener("change", ()=>{ try { applyRoleLock(); } catch(_){} }); } catch(_){}
+try { new MutationObserver(()=>{ if (ACC_RAF) return; ACC_RAF = requestAnimationFrame(()=>{ ACC_RAF = 0; try { accApply(); } catch(_){ errQuiet(_); } }); })
+  .observe(document.getElementById("menu"), { childList:true, subtree:true, characterData:true }); } catch(_){ errQuiet(_); }
+try { PC_MQ && PC_MQ.addEventListener("change", ()=>{ try { applyRoleLock(); } catch(_){ errQuiet(_); } }); } catch(_){ errQuiet(_); }
 const menuPrefKey = () => "momos.menu." + ((LOGIN_USER && (LOGIN_USER.login_id || LOGIN_USER.id)) || "device");
 function menuPref(){
   try { const v = JSON.parse(localStorage.getItem(menuPrefKey()) || "null");
-    if (v && typeof v === "object") return { order:Array.isArray(v.order) ? v.order : [], hide:Array.isArray(v.hide) ? v.hide : [], tabs:Array.isArray(v.tabs) ? v.tabs : null }; } catch(_){}
+    if (v && typeof v === "object") return { order:Array.isArray(v.order) ? v.order : [], hide:Array.isArray(v.hide) ? v.hide : [], tabs:Array.isArray(v.tabs) ? v.tabs : null }; } catch(_){ errQuiet(_); }
   return { order:[], hide:[], tabs:null };
 }
 const menuTabsOf = p => (p.tabs != null ? p.tabs : (MNAV_PREF[ROLE] || MNAV_PREF.admin));
 function saveMenuPref(p){
-  try { if (!p) localStorage.removeItem(menuPrefKey()); else localStorage.setItem(menuPrefKey(), JSON.stringify(p)); } catch(_){}
+  try { if (!p) localStorage.removeItem(menuPrefKey()); else localStorage.setItem(menuPrefKey(), JSON.stringify(p)); } catch(_){ errQuiet(_); }
   applyRoleLock(); if ($("menuDlg")) renderMenuCfg();
 }
 function applyMenuPref(){
@@ -8839,7 +8888,7 @@ function menuCfgList(){
    · 다른 앱 · 다른 탭으로 가면 브라우저가 스스로 풀고, 돌아오면 다시 건다 · 지원하지 않는 브라우저에서는 아무 일도 하지 않는다 */
 const WAKE_KEY = "momos.wake", WAKE_MINS = [10, 30, 60, 120, 240, 480, 0];
 let WAKE = { on:true, min:60 };
-try { const w = JSON.parse(localStorage.getItem(WAKE_KEY) || "null"); if (w && typeof w === "object") WAKE = { on:w.on !== false, min:WAKE_MINS.includes(Number(w.min)) ? Number(w.min) : 60 }; } catch(_){}
+try { const w = JSON.parse(localStorage.getItem(WAKE_KEY) || "null"); if (w && typeof w === "object") WAKE = { on:w.on !== false, min:WAKE_MINS.includes(Number(w.min)) ? Number(w.min) : 60 }; } catch(_){ errQuiet(_); }
 let WAKE_LOCK = null, WAKE_LAST = Date.now(), WAKE_ERR = "", WAKE_BUSY = false;
 const wakeOk = () => typeof navigator !== "undefined" && "wakeLock" in navigator && !!navigator.wakeLock?.request;
 const wakeMinLabel = m => m === 0 ? "계속" : m < 60 ? `${m}분` : `${m/60}시간`;
@@ -8854,8 +8903,8 @@ async function wakeAcquire(){
   } catch(e){ WAKE_ERR = String(e && e.name || e || ""); }
   WAKE_BUSY = false; wakeDlgSync();
 }
-function wakeRelease(){ const l = WAKE_LOCK; WAKE_LOCK = null; if (l) { try { l.release(); } catch(_){} } wakeDlgSync(); }
-function wakeSave(){ try { localStorage.setItem(WAKE_KEY, JSON.stringify(WAKE)); } catch(_){} }
+function wakeRelease(){ const l = WAKE_LOCK; WAKE_LOCK = null; if (l) { try { l.release(); } catch(_){ errQuiet(_); } } wakeDlgSync(); }
+function wakeSave(){ try { localStorage.setItem(WAKE_KEY, JSON.stringify(WAKE)); } catch(_){ errQuiet(_); } }
 function setWakeOn(v){ WAKE.on = !!v; wakeSave(); WAKE_LAST = Date.now(); if (WAKE.on) wakeAcquire(); else wakeRelease(); renderWakeCfg(); toast(WAKE.on ? "화면 켜 두기 — 켜짐 (이 기기)" : "화면 켜 두기 — 꺼짐 (이 기기)"); }
 function setWakeMin(m){ WAKE.min = WAKE_MINS.includes(Number(m)) ? Number(m) : 60; wakeSave(); WAKE_LAST = Date.now(); if (WAKE.on) wakeAcquire(); renderWakeCfg(); }
 /* 화면을 건드릴 때마다 시간을 다시 잰다 — 풀려 있었으면 다시 건다 (일부 브라우저는 사용자가 건드린 뒤에만 허용한다) */
@@ -8864,7 +8913,7 @@ document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) { WAKE
 setInterval(()=>{ if (WAKE_LOCK && (!WAKE.on || wakeIdle())) wakeRelease(); else if (!WAKE_LOCK) wakeAcquire(); }, 20000);
 setTimeout(()=>{ wakeAcquire(); }, 1500);
 function openWakeCfg(){
-  try { closeAcct(); closeNav(); } catch(_){}
+  try { closeAcct(); closeNav(); } catch(_){ errQuiet(_); }
   let d = $("wakeDlg");
   if (!d) { d = document.createElement("div"); d.id = "wakeDlg"; d.addEventListener("click", e=>{ if (e.target === d) closeWakeCfg(); }); document.body.appendChild(d); }
   renderWakeCfg();
@@ -8891,7 +8940,7 @@ function renderWakeCfg(){
   </div>`;
 }
 function openMenuCfg(){
-  try { closeAcct(); closeNav(); } catch(_){}
+  try { closeAcct(); closeNav(); } catch(_){ errQuiet(_); }
   let d = $("menuDlg");
   if (!d) { d = document.createElement("div"); d.id = "menuDlg"; d.addEventListener("click", e=>{ if (e.target === d) closeMenuCfg(); }); document.body.appendChild(d); }
   renderMenuCfg();
@@ -8996,7 +9045,7 @@ function chgAckPush(ack, warn){
       toast("확인 기록을 이 기기에만 저장했습니다 — 다른 기기와 맞추려면 서버에 000_install_all.sql 을 다시 실행하십시오"); }
   }).catch(()=>{});
 }
-function chgAckSave(m){ try { localStorage.setItem(chgKey(), JSON.stringify(m)); } catch(_){} }
+function chgAckSave(m){ try { localStorage.setItem(chgKey(), JSON.stringify(m)); } catch(_){ errQuiet(_); } }
 const chgT = a => { let t = CHG_TC.get(a); if (t === undefined) { t = Date.parse(a.at); if (isNaN(t)) t = 0; CHG_TC.set(a, t); } return t; };
 const chgMine = a => (!!a.user_id && !!LOGIN_USER && a.user_id === LOGIN_USER.id && !(typeof isSharedLogin === "function" && isSharedLogin())) || (!!a.user && a.user === me());
 const chgEsc = v => String(v ?? "").replace(/[<>&"]/g, c=>({ "<":"&lt;", ">":"&gt;", "&":"&amp;", '"':"&quot;" }[c]));
@@ -9015,14 +9064,14 @@ function chgEntries(sc, byNo){
 let CHG_MIG = "";
 function chgAckMigrate(){
   const k = chgSrvKey(); if (!k || SETTINGS_SERVER !== true || CHG_MIG === k) return; CHG_MIG = k;
-  let loc = {}; try { loc = JSON.parse(localStorage.getItem(chgKey()) || "{}") || {}; } catch(_){}
+  let loc = {}; try { loc = JSON.parse(localStorage.getItem(chgKey()) || "{}") || {}; } catch(_){ errQuiet(_); }
   const sv = (SETTINGS[k] && typeof SETTINGS[k] === "object") ? SETTINGS[k] : {}, out = {};
   Object.keys(loc).forEach(sc=>{ if (Number(loc[sc]) > (Number(sv[sc]) || 0)) out[sc] = Number(loc[sc]); });
   if (Object.keys(out).length) chgAckPush(out);
 }
 function chgApply(){
   if (sb && !LOGIN_USER) return;           // 로그인 전에는 계산하지 않는다
-  try { chgAckMigrate(); } catch(_){}
+  try { chgAckMigrate(); } catch(_){ errQuiet(_); }
   const byNo = new Map(); DB.orders.forEach(o=>{ if (o.order_no) byNo.set(o.order_no, o); });
   Object.keys(CHG_SCREENS).forEach(sc=>{
     const es = chgEntries(sc, byNo), n = es.length, mb = menuBtn(sc);
@@ -9156,7 +9205,7 @@ function mFoldConds(){
     c.appendChild(b); });
 }
 try { mFoldConds(); } catch(e){ console.warn(e); }
-try { PHONE_MQ && PHONE_MQ.addEventListener("change", ()=>{ try { const s = document.querySelector(".screen.on")?.id?.replace(/^s-/, ""); if (s) render(s); } catch(e){ console.warn(e); } }); } catch(_){}
+try { PHONE_MQ && PHONE_MQ.addEventListener("change", ()=>{ try { const s = document.querySelector(".screen.on")?.id?.replace(/^s-/, ""); if (s) render(s); } catch(e){ console.warn(e); } }); } catch(_){ errQuiet(_); }
 
 /* ══ 모바일 보기 — 태블릿·휴대폰 배치. 한 번 켜면 그 기기가 기억한다.
    처음 열 때 화면이 1100px 보다 좁으면(태블릿) 저절로 켠다. */
@@ -9168,19 +9217,19 @@ function applyMobile(on){
 }
 function toggleMobile(){
   const on = !document.body.classList.contains("mobile");
-  try { localStorage.setItem("momos.mobile", on ? "on" : "off"); } catch(_){}
+  try { localStorage.setItem("momos.mobile", on ? "on" : "off"); } catch(_){ errQuiet(_); }
   applyMobile(on); toast(on ? "모바일 보기 — 왼쪽 ☰ 로 메뉴를 엽니다" : "PC 보기");
 }
 /* ★ 2026-11-17 아이폰 — 입력칸을 누르면 화면이 확대된 채 남아 옆이 잘리던 것 방지 (두 손가락 확대는 그대로 가능) */
 (()=>{ try { const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const m = document.querySelector('meta[name="viewport"]');
-  if (ios && m && !/maximum-scale/.test(m.content)) m.content += ", maximum-scale=1"; } catch(_){} })();
-(()=>{ let v = null; try { v = localStorage.getItem("momos.mobile"); } catch(_){}
+  if (ios && m && !/maximum-scale/.test(m.content)) m.content += ", maximum-scale=1"; } catch(_){ errQuiet(_); } })();
+(()=>{ let v = null; try { v = localStorage.getItem("momos.mobile"); } catch(_){ errQuiet(_); }
   const auto = v == null && window.innerWidth <= 1100 && ("ontouchstart" in window);
   if (v === "on" || auto) applyMobile(true); })();
 function toggleNav(){
   if (pcView()) {                               // PC 보기 — 왼쪽 메뉴 전체를 접었다 편다
-    NAV_HIDE = !NAV_HIDE; try { localStorage.setItem("momos.navhide", NAV_HIDE ? "1" : "0"); } catch(_){}
+    NAV_HIDE = !NAV_HIDE; try { localStorage.setItem("momos.navhide", NAV_HIDE ? "1" : "0"); } catch(_){ errQuiet(_); }
     accApply(); toast(NAV_HIDE ? "왼쪽 메뉴를 접었습니다 — 위쪽 ☰ 를 누르면 다시 펼칩니다" : "왼쪽 메뉴를 펼쳤습니다"); return; }
   document.body.classList.toggle("navopen");
 }
@@ -9199,23 +9248,38 @@ $("roastTabs").addEventListener("click", e=>{
   setRoastTab(b.dataset.p);
 });
 let roastTab = "in";
-try { roastTab = localStorage.getItem("momos.roastTab") || "in"; } catch(_){}
+try { roastTab = localStorage.getItem("momos.roastTab") || "in"; } catch(_){ errQuiet(_); }
 function setRoastTab(t){
-  roastTab = t; try { localStorage.setItem("momos.roastTab", t); } catch(_){}
+  roastTab = t; try { localStorage.setItem("momos.roastTab", t); } catch(_){ errQuiet(_); }
   document.querySelectorAll("#roastTabs .subtab").forEach(x=>x.classList.toggle("on", x.dataset.p===t));
   document.querySelectorAll("#s-roast .subpane").forEach(x=>x.classList.toggle("on", x.id==="rp-"+t));
   if (typeof updateFavBtn === "function") updateFavBtn();
 }
 let planTab = "tally";
-try { planTab = localStorage.getItem("momos.planTab") || "tally"; } catch(_){}
+try { planTab = localStorage.getItem("momos.planTab") || "tally"; } catch(_){ errQuiet(_); }
 function setPlanTab(t){
-  planTab = t; try { localStorage.setItem("momos.planTab", t); } catch(_){}
+  planTab = t; try { localStorage.setItem("momos.planTab", t); } catch(_){ errQuiet(_); }
   document.querySelectorAll("#planTabs .subtab").forEach(x=>x.classList.toggle("on", x.dataset.p===t));
   document.querySelectorAll("#s-plan .subpane").forEach(x=>x.classList.toggle("on", x.id==="pp-"+t));
   if (typeof updateFavBtn === "function") updateFavBtn();
 }
+/* ★ 2026-11-19 기준정보 탭 13개 → 묶음 4개 (Lee "기준 정보가 복잡해 조금 더 쉽게" · "정리안대로 4묶음")
+     · 묶음을 누르면 그 묶음의 탭만 보인다 · MMS 원두재고 탭은 뺐다 (원두 재고는 로스팅 › 배치 재고 · 재고 실사 › 원두(MMS)에서)
+     · 즐겨찾기 · 탭 줄이 예전 탭 이름으로 열어도 그 탭이 속한 묶음이 같이 열린다 */
+const BASE_GROUPS = [ ["item","① 품목",["prod","bom"]], ["bean","② 원두",["beans","bset"]], ["etc","③ 부자재 · 설비 · 사람",["label","lots","mach","work","perm"]], ["sys","④ 시스템",["audit","conn","init"]] ];
+let baseGroup = "item";
+function baseGroupDraw(){ const el = $("baseGroups"); if (!el) return;
+  el.innerHTML = BASE_GROUPS.map(([k,t])=>`<button class="subtab ${k===baseGroup?"on":""}" style="font-size:14.5px;font-weight:800;padding:9px 18px" onclick="setBaseGroup('${k}')">${t}</button>`).join("");
+  const mine = (BASE_GROUPS.find(g=>g[0]===baseGroup) || BASE_GROUPS[0])[2];
+  document.querySelectorAll("#baseTabs .subtab").forEach(x=>{ const i = mine.indexOf(x.dataset.p); x.style.display = i < 0 ? "none" : ""; x.style.order = i < 0 ? "" : String(i); }); }
+function setBaseGroup(k){ baseGroup = k; const mine = (BASE_GROUPS.find(g=>g[0]===k) || BASE_GROUPS[0])[2];
+  const on = document.querySelector("#baseTabs .subtab.on"); baseGroupDraw();
+  if (!on || !mine.includes(on.dataset.p)) document.querySelector(`#baseTabs [data-p="${mine[0]}"]`)?.click(); }
+$("baseTabs").style.display = "flex"; $("baseTabs").style.flexWrap = "wrap";
+setTimeout(baseGroupDraw, 0);
 $("baseTabs").addEventListener("click", e=>{
   const b = e.target.closest(".subtab"); if(!b) return;
+  { const g = BASE_GROUPS.find(x=>x[2].includes(b.dataset.p)); if (g && g[0] !== baseGroup) { baseGroup = g[0]; } setTimeout(baseGroupDraw, 0); }
   /* ★ 기준정보 안의 탭만 — 전에는 모든 화면의 탭·칸을 건드려서 다른 화면 탭이 꺼졌다 */
   document.querySelectorAll("#baseTabs .subtab").forEach(x=>x.classList.toggle("on",x===b));
   document.querySelectorAll("#s-base .subpane").forEach(x=>x.classList.toggle("on",x.id==="p-"+b.dataset.p));
@@ -10072,7 +10136,7 @@ async function rebatch(){
   for (const x of cs) { const r = await mesEditOrder({ order_id:x.o.id, patch:{ batch_plan:"", serial:"", serial_full:"" }, idem:`rb-${x.o.id}-${uid()}` });
     if (r && r.ok) { x.o.batch_plan = ""; x.o.serial = null; x.o.serial_full = null; ids.add(x.o.id); } else fail.push(`${x.p.name}: ${r?.message||"?"}`); }
   const res = await applyBatchPlan(batchPlanOf(d).filter(x=>ids.has(x.o.id)), d);
-  try { logAudit("배치 다시 배정", d, `${res.ok}건 · ${cs.slice(0,5).map(x=>x.p.name).join(", ")}`); } catch(_){}
+  try { logAudit("배치 다시 배정", d, `${res.ok}건 · ${cs.slice(0,5).map(x=>x.p.name).join(", ")}`); } catch(_){ errQuiet(_); }
   renderAll(); const f = fail.concat(res.fail);
   toast(f.length ? `${res.ok}건 다시 배정 · 실패 ${f.length}건 — ${f[0]}` : `${res.ok}건의 배치를 다시 배정했습니다`);
 }
@@ -10366,11 +10430,11 @@ async function grindMark(grind, pid, done){
     if (!left.length) return toast("이미 모두 완료되었습니다");
     if (!(await ask(`${grind} — 남은 ${left.length}품목 · ${fmt(left.reduce((t,x)=>t+x.qty-x.doneQty,0))}개를 모두 분쇄 완료로 표시합니다.`, { title:"분쇄도 전체 완료", yes:"전체 완료" }))) return; }
   const who = await grindWho(done ? "분쇄 완료" : "분쇄 완료 취소"); if (!who) return;
-  if (done && !grindTimeRec(d, grind)) { try { await grindTimeSet(d, grind, { start_at:nowISO(), by:who, auto:true }); } catch(_){} }   // [분쇄 시작]을 누르지 않았으면 첫 완료 체크 시각부터
+  if (done && !grindTimeRec(d, grind)) { try { await grindTimeSet(d, grind, { start_at:nowISO(), by:who, auto:true }); } catch(_){ errQuiet(_); } }   // [분쇄 시작]을 누르지 않았으면 첫 완료 체크 시각부터
   const r = await mesGrindMark({ date:d, grind, product_id:pid || null, done, worker:who });
   if (!r || r.ok === false) { const msg = String(r?.message || "처리하지 못했습니다");
     return ask(/grind_mark|schema cache|function|done_at/i.test(msg) ? "서버에 최신 000_install_all.sql 을 먼저 실행하십시오 (분쇄 완료 체크 기능)." : msg, { title:"분쇄 완료", yes:"확인", only:true }); }
-  if (sb) { try { await pullWhere("grind_tallies", "date", d); } catch(_){} }
+  if (sb) { try { await pullWhere("grind_tallies", "date", d); } catch(_){ errQuiet(_); } }
   renderGrind();
   toast(done ? `${grind}${pid ? ` · ${its[0].name}` : " 전체"} — 분쇄 완료 (${who})` : "분쇄 완료를 취소했습니다");
 }
@@ -10532,7 +10596,7 @@ function renderGrindBlade(){
 /* 메뉴의 분쇄 숫자 — 오늘 남은 분쇄 품목 수 · 칼날 교체 기준을 넘으면 ! */
 function grindBadge(){
   const b = document.querySelector('#menu button[data-s="grind"]'); if (!b) return;
-  let n = 0, lv = ""; try { n = grindItems(today()).filter(x=>x.state !== "done").length; lv = bladeState().lv; } catch(_){}
+  let n = 0, lv = ""; try { n = grindItems(today()).filter(x=>x.state !== "done").length; lv = bladeState().lv; } catch(_){ errQuiet(_); }
   let el = b.querySelector(".badge");
   if (!n && lv !== "bad") { if (el) el.remove(); return; }
   if (!el) { el = document.createElement("span"); el.className = "badge"; b.appendChild(el); }
@@ -10662,11 +10726,11 @@ function csvTally(){
       tallyQty(p.id,undefined,d), madeQty(p.id,d), tallyLeft(p.id,d)]));
 }
 /* ── 간단히 보기 — 칸을 줄여서 옆으로 안 넘기게 (모바일은 기본 켬, 기기별로 기억) ── */
-let planCompact = (()=>{ try { const v = localStorage.getItem("momos.plancompact"); if (v != null) return v === "1"; } catch(_){} return null; })();
+let planCompact = (()=>{ try { const v = localStorage.getItem("momos.plancompact"); if (v != null) return v === "1"; } catch(_){ errQuiet(_); } return null; })();
 const isCompact = () => planCompact != null ? planCompact : document.body.classList.contains("mobile");
 function setPlanCompact(v){
   planCompact = !!v;
-  try { localStorage.setItem("momos.plancompact", planCompact ? "1" : "0"); } catch(_){}
+  try { localStorage.setItem("momos.plancompact", planCompact ? "1" : "0"); } catch(_){ errQuiet(_); }
   renderPlan();
   toast(planCompact ? "간단히 보기 — 필수 열만 표시합니다" : "자세히 보기 — 모든 열을 표시합니다");
 }
@@ -10729,7 +10793,7 @@ function renderPlan(){
 
   const mh = DB.machines.map(m=>
     `<button class="mhead" onclick="allToMach('${m.id}')" title="생산 가능한 품목을 모두 ${m.name}에 일괄 배정합니다">${m.name}</button>`);
-  try { if ($("planBeanNote")) $("planBeanNote").innerHTML = beanNoteHTML($("woDate")?.value || today(), "plan"); } catch(_){}
+  try { if ($("planBeanNote")) $("planBeanNote").innerHTML = beanNoteHTML($("woDate")?.value || today(), "plan"); } catch(_){ errQuiet(_); }
   tbl("planGrid", CX ? ["No","품목명","계획EA",...mh,"미배정","배정"]
                      : ["No","품목명","분쇄도","안전","CFE",'<span class="tag buf">여유분</span>',"계획EA",`필요원두(kg)${lossCfg().def||Object.keys(lossCfg().items).length?'<br><span class="hint" style="padding:0;font-size:10px">로스율 포함</span>':""}`,"사용할 배치 (선입선출)",...mh,"미배정","배정"],
     rows.map((r,i)=>{
@@ -11618,7 +11682,7 @@ async function addMt(){
   const r = await mesAddMt({ date:$("mtDate")?.value || today(),
     product_id:p.id, material_id:M.id, qty:0, idem:`mta-${uid()}` });
   if (!r || !r.ok) return toast(r?.message || "행을 추가하지 못했습니다");
-  if (sb && r.task_id) { try { await pullWhere("material_tasks", "id", r.task_id); } catch(_){} }   // ★ 2026-11-18 실시간 연결이 끊겨 있어도 추가한 줄이 바로 보이게
+  if (sb && r.task_id) { try { await pullWhere("material_tasks", "id", r.task_id); } catch(_){ errQuiet(_); } }   // ★ 2026-11-18 실시간 연결이 끊겨 있어도 추가한 줄이 바로 보이게
   renderMt(); focusNewRow("mtTbl", 'input');
 }
 /* ★ 2차 회차 — 기존 완료 줄의 수량을 늘리지 않고 새 줄을 만듭니다 (Lee 확정).
@@ -12095,7 +12159,7 @@ async function setRoastPer(id, v){
   const res = await mesUpsertRoast({ id, patch:{ plan_kg:Math.round(per*n*100)/100 }, idem:`rp-per-${id}-${uid()}` });
   if (!res || res.ok === false) toast(res?.message || "저장하지 못했습니다");
   await roastLinesKg(r, per);
-  renderRoast(); try { renderIn(); } catch(_){}
+  renderRoast(); try { renderIn(); } catch(_){ errQuiet(_); }
 }
 async function setRoastBatches(id, v){
   if (!(await requireUser())) return;
@@ -12103,9 +12167,9 @@ async function setRoastBatches(id, v){
   const n0 = Math.max(1, Math.round(Number(r.batches)||1)), per = Number(r.plan_kg||0)/n0, n = Math.max(1, Math.round(numOf(v)));
   const res = await mesUpsertRoast({ id, patch:{ batches:n, plan_kg:Math.round(per*n*100)/100 }, idem:`rp-n-${id}-${uid()}` });
   if (!res || res.ok === false) toast(res?.message || "저장하지 못했습니다");
-  if (sb) { try { await pullWhere("roast_lines","plan_id",id); await pullWhere("roasting","id",id); } catch(_){} }
+  if (sb) { try { await pullWhere("roast_lines","plan_id",id); await pullWhere("roasting","id",id); } catch(_){ errQuiet(_); } }
   await roastLinesKg(DB.roasting.find(x=>x.id===id) || r, per);
-  renderRoast(); try { renderIn(); } catch(_){}
+  renderRoast(); try { renderIn(); } catch(_){ errQuiet(_); }
 }
 /* 받기 전 배치 줄의 kg 를 1배치 kg 로 */
 async function roastLinesKg(r, per){
@@ -12164,7 +12228,7 @@ async function fixRoastPerBatch(){
   const busy = setBusy("정정 중…"); let undone = 0, fail = [];
   for (const x of info) {
     for (const m of x.got) { if (!batchUntouched(m)) continue; const ok = await unreceiveBatch(m.id, { quiet:true }); if (ok) undone++; else fail.push(batchFull(m)); }
-    if (sb) { try { await pullWhere("roasting","id",x.r.id); await pullWhere("roast_lines","plan_id",x.r.id); } catch(_){} }
+    if (sb) { try { await pullWhere("roasting","id",x.r.id); await pullWhere("roast_lines","plan_id",x.r.id); } catch(_){ errQuiet(_); } }
     const r = DB.roasting.find(y=>y.id===x.r.id) || x.r;
     const res = await mesUpsertRoast({ id:r.id, patch:{ plan_kg:Math.round(x.per*x.n*100)/100 }, idem:`rp-fix-${r.id}-${uid()}` });
     if (!res || res.ok === false) fail.push(`${r.bean}: ${res?.message||""}`);
@@ -12178,9 +12242,9 @@ async function fixRoastPerBatch(){
 /* ★ 2026-11-04 [1배치 kg 바로잡기] 되돌리기 (Lee "되돌리기 기능 있을까?") — 마지막 바로잡기 한 번만 (이 기기에 저장) */
 const ROAST_FIX_KEY = "roastFixUndo";
 var ROAST_FIX_SNAP = null;
-function roastFixSnapSave(snap){ ROAST_FIX_SNAP = snap; try { localStorage.setItem(ROAST_FIX_KEY, JSON.stringify(snap)); } catch(_){} }
+function roastFixSnapSave(snap){ ROAST_FIX_SNAP = snap; try { localStorage.setItem(ROAST_FIX_KEY, JSON.stringify(snap)); } catch(_){ errQuiet(_); } }
 function roastFixSnapLoad(){ if (ROAST_FIX_SNAP) return ROAST_FIX_SNAP; try { ROAST_FIX_SNAP = JSON.parse(localStorage.getItem(ROAST_FIX_KEY) || "null"); } catch(_){ ROAST_FIX_SNAP = null; } return ROAST_FIX_SNAP; }
-function roastFixSnapClear(){ ROAST_FIX_SNAP = null; try { localStorage.removeItem(ROAST_FIX_KEY); } catch(_){} }
+function roastFixSnapClear(){ ROAST_FIX_SNAP = null; try { localStorage.removeItem(ROAST_FIX_KEY); } catch(_){ errQuiet(_); } }
 async function undoRoastFix(){
   if (!(await requireUser())) return;
   const S = roastFixSnapLoad(); if (!S) return toast("취소할 정정 내역이 없습니다");
@@ -12197,7 +12261,7 @@ async function undoRoastFix(){
   for (const x of S.lines) { const l = DB.roast_lines.find(y=>y.id===x.id); if (!l || l.done) continue;
     const r = await mesEditRoastLine({ line_id:x.id, patch:{ kg:x.kg }, idem:`rl-undo-${x.id}-${uid()}` }); if (r && r.ok !== false) { l.kg = x.kg; nL++; } else fail.push(`행 kg: ${r?.message||""}`); }
   for (const x of S.received) { const l = DB.roast_lines.find(y=>y.id===x.line_id); if (!l || l.done) continue;
-    if (x.batch_no) { try { await mesEditRoastLine({ line_id:x.line_id, patch:{ kg:x.kg, batch_no:x.batch_no, ...(x.roast_date ? { roast_date:x.roast_date } : {}) }, idem:`rl-undo2-${x.line_id}-${uid()}` }); } catch(_){} }
+    if (x.batch_no) { try { await mesEditRoastLine({ line_id:x.line_id, patch:{ kg:x.kg, batch_no:x.batch_no, ...(x.roast_date ? { roast_date:x.roast_date } : {}) }, idem:`rl-undo2-${x.line_id}-${uid()}` }); } catch(_){ errQuiet(_); } }
     const r = await mesReceiveLine({ line_id:x.line_id, kg:x.kg, batch_no:x.batch_no, roast_date:x.roast_date, in_date:x.in_date || undefined, idem:`rc-undo-${x.line_id}-${uid()}` });
     if (r && r.ok !== false) nR++; else fail.push(`${x.bean} ${x.batch_no||""}번 입고: ${r?.message||""}`); }
   const byDay = {}; S.orders.forEach(o=>{ (byDay[o.work_date] = byDay[o.work_date] || []).push(o); });
@@ -12464,7 +12528,7 @@ function renderRoast(){
      <td>${fmt(snap.reduce((s,x)=>s+x.kg,0))}</td>
      <td>${fmt(snap.reduce((s,x)=>s+Number(x.m.stock_kg||0),0))}</td><td></td>`);
 
-  renderCount();                     // 배치별 실측표도 같은 기준일로 다시 그린다
+  try { renderBeanCount(); } catch(e){ console.warn(e); }      // 배치별 실측표도 같은 기준일로 다시 그린다
 
   /* 목록에는 정정된 줄도 남깁니다 (지우지 않습니다). 흐리게 + [정정됨] 으로 구분합니다. */
   const cons = [...DB.consumptions].sort((a,b)=>String(b.work_date).localeCompare(String(a.work_date))).slice(0,40);
@@ -13093,7 +13157,7 @@ async function offBeanRevive(b){
 async function loadMatOff(){
   if (!sb) return MAT_OFF;
   try { const { data } = await sb.from(tb("materials")).select("*").eq("active", false).is("merged_into", null);
-    if (Array.isArray(data)) MAT_OFF = data; } catch(_){}
+    if (Array.isArray(data)) MAT_OFF = data; } catch(_){ errQuiet(_); }
   return MAT_OFF;
 }
 async function showMatOff(){ matKindFilter = "__off"; await loadMatOff(); renderBase(); }
@@ -13507,7 +13571,7 @@ async function openOrderLots(id, opt={}){
       $("olOk").disabled = true;
       await saveOrdLot(o, rec);
       logAudit("봉투 LOT 변경", M.name, `${o.serial||o.order_no||""} ${p?.name||""} · ${lotRowsFull(before)||"(없음)"} → ${lotRowsFull(after)}${lines.length?` (${lines.join(", ")})`:""}${note?` · ${note}`:""}`);
-      renderWork(); try { renderLots(); } catch(_){}
+      renderWork(); try { renderLots(); } catch(_){ errQuiet(_); }
       toast(`봉투 LOT — ${lotRowsText(after)}`);
       done({ rows:after });
     };
@@ -14166,7 +14230,7 @@ async function reReceive(m, kg, newNo){
   }
   const inD = m.in_date || today(), lid = l.id;
   const ok = await unreceiveBatch(m.id, { quiet:true }); if (ok !== true) return { ok:false, message:"입고를 취소하지 못했습니다" };
-  if (sb) { try { await pullWhere("roast_lines","id",lid); } catch(_){} }
+  if (sb) { try { await pullWhere("roast_lines","id",lid); } catch(_){ errQuiet(_); } }
   const l2 = DB.roast_lines.find(x=>x.id===lid) || l;
   const no = newNo || l2.batch_no || m.batch || null;
   await mesEditRoastLine({ line_id:lid, patch:{ kg, ...(newNo ? { batch_no:newNo } : {}) }, idem:`rl-rk-${lid}-${uid()}` }); l2.kg = kg; if (newNo) l2.batch_no = newNo;
@@ -14377,7 +14441,7 @@ async function ecApply(pick){
           const before = new Set(DB.roast_lines.map(x=>x.id));
           const up = await mesUpsertRoast({ id:null, patch:{ plan_date:r.rd, bean:r.bean, plan_kg:r.kg, batch_kg:r.kg, batches:1, note:"이카운트 표로 받음" }, idem:`ec-new-${uid()}` });
           if (!up || up.ok === false) { fail.push(`${r.bean} ${r.no}번 (계획 생성 실패)`); continue; }
-          if (sb) { try { await reloadDB({ silent:true }); } catch(_){} }
+          if (sb) { try { await reloadDB({ silent:true }); } catch(_){ errQuiet(_); } }
           lid = (DB.roast_lines.find(x=>!before.has(x.id) && !x.done && x.bean===r.bean) || {}).id;
           if (!lid) { fail.push(`${r.bean} ${r.no}번 (행 없음)`); continue; }
         }
@@ -14507,18 +14571,24 @@ async function addRoastLine(planId){
    봉지에 적힌 네 자리(2801)를 그대로 찾아 적고, 차이는 배치별로 본다. */
 let cntBean = "";
 function openCount(bean){
-  cntBean = bean; renderCount(); setRoastTab("stock");
+  cntBean = bean; renderBeanCount(); setRoastTab("stock");
   const w = $("cntWrap");
   if (w) setTimeout(()=>w.scrollIntoView({behavior:"smooth", block:"start"}), 40);
 }
-function closeCount(){ cntBean = ""; renderCount(); }
+function closeCount(){ cntBean = ""; renderBeanCount(); }
+/* 재고 실사 › [원두 (MMS)] — 원두별 수불 표로 가서 [배치별 실측]을 누르게 한다 (원두가 하나뿐이면 바로 연다) */
+function beanCountGo(){ go("roast"); setRoastTab("flow"); try { renderRoast(); } catch(e){ console.warn(e); }
+  toast("원두를 골라 [배치별 실측]을 누르십시오 — 봉지(배치)마다 센 값을 적습니다");
+  setTimeout(()=>{ const t = $("flowTbl"); if (t) t.scrollIntoView({ behavior:"smooth", block:"start" }); }, 80); }
 const cntDate  = () => ($("asOf") && $("asOf").value) || today();
 const cntRowOf = (D, id) => DB.counts.find(c=>c.count_date===D && c.mms_id===id);
 const cntBags  = D => stockAsOf(D).filter(x=>x.m.bean===cntBean && Math.abs(x.kg)>.005)
   .sort((a,b)=> String(a.m.roast_date).localeCompare(String(b.m.roast_date))
              || (Number(a.m.batch)-Number(b.m.batch)));
 
-function renderCount(){
+/* ★ 2026-11-19 원두(MMS) 배치별 실측표 — 재고 실사 화면의 renderCount 와 이름이 같아 덮어써져서 [배치별 실측]을 눌러도 뜨지 않았다
+     이름을 renderBeanCount 로 바꿔 되살린다 (Lee "mms 재고 실사 … 거기를 탄탄하게"). 들어가는 길: 재고 실사 › [원두 (MMS)] · 로스팅 › 수불 › [배치별 실측] */
+function renderBeanCount(){
   if ($("cntDay") && !$("cntDay").value) { $("cntDay").value = today(); $("cntDay").max = today(); }
   const w = $("cntWrap"); if (!w) return;
   if (!cntBean) { w.style.display = "none"; return; }
@@ -14588,12 +14658,12 @@ function setCnt(mmsId, v){
   if (t === ""){                                   // 지움
     const cur = cntRowOf(D, mmsId);
     if (cur){ DB.counts = DB.counts.filter(c=>c.id!==cur.id);
-      typedRender("cnt", ()=>renderRoast()); }
+      typedRender("cnt", ()=>{ renderRoast(); }); }
     return;
   }
   if (halfTyped(t)) return;                        // "62." 처럼 아직 숫자가 아니면 계속 치게 둔다
   putCnt(D, m, Math.round(numOf(t)*100)/100);
-  typedRender("cnt", ()=>renderRoast());
+  typedRender("cnt", ()=>{ renderRoast(); });
 }
 async function cntFillBook(){
   if (!(await requireUser())) return;
@@ -15034,7 +15104,7 @@ const SETTINGS = {};
 let SETTINGS_SERVER = false;
 function applySetting(k, v){ SETTINGS[k] = v; }
 async function loadSettings(){
-  try { const v = JSON.parse(localStorage.getItem("momos.settings") || "{}"); Object.assign(SETTINGS, v); } catch(_){}
+  try { const v = JSON.parse(localStorage.getItem("momos.settings") || "{}"); Object.assign(SETTINGS, v); } catch(_){ errQuiet(_); }
   if (!sb) return;
   try {
     const { data, error } = await sb.from(tb("settings")).select("*");
@@ -15046,7 +15116,7 @@ async function loadSettings(){
 async function saveSetting(k, v){
   applySetting(k, v);
   try { const all = JSON.parse(localStorage.getItem("momos.settings") || "{}"); all[k] = v;
-        localStorage.setItem("momos.settings", JSON.stringify(all)); } catch(_){}
+        localStorage.setItem("momos.settings", JSON.stringify(all)); } catch(_){ errQuiet(_); }
   if (!sb) return { ok:true, local:true };
   /* ★ 2026-11-16 — 같은 키는 보낸 순서대로 하나씩 저장한다 */
   const send = async () => {
@@ -16050,20 +16120,20 @@ function renderLog(){
           <button class="btn" onclick="printLabel('${l.id}')">라벨</button>
           <button class="btn danger" onclick="delLog('${l.id}')">삭제</button></td></tr>`; }));
 
-  { const wk = $("logWeekWrap"); if (wk) { let f = true; try { f = localStorage.getItem("momos.logWeekFold") !== "0"; } catch(_){} wk.classList.toggle("fold", f);
+  { const wk = $("logWeekWrap"); if (wk) { let f = true; try { f = localStorage.getItem("momos.logWeekFold") !== "0"; } catch(_){ errQuiet(_); } wk.classList.toggle("fold", f);
       if ($("logWeekSum")) $("logWeekSum").textContent = `· 합계 ${fmt(wl.reduce((s,l)=>s+Number(l.qty_ea||0),0))} EA · ${wl.length}건`; } }
 }
-function logWeekToggle(){ const wk = $("logWeekWrap"); if (!wk) return; const f = !wk.classList.contains("fold"); wk.classList.toggle("fold", f); try { localStorage.setItem("momos.logWeekFold", f ? "1" : "0"); } catch(_){} }
+function logWeekToggle(){ const wk = $("logWeekWrap"); if (!wk) return; const f = !wk.classList.contains("fold"); wk.classList.toggle("fold", f); try { localStorage.setItem("momos.logWeekFold", f ? "1" : "0"); } catch(_){ errQuiet(_); } }
 /* ★ 2026-11-19 화면 중복 정리 ① — 생산실적은 등록 · 수정 · 수령 확인만. 집계 표는 생산분석으로, 일련번호 · 건별 찾기는 통합 조회로 */
 function logToCapa(){ const d = $("fDate")?.value || today();
   go("capa"); if ($("capaMode")) $("capaMode").value = "custom"; $("capaFrom").value = d; $("capaTo").value = d;
-  const m = capaFoldMap(); m.sum = 0; try { localStorage.setItem("momos.capaFold", JSON.stringify(m)); } catch(_){}
+  const m = capaFoldMap(); m.sum = 0; try { localStorage.setItem("momos.capaFold", JSON.stringify(m)); } catch(_){ errQuiet(_); }
   renderCapa(); const pn = document.querySelector('#s-capa .csec[data-k="sum"]'); if (pn) { pn.classList.remove("fold"); setTimeout(()=>pn.scrollIntoView({ block:"start", behavior:"smooth" }), 60); } }
 /* ★ 2026-11-19 화면 중복 정리 ② — 생산분석의 건별 목록은 통합 조회의 생산 탭으로 (보고 있던 기간 그대로) */
 function capaToFind(){ const from = $("capaFrom")?.value || today(), to = $("capaTo")?.value || from;
   fdTab = "prod"; go("find"); if ($("fdFrom")) $("fdFrom").value = from; if ($("fdTo")) $("fdTo").value = to; if ($("fdQ")) $("fdQ").value = "";
-  try { renderFind(); } catch(_){} }
-function logToFind(){ fdTab = "prod"; go("find"); try { renderFind(); } catch(_){} }
+  try { renderFind(); } catch(_){ errQuiet(_); } }
+function logToFind(){ fdTab = "prod"; go("find"); try { renderFind(); } catch(_){ errQuiet(_); } }
 /* 설비별 · 규격별 · 품목별 · 분쇄도별 집계 — 생산분석의 기간(from~to) 실적으로 */
 function renderLogSum(logs){
   if (!$("byMach")) return;
@@ -16137,7 +16207,7 @@ function qtyFlag(o){
   const ev = DB.order_events.filter(e=>e.order_id===o.id && ["qc_qty_diff","qc_qty_ack","qc_qty_cancel","qc_pass","qc_reject","qc_resubmit"].includes(e.event))
     .sort((a,b)=>(Number(a.seq)||0)-(Number(b.seq)||0) || String(a.at).localeCompare(String(b.at)));
   const last = ev[ev.length-1]; if (!last || last.event !== "qc_qty_diff") return null;
-  let j = {}; try { j = JSON.parse(last.note || "{}") || {}; } catch(_){}
+  let j = {}; try { j = JSON.parse(last.note || "{}") || {}; } catch(_){ errQuiet(_); }
   const produced = Number(j.produced ?? o.qty_done) || 0, received = Number(j.received);
   if (!(received >= 0)) return null;
   return { produced, received, diff: received - produced, reason: j.reason || "", by: last.user_name || "", at: last.at };
@@ -16192,7 +16262,7 @@ async function ackQty(id){
     logAudit("검수 완료", o.order_no, `${o.product_name||""} 생산 ${fmt(old)} → 확인 ${fmt(f.received)} · 현장 확인`);
     return { ok:true }; }, { quiet:true });
   if (!r || r.ok === false) { renderAll(); return ask(QTY_RPC_MISSING(r) ? QTY_RPC_HELP : (r?.message || "처리하지 못했습니다"), { title:"검수 수량 확인", yes:"확인", only:true }); }
-  if (sb) { try { await Promise.all([ pullOrder(id), pullWhere("logs", "id", o.log_id), pullWhere("products", "id", o.product_id) ]); } catch(_){} }
+  if (sb) { try { await Promise.all([ pullOrder(id), pullWhere("logs", "id", o.log_id), pullWhere("products", "id", o.product_id) ]); } catch(_){ errQuiet(_); } }
   renderAll(); toast(`${fmt(f.received)}개로 확인했습니다 — 검수 완료 · 출고 대기로 전환됩니다`);
 }
 function qcFlow(o){
@@ -17008,7 +17078,7 @@ function renderLossRule(){
           return `<tr><td class="l"><b>${n}</b></td><td>${num(m.pct, `setLossMach('${n}','pct',this.value)`, c.def)}</td><td>${num(m.tol, `setLossMach('${n}','tol',this.value)`, c.tol)}</td><td class="c">${r.lo}~${r.hi}%</td></tr>`; }).join("") || `<tr><td colspan="4" class="c hint">설비 없음</td></tr>`}</tbody></table></div>
       <div><div style="font-weight:700;margin-bottom:4px">품목별 <span class="hint" style="padding:0">(기준정보 › 품목 표의 로스율 항목과 동일한 값)</span></div><table><thead><tr><th class="l">품목</th><th>기준 %</th><th>오차 ±%p</th><th>정상 범위</th></tr></thead><tbody>${
         PRODS().map(p=>{ const r = lossRuleOf(p, null);
-          return `<tr><td class="l">${p.name}</td><td>${num(c.items[p.id], `setLossPct('${p.id}',this.value)`, c.def)}</td><td>${num(c.tol_items[p.id], `setLossPctTol('${p.id}',this.value)`, c.tol)}</td><td class="c">${r.lo}~${r.hi}%</td></tr>`; }).join("") || `<tr><td colspan="4" class="c hint">품목 없음</td></tr>`}</tbody></table></div>
+          return `<tr><td class="l">${p.name}</td><td>${num(c.items[p.id], `setLossPct('${p.id}',this.value)`, lossSrcOf(p).v)}${lossSrcTag(p)}</td><td>${num(c.tol_items[p.id], `setLossPctTol('${p.id}',this.value)`, c.tol)}</td><td class="c">${r.lo}~${r.hi}%</td></tr>`; }).join("") || `<tr><td colspan="4" class="c hint">품목 없음</td></tr>`}</tbody></table></div>
     </div>`;
 }
 function renderLossLogs(logs){
@@ -17795,7 +17865,21 @@ async function offSelected(){
   logAudit("품목 사용중지", `${rows.length}개`, rows.slice(0,5).map(p=>p.name).join(", "));
   SEL.products.clear(); renderAll(); toast(`${rows.length}개 사용중지 (이력은 유지)`);
 }
-function renderBase(){ renderBaseInner(); try { renderBeanSet(); } catch(e){ console.warn(e); } basePendApplyDOM(); }
+/* ★ 2026-11-19 품목 표 18칸 → 평소에는 핵심 칸만 (CFE 코드 · 채널 · 원두 · 제품명 · 규격 · 포장 · 기본 라벨 · 사용) · [모든 칸 보기]로 전부
+     긴 안내문은 한 줄만 보이고 [설명 더 보기]로 펼친다 · 기기마다 기억한다 */
+let PROD_WIDE = false; try { PROD_WIDE = localStorage.getItem("momos.prodWide") === "1"; } catch(e){ console.debug(e); }
+function setProdWide(on){ PROD_WIDE = !!on; try { localStorage.setItem("momos.prodWide", on ? "1" : "0"); } catch(e){ console.debug(e); } baseTidy(); }
+function baseTidy(){
+  const t = $("tProd"); if (t) { t.classList.toggle("compact", !PROD_WIDE);
+    let b = $("prodWideBtn"); if (!b) { const h = t.closest(".panel")?.querySelector(".panel-h .r"); if (h) { b = document.createElement("button"); b.id = "prodWideBtn"; b.className = "btn"; h.insertBefore(b, h.firstChild); } }
+    if (b) { b.textContent = PROD_WIDE ? "핵심 칸만 보기" : "모든 칸 보기 (18칸)"; b.onclick = () => setProdWide(!PROD_WIDE); b.title = "구분 · 분쇄도 · 표준투입 · 안전재고 · CFE현재고 · 로스율 · 묶음 · 이카전용 · 삭제 칸을 보이거나 숨깁니다"; } }
+  document.querySelectorAll("#s-base .subpane > .panel > .hint, #s-base .subpane > .panel > .guide").forEach(h=>{
+    if (h.dataset.fold || (h.textContent || "").trim().length < 170) return; h.dataset.fold = "1";
+    const d = document.createElement("details"); d.className = "hintFold"; const sm = document.createElement("summary");
+    const first = (h.textContent || "").trim().split(/(?<=다\.|니다|\.)\s|—|·/)[0].slice(0, 90);
+    sm.innerHTML = `<span class="hint" style="padding:0">${xh(first)}… <b style="color:var(--pri,#1d4ed8)">설명 더 보기</b></span>`; h.parentNode.insertBefore(d, h); d.appendChild(sm); d.appendChild(h); });
+}
+function renderBase(){ renderBaseInner(); try { renderBeanSet(); } catch(e){ console.warn(e); } basePendApplyDOM(); try { baseTidy(); } catch(e){ console.warn(e); } }
 /* ★ 2026-11-16 기준정보 › 원두별 세팅 */
 let bsetOnly = false;
 function beanSetMiss(b){
@@ -17879,7 +17963,7 @@ function renderBaseInner(){
       <td>${inp("products",p.id,"std_g",p.std_g,"number")}</td>
       <td>${inp("products",p.id,"safety",p.safety,"number")}</td>
       <td>${inp("products",p.id,"cfe",p.cfe,"number")}</td>
-      <td><input type="text" inputmode="decimal" class="num" style="width:56px" value="${lossCfg().items[p.id] ?? ""}" placeholder="${lossCfg().def}" data-f="loss:${p.id}" ${can("base")?"":"disabled"} onchange="setLossPct('${p.id}',this.value)" title="미입력 시 기본값"></td>
+      <td><input type="text" inputmode="decimal" class="num" style="width:56px" value="${lossCfg().items[p.id] ?? ""}" placeholder="${lossSrcOf(p).v}" data-f="loss:${p.id}" ${can("base")?"":"disabled"} onchange="setLossPct('${p.id}',this.value);typedRender('base', renderBase, 200)" title="비워 두면 원두별 설정 값, 그것도 없으면 기본값이 적용됩니다">${lossSrcTag(p)}</td>
       <td class="c">${p.ica
         ? `<span class="tag" title="이카 전용 — 이카 롤패키지 + 아로마밸브">이카 롤패키지</span>`
         : `<select onchange="setPackMode('${p.id}',this.value)" ${can("base")?"":"disabled"} title="풀패키지 = 품목명이 인쇄된 파우치(라벨 없음) · 그 외는 ${isHavanaProd(p)?"하바나 봉투":"공용봉투"} + 라벨" style="min-width:132px;font-weight:700">
@@ -18425,9 +18509,9 @@ async function backupAll(){
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `MOMOS생산계획_백업_${today()}.json`; a.click();
-  try { localStorage.setItem(BACKUP_AT_KEY, nowISO()); } catch(_){}
+  try { localStorage.setItem(BACKUP_AT_KEY, nowISO()); } catch(_){ errQuiet(_); }
   toast(`백업 파일을 저장했습니다 — ${fmt(blob.size/1024/1024)}MB`);
-  try { if (curScreen() === "ready") renderReady(); } catch(_){}
+  try { if (curScreen() === "ready") renderReady(); } catch(_){ errQuiet(_); }
 }
 function dbRowCount(){ const by = Object.keys(DB).filter(k=>Array.isArray(DB[k])).map(k=>({ k, n:DB[k].length })).sort((a,b)=>b.n - a.n);
   return { by, total: by.reduce((t,x)=>t + x.n, 0) }; }
@@ -18752,7 +18836,8 @@ const LOAD_SKIP = ["idempotency_keys"];
 async function fetchTable(t){
   const out = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await sb.from(tb(t)).select("*").range(from, from + 999);
+    /* ★ 2026-11-19 순서를 정하지 않고 1000줄씩 나눠 받으면, 받는 사이에 순서가 바뀌어 줄이 빠지거나 겹칠 수 있다 → id 순서로 받는다 */
+    const { data, error } = await sb.from(tb(t)).select("*").order("id").range(from, from + 999);
     if (error) { if (OPTIONAL_TABLES.includes(t)) { if (!MISSING_TABLES.includes(t)) MISSING_TABLES.push(t); console.warn(`[MES] 표 ${tb(t)} 없음 — 빈 표로 둠`, error.message); return out; } throw error; }
     out.push(...data);
     if (data.length < 1000) break;
@@ -18768,8 +18853,8 @@ async function fetchTable(t){
    · 이 기기만 전처럼 전부 받게 하려면: 시작 전 점검 › 자료 양 › [이 기기는 전부 받기] ══ */
 const LOAD_DAYS = 90, LOAD_ALL_KEY = "momos.loadAll";
 const loadAllWanted = () => { try { return localStorage.getItem(LOAD_ALL_KEY) === "1"; } catch(_){ return false; } };
-function setLoadAll(on){ try { on ? localStorage.setItem(LOAD_ALL_KEY, "1") : localStorage.removeItem(LOAD_ALL_KEY); } catch(_){}
-  toast(on ? "이 기기는 다음에 열 때부터 자료를 전부 받습니다 — 지금 다시 불러옵니다" : "이 기기는 최근 90일 자료만 받습니다 — 지금 다시 불러옵니다"); reloadDB({ silent:true }).then(()=>{ try { render(curScreen()); } catch(_){} }); }
+function setLoadAll(on){ try { on ? localStorage.setItem(LOAD_ALL_KEY, "1") : localStorage.removeItem(LOAD_ALL_KEY); } catch(_){ errQuiet(_); }
+  toast(on ? "이 기기는 다음에 열 때부터 자료를 전부 받습니다 — 지금 다시 불러옵니다" : "이 기기는 최근 90일 자료만 받습니다 — 지금 다시 불러옵니다"); reloadDB({ silent:true }).then(()=>{ try { render(curScreen()); } catch(_){ errQuiet(_); } }); }
 /* 최근 90일 받기가 어떤 이유로든 실패하면(서버가 조건을 거부 등) 전처럼 전부 받는다 — 앱이 열리지 않는 일은 없게 */
 let LOAD_WIN_ERR = "";
 async function loadTables(onProgress){
@@ -18985,7 +19070,7 @@ let RT_REST = null;
 function liveRender(){
   clearTimeout(RT_TIMER);
   RT_TIMER = setTimeout(()=>{
-    sortMasters(); try { matDedupeView(); } catch(_){}
+    sortMasters(); try { matDedupeView(); } catch(_){ errQuiet(_); }
     const cur = curScreen(), a = document.activeElement;
     const typing = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== "checkbox" && a.type !== "button"
                    && !(a.dataset && a.dataset.live)                  // ★ 2026-11-18 검색 칸(다시 그려지지 않는 자리)은 치는 중이어도 화면을 새로 받는다
@@ -18999,7 +19084,7 @@ function liveRender(){
     const job = { cancel:false }, rest = bgScreens(cur); RT_REST = job;
     const step = () => {
       if (job.cancel) return;
-      if (!rest.length) { try { syncUserUI(); } catch(_){} return; }
+      if (!rest.length) { try { syncUserUI(); } catch(_){ errQuiet(_); } return; }
       if (typingNow()) { setTimeout(step, 500); return; }      // ★ 2026-11-19 치는 중에는 뒤 화면을 그리지 않는다 — 손을 멈추면 이어서
       try { renderOne(rest.shift()); } catch(e){ console.warn(e); }
       idle(step);
@@ -19035,8 +19120,8 @@ async function pullWhere(t, col, val){
   if (!sb || val == null) return;
   try { const { data, error } = await sb.from(tb(t)).select("*").eq(col, val);
     if (error || !Array.isArray(data)) return;
-    data.forEach(r=>{ try { rtApply(t, "UPDATE", r, null); } catch(_){} });
-  } catch(_){}
+    data.forEach(r=>{ try { rtApply(t, "UPDATE", r, null); } catch(_){ errQuiet(_); } });
+  } catch(_){ errQuiet(_); }
 }
 const pullOrder = id => pullWhere("orders", "id", id);
 async function pullAfterFinish(orderId, logId){
@@ -19073,7 +19158,7 @@ function startRealtime(){
     RT_HIDDEN_AT = 0;
   });
   /* 로그인 토큰이 갱신되면 실시간 연결에도 알려 준다 */
-  try { sb.auth.onAuthStateChange((_e, sess)=>{ if (sess?.access_token && sb.realtime?.setAuth) sb.realtime.setAuth(sess.access_token); }); } catch(_){}
+  try { sb.auth.onAuthStateChange((_e, sess)=>{ if (sess?.access_token && sb.realtime?.setAuth) sb.realtime.setAuth(sess.access_token); }); } catch(_){ errQuiet(_); }
 }
 
 /* ══ 자동 새로고침 (★ 2026-11-11 — Lee "검수는 계속 한 화면만 띄우고 현장에서는 한 화면만 띄우는데 자동 새로고침 기능이 없으면 계속 그 화면이 유지되는거잖아") ══
@@ -19110,7 +19195,7 @@ async function pullLive(){
     const key = "id";
     r.data.forEach(row => { const cur = DB[t].find(x => x[key] === row[key]);
       if (cur && !autoRowDiff(cur, row)) return;
-      try { rtApply(t, cur ? "UPDATE" : "INSERT", row, null); changed++; } catch(_){} });
+      try { rtApply(t, cur ? "UPDATE" : "INSERT", row, null); changed++; } catch(_){ errQuiet(_); } });
     /* 서버에서 지워진 작업지시 — 두 번 연속으로 안 보이면 화면에서도 뺀다 (방금 만든 것을 실수로 지우지 않게 두 번 확인) */
     if (t === "orders" && r.data.length < 1000) {
       const got = new Set(r.data.map(x => x.id)), miss = new Set();
@@ -19123,7 +19208,7 @@ async function pullLive(){
   if (failed === res.length) return -1;
   /* ★ 2026-11-18 변경 표시 확인 기록 — 실시간 연결이 끊겨 있어도 같은 아이디의 다른 기기에서 누른 [확인] 을 받는다 */
   try { const k = chgSrvKey(); if (k) { const r = await sb.from(tb("settings")).select("key,value").eq("key", k).limit(1);
-    if (r && !r.error && r.data && r.data[0] && JSON.stringify(SETTINGS[k] || null) !== JSON.stringify(r.data[0].value)) { applySetting(k, r.data[0].value); changed++; } } } catch(_){}
+    if (r && !r.error && r.data && r.data[0] && JSON.stringify(SETTINGS[k] || null) !== JSON.stringify(r.data[0].value)) { applySetting(k, r.data[0].value); changed++; } } } catch(_){ errQuiet(_); }
   AUTO_OK_AT = new Date();
   return changed;
 }
@@ -19176,7 +19261,7 @@ async function manualRefresh(){
   if (!sb) { render(cur); return toast("로컬 모드 — 화면만 갱신했습니다 (DB 미연결)"); }
   autoStamp("수신 중…");
   await autoTick(true);
-  try { render(cur); } catch(_){}
+  try { render(cur); } catch(_){ errQuiet(_); }
   toast(AUTO_OK_AT && Date.now() - AUTO_OK_AT.getTime() < 5000 ? "최신 데이터로 갱신했습니다" : "갱신하지 못했습니다 — 인터넷 연결을 확인하십시오");
 }
 setInterval(()=>autoTick(false), 1000);
@@ -19371,7 +19456,7 @@ function learnCodes(sheets){
       const nm = cleanSkuName(r[hm.name]); if (!nm) continue;
       const key = nameKey(nm); if (pCodeMap[key] !== k) { pCodeMap[key] = k; n++; } }
   });
-  if (n) { try { localStorage.setItem("momos.cfeMap", JSON.stringify(pCodeMap)); } catch(_){} }
+  if (n) { try { localStorage.setItem("momos.cfeMap", JSON.stringify(pCodeMap)); } catch(_){ errQuiet(_); } }
   return n;
 }
 /* ★ 2026-11-15 분쇄 SKU(CFE1535A) 로 들어온 품목은 끝 글자를 뗀 기본 코드(CFE1535)가 그 홀빈 품목의 코드다 — 분쇄 내역에서도 코드를 찾는다 */
@@ -19466,7 +19551,7 @@ async function fixBizSplit(){
     ["created_at","updated_at"].forEach(k=>delete B[k]);
     A.code = gen; save("products", A);
     DB.products.push(B); save("products", B);
-    try { DB.bom.filter(b=>b.product_id===A.id).forEach(b=>{ const nb = { ...b, id:uid(), product_id:B.id }; DB.bom.push(nb); save("bom", nb); }); } catch(_){}
+    try { DB.bom.filter(b=>b.product_id===A.id).forEach(b=>{ const nb = { ...b, id:uid(), product_id:B.id }; DB.bom.push(nb); save("bom", nb); }); } catch(_){ errQuiet(_); }
     logAudit("사업자 품목 복원", B.name, `${A.name} 코드 ${biz} → ${gen} · ${B.name} ${biz} 신규 생성`);
     renderAll(); toast(`${A.name} → ${gen} · ${B.name} (${biz}) 생성했습니다`);
   }
@@ -19754,7 +19839,7 @@ $("pFile").addEventListener("change", async e=>{
            전에는 무조건 첫 시트만 읽어 '이카운트 판매입력' 처럼 이름이 비어 있는 시트가 들어갔다 */
       pWB = { names: wb.SheetNames.slice(), sheets: {} };
       wb.SheetNames.forEach(nm=>{ pWB.sheets[nm] = XLSX.utils.sheet_to_json(wb.Sheets[nm], { header:1, defval:"", blankrows:false, raw:false, dateNF:"yyyy-mm-dd" }); });
-      try { learnCodes(pWB.sheets); } catch(_){}                     // ★ 2026-11-15 파일의 [코드 ↔ 상품명] 을 기억해 둔다
+      try { learnCodes(pWB.sheets); } catch(_){ errQuiet(_); }                     // ★ 2026-11-15 파일의 [코드 ↔ 상품명] 을 기억해 둔다
       const pick = pickSheetFor($("pMode").value);
       const sel = $("pSheet"); sel.innerHTML = pWB.names.map(nm=>`<option value="${nm.replace(/"/g,"&quot;")}" ${nm===pick?"selected":""}>${nm} (${pWB.sheets[nm].length}행)</option>`).join("");
       $("pSheetWrap").style.display = pWB.names.length > 1 ? "" : "none";
@@ -19884,7 +19969,7 @@ async function readImage(file){
     info.innerHTML = `<b class="bad">사진을 인식하지 못했습니다</b> — 더 선명한 사진을 사용하거나 엑셀로 입력하십시오.`;
   } finally {
     URL.revokeObjectURL(url);
-    try { if (worker) await worker.terminate(); } catch(_){}
+    try { if (worker) await worker.terminate(); } catch(_){ errQuiet(_); }
   }
 }
 $("pImg").addEventListener("change", e=>{ const f=e.target.files[0]; if(f) readImage(f); e.target.value=""; });
@@ -21295,7 +21380,7 @@ async function makeOrders(){
           return;
         }
       }
-    } catch(_){}
+    } catch(_){ errQuiet(_); }
   }
   const res = await mesCreateOrders({ work_date:d, draft:payload,
                                       idem:`mko-${d}-${uid()}` });
@@ -21324,7 +21409,7 @@ async function addOrder(){
   const d = $("woDate")?.value || today();
   const r = await mesAddOrder({ date:d, idem:`oa-${d}-${uid()}` });
   if (!r || !r.ok) return toast(r?.message || "추가하지 못했습니다");
-  if (sb && r.order_id) { try { await pullOrder(r.order_id); } catch(_){} }   // ★ 2026-11-18 실시간 연결이 끊겨 있어도 추가한 줄이 바로 보이게
+  if (sb && r.order_id) { try { await pullOrder(r.order_id); } catch(_){ errQuiet(_); } }   // ★ 2026-11-18 실시간 연결이 끊겨 있어도 추가한 줄이 바로 보이게
   renderWork(); renderOrder();
 }
 /* 치는 중에는 화면에만 둡니다 */
@@ -21396,7 +21481,7 @@ async function startWork(id){
   INFLIGHT.delete(id);
   if (!r || !r.ok) { Object.assign(o, before); renderAll(); return toast(r?.message || "시작하지 못했습니다 — 이전 상태로 복원했습니다"); }
   /* 시작한 사람은 저절로 "같이 하는 사람"에 들어간다 — [참여]를 또 누를 필요 없음 */
-  if (CURRENT_USER && !openWorkers(o).includes(CURRENT_USER)) { try { await joinWork(id, true); } catch(_){} }
+  if (CURRENT_USER && !openWorkers(o).includes(CURRENT_USER)) { try { await joinWork(id, true); } catch(_){ errQuiet(_); } }
   renderWork(); renderDash();
 }
 /* ── 현장: 지금까지 만든 수량 ── */
@@ -21469,7 +21554,7 @@ function localTx(fn){
   try {
     return fn(T);
   } catch(e){
-    for (let i = undo.length - 1; i >= 0; i--) { try { undo[i](); } catch(_){} }
+    for (let i = undo.length - 1; i >= 0; i--) { try { undo[i](); } catch(_){ errQuiet(_); } }
     throw e;                      // 되돌린 뒤 그대로 올려 보낸다
   }
 }
@@ -21637,7 +21722,7 @@ async function mesFinishWork(args){
         p_input_kg: (args.input_kg === "" || args.input_kg === undefined) ? null : args.input_kg,
         p_worker_id: args.worker_id || currentWorkerId(), p_idempotency: args.idem || null });
       if (error) return MES_ERR("server", error.message || String(error));
-      if (data && data.ok !== false) { try { await pullAfterFinish(args.order_id, data.log_id); } catch(_){} }
+      if (data && data.ok !== false) { try { await pullAfterFinish(args.order_id, data.log_id); } catch(_){ errQuiet(_); } }
       return data;
     } catch(e){ return MES_ERR("network", String(e?.message || e)); }
   }
@@ -21652,7 +21737,7 @@ async function mesStartWork(args){
         p_order_id: args.order_id, p_worker_id: args.worker_id || null,
         p_idempotency: args.idem || null });
       if (error) return MES_ERR("server", error.message || String(error));
-      if (data && data.ok !== false) { try { await pullOrder(args.order_id); } catch(_){} }
+      if (data && data.ok !== false) { try { await pullOrder(args.order_id); } catch(_){ errQuiet(_); } }
       return data;
     } catch(e){ return MES_ERR("network", String(e?.message || e)); }
   }
@@ -21867,7 +21952,7 @@ async function carryBatchKg(fromId, toId, kg, ref){
     [[A, -v, "잔량 이월(출)"], [B, v, "잔량 이월(입)"]].forEach(([m, q, reason]) => { const x = { id:uid(), kind:"원두", ref_type:"carry", ref_id:m.id, mms_id:m.id, bean:m.bean, qty:q, unit:"kg", reason, move_date:today(), at:nowISO(), user_name:CURRENT_USER }; DB.stock_moves.push(x); save("stock_moves", x); });
     return { ok:true, kg:v, from_after:A.stock_kg, to_after:B.stock_kg };
   }, { quiet:true });
-  if (r && r.ok && sb) { try { await Promise.all([pullWhere("mms","id",fromId), pullWhere("mms","id",toId), pullWhere("adjust","ref_id",toId), pullWhere("adjust","ref_id",fromId)]); } catch(_){} }
+  if (r && r.ok && sb) { try { await Promise.all([pullWhere("mms","id",fromId), pullWhere("mms","id",toId), pullWhere("adjust","ref_id",toId), pullWhere("adjust","ref_id",fromId)]); } catch(_){ errQuiet(_); } }
   return r;
 }
 function finishDialog(o, p, ctx){
@@ -22206,12 +22291,12 @@ async function ecDoneApply(pick){
       const was = o.status, note0 = o.note || "";
       if (o.status === "대기") { const st = await mesStartWork({ order_id:o.id, worker:CURRENT_USER, worker_id:currentWorkerId(), idem:`sw-${o.id}-${uid()}` });
         if (!st || st.ok === false) { fail.push(`${nm} (시작 불가 — ${st?.message||""})`); continue; } }
-      if (o.paused_at) { try { await resumeWork(o.id, true); } catch(_){} }
+      if (o.paused_at) { try { await resumeWork(o.id, true); } catch(_){ errQuiet(_); } }
       const ng = Number(o.qty_ng||0);
       const LZ = autoLoss(o, p, r.qty, 0, { input: needKg(p, r.qty + ng) });
       const res = await mesFinishWork({ order_id:o.id, good:r.qty, ng, ng_type:null, input_kg:LZ.batchKg, worker:CURRENT_USER, worker_id:currentWorkerId(), idem:`ecd-${o.id}-${uid()}` });
       if (!res || res.ok === false) { fail.push(`${nm} (${res?.message||"실패"})`);
-        if (was === "대기") { try { await mesStopWork({ order_id:o.id, reason:note0, idem:`ecd-stop-${o.id}-${uid()}` }); } catch(_){} }   // 시작만 해 놓고 남지 않게 되돌림
+        if (was === "대기") { try { await mesStopWork({ order_id:o.id, reason:note0, idem:`ecd-stop-${o.id}-${uid()}` }); } catch(_){ errQuiet(_); } }   // 시작만 해 놓고 남지 않게 되돌림
         continue; }
       ok++;
       if (!res.replayed) { ordLotOnFinish(ordById(o.id) || o, r.qty + ng).catch(()=>{}); const lid = res.log_id || o.log_id; if (lid) recordLoss(lid, LZ).catch(()=>{}); }
@@ -22271,7 +22356,7 @@ async function finishWork(id){
   btnBusy();
 
   if (!r || !r.ok) {
-    if (r && r.code === "bad_status") { if (sb) { try { await pullWhere("orders", "id", o.id); } catch(_){} } quickRender(); return alreadyDone(ordById(o.id) || o, good); }
+    if (r && r.code === "bad_status") { if (sb) { try { await pullWhere("orders", "id", o.id); } catch(_){ errQuiet(_); } } quickRender(); return alreadyDone(ordById(o.id) || o, good); }
     const msg = (r && r.message) || "처리하지 못했습니다";
     quickRender();
     return ask(`${msg}\n\n재고와 실적은 변동 없습니다 — 변경된 내용은 없습니다.\n` +
@@ -22296,7 +22381,7 @@ async function finishWork(id){
   if (!r.replayed && F.bagLoss > 0) { const M = ordIca(o) ? null : ordLotMat(o);
     if (M) { const br = await mesBagLoss({ order_id:o.id, material_id:M.id, qty:F.bagLoss, idem:`bl-${o.id}-${r.log_id||uid()}` });
       if (!br || br.ok === false) toast(`봉투 로스를 기록하지 못했습니다 — ${br?.message || ""} (000_install_all.sql 의 "봉투 로스" 절 실행 여부 확인) · 봉투 재고는 변동 없습니다`);
-      else if (sb) { try { await pullWhere("materials", "id", M.id); } catch(_){} } } }
+      else if (sb) { try { await pullWhere("materials", "id", M.id); } catch(_){ errQuiet(_); } } } }
   /* ★ 봉투 LOT별 사용수량 — 행이 없으면 선입선출로 나눠 남기고, 있으면 완료 수량(정상+버림)에 맞춘다 */
   if (!r.replayed) ordLotOnFinish(ordById(o.id) || o, good + (ng||0)).catch(()=>{});
   /* 로스 기록 — 재고와는 별개. 기다리지 않고 뒤에서 보낸다 */
@@ -22567,7 +22652,7 @@ async function saveShipSplit(o, list){
     () => { o.channel = ch; o.ship_note = note; o.ship_split = split.length ? split : null; save("orders", o); return { ok:true }; });
   if (!r || !r.ok) { toast(r?.message || "출고처를 저장하지 못했습니다 (069 SQL 실행 여부 확인)"); return r || { ok:false }; }
   o.channel = ch; o.ship_note = note; o.ship_split = split.length ? split : null;
-  renderQc(); try { renderShip(); } catch(_){}
+  renderQc(); try { renderShip(); } catch(_){ errQuiet(_); }
   return r;
 }
 const shipGenSel = o => Array.isArray(o?.ship_split) && o.ship_split.some(x=>x && x.ch==="일반" && x.sel);
@@ -22794,7 +22879,7 @@ async function qcForceFix(id){
     return null; });
   if (r === null) { const r2 = await mesCompleteQc({ order_id:id, received:f.received, idem:`qc-${id}-${uid()}` }); return mesTell(r2, `${fmt(f.received)}개로 정정 후 검수 완료`); }
   if (!r || r.ok === false) { renderAll(); return toast(r?.message || "처리하지 못했습니다"); }
-  if (sb) { try { await Promise.all([ pullOrder(id), pullWhere("logs", "id", o.log_id), pullWhere("products", "id", o.product_id) ]); } catch(_){} }
+  if (sb) { try { await Promise.all([ pullOrder(id), pullWhere("logs", "id", o.log_id), pullWhere("products", "id", o.product_id) ]); } catch(_){ errQuiet(_); } }
   renderAll(); toast(`${fmt(f.received)}개로 정정 후 검수 완료 — 출고 대기로 전환됩니다`);
 }
 /* 반려 → 조치 → 재검수 를 시간순으로 보여 준다 (이력을 덮어쓰지 않습니다) */
@@ -22911,7 +22996,7 @@ async function shipRun(items, title){
   if (!(await ask(`${title}\n\n${items.slice(0,12).map(x=>`· ${chName(x.ch)} — ${x.name} ${fmt(x.qty)}개 (${x.serial||""})`).join("\n")}${items.length>12?`\n… 외 ${items.length-12}건`:""}\n\n합계 ${items.length}건 · ${fmt(q)}개 — 출고장 재고(CFE)에 반영됩니다.`, { title:"전량 출고", yes:"전체 출고" }))) return;
   const busy = setBusy(`출고 중… (${items.length}건)`); const fail = [];
   for (const x of items) { const r = await shipPart(x.id, x.ch, true); if (!r || !r.ok) fail.push(`${x.name} ${x.serial||""} — ${r?.message||"실패"}`); }
-  busy(); await loadYard(); quickRender(); try { renderShip(); } catch(_){}
+  busy(); await loadYard(); quickRender(); try { renderShip(); } catch(_){ errQuiet(_); }
   if (fail.length) return ask(`${items.length - fail.length}건 출고 · ${fail.length}건 실패\n\n${fail.join("\n")}`, { title:"전량 출고", yes:"확인", only:true });
   toast(`전량 출고 완료 — ${items.length}건 · ${fmt(q)}개`);
 }
@@ -23018,12 +23103,12 @@ async function costcoAuto(forced){
         label_packs:labelNeed(x.p, x.qty).bundles ?? null, label_id:labelPick(x.p) || "", pack_type:isFullPack(x.p) ? PACK_FULL : PACK_LABEL };
       const r = await mesCostcoAuto({ mms_id:x.m.id, draft, force:!!x.force });
       if (r && r.ok !== false && !r.replayed && r.made) { made.push(`${x.p.name} ${fmt(x.qty)}개`); delete COSTCO_ERR[x.m.id]; COSTCO_OLD.delete(x.m.id);
-        if (sb && r.order_id) { try { await Promise.all([ pullOrder(r.order_id), pullWhere("order_events", "order_id", r.order_id) ]); } catch(_){} } }
+        if (sb && r.order_id) { try { await Promise.all([ pullOrder(r.order_id), pullWhere("order_events", "order_id", r.order_id) ]); } catch(_){ errQuiet(_); } } }
       else if (r && r.ok !== false) COSTCO_OLD.add(x.m.id);          // 전에 이미 처리한 배치 (취소 · 삭제했거나 생산을 마침)
       else COSTCO_ERR[x.m.id] = /costco_auto_order|schema cache|function/i.test(String(r?.message||"")) ? "서버에 최신 000_install_all.sql 실행 필요" : String(r?.message || "생성 실패");
     }
   } finally { COSTCO_BUSY = false; }
-  if (!made.length && list.length) { try { renderOne("work"); } catch(_){} }
+  if (!made.length && list.length) { try { renderOne("work"); } catch(_){ errQuiet(_); } }
   if (made.length) { renderAll(); toast(`코스트코 원두 입고 → 작업지시 ${made.length}건 자동 생성 (${made.slice(0,2).join(", ")}${made.length>2?` 외 ${made.length-2}건`:""}) — 완료될 때까지 현장 작업에 표시됩니다`); }
 }
 /* [원두 이동] — 받은 원두를 다른 곳으로 넘긴다 · 일부(지시 수량 줄임) · 전량(지시 취소) */
@@ -23334,32 +23419,42 @@ function readyChecks(){
   add("CFE 완제품 (출고팀)", "yardDays", "warn", "CFE 완제품 상미기한 일수", yl ? `현재 ${yl}일` : "정해지지 않아 금일 출고 필요 · 상미 초과 경고가 뜨지 않습니다. 출고 › 출고장 재고에서 일수를 넣으십시오", yl ? [] : ["일수 미설정"], "ship", "출고");
   add("CFE 완제품 (출고팀)", "yardOld", "warn", "상미기한이 지난 CFE 완제품", "출고장 재고 기준. 실물 확인 후 정리하십시오", yardShelfLots("bad").map(l=>`${xh(yardLotName(l))} · ${String(l.mfg_date).slice(5)} 제조 · ${fmt(l.left_qty)}개`), "ship", "출고");
   /* ⑤-2 자료 양 · 백업 — 서버 자동 백업이 없는 요금제에서는 이 파일이 유일한 사본이다 */
-  const RC = dbRowCount(); let bAt = ""; try { bAt = localStorage.getItem(BACKUP_AT_KEY) || ""; } catch(_){}
+  const RC = dbRowCount(); let bAt = ""; try { bAt = localStorage.getItem(BACKUP_AT_KEY) || ""; } catch(_){ errQuiet(_); }
   const bAge = bAt ? Math.floor((Date.now() - new Date(bAt)) / 86400000) : null, mb = Math.round(JSON.stringify(DB).length / 1024 / 1024 * 10) / 10;
   out.push({ grp:"자료 양 · 백업", key:"rows", lv: LOAD_WIN_ERR ? "warn" : "ok", title:`자료 ${fmt(RC.total)}줄 · 약 ${fmt(mb)}MB`, why:(LOAD_WIN_ERR ? `<b class="bad">최근 90일만 받기에 실패해 전부 받았습니다 — ${xh(LOAD_WIN_ERR).slice(0,120)}</b> (이 문구를 그대로 알려 주십시오). ` : "") + (oldLimited() ? `<b>${DATA_FROM} 이후 자료만 받아 둔 상태</b> — 그 전 자료는 조회할 때 서버에서 받습니다. ` : sb ? "자료를 전부 받아 둔 상태. " : "") + "앱이 받아 온 자료 기준 (서버 실제 용량은 Supabase 화면의 Database 사용량에서 확인)",
     items:RC.by.filter(x=>x.n > 0).slice(0, 15).map(x=>`${xh(x.k)} — ${fmt(x.n)}줄`), to:"", toLabel:"",
     btn: sb ? (loadAllWanted() ? `<button class="btn" onclick="event.stopPropagation();setLoadAll(false)" title="처음 열 때 최근 90일만 받습니다 (빠름)">이 기기는 최근 90일만 받기</button>` : `<button class="btn" onclick="event.stopPropagation();setLoadAll(true)" title="전처럼 서버 자료를 전부 받습니다 (느려질 수 있음) — 문제가 있을 때 되돌리는 용도">이 기기는 전부 받기</button>`) : "" });
   out.push({ grp:"자료 양 · 백업", key:"backup", lv: bAge == null || bAge > 7 ? "warn" : "ok", title: bAge == null ? "이 기기에서 백업을 받은 적이 없습니다" : `마지막 백업 ${bAge === 0 ? "오늘" : bAge + "일 전"} (${bAt.slice(0,10)})`,
     why:"서버 자동 백업이 없는 동안에는 주 1회 이상 [전체 백업]을 받아 회사 드라이브에 보관하십시오. 이 기기에서 받은 날만 기억합니다", items:[], to:"", toLabel:"", btn:`<button class="btn primary" onclick="event.stopPropagation();backupAll()">전체 백업 받기</button>` });
+  /* ⑤-3 앱 오류 기록 — 이 기기에서 난 것 */
+  { const wk = new Date(Date.now() - 7 * 86400000).toISOString(), recent = ERRLOG.filter(x=>x.at >= wk), bad = recent.filter(x=>x.k !== "경고");
+    out.push({ grp:"자료 양 · 백업", key:"errlog", lv: bad.length ? "warn" : "ok", title:"앱 오류 기록 (이 기기 · 최근 7일)", why: recent.length ? `오류 ${bad.length}건 · 경고 ${recent.length - bad.length}건 — 줄을 눌러 펼친 뒤 [복사]해서 알려 주십시오` : "기록된 오류가 없습니다",
+      items: recent.slice().reverse().slice(0, 60).map(x=>`${x.at.slice(5,16).replace("T"," ")} · <b>${xh(x.k)}</b>${x.n > 1 ? ` ×${x.n}` : ""} · ${xh(x.s || "")} · ${xh(x.m)}${x.w ? ` <span style="color:var(--soft)">(${xh(x.w)})</span>` : ""}`), to:"", toLabel:"",
+      btn: recent.length ? `<button class="btn" onclick="event.stopPropagation();errCopy()">복사</button><button class="btn" onclick="event.stopPropagation();errClear()">비우기</button>` : "" }); }
   /* ⑥ 서버 */
   if (sb) { const S = READY_SRV;
-    add("서버 (Supabase)", "srv", "bad", "서버 SQL 설치", !S ? "확인 중…" : "086 · 087 · 088 이 없으면 원두 · 라벨 · 봉투 · 완제품 기한 확인이 화면에서만 됩니다. Supabase SQL Editor 에서 번호 순서대로 실행하십시오 (085 분쇄 시간 저장은 여기서 확인할 수 없습니다 — 분쇄 화면에서 [시작]이 저장되는지 보십시오)",
+    add("서버 (Supabase)", "srv", "bad", "서버 SQL 설치", !S ? "확인 중…" : "086 ~ 089 가 없으면 원두 · 라벨 · 봉투 · 완제품 기한 확인이 화면에서만 됩니다. Supabase SQL Editor 에서 번호 순서대로 실행하십시오 (085 분쇄 시간 저장은 여기서 확인할 수 없습니다 — 분쇄 화면에서 [시작]이 저장되는지 보십시오)",
       !S ? [] : [ S.s086 ? null : "086_consume_rules.sql 미설치 — 생산 완료 때 상미기한 · 입고 전 배치 확인이 서버에서 되지 않습니다",
                   S.s087 ? null : "087_start_rules.sql 미설치 — 생산 시작 때 원두 · 라벨 · 봉투 확인이 서버에서 되지 않습니다",
                   S.s088 ? null : "088_cfe_shelf.sql 미설치 — 상미기한 지난 CFE 완제품이 출고 확정에서 빠지지 않습니다",
+                  S.s089 ? null : "089_label_auto.sql 미설치 — 라벨작업 기록 없이 생산을 끝내도 라벨이 빠지지 않습니다",
                   (S.s086 && S.life != null && S.life !== shelfLife()) ? `상미기한 일수가 다릅니다 — 화면 ${shelfLife()}일 · 서버 ${S.life}일` : null ].filter(Boolean), "", "");
   } else add("서버 (Supabase)", "srv", "warn", "서버 연결", "지금은 서버에 연결되지 않은 상태(이 기기에만 저장)입니다", ["서버 미연결"], "", "");
   return out;
 }
 async function readySrvProbe(){
   if (!sb || READY_SRV_BUSY) return; READY_SRV_BUSY = true;
-  const R = { s086:false, s087:false, s088:false, life:null };
-  try { const { data, error } = await sb.rpc("shelf_life_days"); if (!error) { R.s086 = true; R.life = Number(data); } } catch(_){}
-  try { const { error } = await sb.rpc("order_start_block", { p_order_id:"00000000-0000-0000-0000-000000000000" }); if (!error) R.s087 = true; } catch(_){}
-  try { const { error } = await sb.rpc("cfe_shelf_days"); if (!error) R.s088 = true; } catch(_){}
+  const R = { s086:false, s087:false, s088:false, s089:false, life:null };
+  try { const { data, error } = await sb.rpc("shelf_life_days"); if (!error) { R.s086 = true; R.life = Number(data); } } catch(_){ errQuiet(_); }
+  try { const { error } = await sb.rpc("order_start_block", { p_order_id:"00000000-0000-0000-0000-000000000000" }); if (!error) R.s087 = true; } catch(_){ errQuiet(_); }
+  try { const { error } = await sb.rpc("cfe_shelf_days"); if (!error) R.s088 = true; } catch(_){ errQuiet(_); }
+  try { const { error } = await sb.rpc("consume_label_auto", { p_log_id:"00000000-0000-0000-0000-000000000000", p_product_id:"00000000-0000-0000-0000-000000000000", p_qty:0, p_date:today(), p_user:"", p_ref:"" }); if (!error) R.s089 = true; } catch(_){ errQuiet(_); }
   READY_SRV = R; READY_SRV_BUSY = false;
   if (curScreen() === "ready") renderReady();
 }
+function errCopy(){ const t = ERRLOG.slice().reverse().map(x=>`${x.at} [${x.k}${x.n > 1 ? " x" + x.n : ""}] ${x.s || ""} ${x.u || ""} — ${x.m}${x.w ? " @ " + x.w : ""}`).join("\n");
+  try { navigator.clipboard.writeText(t).then(()=>toast("오류 기록을 복사했습니다 — 그대로 붙여 넣어 알려 주십시오"), ()=>toast("복사하지 못했습니다")); } catch(e){ toast("복사하지 못했습니다"); } }
+function errClear(){ ERRLOG = []; try { localStorage.removeItem(ERRLOG_KEY); } catch(e){ console.debug(e); } renderReady(); toast("오류 기록을 비웠습니다"); }
 function readyRefresh(){ READY_SRV = null; renderReady(); toast("다시 점검했습니다"); }
 function readyToggle(k){ READY_OPEN[k] = !READY_OPEN[k]; renderReady(); }
 function renderReady(){
@@ -23371,7 +23466,7 @@ function renderReady(){
   const LV = { bad:"막힘", warn:"확인", ok:"정상" }, grps = [...new Set(C.map(c=>c.grp))];
   el.innerHTML = grps.map(g=>`<div class="panel" style="margin-bottom:12px"><div class="panel-h">${g}</div>${C.filter(c=>c.grp === g).map(c=>{
     const open = !!READY_OPEN[c.key] && c.items.length;
-    return `<div class="rdRow" onclick="readyToggle('${c.key}')"><span class="tag ${c.lv}">${LV[c.lv]}</span><span class="t">${c.title}${c.items.length && c.lv !== "ok" ? ` <b style="color:var(--${c.lv === "bad" ? "bad" : "warn"},#b45309)">${fmt(c.items.length)}건</b>` : ""}</span><span class="w">${c.why}</span>
+    return `<div class="rdRow" onclick="readyToggle('${c.key}')"><span class="tag ${c.lv}">${LV[c.lv]}</span><span class="t">${c.title}${c.items.length && c.lv !== "ok" && c.key !== "errlog" ? ` <b style="color:var(--${c.lv === "bad" ? "bad" : "warn"},#b45309)">${fmt(c.items.length)}건</b>` : ""}</span><span class="w">${c.why}</span>
       ${c.btn || ""}${c.items.length && c.to ? `<button class="btn" onclick="event.stopPropagation();go('${c.to}')">${c.toLabel} 열기</button>` : ""}${c.items.length ? `<span class="hint" style="padding:0">${open ? "▲" : "▼"}</span>` : ""}</div>
       ${open ? `<div class="rdList">${c.items.slice(0,100).map(x=>`<div>${x}</div>`).join("")}${c.items.length > 100 ? `<div>… 외 ${fmt(c.items.length-100)}건</div>` : ""}</div>` : ""}`; }).join("")}</div>`).join("");
 }
@@ -23500,7 +23595,7 @@ async function moveOrd(id, dir){
 /* ★ 2026-11-15 카드를 마우스로 끌어서 순서 바꾸기 · 다른 설비로 옮기기 (Lee "위치를 마우스로 끌어당겨서 바꿀수있게" · 범위 "둘 다")
    카드 위에 놓으면 그 카드 앞/뒤, 설비 칸 빈 곳에 놓으면 그 설비 맨 뒤. ▲▼ 버튼은 그대로 둔다(태블릿 터치용). */
 let WK_DRAG = null, WK_DRAG_DIRTY = false;
-function wkDragStart(e, id){ WK_DRAG = id; try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", id); } catch(_){}
+function wkDragStart(e, id){ WK_DRAG = id; try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", id); } catch(_){ errQuiet(_); }
   setTimeout(()=>document.querySelector(`.wc[data-oid="${id}"]`)?.classList.add("dragging"), 0); }
 function wkDragClear(){ document.querySelectorAll(".dropL,.dropR,.dropG,.dragging").forEach(el=>el.classList.remove("dropL","dropR","dropG","dragging")); }
 function wkDragEnd(){ const dirty = WK_DRAG_DIRTY; WK_DRAG = null; WK_DRAG_DIRTY = false; wkDragClear(); if (dirty) renderWork(); }
@@ -23610,9 +23705,9 @@ async function renumberOrders(d, machine){
 const SPEC_KEY = "momos.specOrder", SPEC_AUTO_KEY = "momos.specAuto";
 function specDir(){ try { return localStorage.getItem(SPEC_KEY)==="asc" ? "asc" : "desc"; } catch(_){ return "desc"; } }
 function specAuto(){ try { return localStorage.getItem(SPEC_AUTO_KEY)!=="off"; } catch(_){ return true; } }
-function setSpecDir(){ try { localStorage.setItem(SPEC_KEY, specDir()==="asc"?"desc":"asc"); } catch(_){}
+function setSpecDir(){ try { localStorage.setItem(SPEC_KEY, specDir()==="asc"?"desc":"asc"); } catch(_){ errQuiet(_); }
   renderOrder(); renderWork(); toast(`규격 순서: ${specDir()==="asc"?"100g → 1kg (소용량 우선)":"1kg → 100g (대용량 우선)"}`); }
-function setSpecAuto(on){ try { localStorage.setItem(SPEC_AUTO_KEY, on?"on":"off"); } catch(_){}
+function setSpecAuto(on){ try { localStorage.setItem(SPEC_AUTO_KEY, on?"on":"off"); } catch(_){ errQuiet(_); }
   toast(on ? "작업지시를 신규 생성하면 규격순으로 자동 정렬합니다" : "자동 정렬을 해제했습니다"); }
 const specOf = o => Number(o.product_spec ?? prodById(o.product_id)?.spec_g) || 0;
 const specChip = g => g ? `<span class="specb s${bucketOf(g)}">${specLabel(g)}</span>` : "";
@@ -23671,18 +23766,18 @@ const byPriority = (a,b) =>
   (Number(a.priority)||9999) - (Number(b.priority)||9999)
   || String(a.order_no).localeCompare(String(b.order_no));
 let mtView = "order";                  // 라벨 작업 보는 방식 — order 작업 순서 · spec 규격별 · bean 원두별
-try { mtView = localStorage.getItem("momos.mtView") || "order"; } catch(_){}
-function setMtView(v){ mtView = v; try { localStorage.setItem("momos.mtView", v); } catch(_){} renderMt(); }
+try { mtView = localStorage.getItem("momos.mtView") || "order"; } catch(_){ errQuiet(_); }
+function setMtView(v){ mtView = v; try { localStorage.setItem("momos.mtView", v); } catch(_){ errQuiet(_); } renderMt(); }
 let wkLabelEdit = false;               // 라벨 고르는 칸을 띄울지 — 평소엔 접어 둔다
 function setWkLabelEdit(){ wkLabelEdit = !wkLabelEdit; renderWork();
   toast(wkLabelEdit ? "카드에서 라벨을 변경할 수 있습니다" : "라벨 영역을 접었습니다"); }
 let wkMach = "";                       // "" = 전체, 그 외 = 그 종류(수동 · 리팩 · 이카)만
-try { wkMach = localStorage.getItem("momos.wkMach") || ""; } catch(_){}     // 현장 태블릿은 자기 기계를 기억한다
+try { wkMach = localStorage.getItem("momos.wkMach") || ""; } catch(_){ errQuiet(_); }     // 현장 태블릿은 자기 기계를 기억한다
 /* ★ 2026-11-17 채널 칸 — 코스트코 · 컬리 · 네이버 · 기타 (Lee "여기에 따로 코스트코 컬리 네이버 칸이 있는 줄 알았는데") · 설비 탭과 같이 쓴다 */
 let wkCh = "";                         // 기억하지 않는다 — 다시 열면 항상 [전체] (다른 채널 지시를 놓치지 않게)
 function setWkCh(c){ wkCh = (wkCh === c ? "" : c); renderWork(); }
 const WK_CHS = ["코스트코","컬리","네이버","기타"];
-function setWkMach(m){ wkMach = m; try { localStorage.setItem("momos.wkMach", m); } catch(_){} renderWork(); updateFavBtn(); }
+function setWkMach(m){ wkMach = m; try { localStorage.setItem("momos.wkMach", m); } catch(_){ errQuiet(_); } renderWork(); updateFavBtn(); }
 /* 기계 이름 → 종류: "수동 2구"·"수동 1구" → 수동 · "리팩(Reepack)" → 리팩 · "이카(ICA)" → 이카 */
 function machKind(name){
   const n = String(name||"");
@@ -23698,7 +23793,7 @@ function machKind(name){
 const SCR_FIND = { work:"", qc:"" }; let SCR_FIND_TM = null;
 function setScrFind(sc, v, clear){
   SCR_FIND[sc] = String(v || "");
-  const i = $(sc === "work" ? "wkFind" : "qcFind"); if (clear && i) { i.value = ""; try { i.focus({ preventScroll:true }); } catch(_){} }
+  const i = $(sc === "work" ? "wkFind" : "qcFind"); if (clear && i) { i.value = ""; try { i.focus({ preventScroll:true }); } catch(_){ errQuiet(_); } }
   clearTimeout(SCR_FIND_TM); SCR_FIND_TM = setTimeout(()=>{ try { render(sc); } catch(e){ console.warn(e); } }, clear ? 0 : 140);
 }
 const ordFindHit = (o, q) => { const p = prodById(o.product_id);
@@ -23713,7 +23808,7 @@ function renderWork(){
   if (WK_DRAG) { WK_DRAG_DIRTY = true; return; }   // 끄는 중에는 화면을 다시 그리지 않는다 (자동 새로고침이 카드를 지우면 끌기가 끊긴다)
   const d = $("wkDate").value || today();
   if (!$("wkDate").value) $("wkDate").value = d;
-  try { if ($("wkBeanNote")) $("wkBeanNote").innerHTML = beanNoteHTML(d, "work"); } catch(_){}
+  try { if ($("wkBeanNote")) $("wkBeanNote").innerHTML = beanNoteHTML(d, "work"); } catch(_){ errQuiet(_); }
   /* ★ 반려 칸 — 반려된 건은 기계 카드에서 빼서 따로 모은다 (날짜와 상관없이, 검수 완료될 때까지) */
   const rej = DB.orders.map(o=>({ o, f:qcFlow(o) })).filter(x=>x.f)
     .sort((a,b)=>String(lastEv(b.o,"qc_reject")?.at||"").localeCompare(String(lastEv(a.o,"qc_reject")?.at||"")));
@@ -24192,7 +24287,7 @@ const yardLotsOf = pid => YARD_LOTS.filter(l=>l.product_id===pid && Number(l.lef
 const yardOutQty = (pid, d) => YARD_OUTS.filter(x=>x.product_id===pid && x.out_date===d && x.kind==="dispatch" && !x.cancelled_at).reduce((t,x)=>t+Number(x.qty||0),0);
 const yardInQty = (pid, d) => YARD_LOTS.filter(l=>l.product_id===pid && l.in_date===d && l.src==="ship").reduce((t,l)=>t+Number(l.qty||0),0);
 const yardShelfDays = () => Math.max(1, Math.round(Number(SETTINGS["cfe.shelf_days"]) || 0)) || null;
-function setYardShelf(v){ const n = Math.round(numOf(v)); if (!(n > 0)) return; saveSetting("cfe.shelf_days", n); renderYard(); try { renderCount(); } catch(_){} }
+function setYardShelf(v){ const n = Math.round(numOf(v)); if (!(n > 0)) return; saveSetting("cfe.shelf_days", n); renderYard(); try { renderCount(); } catch(_){ errQuiet(_); } }
 function yardAge(d){ if (!d) return null; return Math.floor((new Date(today()) - new Date(d))/86400000); }
 function yardShelfTag(d){ const a = yardAge(d); if (a == null) return ""; const L = yardShelfDays(); if (!L) return `<span class="hint" style="padding:0;font-size:10.5px">제조 ${a}일째</span>`;
   const left = L - a; return `<span class="tag ${left<0?"bad":left===0?"due":left<=Math.max(2,Math.round(L*0.2))?"warn":"ok"}" style="font-size:10.5px"${left===0?' title="오늘 출고하지 않으면 내일부터 출고 불가"':""}>${left<0?`상미 초과 ${-left}일`:left===0?"⚠ 금일 출고 필요":`D-${left}`}</span>`; }
@@ -24231,7 +24326,7 @@ function renderYard(){
   const d = $("yardDay")?.value || today(); if ($("yardDay") && !$("yardDay").value) $("yardDay").value = d;
   if ($("yardShelf") && document.activeElement !== $("yardShelf")) $("yardShelf").value = yardShelfDays() || "";
   if (YARD_OK === "missing") { $("yardTbl").innerHTML = `<tbody><tr><td class="c bad" style="padding:16px">서버에 073 SQL 을 실행해야 출고장 재고를 사용할 수 있습니다</td></tr></tbody>`; return; }
-  try { const yn = yardNoteHTML(); if ($("yardNote")) $("yardNote").innerHTML = yn ? `<div class="beanNote" style="margin-top:12px">${yn}</div>` : ""; } catch(_){}
+  try { const yn = yardNoteHTML(); if ($("yardNote")) $("yardNote").innerHTML = yn ? `<div class="beanNote" style="margin-top:12px">${yn}</div>` : ""; } catch(_){ errQuiet(_); }
   const rows = yardRows(d);
   const short = rows.filter(r=>r.plan > r.ship).length;
   if ($("yardInfo")) $("yardInfo").innerHTML = `출고장 ${fmt(rows.reduce((t,r)=>t+r.have,0))}개 · ${d.slice(5).replace("-","/")} 출고 예정 ${fmt(rows.reduce((t,r)=>t+r.plan,0))}개${short?` · <b class="bad">부족 ${short}품목</b>`:""}`;
@@ -24263,7 +24358,7 @@ async function yardDispatch(){
     const short = []; items.forEach(x=>{ const s0 = yardTakeLocal(x.r.p.id, x.q, d, batch, "dispatch", null); if (s0 > 0) short.push({ product_id:x.r.p.id, short:s0 }); }); return { ok:true, short }; });
   if (!r || r.ok === false) return ask(r?.message || "확정하지 못했습니다" + (/cfe_dispatch|schema cache|function/i.test(r?.message||"") ? "\n\n서버에 073 SQL 을 실행하십시오" : ""), { title:"출고 확정", yes:"확인", only:true });
   items.forEach(x=>delete YARD_EDIT[`${d}|${x.r.p.id}`]);
-  await loadYard(); renderYard(); try { renderCount(); } catch(_){}
+  await loadYard(); renderYard(); try { renderCount(); } catch(_){ errQuiet(_); }
   toast(`출고 확정 — ${items.length}품목${(r.short||[]).length?` · 부족 ${(r.short||[]).length}품목`:""}`);
 }
 async function yardUndo(batch){
@@ -24271,7 +24366,7 @@ async function yardUndo(batch){
   if (!(await ask("이 출고 확정을 취소하고 출고장 재고로 복원합니다.", { title:"확정 취소", yes:"취소하기", no:"닫기" }))) return;
   const r = await rpc("cfe_dispatch_undo", { p_batch:batch, p_user_name:CURRENT_USER }, () => { YARD_OUTS.filter(x=>x.batch_id===batch && !x.cancelled_at).forEach(x=>{ const l = YARD_LOTS.find(y=>y.id===x.lot_id); if (l) l.left_qty = Number(l.left_qty) + Number(x.qty); x.cancelled_at = nowISO(); }); return { ok:true }; });
   if (!r || r.ok === false) return toast(r?.message || "취소하지 못했습니다");
-  await loadYard(); renderYard(); try { renderCount(); } catch(_){} toast("출고 확정을 취소했습니다");
+  await loadYard(); renderYard(); try { renderCount(); } catch(_){ errQuiet(_); } toast("출고 확정을 취소했습니다");
 }
 /* ★ 필요분 / 여유분 (Lee "어제 포장한 게 전부 여유분 · 실수했을 때 여유분으로 옮기는 작업") — 서버 074 */
 const yardBufQty = pid => YARD_LOTS.filter(l=>l.product_id===pid && l.is_buf).reduce((t,l)=>t+Number(l.left_qty||0),0);
@@ -24308,7 +24403,7 @@ async function yardLotAct(lotId){
   if (n === null) return; const q = Math.max(0, Math.min(Number(l.left_qty), Math.round(Number(n)||0))); if (!q) return;
   const r = await yardMark(lotId, q, to);
   if (!r || r.ok === false) return toast(r?.message || "이동하지 못했습니다" + (/cfe_mark_buffer|schema cache|function/i.test(r?.message||"") ? " — 서버에 074 SQL 을 실행하십시오" : ""));
-  await loadYard(); renderYard(); try { renderCount(); } catch(_){} toast(`${l.product_name} ${fmt(q)}개 → ${to?"여유분":"필요분"}`);
+  await loadYard(); renderYard(); try { renderCount(); } catch(_){ errQuiet(_); } toast(`${l.product_name} ${fmt(q)}개 → ${to?"여유분":"필요분"}`);
 }
 async function yardBackfill(){
   if (!(await requireUser())) return;
@@ -24321,7 +24416,7 @@ async function yardBackfill(){
     let n = 0, q = 0; DB.orders.filter(o=>o.work_date===dd && o.status==="출고완료" && !YARD_LOTS.some(l=>l.order_id===o.id)).forEach(o=>{ yardLocalIn(o); const l = YARD_LOTS[YARD_LOTS.length-1]; if (l) { l.is_buf = pick==="buf"; l.order_id = o.id; } n++; q += Number(o.qty_done||0); });
     return { ok:true, rows:n, qty:q }; });
   if (!r || r.ok === false) return ask(r?.message || "불러오지 못했습니다" + (/cfe_backfill|schema cache|function/i.test(r?.message||"") ? "\n\n서버에 074 SQL 을 실행하십시오" : ""), { title:"불러오기", yes:"확인", only:true });
-  await loadYard(); renderYard(); try { renderCount(); } catch(_){}
+  await loadYard(); renderYard(); try { renderCount(); } catch(_){ errQuiet(_); }
   toast(r.rows ? `${dd} 포장분 ${r.rows}건 · ${fmt(r.qty)}개를 ${pick==="buf"?"여유분":"필요분"}으로 출고장에 반영했습니다` : `${dd} 에 불러올 출고가 없습니다 (이미 반영되었거나 출고 완료 건 없음)`);
 }
 /* 출고 완료 직후 — 그날 주문(집계)을 넘는 수량은 여유분으로 (주문이 없던 날 포장분은 전부 여유분) */
@@ -24345,7 +24440,7 @@ function shDaySet(d){ if (d === "all") SH_DAY = "all"; else if (d === 0) SH_DAY 
   else { const base = (SH_DAY && SH_DAY !== "all") ? SH_DAY : today(); const t = new Date(base + "T00:00:00"); t.setDate(t.getDate() + d); SH_DAY = ymdLocal(t); }
   renderShip(); }
 function renderShip(){
-  if (YARD_OK === null) { YARD_OK = false; loadYard().then(()=>{ renderYard(); try { renderCount(); } catch(_){} }); }
+  if (YARD_OK === null) { YARD_OK = false; loadYard().then(()=>{ renderYard(); try { renderCount(); } catch(_){ errQuiet(_); } }); }
   try { renderYard(); } catch(e){ console.warn(e); }
   const ready = DB.orders.filter(o=>o.status==="검수완료");
   /* ★ 2026-11-02 출고 완료 내역 — 날짜로 조회 (기본 오늘) */
@@ -24847,7 +24942,7 @@ function capaToggle(k){
   const pn = document.querySelector(`#s-capa .csec[data-k="${k}"]`); if (!pn) return;
   if (pn.classList.contains("cforce")) return;                // 칸을 눌러 골라 보는 중에는 접지 않는다
   const f = !pn.classList.contains("fold"); pn.classList.toggle("fold", f);
-  const m = capaFoldMap(); m[k] = f ? 1 : 0; try { localStorage.setItem("momos.capaFold", JSON.stringify(m)); } catch(_){}
+  const m = capaFoldMap(); m[k] = f ? 1 : 0; try { localStorage.setItem("momos.capaFold", JSON.stringify(m)); } catch(_){ errQuiet(_); }
   if (!f) renderCapa();                                       // 펼칠 때 그래프 크기를 다시 잡는다
 }
 function capaHint(k, txt){ const m = document.querySelector(`#s-capa .csec[data-k="${k}"] > .panel-h .csum`); if (m) m.textContent = txt ? `· ${txt}` : ""; }
@@ -24912,7 +25007,7 @@ function renderCapaCh(from, to){
   const names = [...new Set([...Object.keys(A), ...Object.keys(B)])];
   const chs = names.map(n=>A[n] || { ch:n, ea:0, kg:0, n:0, spec:{}, prod:{}, day:{} }).sort((a,b)=>b.ea - a.ea || chOrd(a.ch) - chOrd(b.ch));
   const tot = chs.reduce((t,c)=>t+c.ea,0), totKg = chs.reduce((t,c)=>t+c.kg,0), ptot = Object.values(B).reduce((t,c)=>t+c.ea,0), pkg = Object.values(B).reduce((t,c)=>t+c.kg,0);
-  try { capaHint("ch", F.length ? `${fmt(tot)} EA · ${Object.keys(A).length}곳` : "출고 없음"); } catch(_){}
+  try { capaHint("ch", F.length ? `${fmt(tot)} EA · ${Object.keys(A).length}곳` : "출고 없음"); } catch(_){ errQuiet(_); }
   if (!F.length) {
     $("capaChWrap").style.display = "none"; $("capaChTbl").innerHTML = "";
     $("capaChSum").innerHTML = `<div class="chempty">이 기간에 [출고 완료] 한 내역이 없습니다${ptot ? ` — 전 기간 ${fmt(ptot)} EA` : ""}<br><span class="hint" style="padding:0;font-weight:600">출고 화면에서 [출고 완료]를 누르면 출고처별로 집계됩니다</span></div>`;
@@ -25285,7 +25380,7 @@ async function mesSnapTake(note, kind){
 /* 큰 작업 전에 저절로 — 실패해도 작업은 막지 않는다 (077 이 없으면 조용히 넘어감) */
 async function autoSnap(note){
   if (!sb) return;
-  try { const r = await mesSnapTake(note, "auto"); if (r && r.ok) { SNAPS_LOADED = false; toast(`복원할 수 있도록 현재 시점을 저장했습니다 (결재 › 시점 복원)`); } } catch(_){}
+  try { const r = await mesSnapTake(note, "auto"); if (r && r.ok) { SNAPS_LOADED = false; toast(`복원할 수 있도록 현재 시점을 저장했습니다 (결재 › 시점 복원)`); } } catch(_){ errQuiet(_); }
 }
 /* ★ 2026-11-18 매일 오전 5시 기준 자동 저장 (서버 084) — Lee "시점 복원은 매일 오전 5시 기준으로 저장되었으면 해 · 2주치 정도만 … 복원기준으로만 · 안에 자료는 다 있어야해"
    서버 예약(pg_cron)이 05:00 에 저장한다. 예약이 없거나 실패한 날을 대비해, 켜져 있는 앱도 1분마다 "오늘(05시 기준) 저장본이 있는지"를 서버에 묻는다 —
@@ -25294,15 +25389,15 @@ const snapDayKey = () => new Date(Date.now() + 4 * 3600e3).toISOString().slice(0
 let SNAP_DAILY_BUSY = false, SNAP_INFO = null;
 async function snapDailyCheck(){
   if (!sb || EMBED || !LOGIN_USER || SNAP_DAILY_BUSY) return;
-  const key = snapDayKey(); let done = ""; try { done = localStorage.getItem("momos.snapDaily") || ""; } catch(_){}
+  const key = snapDayKey(); let done = ""; try { done = localStorage.getItem("momos.snapDaily") || ""; } catch(_){ errQuiet(_); }
   if (done === key) return;
   SNAP_DAILY_BUSY = true;
   try { const r = await rpc("snapshot_daily", {}, null, { quiet:true });
-    if (r && r.ok) { try { localStorage.setItem("momos.snapDaily", r.day || key); } catch(_){} if (!r.skipped) SNAPS_LOADED = false; }
-    else if (r && /snapshot_daily|schema cache|function/i.test(r.message || "")) { try { localStorage.setItem("momos.snapDaily", key); } catch(_){} }   // 서버에 084 가 아직 없음 — 오늘은 다시 묻지 않는다
-  } catch(_){} finally { SNAP_DAILY_BUSY = false; }
+    if (r && r.ok) { try { localStorage.setItem("momos.snapDaily", r.day || key); } catch(_){ errQuiet(_); } if (!r.skipped) SNAPS_LOADED = false; }
+    else if (r && /snapshot_daily|schema cache|function/i.test(r.message || "")) { try { localStorage.setItem("momos.snapDaily", key); } catch(_){ errQuiet(_); } }   // 서버에 084 가 아직 없음 — 오늘은 다시 묻지 않는다
+  } catch(_){ errQuiet(_); } finally { SNAP_DAILY_BUSY = false; }
 }
-setInterval(()=>{ try { snapDailyCheck(); } catch(_){} }, 60000);
+setInterval(()=>{ try { snapDailyCheck(); } catch(_){ errQuiet(_); } }, 60000);
 const fmtBytes = n => { n = Number(n) || 0; return n >= 1048576 ? (Math.round(n / 104857.6) / 10) + " MB" : n >= 1024 ? Math.round(n / 1024) + " KB" : n + " B"; };
 async function loadSnaps(show){
   if (!sb) { SNAPS = []; SNAPS_LOADED = "local"; if (show) renderSnaps(); return; }
@@ -25330,7 +25425,7 @@ async function snapRestore(id){
   const busy = setBusy("복원 중… (잠시 소요됩니다)");
   const r = await rpc("snapshot_restore", { p_id:id, p_user_name:CURRENT_USER }, null, { quiet:true }); busy();
   if (!r || r.ok === false) return ask(r?.message || "복원하지 못했습니다", { title:"시점 복원", yes:"확인", only:true });
-  if (sb) { await reloadDB({ silent:true }); try { await loadYard(); } catch(_){} }
+  if (sb) { await reloadDB({ silent:true }); try { await loadYard(); } catch(_){ errQuiet(_); } }
   renderAll(); loadSnaps(true);
   ask(`${when} 시점으로 복원했습니다 — ${fmt(r.rows)}행${(r.skipped||[]).length?`\n(존재하지 않는 표 제외: ${r.skipped.join(", ")})`:""}\n\n복원 직전 상태도 "복원 전" 으로 저장되어 있습니다.`, { title:"시점 복원", yes:"확인", only:true });
 }
@@ -25462,7 +25557,7 @@ const BULK_DEFS = {
       const p = P(v.bean||"", Number(v.spec_g)||0, Number(v.cfe)||0, Number(v.safety)||0,
         { code:v.code||"", grind:v.grind||"홀빈", name:v.name.trim(), std:Number(v.std_g)||Number(v.spec_g)||0, ch:v.channel||"일반" });
       p.pack_type = v.pack_type || PACK_LABEL; if (!p.code) p.code = makeCode(p);
-      const r = await saveRowAsync("products", p); if (r.ok) { DB.products.push(p); try { syncProdPack(p, { quiet:true }); } catch(_){} } return r; } },
+      const r = await saveRowAsync("products", p); if (r.ok) { DB.products.push(p); try { syncProdPack(p, { quiet:true }); } catch(_){ errQuiet(_); } } return r; } },
   beans: { title:"원두 일괄 입력", table:"beans", tab:"beans",
     hint:"원두명은 필수 · MMS 코드 · 머신 종류(S35_하바나 싱글 / S70_시그니처 블렌드 …) · 컬러·품목보고번호·원산지는 한글표시사항에 반영되므로 입력하십시오",
     cols:[ { k:"mms_code", l:"MMS 코드", w:100, ph:"MMS0001" }, { k:"machine", l:"머신 종류", w:170, ph:"S35_일반 싱글" },
@@ -25657,11 +25752,11 @@ let cntType = "mat", cntKind = "";
 const CNT_DRAFT_KEY = "momos.count.draft";
 /* ★ 2026-11-02 날짜별 — 센 날짜마다 입력이 따로 (다음 날은 빈 칸에서 시작 · 지난 날짜를 고르면 그날 적은 값·반영한 값이 다시 보임) */
 const CNT_BYDATE_KEY = "momos.count.byDate";
-function cntAll(){ try { const v = JSON.parse(localStorage.getItem(CNT_BYDATE_KEY) || "null"); if (v && typeof v === "object") return v; } catch(_){}
+function cntAll(){ try { const v = JSON.parse(localStorage.getItem(CNT_BYDATE_KEY) || "null"); if (v && typeof v === "object") return v; } catch(_){ errQuiet(_); }
   /* 예전 하루짜리 기록이 있으면 옮긴다 */
-  const all = {}; try { const o = JSON.parse(localStorage.getItem(CNT_DRAFT_KEY) || "null"); if (o && o.date) all[o.date] = { mat:o.mat||{}, cfe:o.cfe||{}, done:{ mat:{}, cfe:{} } }; } catch(_){}
+  const all = {}; try { const o = JSON.parse(localStorage.getItem(CNT_DRAFT_KEY) || "null"); if (o && o.date) all[o.date] = { mat:o.mat||{}, cfe:o.cfe||{}, done:{ mat:{}, cfe:{} } }; } catch(_){ errQuiet(_); }
   return all; }
-function cntSaveAll(all){ const keys = Object.keys(all).sort(); while (keys.length > 45) delete all[keys.shift()]; try { localStorage.setItem(CNT_BYDATE_KEY, JSON.stringify(all)); } catch(_){} }
+function cntSaveAll(all){ const keys = Object.keys(all).sort(); while (keys.length > 45) delete all[keys.shift()]; try { localStorage.setItem(CNT_BYDATE_KEY, JSON.stringify(all)); } catch(_){ errQuiet(_); } }
 function cntDraft(d){ const k = d || (typeof cntDayOf === "function" ? cntDayOf() : today()); const e = cntAll()[k] || {};
   return { date:k, mat:e.mat||{}, cfe:e.cfe||{}, done:{ mat:(e.done||{}).mat||{}, cfe:(e.done||{}).cfe||{} } }; }
 function cntPut(type, id, v){ const all = cntAll(), k = cntDayOf(); const e = all[k] = all[k] || { mat:{}, cfe:{}, done:{ mat:{}, cfe:{} } };
@@ -25779,7 +25874,7 @@ async function cntDraftClear(){
   const n = e ? Object.keys(e.mat||{}).length + Object.keys(e.cfe||{}).length : 0;
   if (!n) return toast(`${k} 에 입력한 내용이 없습니다`);
   if (!(await ask(`${k} 에 입력한 내용 ${n}개를 삭제합니다.\n(장부와 이미 반영한 기록은 유지 · 다른 일자의 입력도 유지)`, { title:"이 일자 입력 초기화", yes:"초기화" }))) return;
-  e.mat = {}; e.cfe = {}; cntSaveAll(all); try { localStorage.removeItem(CNT_DRAFT_KEY); } catch(_){}
+  e.mat = {}; e.cfe = {}; cntSaveAll(all); try { localStorage.removeItem(CNT_DRAFT_KEY); } catch(_){ errQuiet(_); }
   renderCount(); toast(`${k} 입력을 초기화했습니다 (장부는 변동 없음)`); }
 function setCntType(t){ cntType = t; renderCount(); }
 function setCntKind(k){ cntKind = k; renderCount(); }
@@ -25803,7 +25898,8 @@ function renderCount(){
   if ($("cntDay") && !$("cntDay").value) { $("cntDay").value = today(); $("cntDay").max = today(); }
   if (!$("cntSheet")) return;
   const rows = cntRows(), ent = rows.filter(r=>r.act != null), diffs = ent.filter(r=>r.act !== r.app);
-  $("cntTypeBtn").innerHTML = [["mat","부자재 · 라벨"],["cfe","CFE 완제품"]].map(([v,t])=>`<button class="btn ${cntType===v?"primary":""}" onclick="setCntType('${v}')">${t}</button>`).join(" ");
+  $("cntTypeBtn").innerHTML = [["mat","부자재 · 라벨"],["cfe","CFE 완제품"]].map(([v,t])=>`<button class="btn ${cntType===v?"primary":""}" onclick="setCntType('${v}')">${t}</button>`).join(" ")
+    + ` <button class="btn" onclick="beanCountGo()" title="원두는 봉지(배치)마다 세어 적습니다 — 로스팅 › 수불 표에서 원두를 골라 [배치별 실측]">원두 (MMS) →</button>`;
   const kinds = {}; DB.materials.forEach(M=>{ kinds[M.kind]=(kinds[M.kind]||0)+1; });
   $("cntKindBtn").innerHTML = cntType === "mat" ? [["","전체"],...MAT_KINDS.filter(k=>kinds[k]).map(k=>[k,`${k} ${kinds[k]}`])].map(([v,t])=>`<button class="btn ${cntKind===v?"primary":""}" style="height:28px;padding:0 9px;font-size:12px" onclick="setCntKind('${v}')">${t}</button>`).join(" ") : "";
   $("cntTitle").innerHTML = cntType === "cfe" ? `CFE 완제품 (EA) — 출고장 재고 <span class="r"><button class="btn ${CNT_FLOW?"primary":""}" style="height:30px" onclick="CNT_FLOW=!CNT_FLOW;renderCount()" title="실사 일자의 출고장 입고 · 당일 출고 예정(생산계획)을 기준으로, 출고 예정을 차감한 예상 잔여 재고를 계산">${CNT_FLOW?"✓ ":""}잔여 재고 계산 (출고 예정 차감)</button></span>` : `부자재 · 라벨${cntKind?` — ${cntKind}`:""}`;
@@ -25974,14 +26070,14 @@ function beanNoteHTML(d, where){
     fc.list.slice(0, 12).map(o=>{ const m = ordBatchMms(o), st = m ? shelfState(m.roast_date, m.bean) : "";
       return `${chChip(ordShipCh(o))} ${o.product_name || prodById(o.product_id)?.name || ""} <b>${fmt(ordTodoEa(o))}개</b>${m ? ` · ${batchShort(m)} 잔량 ${fmt(m.stock_kg)}kg <span class="${st === "ok" ? "" : st}" style="${st === "due" ? "background:var(--bad);color:#fff;padding:0 5px;border-radius:5px" : ""}">${shelfLabel(m.roast_date, m.bean)}</span>` : o.serial ? ` · ${o.serial}` : ""}`; }).join("<br>") +
     (fc.list.length > 12 ? `<br>… 외 ${fc.list.length-12}건` : "") + `</div>`);
-  if (where === "work" && d >= today()) { let cs = []; try { cs = rebatchCands(d); } catch(_){}
+  if (where === "work" && d >= today()) { let cs = []; try { cs = rebatchCands(d); } catch(_){ errQuiet(_); }
     if (cs.length) out.push(`<div class="bn fix">🔁 배치를 다시 잡아야 하는 지시 ${cs.length}건 — 남아 있는 원두로 바꿀 수 있습니다
       ${can("plan") ? `<button class="btn" style="height:28px;margin-left:6px" onclick="rebatch()">다시 배정</button>` : ""}<br>` +
       cs.slice(0, 8).map(x=>`${x.p.name} <b>${fmt(x.o.qty_plan)}개</b> · ${x.o.serial || "—"} <span class="hint" style="padding:0">${x.why}</span>`).join("<br>") + (cs.length > 8 ? `<br>… 외 ${cs.length-8}건` : "") + `</div>`); }
   if (where === "plan") { const inf = planBatches.info || { expired:[] };
     if ((inf.held||[]).length) out.push(`<div class="bn fix">다른 날짜의 지시가 잡고 있는 원두 ${fmt(Math.round(inf.held.reduce((t,x)=>t+x.kg,0)*100)/100)}kg — 이 계획에서는 쓰지 않습니다 : ${inf.held.slice(0,8).map(x=>`${x.m.bean} ${batchShort(x.m)} ${fmt(Math.round(x.kg*100)/100)}kg(${x.n}건)`).join(" · ")}${inf.held.length>8?" …":""}</div>`);
     if (inf.expired.length) out.push(`<div class="bn exp">상미기한 초과 ${inf.expired.length}배치 · ${fmt(Math.round(inf.expired.reduce((t,m)=>t+Number(m.stock_kg||0),0)*100)/100)}kg — 자동 배정에서 제외했습니다 : ${inf.expired.slice(0,10).map(m=>`${m.bean} ${batchShort(m)} ${fmt(m.stock_kg)}kg`).join(" · ")}${inf.expired.length>10?" …":""}</div>`); }
-  if (d === today()) { try { const y = yardNoteHTML(); if (y) out.push(y); } catch(_){} }
+  if (d === today()) { try { const y = yardNoteHTML(); if (y) out.push(y); } catch(_){ errQuiet(_); } }
   return out.length ? `<div class="beanNote">${out.join("")}</div>` : "";
 }
 /* 그날 원두 일 마감 대상 — rel 배정 해제(일반 · 대기 · 아직 시작 안 함) / run 일반 생산 중(그대로) / keep 채널 지정(그대로 · 내일 표시) / costco */
@@ -26055,7 +26151,7 @@ async function closeOldAct(kind){
                   : await mesEditOrder({ order_id:o.id, patch:{ batch_plan:"", serial:"", serial_full:"" }, idem:`ohr-${o.id}-${uid()}` });
     if (r && r.ok) { ok++; if (!del) { o.batch_plan = ""; o.serial = null; o.serial_full = null; } } else fail.push(`${o.product_name||""}: ${r?.message||"?"}`);
   }
-  try { logAudit(del ? "지난 지시 삭제" : "지난 지시 배정 해제", closeDay(), `${ok}건`); } catch(_){}
+  try { logAudit(del ? "지난 지시 삭제" : "지난 지시 배정 해제", closeDay(), `${ok}건`); } catch(_){ errQuiet(_); }
   renderAll(); toast(fail.length ? `${ok}건 처리 · 실패 ${fail.length}건 — ${fail[0]}` : (del ? `${ok}건을 삭제했습니다` : `${ok}건의 배정을 해제했습니다`));
 }
 /* 실행 — rec.bean 에 기록을 남긴다. 반환: null = 취소 · { msg } */
@@ -26072,8 +26168,8 @@ async function beanCloseDo(d, rec, who){
     if (r && r.ok) { o.batch_plan = ""; o.serial = null; o.serial_full = null; released.push(keepv); } else fail.push(`${keepv.name}: ${r?.message || "?"}`);
   }
   rec.bean = { at:nowISO(), by:who, released, kept:S.keep.length, left:S.left.map(m=>({ batch:batchFull(m), bean:m.bean, kg:Number(m.stock_kg) })) };
-  try { logAudit("원두 일 마감", d, `일반(온라인) 배정 해제 ${released.length}건 · 채널 지정 유지 ${S.keep.length}건 · 잔량 배치 ${S.left.length}개`); } catch(_){}
-  try { renderWork(); renderOrder(); renderPlan(); } catch(_){}
+  try { logAudit("원두 일 마감", d, `일반(온라인) 배정 해제 ${released.length}건 · 채널 지정 유지 ${S.keep.length}건 · 잔량 배치 ${S.left.length}개`); } catch(_){ errQuiet(_); }
+  try { renderWork(); renderOrder(); renderPlan(); } catch(_){ errQuiet(_); }
   return { msg: fail.length ? ` · 원두 배정 해제 ${released.length}건 (실패 ${fail.length}건 — ${fail[0]})` : ` · 원두 배정 해제 ${released.length}건` };
 }
 async function beanCloseRun(){
@@ -26093,8 +26189,8 @@ async function beanCloseUndo(d, rec){
     const patch = { batch_plan:x.batch_plan||"", serial:x.serial||"", serial_full:x.serial_full||"" };
     const r = await mesEditOrder({ order_id:o.id, patch, idem:`bdu-${o.id}-${uid()}` });
     if (r && r.ok) { Object.assign(o, patch); n++; } }
-  try { logAudit("원두 일 마감 취소", d, `배정 복원 ${n}건`); } catch(_){}
-  try { renderWork(); renderOrder(); renderPlan(); } catch(_){}
+  try { logAudit("원두 일 마감 취소", d, `배정 복원 ${n}건`); } catch(_){ errQuiet(_); }
+  try { renderWork(); renderOrder(); renderPlan(); } catch(_){ errQuiet(_); }
 }
 /* 상미기한 기준 변경 — 기준정보 · 로스팅 권한 */
 async function editShelfCfg(){
@@ -26110,7 +26206,7 @@ async function editShelfCfg(){
   if (life === c.life && warn === c.warn) return;
   const val = { life, warn }; SETTINGS[SHELF_KEY] = val; renderAll();
   const r = await saveSetting(SHELF_KEY, val);
-  if (r && r.ok === false) toast("저장 실패 — " + (r.message || "서버")); else { try { logAudit("상미기한 기준 변경", `${c.life}일 · 임박 ${c.warn}일 → ${life}일 · 임박 ${warn}일`, ""); } catch(_){} toast(`상미기한 ${life}일 · 임박 ${warn}일 이하로 저장했습니다`); }
+  if (r && r.ok === false) toast("저장 실패 — " + (r.message || "서버")); else { try { logAudit("상미기한 기준 변경", `${c.life}일 · 임박 ${c.warn}일 → ${life}일 · 임박 ${warn}일`, ""); } catch(_){ errQuiet(_); } toast(`상미기한 ${life}일 · 임박 ${warn}일 이하로 저장했습니다`); }
 }
 const CLOSE_ITEMS_KEY = "close_items", CLOSE_LOG_KEY = "close_log";
 /* 저절로 세는 항목 — MES 기록에서 "아직 안 끝난 것"을 센다 */
@@ -26170,9 +26266,9 @@ const CLOSE_TEAM_DEFAULT = {
 const closeTeams = () => CLOSE_TEAMS.filter(t=>!t.opt || !!SETTINGS[CLOSE_SHIP_KEY]);
 let closeTab = "";
 function closeTeam(){ const ts = closeTeams();
-  if (!closeTab) { try { closeTab = localStorage.getItem("momos.closeTab") || ""; } catch(_){} if (!closeTab) closeTab = loginRole() === "qc" ? "qc" : "floor"; }
+  if (!closeTab) { try { closeTab = localStorage.getItem("momos.closeTab") || ""; } catch(_){ errQuiet(_); } if (!closeTab) closeTab = loginRole() === "qc" ? "qc" : "floor"; }
   if (!ts.some(t=>t.id === closeTab)) closeTab = ts[0].id; return closeTab; }
-function setCloseTab(t){ closeTab = t; try { localStorage.setItem("momos.closeTab", t); } catch(_){} renderClose(); }
+function setCloseTab(t){ closeTab = t; try { localStorage.setItem("momos.closeTab", t); } catch(_){ errQuiet(_); } renderClose(); }
 function closeItems(team){ team = team || closeTeam();
   const v2 = SETTINGS[CLOSE_ITEMS2_KEY], mine = v2 && Array.isArray(v2[team]) && v2[team].length ? v2[team] : null; if (mine) return mine;
   const def = CLOSE_TEAM_DEFAULT[team] || [];
@@ -26219,7 +26315,7 @@ function renderClose(){
   $("closeDoneBtn").textContent = tr ? `${T.name} 완료 취소` : `${T.name} 완료`;
   $("closeEditBtn").style.display = isAdm ? "" : "none"; $("closeEditBtn").textContent = `${T.name} 항목 편집`;
   if ($("closeBeanWrap")) $("closeBeanWrap").style.display = team === "floor" ? "" : "none";
-  if ($("closeYardWrap")) { $("closeYardWrap").style.display = team === "ship" ? "" : "none"; if (team === "ship") { try { renderCloseYard(); } catch(_){} } }
+  if ($("closeYardWrap")) { $("closeYardWrap").style.display = team === "ship" ? "" : "none"; if (team === "ship") { try { renderCloseYard(); } catch(_){ errQuiet(_); } } }
   /* 어제(가장 최근 이전 날) 비고 — 못 한 일을 이어받는다 */
   const L = closeLog(), prevD = Object.keys(L).filter(k=>k<d && (L[k].note||"").trim()).sort().pop();
   $("closePrev").innerHTML = prevD
@@ -26236,7 +26332,7 @@ function renderClose(){
         <div class="m">${ck ? `✓ ${ck.by||"—"} · ${fmtTime(ck.at)}` : (a && n > 0 ? "미완료 항목이 있습니다 — 완료 후 체크하십시오" : "")}</div></div>
       ${link}
     </div>`; }).join("");
-  if (team === "floor") { try { renderCloseBean(d, rec); } catch(_){} }
+  if (team === "floor") { try { renderCloseBean(d, rec); } catch(_){ errQuiet(_); } }
   const ta = $("closeNote"); if (ta && document.activeElement !== ta) ta.value = rec.note || "";
   $("closeNoteWho").textContent = rec.note ? `${rec.note_by||"—"} · ${fmtTime(rec.note_at)}` : "";
   /* 최근 14일 */
@@ -26549,7 +26645,7 @@ async function firstRun(){
     setRole(loginRole(), true);
     renderAll();
     if (EMBED) { const x = paneHashScr(); if (x) go(x); return; }          // ★ 2026-11-18 칸 안에서 열린 경우 — 바깥에서 고른 화면으로
-    setTimeout(()=>{ try { snapDailyCheck(); } catch(_){} }, 4000);       // ★ 2026-11-18 매일 05시 기준 시점 저장 — 오늘 것이 없으면 만든다
+    setTimeout(()=>{ try { snapDailyCheck(); } catch(_){ errQuiet(_); } }, 4000);       // ★ 2026-11-18 매일 05시 기준 시점 저장 — 오늘 것이 없으면 만든다
     if (isPhone()) go("home");            // ★ 2026-11-17 휴대폰은 [오늘 요약] 이 첫 화면
     return;
   }
