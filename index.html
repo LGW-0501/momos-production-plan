@@ -4601,7 +4601,8 @@ const BEAN_CFG_KEY = "bean_cfg";
 const CH_ORDER_DEF = ["코스트코","컬리","네이버","라이브","온라인 외","일반"];
 const beanCfg = () => { const c = SETTINGS[BEAN_CFG_KEY]; const o = (c && typeof c === "object") ? c : {};
   return { def_bag: Math.max(0, Number(o.def_bag)||0), ch_order: Array.isArray(o.ch_order) && o.ch_order.length ? o.ch_order : CH_ORDER_DEF,
-           items: (o.items && typeof o.items === "object") ? o.items : {} }; };
+           items: (o.items && typeof o.items === "object") ? o.items : {},
+           bean_order: (o.bean_order && typeof o.bean_order === "object") ? o.bean_order : {} }; };   // ★ 2026-11-19 설비별 원두 순서 { 설비 종류(수동 · 리팩 · 이카):{ list:[원두…], first:true } }
 const beanCfgOf = beanName => { const b = beanInfo(beanName); return (b && beanCfg().items[b.id]) || {}; };
 const cfgNum = v => (v != null && v !== "" && Number(v) >= 0) ? Number(v) : null;
 function saveBeanCfg(c){ SETTINGS[BEAN_CFG_KEY] = c; keepFocus(renderAll); saveSetting(BEAN_CFG_KEY, c).then(r=>{ if (r && r.ok === false) toast("원두별 설정 저장 실패 — " + (r.message||"서버 연결 확인")); }); }
@@ -8046,6 +8047,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "현장 작업 — 설비별 원두 순서", "현장 작업 위쪽에 [원두 순서] 버튼이 생겼습니다 (채널 순서 옆 · 생산계획 권한). 설비(수동 · 리팩 · 이카 — 현장 작업의 설비 탭과 같은 묶음, 수동 2구 · 1구는 수동으로 같이)를 고르고 원두 줄을 끌어서 순서를 정합니다 — ▲▼ · ⤒(맨 위)도 됩니다 · 설비마다 따로 저장되고 모든 기기에 같이 적용 · 「원두 순서를 규격보다 먼저」를 켜면 준비 → 채널 → 원두 → 규격, 끄면 같은 규격 안에서만 원두 순서 · [저장] 후 [자동 정렬]을 누르면 그 설비 카드가 정한 순서로 섭니다 · 순서를 정하지 않은 설비는 전과 같습니다 (규격순 → MMS 코드순) · 오늘 그 설비에 작업이 있는 원두는 「작업 있음」으로 표시"],
   ["2026-11-19", "마감 — 현장 마감 · 검수 마감으로 분리", "마감 화면 위쪽에 [현장 마감] · [검수 마감] 탭이 생겼습니다. 파트마다 항목과 [완료] 버튼이 따로이고, 탭에 진행 수(예 3/8)와 완료 여부가 보입니다 · 현장 마감 = 생산 완료 · 라벨 작업 · 부자재 실사 · 원두 재고 · 로스팅 입고 · 설비 · 밀봉 · 내일 계획 + 원두 일 마감(현장 마감 완료 때 같이 실행) · 검수 마감 = 검수 · 수령 확인 · 수량 불일치 · 반려 조치 · 검수 구역 정리 · 두 마감이 모두 끝나면 그날은 자동으로 「하루 마감 완료」 · 검수 계정은 검수 마감 탭이 먼저 열림 · 항목은 파트별로 [항목 편집] · CFE 완제품 확인은 출고팀 일이라 제품생산팀 마감에서 뺐습니다 — 출고팀 마감 탭은 만들어 두고 꺼 두었으며 관리자가 [＋ 출고팀 마감 추가]로 켤 수 있습니다 · 최근 마감 기록 표도 파트별로"],
   ["2026-11-19", "화면 중복 정리 ② 생산분석", "생산분석의 「건별 목록 보기」 표를 없애고 [건별 목록 보기 (통합 조회)] 버튼으로 바꿨습니다 — 누르면 보고 있던 기간 그대로 통합 조회의 생산 탭이 열립니다 (검색 · 조건 · 이력추적 · 엑셀) · 시작 · 중단 · 참여 작업자까지 든 건별 자료는 생산분석 위쪽 [엑셀 다운로드]로 그대로 받을 수 있습니다 · 생산 건별 목록은 이제 통합 조회 한 곳에서만 봅니다"],
   ["2026-11-19", "엑셀 다운로드 — 서식이 잡힌 .xlsx", "모든 화면의 [엑셀 다운로드]가 CSV 대신 서식이 잡힌 엑셀 파일(.xlsx)로 내려받아집니다 · 맨 위 제목 + 출력 일시 · 출력자 · 건수 · 진한 머리글 · 테두리 · 줄무늬 · 열 너비 자동 · 머리글 고정 · 필터 버튼 · 수량은 숫자 칸(천 단위 쉼표, 합계 계산 가능) · 가로 인쇄 한 장 너비 맞춤 · 품목 기준정보 · 원두 마스터는 다시 올리는 양식이라 제목 줄 없이 머리글이 1행 · 인터넷 연결 없이도 동작"],
@@ -22712,8 +22714,63 @@ function chOrdSave(){
   const c = beanCfg(); c.ch_order = CH_ORD_TMP.length ? [...CH_ORD_TMP] : CH_ORDER_DEF; saveBeanCfg(c); closeChOrder();
   toast(`채널 순서 — ${c.ch_order.join(" → ")} · [자동 정렬]을 누르면 반영됩니다`);
 }
+/* ══ ★ 2026-11-19 설비별 원두 순서 (Lee "현장 작업에서 원두 순서를 내 멋대로 세팅 · 수동이랑 리팩 이카 전부 다 생산하는게 다르잖아")
+   · 설비(수동 · 리팩 · 이카 …)마다 원두 순서를 끌어서 정한다 → [자동 정렬] 때 그 설비 카드가 이 순서로 선다
+   · "원두 순서를 규격보다 먼저" 를 켜면 준비 → 채널 → 원두 → 규격, 끄면 준비 → 채널 → 규격 → 원두 (같은 규격 안에서만 원두 순서)
+   · 정하지 않은 설비는 전과 같다 (규격순 → MMS 코드순) · 저장: bean_cfg.bean_order — 모든 기기 공통 ══ */
+function beanOrdOf(mach){
+  const c = beanCfg().bean_order[machKind(mach || "")]; if (!c || !Array.isArray(c.list) || !c.list.length) return null;
+  const ix = {}; c.list.forEach((b,i)=>{ ix[b] = i; });
+  return { first: c.first !== false, rank: b => (b in ix) ? ix[b] : c.list.length };
+}
+let BN_ORD = null;     // { mach, tmp:{설비:[원두]}, first:{설비:bool}, dirty:Set }
+const bnBeansAll = () => [...new Set(DB.beans.filter(b=>b.name && !beanIsOff(b.name)).map(b=>b.name))].sort(beanCmp);
+function bnListFor(mach){ const saved = (beanCfg().bean_order[mach]||{}).list || [], all = bnBeansAll();
+  return [...saved.filter(b=>all.includes(b)), ...all.filter(b=>!saved.includes(b))]; }
+function editBeanOrder(){
+  if (!can("plan")) return deny("plan");
+  const ms = [...new Set(DB.machines.filter(m=>m.active !== false).map(m=>machKind(m.name)).filter(Boolean))]; if (!ms.length) return toast("기준정보에 설비가 없습니다");   // 수동 2구 · 수동 1구 → 수동 (현장 작업의 설비 탭과 같은 묶음)
+  const cur = (typeof wkMach !== "undefined" && ms.includes(wkMach)) ? wkMach : ms[0];
+  BN_ORD = { mach:cur, tmp:{}, first:{}, dirty:new Set(), ms };
+  ms.forEach(m=>{ BN_ORD.tmp[m] = bnListFor(m); BN_ORD.first[m] = (beanCfg().bean_order[m]||{}).first !== false; });
+  let d = $("chOrdDlg");
+  if (!d) { d = document.createElement("div"); d.id = "chOrdDlg"; d.addEventListener("click", e=>{ if (e.target === d) closeChOrder(); }); document.body.appendChild(d); }
+  renderBeanOrder();
+}
+function renderBeanOrder(){
+  const d = $("chOrdDlg"); if (!d || !BN_ORD) return;
+  const m = BN_ORD.mach, list = BN_ORD.tmp[m], saved = beanCfg().bean_order, day = $("wkDate")?.value || today();
+  const todayBeans = new Set(DB.orders.filter(o=>o.work_date === day && machKind(o.machine||"") === m && stIdx(o) < 2).map(o=>prodById(o.product_id)?.bean).filter(Boolean));
+  const keep = d.querySelector("#bnOrdList")?.scrollTop || 0;
+  d.innerHTML = `<div class="mbox" style="width:460px;max-height:92vh">
+    <div class="mh"><b>원두 순서 — 설비별</b><button class="x" onclick="closeChOrder()" title="닫기">✕</button></div>
+    <div class="mt hint">설비를 고른 뒤 원두 줄을 잡고 위아래로 끌어 옮기거나 ▲▼ · ⤒(맨 위)를 누르십시오. 위에 있는 원두부터 작업합니다. [저장] 후 현장 작업의 [자동 정렬]을 누르면 그 설비 카드 순서에 반영됩니다.</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 10px">${BN_ORD.ms.map(x=>`<button class="btn ${x===m?"primary":""}" style="height:34px" onclick="bnOrdMach('${xh(x).replace(/'/g,"\\'")}')">${xh(x)}${(BN_ORD.dirty.has(x) || saved[x]) ? ` <span style="font-size:10.5px;opacity:.85">●</span>` : ""}</button>`).join("")}</div>
+    <label style="display:flex;gap:8px;align-items:center;padding:0 16px 10px;font-size:12.5px;font-weight:700;cursor:pointer"><input type="checkbox" ${BN_ORD.first[m] ? "checked" : ""} onchange="bnOrdFirst(this.checked)" style="width:18px;height:18px"> 이 설비는 원두 순서를 규격 순서보다 먼저 적용
+      <span class="hint" style="padding:0;font-weight:500">(끄면 같은 규격 안에서만 원두 순서)</span></label>
+    <div class="col" id="bnOrdList" style="overflow:auto;flex:1 1 auto;max-height:52vh">${list.map((b,i)=>`<div class="cor" data-c="${xh(b)}">
+      <span class="grip" title="끌어서 옮기기">☰</span><span class="no">${i+1}</span>
+      <span class="nm"><b>${xh(b)}</b>${todayBeans.has(b) ? ` <span class="tag ok" style="font-size:10.5px">작업 있음</span>` : ""}</span>
+      <button class="btn" data-nodrag onclick="bnOrdMove(${i},-9999)" ${i===0?"disabled":""} title="맨 위로">⤒</button><button class="btn" data-nodrag onclick="bnOrdMove(${i},-1)" ${i===0?"disabled":""} title="위로">▲</button><button class="btn" data-nodrag onclick="bnOrdMove(${i},1)" ${i===list.length-1?"disabled":""} title="아래로">▼</button></div>`).join("") || `<div class="hint" style="padding:14px">사용 중인 원두가 없습니다</div>`}</div>
+    <div class="mf"><button class="btn" onclick="bnOrdReset()" title="이 설비의 원두 순서 지정을 지우고 기본 순서(규격순 · MMS 코드순)로 되돌립니다">${xh(m)} 기본 순서로</button><span style="flex:1"></span><button class="btn" onclick="closeChOrder()">취소</button><button class="btn primary" onclick="bnOrdSave()">저장</button></div>
+  </div>`;
+  const L = $("bnOrdList"); L.scrollTop = keep;
+  L.querySelectorAll(".cor").forEach(row=>row.addEventListener("pointerdown", e=>chOrdDrag(e, row, ids=>{ BN_ORD.tmp[m] = ids; BN_ORD.dirty.add(m); BN_ORD.reset && BN_ORD.reset.delete(m); renderBeanOrder(); })));
+}
+function bnOrdMach(m){ if (!BN_ORD) return; BN_ORD.mach = m; const L = $("bnOrdList"); if (L) L.scrollTop = 0; renderBeanOrder(); }
+function bnOrdFirst(on){ if (!BN_ORD) return; BN_ORD.first[BN_ORD.mach] = !!on; BN_ORD.dirty.add(BN_ORD.mach); BN_ORD.reset && BN_ORD.reset.delete(BN_ORD.mach); renderBeanOrder(); }
+function bnOrdMove(i, by){ if (!BN_ORD) return; const a = BN_ORD.tmp[BN_ORD.mach], j = Math.max(0, Math.min(a.length-1, i + by)); if (j === i) return;
+  const [x] = a.splice(i, 1); a.splice(j, 0, x); BN_ORD.dirty.add(BN_ORD.mach); BN_ORD.reset && BN_ORD.reset.delete(BN_ORD.mach); renderBeanOrder(); }
+function bnOrdReset(){ if (!BN_ORD) return; const m = BN_ORD.mach; BN_ORD.tmp[m] = bnBeansAll(); BN_ORD.first[m] = true; BN_ORD.dirty.delete(m); (BN_ORD.reset = BN_ORD.reset || new Set()).add(m); renderBeanOrder(); }
+function bnOrdSave(){
+  if (!BN_ORD) return; const c = beanCfg(), bo = { ...c.bean_order };
+  (BN_ORD.reset || new Set()).forEach(m=>{ delete bo[m]; });
+  BN_ORD.dirty.forEach(m=>{ bo[m] = { list:[...BN_ORD.tmp[m]], first: BN_ORD.first[m] !== false }; });
+  c.bean_order = bo; const n = Object.keys(bo).length; BN_ORD = null; saveBeanCfg(c); closeChOrder();
+  toast(n ? `원두 순서 — ${Object.keys(bo).join(" · ")} 지정 · [자동 정렬]을 누르면 반영됩니다` : "원두 순서 지정을 모두 지웠습니다 (기본 순서)");
+}
 /* 끌기 — 잡은 줄을 손가락/마우스가 지나가는 줄 자리로 옮긴다 (줄을 다시 만들지 않고 자리만 바꾼다 → 끄는 동안 끊기지 않는다) */
-function chOrdDrag(e, row){
+function chOrdDrag(e, row, onEnd){
   if (e.target.closest("[data-nodrag]") || (e.pointerType === "mouse" && e.button !== 0)) return;
   const list = row.parentElement, pid = e.pointerId; e.preventDefault();
   row.classList.add("drag");
@@ -22732,7 +22789,8 @@ function chOrdDrag(e, row){
   };
   const end = ev => { if (ev && ev.pointerId !== pid) return;
     window.removeEventListener("pointermove", move, true); window.removeEventListener("pointerup", end, true); window.removeEventListener("pointercancel", end, true);
-    row.classList.remove("drag"); CH_ORD_TMP = [...list.querySelectorAll(".cor")].map(r=>r.dataset.c); renderChOrder(); };
+    row.classList.remove("drag"); const ids = [...list.querySelectorAll(".cor")].map(r=>r.dataset.c);
+    if (onEnd) onEnd(ids); else { CH_ORD_TMP = ids; renderChOrder(); } };
   window.addEventListener("pointermove", move, true); window.addEventListener("pointerup", end, true); window.addEventListener("pointercancel", end, true);
 }
 /* ★ 2026-11-16 봉투 로스 — 생산 완료 때 "버린 봉투(봉투만)" 수만큼 봉투 재고에서 더 뺀다 (Lee "봉투 로스도 있어야") */
@@ -22920,6 +22978,7 @@ async function sortOrdersBySpec(d, opt = {}){
   const machines = [...new Set(open.map(o=>o.machine||""))];
   const rows = [];
   machines.forEach(m=>{
+    const bo = beanOrdOf(m);                                       // ★ 2026-11-19 이 설비에 정해 둔 원두 순서 (없으면 null)
     open.filter(o=>(o.machine||"")===m).sort((a,b)=>{
       const ra = a.status==="생산중" ? 0 : 1, rb = b.status==="생산중" ? 0 : 1;
       if (ra !== rb) return ra - rb;                               // 하고 있는 건 그대로 맨 위
@@ -22927,10 +22986,11 @@ async function sortOrdersBySpec(d, opt = {}){
       if (ta !== tb2) return ta - tb2;                             // ★ 2026-11-16 준비된 것(원두·라벨·봉투 다 있음) 먼저 · 원두 없는 건 맨 아래
       const ca = chRank(ordCh(a)), cb = chRank(ordCh(b));
       if (ca !== cb) return ca - cb;                               // ★ 채널 순서대로 묶는다
+      const pa = prodById(a.product_id), pb = prodById(b.product_id);
+      if (bo && bo.first) { const r = bo.rank(pa?.bean) - bo.rank(pb?.bean); if (r) return r; }   // 원두 순서를 규격보다 먼저
       const sa = bucketOf(specOf(a)||100), sb2 = bucketOf(specOf(b)||100);
       if (sa !== sb2) return asc ? sa - sb2 : sb2 - sa;
-      const pa = prodById(a.product_id), pb = prodById(b.product_id);
-      const bn = beanCodeCmp(pa?.bean||"", pb?.bean||"");
+      const bn = (bo ? bo.rank(pa?.bean) - bo.rank(pb?.bean) : 0) || beanCodeCmp(pa?.bean||"", pb?.bean||"");
       if (bn) return bn;                                           // 같은 원두는 붙여서 (MMS 코드순) — 청소·교체 줄이기
       const ga = (pa?.grind||"홀빈")==="홀빈" ? 0 : 1, gb = (pb?.grind||"홀빈")==="홀빈" ? 0 : 1;
       if (ga !== gb) return ga - gb;                               // 홀빈 먼저, 분쇄는 뒤
@@ -22942,7 +23002,7 @@ async function sortOrdersBySpec(d, opt = {}){
     if (!res || !res.ok) { if (!opt.silent) toast(res?.message || "순서를 변경하지 못했습니다"); return res; }
   }
   if (!opt.silent) { renderWork(); renderOrder();
-    toast(rows.length ? `자동 정렬했습니다 — 준비 완료 → 채널(${beanCfg().ch_order.slice(0,3).join("·")}…) → 규격(${asc?"100g → 1kg":"1kg → 100g"}) · ${rows.length}건 순서 변경`
+    toast(rows.length ? `자동 정렬했습니다 — 준비 완료 → 채널(${beanCfg().ch_order.slice(0,3).join("·")}…) → ${Object.keys(beanCfg().bean_order).length ? "설비별 원두 순서 · " : ""}규격(${asc?"100g → 1kg":"1kg → 100g"}) · ${rows.length}건 순서 변경`
                       : "이미 기준 순서입니다"); }
   return { ok:true, moved:rows.length };
 }
@@ -23066,6 +23126,7 @@ function renderWork(){
     (canEdit ? `<button class="btn" onclick="sortOrdersBySpec($('wkDate').value||today())"
        title="설비별로 ① 준비 완료 건(원두·라벨·봉투 확보) 우선 ② 채널 순서 ③ 규격순 ④ 동일 원두 묶음 — 작업 순서를 일괄 재지정합니다. 원두가 없는 지시는 최하단으로 이동합니다">자동 정렬 (준비 → 채널 → ${specDir()==="asc"?"100g→1kg":"1kg→100g"})</button>` : "") +
     (can("plan") ? `<button class="btn" onclick="editChOrder()" title="자동 정렬 시 우선 작업할 채널 순서">채널 순서: ${beanCfg().ch_order.slice(0,3).join(" → ")}…</button>` : "") +
+    (can("plan") ? `<button class="btn" onclick="editBeanOrder()" title="설비마다 원두 작업 순서를 직접 정합니다 — [자동 정렬]을 누르면 반영됩니다">원두 순서${(()=>{ const n = Object.keys(beanCfg().bean_order).length; return n ? `: ${n}개 설비 지정` : ": 설비별 지정"; })()}</button>` : "") +
     (mixedAll.length && can("plan") ? `<button class="btn primary" onclick="splitAllOrders()"
        title="여러 배치가 묶인 지시를 배치별 1건씩으로 분할합니다">배치별 분할 ${mixedAll.length}건</button>` : "") +
     (()=>{ if (!can("plan")) return "";
