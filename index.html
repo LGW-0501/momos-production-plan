@@ -489,6 +489,9 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   #tProd.compact th:nth-child(10), #tProd.compact td:nth-child(10), #tProd.compact th:nth-child(11), #tProd.compact td:nth-child(11), #tProd.compact th:nth-child(12), #tProd.compact td:nth-child(12),
   #tProd.compact th:nth-child(15), #tProd.compact td:nth-child(15), #tProd.compact th:nth-child(16), #tProd.compact td:nth-child(16), #tProd.compact th:nth-child(18), #tProd.compact td:nth-child(18){display:none}
   #tBeans.compact .xcol{display:none}
+  #tBeans.compact{table-layout:fixed; width:100%; min-width:0;}
+  #tBeans.compact td{min-width:0 !important; overflow:hidden;}
+  #tBeans.compact td input:not([type=checkbox]){width:100%; box-sizing:border-box;}
   details.toolMenu{position:relative;display:inline-block} details.toolMenu > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center} details.toolMenu > summary::-webkit-details-marker{display:none}
   details.toolMenu > .tm{position:absolute;right:0;top:calc(100% + 6px);z-index:40;display:flex;flex-direction:column;gap:6px;padding:10px;min-width:210px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.22)}
   details.toolMenu > .tm .btn{width:100%;justify-content:flex-start;text-align:left;white-space:nowrap}
@@ -17956,6 +17959,14 @@ function beanTidy(){
   wb.title = "머신 종류 · 로스터기별 가능 여부와 1배치 kg · 적요 · 출시일 · 종료일 · MMS 재고 · 배치 수 · 연결 완제품 칸을 보이거나 숨깁니다";
   t.classList.toggle("compact", !BEAN_WIDE);
   t.querySelectorAll("tr").forEach(tr=>{ const cs = tr.children; if (cs.length !== ths.length) return; for (let i = 0; i < cs.length; i++) cs[i].classList.toggle("xcol", hide.has(i)); });
+  /* ★ 핵심 칸만 볼 때는 표를 화면 너비에 꽉 채운다 (Lee "빈칸이 너무 많아보여 칸에 맞게 해줘") — 칸마다 비율로 나누고 입력칸은 칸 너비만큼
+       모든 칸 보기에서는 전처럼 칸마다 정해 둔 너비(끌어서 바꾼 너비 포함)를 쓴다 */
+  const PCT = { "No":"4.5%", "상태":"6.5%", "MMS 코드":"10%", "원두명":"27%", "컬러":"8%", "품목보고번호":"13%", "원산지":"25%", "처리":"6%" };
+  ths.forEach((th,i)=>{ const tx = (th.textContent || "").replace(/[⇅↑↓▲▼⮁]/g, "").trim(), k = Object.keys(PCT).find(x=>tx.indexOf(x) === 0);
+    if (!BEAN_WIDE) { th.style.minWidth = "0"; th.style.width = (i === 0 ? PCT["No"] : (k && !hide.has(i) ? PCT[k] : "")); }
+    else if (th.dataset.cw !== "wide") { th.style.width = ""; th.style.minWidth = ""; }
+    th.dataset.cw = BEAN_WIDE ? "wide" : "compact"; });
+  if (BEAN_WIDE) { try { sizeCols("tBeans"); } catch(e){ console.warn(e); } }
 }
 function renderBase(){ renderBaseInner(); try { renderBeanSet(); } catch(e){ console.warn(e); } basePendApplyDOM(); try { baseTidy(); beanTidy(); } catch(e){ console.warn(e); } }
 /* ★ 2026-11-16 기준정보 › 원두별 세팅 */
