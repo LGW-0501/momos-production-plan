@@ -488,6 +488,10 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   #tProd.compact th:nth-child(3), #tProd.compact td:nth-child(3), #tProd.compact th:nth-child(8), #tProd.compact td:nth-child(8), #tProd.compact th:nth-child(9), #tProd.compact td:nth-child(9),
   #tProd.compact th:nth-child(10), #tProd.compact td:nth-child(10), #tProd.compact th:nth-child(11), #tProd.compact td:nth-child(11), #tProd.compact th:nth-child(12), #tProd.compact td:nth-child(12),
   #tProd.compact th:nth-child(15), #tProd.compact td:nth-child(15), #tProd.compact th:nth-child(16), #tProd.compact td:nth-child(16), #tProd.compact th:nth-child(18), #tProd.compact td:nth-child(18){display:none}
+  #tBeans.compact .xcol{display:none}
+  details.toolMenu{position:relative;display:inline-block} details.toolMenu > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center} details.toolMenu > summary::-webkit-details-marker{display:none}
+  details.toolMenu > .tm{position:absolute;right:0;top:calc(100% + 6px);z-index:40;display:flex;flex-direction:column;gap:6px;padding:10px;min-width:210px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.22)}
+  details.toolMenu > .tm .btn{width:100%;justify-content:flex-start;text-align:left;white-space:nowrap}
   details.hintFold{padding:6px 18px 4px} details.hintFold > summary{cursor:pointer;list-style:none} details.hintFold > summary::-webkit-details-marker{display:none} details.hintFold[open] > summary{margin-bottom:4px}
   .rdRow{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--line);cursor:pointer}
   .rdRow:hover{background:rgba(0,0,0,.025)} .rdRow .t{font-weight:700;flex:0 0 auto} .rdRow .w{color:var(--soft);font-size:12.5px;flex:1;min-width:0}
@@ -8207,6 +8211,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "기준정보 › 원두 · MMS코드 탭 간략하게", "가끔 쓰는 버튼 7개(열 너비 초기화 · 원두 마스터 재등록 · 완제품 자동 추가 · 중복 품목 정리 · MMS코드 엑셀 등록 · 원두 마스터 엑셀 등록 · 머신 종류 기준 설정)를 [도구 ▾] 안으로 모았습니다 · 표는 평소 핵심 칸만 보입니다 (상태 · MMS 코드 · 원두명 · 컬러 · 품목보고번호 · 원산지 · 처리) — [모든 칸 보기]로 로스터기 · 적요 · 출시일 · 종료일 · 재고 · 배치 수 · 연결 완제품까지 · 기기마다 기억합니다"],
   ["2026-11-19", "속도 설정을 기기마다 켜고 끄기 · 화면이 안 열릴 때 안내 상자", "속도를 올리려고 넣은 네 가지(최근 90일만 받기 · 뒤에서 미리 그리지 않기 · 치는 동안 그리기 모으기 · 권한 판정 한 번만)를 기본 꺼짐으로 바꿨습니다 — 지금은 속도 작업 전과 같은 방식으로 동작합니다 · 시작 전 점검 › 자료 양 · 백업 › [속도 설정]에서 하나씩 켤 수 있습니다 · 앱이 20초 안에 열리지 않거나 시작 중 오류가 나면 빈 화면 대신 안내 상자가 뜹니다 — [속도 설정을 끄고 다시 열기] · [오류 복사]"],
   ["2026-11-19", "검수 대기 수량을 재고와 따로 표시", "완제품 재고(CFE 현재고) 옆에 「검수 대기 n」과 「검수 끝난 재고」를 따로 보여 줍니다 — 재고 현황(CFE) · 생산계획 · 대시보드 부족 표 · 완제품 재고는 생산 완료 때 올라가므로 아직 검수하지 않은 수량이 섞여 있습니다 · 장부 숫자 · 부족 계산 · 생산계획은 전과 같습니다 (표시만 추가)"],
   ["2026-11-19", "기준정보 정리 — 탭 13개 → 묶음 4개 · 원두(MMS) 배치별 실측 복구", "① 기준정보 위에 묶음 4개(품목 / 원두 / 부자재 · 설비 · 사람 / 시스템) — 묶음을 누르면 그 묶음의 탭만 보입니다 · 초기화 / 개통은 시스템 묶음 맨 뒤 · ② MMS 원두재고 탭은 기준정보에서 뺐습니다 — 원두 재고는 로스팅 › 배치 재고에서 보고, 수량은 배치별 실측으로 맞춥니다 · ③ 품목 표는 평소 핵심 칸만 보입니다 — [모든 칸 보기 (18칸)]로 전부 (기기마다 기억) · ④ 긴 안내문은 한 줄만 보이고 [설명 더 보기]로 펼칩니다 · ⑤ 원두(MMS) 배치별 실측표가 뜨지 않던 것을 복구했습니다 — 재고 실사 › [원두 (MMS) →] 또는 로스팅 › 수불 › [배치별 실측]"],
@@ -17928,7 +17933,31 @@ function baseTidy(){
     const first = (h.textContent || "").trim().split(/(?<=다\.|니다|\.)\s|—|·/)[0].slice(0, 90);
     sm.innerHTML = `<span class="hint" style="padding:0">${xh(first)}… <b style="color:var(--pri,#1d4ed8)">설명 더 보기</b></span>`; h.parentNode.insertBefore(d, h); d.appendChild(sm); d.appendChild(h); });
 }
-function renderBase(){ renderBaseInner(); try { renderBeanSet(); } catch(e){ console.warn(e); } basePendApplyDOM(); try { baseTidy(); } catch(e){ console.warn(e); } }
+/* ★ 2026-11-19 원두 · MMS코드 탭 간략하게 (Lee "여기에서 조금 더 간략하게 할 수 있어?")
+     · 가끔 쓰는 버튼 7개(열 너비 초기화 · 원두 마스터 재등록 · 완제품 자동 추가 · 중복 품목 정리 · 엑셀 등록 2종 · 머신 종류 기준 설정)는 [도구 ▾] 안으로
+     · 표는 평소 핵심 칸만 (상태 · MMS 코드 · 원두명 · 컬러 · 품목보고번호 · 원산지 · 처리) — 로스터기 · 적요 · 출시일 · 종료일 · 재고 · 배치 수 · 연결 완제품은 [모든 칸 보기] */
+let BEAN_WIDE = false; try { BEAN_WIDE = localStorage.getItem("momos.beanWide") === "1"; } catch(e){ console.debug(e); }
+function setBeanWide(on){ BEAN_WIDE = !!on; try { localStorage.setItem("momos.beanWide", on ? "1" : "0"); } catch(e){ console.debug(e); } beanTidy(); }
+function beanTidy(){
+  const pane = $("p-beans"), r = pane && pane.querySelector(".panel-h .r"); if (!r) return;
+  if (!$("beanTools")) {
+    const names = ["resetCols('tBeans')","seedBeanMaster()","autoProductsMissing()","autoMergeProducts(","openPaste('mmscode')","openPaste('beanmaster')","applyBeanRules()"];
+    const btns = [...r.querySelectorAll("button")].filter(b=>names.some(n=>(b.getAttribute("onclick")||"").includes(n)));
+    if (btns.length) { const d = document.createElement("details"); d.id = "beanTools"; d.className = "toolMenu";
+      d.innerHTML = `<summary class="btn" title="가끔 쓰는 등록 · 정리 기능">도구 ${btns.length}개 ▾</summary><div class="tm"></div>`;
+      r.insertBefore(d, btns[0]); const box = d.querySelector(".tm"); btns.forEach(b=>{ b.classList.remove("primary"); box.appendChild(b); });
+      box.addEventListener("click", e=>{ if (e.target.closest("button")) d.open = false; });
+      document.addEventListener("click", e=>{ if (d.open && !d.contains(e.target)) d.open = false; }); } }
+  let wb = $("beanWideBtn"); if (!wb) { wb = document.createElement("button"); wb.id = "beanWideBtn"; wb.className = "btn"; const t = $("beanTools"); r.insertBefore(wb, t || r.firstChild); }
+  const t = $("tBeans"); if (!t) return;
+  const ths = [...t.querySelectorAll("thead th")], keep = /^(No|상태|MMS 코드|원두명|컬러|품목보고번호|원산지|처리)/, hide = new Set();
+  ths.forEach((th,i)=>{ const tx = (th.textContent || "").replace(/[⇅↑↓▲▼⮁]/g, "").trim(); if (i > 0 && !keep.test(tx)) hide.add(i); });
+  wb.textContent = BEAN_WIDE ? "핵심 칸만 보기" : `모든 칸 보기 (${ths.length}칸)`; wb.onclick = () => setBeanWide(!BEAN_WIDE);
+  wb.title = "머신 종류 · 로스터기별 가능 여부와 1배치 kg · 적요 · 출시일 · 종료일 · MMS 재고 · 배치 수 · 연결 완제품 칸을 보이거나 숨깁니다";
+  t.classList.toggle("compact", !BEAN_WIDE);
+  t.querySelectorAll("tr").forEach(tr=>{ const cs = tr.children; if (cs.length !== ths.length) return; for (let i = 0; i < cs.length; i++) cs[i].classList.toggle("xcol", hide.has(i)); });
+}
+function renderBase(){ renderBaseInner(); try { renderBeanSet(); } catch(e){ console.warn(e); } basePendApplyDOM(); try { baseTidy(); beanTidy(); } catch(e){ console.warn(e); } }
 /* ★ 2026-11-16 기준정보 › 원두별 세팅 */
 let bsetOnly = false;
 function beanSetMiss(b){
