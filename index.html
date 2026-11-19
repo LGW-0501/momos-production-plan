@@ -2156,9 +2156,17 @@
       <div class="panel"><div class="panel-h">중단 사유별</div><div class="panel-b"><table id="capaPause"></table></div></div>
     </div>
     <div class="panel"><div class="panel-h">품목별 생산량 · 생산시간</div><div class="panel-b"><table id="capaProd"></table></div></div>
+    <div class="panel"><div class="panel-h">생산량 · 투입 · 로스 집계 <span class="r hint">설비별 · 규격별 · 품목별 · 분쇄도별 — 위 기간 기준 (생산실적에서 옮겨 옴)</span></div>
+      <div id="capaSumBox" style="padding:10px 14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px">
+        <div><div style="font-weight:800;margin:0 0 6px">설비별</div><div class="panel-b"><table id="byMach"></table></div></div>
+        <div><div style="font-weight:800;margin:0 0 6px">규격별</div><div class="panel-b"><table id="bySpec"></table></div></div>
+        <div><div style="font-weight:800;margin:0 0 6px">품목별</div><div class="panel-b"><table id="byProd"></table></div></div>
+        <div><div style="font-weight:800;margin:0 0 6px">분쇄도별</div><div class="panel-b"><table id="byGrind"></table></div></div>
+      </div></div>
     <div class="panel"><div class="panel-h">생산 1건 평균 <span class="r hint">건당 수량 · 생산시간 · 속도 — 품목별</span></div>
       <div id="capaAvg"></div>
-      <details id="capaLogsWrap" ontoggle="CAPA_LOGS_OPEN=this.open"><summary>건별 목록 보기</summary><div class="panel-b"><table id="capaLogs"></table></div></details></div>
+      <div style="padding:10px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button class="btn" id="capaLogsBtn" onclick="capaToFind()" title="이 기간의 생산 건을 통합 조회에서 엽니다 — 검색 · 조건 · 이력추적 · 엑셀">건별 목록 보기 (통합 조회) ›</button>
+        <span class="hint" style="padding:0">건별 목록은 통합 조회 한 곳에서 봅니다 · 시작 · 중단 · 참여 작업자까지 든 목록은 위쪽 [엑셀 다운로드]</span></div></div>
     <div class="panel"><div class="panel-h">월간 회고 <span class="r hint">이 달 ↔ 전월 · 계획 대비 · 품질 · 운영</span>
         <span style="margin-left:14px"><input type="month" id="capaRetroMon" onchange="renderCapa()"></span></div>
       <div id="capaRetro" style="padding:10px 18px"></div></div>
@@ -2277,21 +2285,26 @@
     <button class="btn" onclick="editCloseItems()" id="closeEditBtn">항목 편집</button>
     <button class="btn primary" onclick="finishClose()" id="closeDoneBtn">마감 완료</button>
   </div>
+  <div class="subtabs" id="closeTabs"></div>
   <div class="body">
     <h2 class="page">마감 체크리스트<small id="asof-close"></small></h2>
-    <div class="guide"><b>마감 담당자가 퇴근 전에 항목별로 확인한 후 체크합니다.</b>
+    <div class="guide"><b>현장 파트와 검수 파트가 각자 자기 탭에서 마감합니다.</b> 위쪽 탭에서 <b>현장 마감 · 검수 마감</b>을 고른 뒤 항목별로 확인하고 체크합니다 · 두 마감이 모두 끝나면 그날은 <b>마감 완료</b>로 표시됩니다 ·
       상단 항목은 MES 기록을 기준으로 <b>미완료 건수를 자동으로</b> 표시합니다 — 숫자를 누르면 해당 화면으로 이동합니다 ·
       체크하면 <b>확인자와 확인 시각</b> 이 기록되며, 다른 기기에도 즉시 반영됩니다 ·
       특이 사항이나 당일 미완료 업무는 <b>비고</b>에 입력하면 다음 날 마감자·관리자 화면 최상단에 표시됩니다 ·
-      모든 항목을 체크한 후 <b>[마감 완료]</b>를 누르면 마감자와 시각이 기록되고, <b>원두 일 마감</b>(일반(온라인) 미사용 원두의 배정 해제)이 같이 실행됩니다.</div>
+      모든 항목을 체크한 후 오른쪽 위 <b>[현장 마감 완료] · [검수 마감 완료]</b>를 누르면 마감자와 시각이 기록됩니다 · 현장 마감 완료 때는 <b>원두 일 마감</b>(일반(온라인) 미사용 원두의 배정 해제)이 같이 실행됩니다.</div>
     <div id="closePrev"></div>
     <div class="panel">
-      <div class="panel-h">오늘 할 일 <span class="r hint" id="closeWho"></span></div>
+      <div class="panel-h"><span id="closeListT">오늘 할 일</span> <span class="r hint" id="closeWho"></span></div>
       <div class="panel-b" id="closeList" style="padding:4px 0"></div>
     </div>
     <div class="panel" id="closeBeanWrap">
-      <div class="panel-h">원두 · 완제품 일 마감 <span id="closeBeanSum"></span><span class="r hint">일반(온라인) 미사용 원두는 배정만 해제 — 배치 · 잔량은 그대로</span></div>
+      <div class="panel-h">원두 일 마감 <span id="closeBeanSum"></span><span class="r hint">일반(온라인) 미사용 원두는 배정만 해제 — 배치 · 잔량은 그대로</span></div>
       <div id="closeBean" style="padding:12px 18px"></div>
+    </div>
+    <div class="panel" id="closeYardWrap" style="display:none">
+      <div class="panel-h">CFE 완제품(출고장 재고) — 금일 출고 필요 · 상미 초과 <span id="closeYardSum"></span></div>
+      <div id="closeYard" style="padding:12px 18px"></div>
     </div>
     <div class="panel">
       <div class="panel-h">비고 — 특이사항 · 미처리 사항 <span class="r hint">다음 날 마감자 화면 최상단에 표시됩니다</span></div>
@@ -2832,33 +2845,17 @@
       <div class="panel-h">수령 확인이 필요한 건 <span class="r hint">수량 일치 여부를 확인한 후 승인 또는 수정 요청하십시오</span></div>
       <div class="panel-b"><table id="apprTbl"></table></div>
     </div>
-    <div class="panel">
-      <div class="panel-h">주간 생산현황 (최근 7일) <span class="r hint">행을 누르면 해당 일자로 이동</span></div>
-      <div class="panel-b"><table id="weekTbl"></table></div>
-    </div>
     <div class="cards" id="logCards"></div>
-    <div class="cols2">
-      <div class="panel"><div class="panel-h">설비별 <span id="logDay" class="hint" style="padding:0"></span></div>
-        <div class="panel-b"><table id="byMach"></table></div></div>
-      <div class="panel"><div class="panel-h">규격별</div>
-        <div class="panel-b"><table id="bySpec"></table></div></div>
-    </div>
-    <div class="cols2">
-      <div class="panel"><div class="panel-h">품목별</div>
-        <div class="panel-b"><table id="byProd"></table></div></div>
-      <div class="panel"><div class="panel-h">분쇄도별</div>
-        <div class="panel-b"><table id="byGrind"></table></div></div>
-    </div>
     <div class="panel">
-      <div class="panel-h">완제품 일련번호 대장 (추적)
-        <span class="r"><input type="text" id="serialQ" placeholder="일련번호·배치·LOT·품목 검색" style="width:220px">
-        <button class="btn" onclick="csvSerial()">엑셀 다운로드</button></span></div>
-      <div class="hint">일련번호별 투입 원두 배치 및 출고 LOT 확인 · 최근 60건</div>
-      <div class="panel-b"><table id="serialTbl"></table></div>
-    </div>
-    <div class="panel">
-      <div class="panel-h">생산실적 상세</div>
+      <div class="panel-h">생산실적 상세 <span id="logDay" class="hint" style="padding:0"></span>
+        <span class="r hint" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn" onclick="logToCapa()" title="이 일자의 설비별 · 규격별 · 품목별 · 분쇄도별 집계를 생산분석에서 엽니다">집계 보기 (생산분석) ›</button>
+          <button class="btn" onclick="logToFind()" title="일련번호 · 배치 · LOT 로 생산 건을 찾습니다">일련번호 · 건별 찾기 (통합 조회) ›</button></span></div>
       <div class="panel-b"><table id="logTbl"></table></div>
+    </div>
+    <div class="panel csec fold" id="logWeekWrap">
+      <div class="panel-h" onclick="logWeekToggle()" title="누르면 접거나 폅니다"><span class="cfold"></span>주간 생산현황 (최근 7일)<span class="csum" id="logWeekSum"></span> <span class="r hint">행을 누르면 해당 일자로 이동</span></div>
+      <div class="panel-b"><table id="weekTbl"></table></div>
     </div>
   </div>
 </section>
@@ -4108,11 +4105,106 @@ const FLOOR_TECH = /\.sql|schema cache|supabase|rls|rpc|permission denied|functi
 const FLOOR_GENERIC = "처리되지 않았습니다 — 관리자에게 문의하십시오.\n(긴급하지 않은 경우 왼쪽 메뉴 [문의]에 등록해도 됩니다)";
 const floorSafe = m => (isFloor() && FLOOR_TECH.test(String(m||""))) ? FLOOR_GENERIC : m;
 function toast(m){ const t=$("toast"); t.textContent=floorSafe(m); t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),1900); }
-function csv(name, head, rows){
-  const s = "\uFEFF" + [head,...rows].map(a=>a.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
+function csvPlain(name, head, rows){
+  const s = "﻿" + [head,...rows].map(a=>a.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([s],{type:"text/csv;charset=utf-8"}));
   a.download = `${name}_${today()}.csv`; a.click();
+}
+/* ══ ★ 2026-11-19 엑셀 다운로드를 서식이 잡힌 .xlsx 로 (Lee "엑셀 다운할때 이쁘게 틀도 잡혀서") ══
+   모든 [엑셀 다운로드] 가 이 함수 하나를 쓴다 — 제목 · 출력 일시 · 진한 머리글 · 테두리 · 줄무늬 · 열 너비 자동 · 머리글 고정 · 필터 · 숫자는 숫자 칸(천 단위 쉼표) · 가로 인쇄
+   외부 라이브러리 없이 직접 만든다 (인터넷이 끊겨도 됨). 만들다 실패하면 예전 CSV 로 내려받는다.
+   기준정보(품목 · 원두)는 다시 올리는 양식으로도 쓰므로 제목 줄 없이 머리글을 1행에 둔다. */
+const XLSX_NO_TITLE = /^(품목기준정보|원두마스터|원두별_로스터기기준)/;
+function csv(name, head, rows){
+  try { xlsxPretty(name, head, rows); }
+  catch(e){ console.warn("xlsx", e); csvPlain(name, head, rows); }
+}
+const XL = (()=>{
+  const T = new Uint32Array(256); for (let n=0;n<256;n++){ let c=n; for (let k=0;k<8;k++) c = c&1 ? 0xEDB88320^(c>>>1) : c>>>1; T[n]=c>>>0; }
+  const crc = u8 => { let c = 0xFFFFFFFF; for (let i=0;i<u8.length;i++) c = T[(c^u8[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+  const enc = new TextEncoder();
+  /* 압축 없이 묶는 zip (stored) */
+  function zip(files){
+    const parts = [], cen = []; let off = 0;
+    const d = new Date(), dt = ((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(), tm = (d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+    files.forEach(([nm, txt])=>{ const n8 = enc.encode(nm), b = enc.encode(txt), c = crc(b);
+      const h = new DataView(new ArrayBuffer(30)); h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,tm,true); h.setUint16(12,dt,true);
+      h.setUint32(14,c,true); h.setUint32(18,b.length,true); h.setUint32(22,b.length,true); h.setUint16(26,n8.length,true); h.setUint16(28,0,true);
+      parts.push(new Uint8Array(h.buffer), n8, b);
+      const e = new DataView(new ArrayBuffer(46)); e.setUint32(0,0x02014b50,true); e.setUint16(4,20,true); e.setUint16(6,20,true); e.setUint16(8,0x0800,true); e.setUint16(10,0,true); e.setUint16(12,tm,true); e.setUint16(14,dt,true);
+      e.setUint32(16,c,true); e.setUint32(20,b.length,true); e.setUint32(24,b.length,true); e.setUint16(28,n8.length,true); e.setUint32(42,off,true);
+      cen.push(new Uint8Array(e.buffer), n8); off += 30 + n8.length + b.length; });
+    const cl = cen.reduce((t,x)=>t+x.length,0), end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0,0x06054b50,true); end.setUint16(8,files.length,true); end.setUint16(10,files.length,true); end.setUint32(12,cl,true); end.setUint32(16,off,true);
+    return new Blob([...parts, ...cen, new Uint8Array(end.buffer)], { type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  }
+  const esc = v => String(v).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F￾￿]/g,"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  const col = n => { let s = ""; n++; while (n > 0) { const m = (n-1)%26; s = String.fromCharCode(65+m) + s; n = Math.floor((n-1)/26); } return s; };
+  const wlen = v => { let w = 0; for (const ch of String(v)) w += ch.charCodeAt(0) > 0x2E80 ? 2 : 1; return w; };
+  /* 숫자로 넣을 값인가 — 숫자형이거나 "1,234" · "1,234.5" 처럼 쉼표가 든 수량. 일련번호("1901" · "0501") · 날짜 · 코드는 글자 그대로 */
+  /* q = 머리글로 보아 수량 칸(수량 · EA · kg …)이면 쉼표 없는 "280" 도 숫자로 */
+  const num = (v, q) => typeof v === "number" ? (isFinite(v) ? v : null)
+    : typeof v !== "string" ? null
+    : /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(v.trim()) ? Number(v.replace(/,/g,""))
+    : q && /^-?\d+(\.\d+)?$/.test(v.trim()) && !/^-?0\d/.test(v.trim()) ? Number(v) : null;
+  const isQty = h => /수량|EA|kg|중량|개수|건수|합계|재고|잔량|잔여|투입|로스|차이|입고|출고량|사용량|소요|부적합|반려|\(분\)|\(개\)|\(장\)|\/h|인시|묶음|장수/i.test(h) && !/번호|코드|LOT|일자|날짜|일시|시각|배치|사유|내용|비고|메모|상태|판정|자|처$/i.test(h);
+  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    `<numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.###"/></numFmts>` +
+    `<fonts count="4"><font><sz val="10"/><name val="맑은 고딕"/></font><font><b/><sz val="14"/><color rgb="FF0C1445"/><name val="맑은 고딕"/></font><font><sz val="9"/><color rgb="FF6E7585"/><name val="맑은 고딕"/></font><font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="맑은 고딕"/></font></fonts>` +
+    `<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0C1445"/><bgColor indexed="64"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF4F6FB"/><bgColor indexed="64"/></patternFill></fill></fills>` +
+    `<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFD5DAE6"/></left><right style="thin"><color rgb="FFD5DAE6"/></right><top style="thin"><color rgb="FFD5DAE6"/></top><bottom style="thin"><color rgb="FFD5DAE6"/></bottom><diagonal/></border></borders>` +
+    `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="10">` +
+    `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
+    `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"><alignment vertical="center"/></xf>` +
+    `<xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>` +
+    [0,3].map(f=>`<xf numFmtId="49" fontId="0" fillId="${f}" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment vertical="center"/></xf>` +
+      `<xf numFmtId="3" fontId="0" fillId="${f}" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>` +
+      `<xf numFmtId="164" fontId="0" fillId="${f}" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"><alignment horizontal="right" vertical="center"/></xf>`).join("") +
+    `</cellXfs><cellStyles count="1"><cellStyle name="표준" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+  function build(title, head, rows, opt){
+    const nC = Math.max(1, head.length, ...rows.map(r=>r.length)), top = opt.noTitle ? 0 : 3, hr = top + 1;
+    const W = Array.from({length:nC}, (_,i)=>wlen(head[i] ?? "")), Q = Array.from({length:nC}, (_,i)=>isQty(String(head[i] ?? "")));
+    const cell = (r, c, v, st) => { const ref = col(c) + r; if (v === "" || v == null) return `<c r="${ref}" s="${st}"/>`;
+      const n = st >= 4 ? num(v, Q[c]) : null;
+      if (n != null) return `<c r="${ref}" s="${st + (Number.isInteger(n) ? 1 : 2)}"><v>${n}</v></c>`;
+      return `<c r="${ref}" s="${st}" t="inlineStr"><is><t xml:space="preserve">${esc(v)}</t></is></c>`; };
+    let x = "";
+    if (!opt.noTitle) x += `<row r="1" ht="26" customHeight="1">${cell(1, 0, title, 1)}</row><row r="2" ht="16" customHeight="1">${cell(2, 0, opt.meta, 2)}</row>`;
+    x += `<row r="${hr}" ht="24" customHeight="1">${Array.from({length:nC}, (_,c)=>cell(hr, c, head[c] ?? "", 3)).join("")}</row>`;
+    rows.forEach((r, i)=>{ const rn = hr + 1 + i, st = i % 2 ? 7 : 4;
+      x += `<row r="${rn}">${Array.from({length:nC}, (_,c)=>{ const v = r[c]; if (v != null && v !== "") { const n = num(v, Q[c]); W[c] = Math.max(W[c], wlen(n != null ? n.toLocaleString("en-US") : String(v).split("\n")[0])); } return cell(rn, c, v, st); }).join("")}</row>`; });
+    const last = col(nC-1), lr = hr + rows.length;
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+      `<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:${last}${lr}"/>` +
+      `<sheetViews><sheetView workbookViewId="0" showGridLines="0"><pane ySplit="${hr}" topLeftCell="A${hr+1}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` +
+      `<sheetFormatPr defaultRowHeight="18"/><cols>${W.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${Math.min(48, Math.max(7, w + 3))}" customWidth="1"/>`).join("")}</cols>` +
+      `<sheetData>${x}</sheetData><autoFilter ref="A${hr}:${last}${lr}"/>` +
+      (!opt.noTitle && nC > 1 ? `<mergeCells count="2"><mergeCell ref="A1:${last}1"/><mergeCell ref="A2:${last}2"/></mergeCells>` : "") +
+      `<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToWidth="1" fitToHeight="0"/>` +
+      `<headerFooter><oddFooter>&amp;C&amp;P / &amp;N</oddFooter></headerFooter></worksheet>`;
+  }
+  function blob(title, head, rows, opt){
+    const sn = esc(String(title).replace(/[\\\/\?\*\[\]:]/g," ").slice(0,31) || "Sheet1"), hr = (opt.noTitle ? 0 : 3) + 1;
+    return zip([
+      ["[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
+      ["_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+      ["xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${sn}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm.Print_Titles" localSheetId="0">'${sn.replace(/'/g,"''")}'!$${hr}:$${hr}</definedName></definedNames></workbook>`],
+      ["xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+      ["xl/styles.xml", STYLES],
+      ["xl/worksheets/sheet1.xml", build(title, head, rows, opt)] ]);
+  }
+  return { blob };
+})();
+function xlsxPretty(name, head, rows){
+  const title = String(name).replace(/_/g," ").trim(), d = new Date(), p2 = n => String(n).padStart(2,"0");
+  const who = (typeof CURRENT_USER !== "undefined" && CURRENT_USER) || (typeof LOGIN_USER !== "undefined" && LOGIN_USER && LOGIN_USER.name) || "";
+  const meta = `MOMOS 생산계획 · 출력 ${today()} ${p2(d.getHours())}:${p2(d.getMinutes())}${who ? ` · ${who}` : ""} · ${rows.length.toLocaleString("en-US")}건`;
+  const b = XL.blob(title, head.map(h=>String(h ?? "")), rows, { meta, noTitle: XLSX_NO_TITLE.test(String(name)) });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = `${name}_${today()}.xlsx`; a.click();
+  setTimeout(()=>{ try { URL.revokeObjectURL(a.href); } catch(_){} }, 4000);
+  return b;
 }
 function tbl(id, head, rows, foot){
   /* 머리글 글자에 fix / fixl 표시가 있으면 그 칸(th)을 오른쪽/왼쪽에 고정한다 */
@@ -7954,6 +8046,10 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "마감 — 현장 마감 · 검수 마감으로 분리", "마감 화면 위쪽에 [현장 마감] · [검수 마감] 탭이 생겼습니다. 파트마다 항목과 [완료] 버튼이 따로이고, 탭에 진행 수(예 3/8)와 완료 여부가 보입니다 · 현장 마감 = 생산 완료 · 라벨 작업 · 부자재 실사 · 원두 재고 · 로스팅 입고 · 설비 · 밀봉 · 내일 계획 + 원두 일 마감(현장 마감 완료 때 같이 실행) · 검수 마감 = 검수 · 수령 확인 · 수량 불일치 · 반려 조치 · 검수 구역 정리 · 두 마감이 모두 끝나면 그날은 자동으로 「하루 마감 완료」 · 검수 계정은 검수 마감 탭이 먼저 열림 · 항목은 파트별로 [항목 편집] · CFE 완제품 확인은 출고팀 일이라 제품생산팀 마감에서 뺐습니다 — 출고팀 마감 탭은 만들어 두고 꺼 두었으며 관리자가 [＋ 출고팀 마감 추가]로 켤 수 있습니다 · 최근 마감 기록 표도 파트별로"],
+  ["2026-11-19", "화면 중복 정리 ② 생산분석", "생산분석의 「건별 목록 보기」 표를 없애고 [건별 목록 보기 (통합 조회)] 버튼으로 바꿨습니다 — 누르면 보고 있던 기간 그대로 통합 조회의 생산 탭이 열립니다 (검색 · 조건 · 이력추적 · 엑셀) · 시작 · 중단 · 참여 작업자까지 든 건별 자료는 생산분석 위쪽 [엑셀 다운로드]로 그대로 받을 수 있습니다 · 생산 건별 목록은 이제 통합 조회 한 곳에서만 봅니다"],
+  ["2026-11-19", "엑셀 다운로드 — 서식이 잡힌 .xlsx", "모든 화면의 [엑셀 다운로드]가 CSV 대신 서식이 잡힌 엑셀 파일(.xlsx)로 내려받아집니다 · 맨 위 제목 + 출력 일시 · 출력자 · 건수 · 진한 머리글 · 테두리 · 줄무늬 · 열 너비 자동 · 머리글 고정 · 필터 버튼 · 수량은 숫자 칸(천 단위 쉼표, 합계 계산 가능) · 가로 인쇄 한 장 너비 맞춤 · 품목 기준정보 · 원두 마스터는 다시 올리는 양식이라 제목 줄 없이 머리글이 1행 · 인터넷 연결 없이도 동작"],
+  ["2026-11-19", "화면 중복 정리 ① 생산실적", "생산실적은 등록 · 수정 · 수령 확인 전용으로 정리했습니다 · 「생산실적 상세」 표를 위로 올림 · 「주간 생산현황」은 접어 둠(제목을 누르면 펼쳐지고 이 기기에 기억) · 설비별 · 규격별 · 품목별 · 분쇄도별 집계는 생산분석의 「생산량 · 투입 · 로스 집계」 창으로 옮김(일 · 주 · 월 · 연 기간으로 조회) — 생산실적의 [집계 보기 (생산분석)] 버튼으로 그 일자가 바로 열립니다 · 「완제품 일련번호 대장」은 통합 조회의 생산 탭으로 모음 — [일련번호 · 건별 찾기 (통합 조회)] 버튼"],
   ["2026-11-19", "원두 일 마감 · 금일 사용 필요 경고 · 상미기한 선입선출", "① 마감 화면에 [원두 일 마감] 칸 — 일반(온라인) 지시에 배정됐다가 쓰지 않은 원두는 '여유분' 재고를 따로 만들지 않고 배치번호 · 로스팅일 · 잔량 · 상미기한을 그대로 둔 채 배정만 해제합니다. [마감 완료]를 누르면 같이 실행되고, 마감 완료를 취소하면 배정도 되돌립니다 · ② 컬리 · 네이버 · 라이브 · 온라인 외 미생산 건은 배정을 그대로 두고 다음 날 현장 작업 · 생산계획 위쪽에 표시합니다 (자동 재배정 없음) · 코스트코는 전과 같이 완료될 때까지 계속 표시 · ③ 오늘까지만 출고 가능한 배치는 진한 빨강 「⚠ 금일 사용 필요 / 내일부터 출고 불가」 — 현장 작업 · 생산계획 위쪽, 작업 카드, 배치 재고 · 상미기한 표, 배치 선택 창 · CFE 완제품(출고장 재고)도 같이 — 오늘까지만 출고 가능한 묶음은 「⚠ 금일 출고 필요」로 출고장 재고 · 현장 작업 · 생산계획 위쪽과 마감 화면에 표시 (CFE 상미기한 일수를 입력한 경우) · ④ 생산계획의 「사용할 배치」는 상미기한이 지난 배치를 자동 배정에서 제외하고, 남은 배치를 오래된 것부터 배정합니다 · 서버(SQL) 변경 없음"],
   ["2026-11-18", "시점 복원 — 매일 오전 5시 자동 저장 · 2주 보관", "결재 › 시점 복원에 매일 오전 5시 기준 저장본이 자동으로 생깁니다. 자동으로 저장된 것(매일 05시 · 대량 작업 전 · 복원 전)은 14일이 지나면 저장본만 자동으로 삭제됩니다 — 작업지시 · 생산실적 · 재고 같은 실제 기록은 지워지지 않고, 직접 저장한 것도 남습니다. 목록에 저장본 크기와 자동 저장 상태(서버 예약 여부 · 마지막 저장 시각 · 전체 크기)를 표시합니다. (서버 000_install_all.sql 재실행 필요)"],
   ["2026-11-18", "탭 줄이 기본 화면 · 메뉴 묶음 구분", "PC · 태블릿에서는 이제 처음부터 화면 위에 탭 줄이 있습니다. 메뉴로 연 화면이 탭으로 쌓이고, 탭을 누르면 바로 그 화면으로 바뀝니다(✕로 탭 닫기, [＋ 탭]으로 추가). 두 화면을 같이 보려면 탭 줄 오른쪽의 [나란히]나 [작은 창]을 누릅니다. 탭 줄이 필요 없으면 위쪽 바의 [▯▯]로 끕니다. 왼쪽 메뉴의 묶음(현장 · 생산 관리 · …)은 짙은 띠로 바꿔 메뉴 항목과 구분되게 했고, 펼친 묶음은 머리와 항목이 한 상자로 묶여 보입니다."],
@@ -15400,7 +15496,7 @@ $("fDate").addEventListener("change", ()=>{
   if (d && d < today()) toast(`${d} 이전 일자로 등록됩니다`);
   renderLog();
 });
-$("serialQ").addEventListener("input", renderSerial);
+if ($("serialQ")) $("serialQ").addEventListener("input", renderSerial);
 
 async function addLog(){
   if (!(await requireUser())) return;
@@ -15590,7 +15686,7 @@ function renderLog(){
   if (!$("fDate").value) $("fDate").value = today();
   fillSelects();
   const d = $("fDate").value, logs = DB.logs.filter(l=>l.work_date===d);
-  $("logDay").textContent = "· " + d;
+  if ($("logDay")) $("logDay").textContent = "· " + d;
 
   // 수령 확인 대기 · 수정요청 (날짜 무관, 전체)
   const openLogs = DB.logs.filter(l=>logLive(l) && statusOf(l)!=="approved")
@@ -15641,6 +15737,46 @@ function renderLog(){
     <div class="card ${tLo>.005?'red':'green'}"><div class="lb">총 로스 (로스율)</div><div class="vl">${fmt(tLo)} <small>kg (${tIn?fmt(tLo/tIn*100):0}%)</small></div></div>
     <div class="card"><div class="lb">총 잔량</div><div class="vl">${fmt(tLf)} <small>kg</small></div></div>`;
 
+  tbl("logTbl", ["일련번호","품목","상태","배치 / LOT","설비","작업자","완료 일시","생산(EA)","수령(EA)","로스(kg) · 판정","잔량(kg)","확인 (입력·수령·검수)",'<span class="fix">관리</span>'],
+    sorted("logTbl", logs).map(l=>{ const p=prodById(l.product_id); const od = DB.orders.find(x=>x.log_id===l.id);
+      return `<tr><td class="l" style="font-weight:800">${l.serial||"—"}</td>
+        <td class="l">${p?p.name:"?"}<br><span class="hint" style="padding:0">${p?.code||""}${isGround(p?.grind)?" · "+p.grind:""}</span></td>
+        <td class="c">${statusBadge(l)}${l.edit_count?`<br><span class="tag warn" style="font-size:10.5px" title="${l.edit_note||""}">수정 ${l.edit_count}회</span>`:""}</td>
+        <td class="l" style="font-size:11.5px">${l.batch_codes?`<span class="tag ok">${l.batch_codes}</span>`:"—"}
+          <br>${l.lot?`<span class="tag warn">LOT ${l.lot}</span>`:'<span class="hint" style="padding:0">LOT 없음</span>'}</td>
+        <td class="c">${l.machine}</td><td class="c">${l.worker}</td>
+        <td class="c" style="font-size:12px;white-space:nowrap">${dtFull(od?.done_at || l.created_at)}${od?.first_started_at||od?.started_at?`<br><span class="hint" style="padding:0">시작 ${dtFull(od.first_started_at||od.started_at)}</span>`:""}${(()=>{ const t = od && workTime(od); return t && !t.running ? `<br><b>${fmtDur(t.active)}</b>${t.pause?` <span class="hint" style="padding:0">중단 ${fmtDur(t.pause)}</span>`:""}` : ""; })()}</td><td><b>${fmt(l.qty_ea)}</b></td>
+        <td class="${Number(l.qty_diff||0)?'bad':''}">${l.received_qty!=null?fmt(l.received_qty):"—"}</td>
+        <td class="${lossOf(l)>.005?'bad':'ok'}" style="white-space:nowrap">${fmt(lossOf(l))}${l.loss_flag?`<br><span class="tag ${LOSS_FLAG_C[l.loss_flag]||""}" style="font-size:10.5px" title="${l.loss_reason||""}${l.loss_note?" · "+l.loss_note:""}">${l.loss_flag==="open"?"미확정":LOSS_FLAG_T[l.loss_flag]}${l.loss_flag!=="open"&&l.loss_pct_actual!=null?` ${l.loss_pct_actual}%`:""}</span>`:""}</td>
+        <td style="white-space:nowrap">${fmt(l.leftover_kg)}${l.leftover_to?`<br><span class="hint" style="padding:0;font-size:11px">${({next:"다음 생산에",loss:"로스로",keep:"보관"})[l.leftover_to]||""}</span>`:""}${l.carried_kg>0?`<br><span class="hint" style="padding:0;font-size:11px">+이전 ${fmt(l.carried_kg)}</span>`:""}</td>
+        <td class="sig">
+          <div><b>입력</b> ${l.entered_by||"—"} <span class="hint" style="padding:0">${fmtDT(l.created_at)}</span></div>
+          <div><b>수령</b> ${receiveCell(l)}</div>
+          <div><b>검수</b> ${signCell(l,"checked")}</div></td>
+        <td class="c fix"><button class="btn primary" onclick="openEdit('${l.id}')">수정</button>
+          <button class="btn" onclick="editLoss('${l.id}')" title="잔여 원두 · 로스 재입력">로스</button>
+          <button class="btn" onclick="printLabel('${l.id}')">라벨</button>
+          <button class="btn danger" onclick="delLog('${l.id}')">삭제</button></td></tr>`; }));
+
+  { const wk = $("logWeekWrap"); if (wk) { let f = true; try { f = localStorage.getItem("momos.logWeekFold") !== "0"; } catch(_){} wk.classList.toggle("fold", f);
+      if ($("logWeekSum")) $("logWeekSum").textContent = `· 합계 ${fmt(wl.reduce((s,l)=>s+Number(l.qty_ea||0),0))} EA · ${wl.length}건`; } }
+}
+function logWeekToggle(){ const wk = $("logWeekWrap"); if (!wk) return; const f = !wk.classList.contains("fold"); wk.classList.toggle("fold", f); try { localStorage.setItem("momos.logWeekFold", f ? "1" : "0"); } catch(_){} }
+/* ★ 2026-11-19 화면 중복 정리 ① — 생산실적은 등록 · 수정 · 수령 확인만. 집계 표는 생산분석으로, 일련번호 · 건별 찾기는 통합 조회로 */
+function logToCapa(){ const d = $("fDate")?.value || today();
+  go("capa"); if ($("capaMode")) $("capaMode").value = "custom"; $("capaFrom").value = d; $("capaTo").value = d;
+  const m = capaFoldMap(); m.sum = 0; try { localStorage.setItem("momos.capaFold", JSON.stringify(m)); } catch(_){}
+  renderCapa(); const pn = document.querySelector('#s-capa .csec[data-k="sum"]'); if (pn) { pn.classList.remove("fold"); setTimeout(()=>pn.scrollIntoView({ block:"start", behavior:"smooth" }), 60); } }
+/* ★ 2026-11-19 화면 중복 정리 ② — 생산분석의 건별 목록은 통합 조회의 생산 탭으로 (보고 있던 기간 그대로) */
+function capaToFind(){ const from = $("capaFrom")?.value || today(), to = $("capaTo")?.value || from;
+  fdTab = "prod"; go("find"); if ($("fdFrom")) $("fdFrom").value = from; if ($("fdTo")) $("fdTo").value = to; if ($("fdQ")) $("fdQ").value = "";
+  try { renderFind(); } catch(_){} }
+function logToFind(){ fdTab = "prod"; go("find"); try { renderFind(); } catch(_){} }
+/* 설비별 · 규격별 · 품목별 · 분쇄도별 집계 — 생산분석의 기간(from~to) 실적으로 */
+function renderLogSum(logs){
+  if (!$("byMach")) return;
+  const tEA = logs.reduce((s,l)=>s+Number(l.qty_ea||0),0), tIn = logs.reduce((s,l)=>s+Number(l.input_kg||0),0);
+  const tLo = logs.reduce((s,l)=>s+lossOf(l),0), tLf = logs.reduce((s,l)=>s+Number(l.leftover_kg||0),0);
   const byM = {};
   logs.forEach(l=>{ const k=l.machine||"-"; byM[k]=byM[k]||{ea:0,ip:0,lo:0,lf:0,w:new Set()};
     byM[k].ea+=Number(l.qty_ea||0); byM[k].ip+=Number(l.input_kg||0); byM[k].lo+=lossOf(l);
@@ -15684,28 +15820,6 @@ function renderLog(){
         <td>${tEA&&v.ea?fmt(v.ea/tEA*100)+"%":"—"}</td><td>${v.ip?fmt(v.ip):"—"}</td></tr>`; }),
     `<td class="c">합 계</td><td>${fmt(tEA)}</td><td>${tEA?"100%":"—"}</td><td>${fmt(tIn)}</td>`);
 
-  tbl("logTbl", ["일련번호","품목","상태","배치 / LOT","설비","작업자","완료 일시","생산(EA)","수령(EA)","로스(kg) · 판정","잔량(kg)","확인 (입력·수령·검수)",'<span class="fix">관리</span>'],
-    sorted("logTbl", logs).map(l=>{ const p=prodById(l.product_id); const od = DB.orders.find(x=>x.log_id===l.id);
-      return `<tr><td class="l" style="font-weight:800">${l.serial||"—"}</td>
-        <td class="l">${p?p.name:"?"}<br><span class="hint" style="padding:0">${p?.code||""}${isGround(p?.grind)?" · "+p.grind:""}</span></td>
-        <td class="c">${statusBadge(l)}${l.edit_count?`<br><span class="tag warn" style="font-size:10.5px" title="${l.edit_note||""}">수정 ${l.edit_count}회</span>`:""}</td>
-        <td class="l" style="font-size:11.5px">${l.batch_codes?`<span class="tag ok">${l.batch_codes}</span>`:"—"}
-          <br>${l.lot?`<span class="tag warn">LOT ${l.lot}</span>`:'<span class="hint" style="padding:0">LOT 없음</span>'}</td>
-        <td class="c">${l.machine}</td><td class="c">${l.worker}</td>
-        <td class="c" style="font-size:12px;white-space:nowrap">${dtFull(od?.done_at || l.created_at)}${od?.first_started_at||od?.started_at?`<br><span class="hint" style="padding:0">시작 ${dtFull(od.first_started_at||od.started_at)}</span>`:""}${(()=>{ const t = od && workTime(od); return t && !t.running ? `<br><b>${fmtDur(t.active)}</b>${t.pause?` <span class="hint" style="padding:0">중단 ${fmtDur(t.pause)}</span>`:""}` : ""; })()}</td><td><b>${fmt(l.qty_ea)}</b></td>
-        <td class="${Number(l.qty_diff||0)?'bad':''}">${l.received_qty!=null?fmt(l.received_qty):"—"}</td>
-        <td class="${lossOf(l)>.005?'bad':'ok'}" style="white-space:nowrap">${fmt(lossOf(l))}${l.loss_flag?`<br><span class="tag ${LOSS_FLAG_C[l.loss_flag]||""}" style="font-size:10.5px" title="${l.loss_reason||""}${l.loss_note?" · "+l.loss_note:""}">${l.loss_flag==="open"?"미확정":LOSS_FLAG_T[l.loss_flag]}${l.loss_flag!=="open"&&l.loss_pct_actual!=null?` ${l.loss_pct_actual}%`:""}</span>`:""}</td>
-        <td style="white-space:nowrap">${fmt(l.leftover_kg)}${l.leftover_to?`<br><span class="hint" style="padding:0;font-size:11px">${({next:"다음 생산에",loss:"로스로",keep:"보관"})[l.leftover_to]||""}</span>`:""}${l.carried_kg>0?`<br><span class="hint" style="padding:0;font-size:11px">+이전 ${fmt(l.carried_kg)}</span>`:""}</td>
-        <td class="sig">
-          <div><b>입력</b> ${l.entered_by||"—"} <span class="hint" style="padding:0">${fmtDT(l.created_at)}</span></div>
-          <div><b>수령</b> ${receiveCell(l)}</div>
-          <div><b>검수</b> ${signCell(l,"checked")}</div></td>
-        <td class="c fix"><button class="btn primary" onclick="openEdit('${l.id}')">수정</button>
-          <button class="btn" onclick="editLoss('${l.id}')" title="잔여 원두 · 로스 재입력">로스</button>
-          <button class="btn" onclick="printLabel('${l.id}')">라벨</button>
-          <button class="btn danger" onclick="delLog('${l.id}')">삭제</button></td></tr>`; }));
-
-  renderSerial();
 }
 const ST = {
   pending:  { t:"수령 대기", c:"warn" },
@@ -16012,6 +16126,7 @@ async function unsign(id, kind){
 }
 function gotoDay(d){ $("fDate").value = d; renderLog(); }
 function renderSerial(){
+  if (!$("serialTbl") || !$("serialQ")) return;      // 2026-11-19 일련번호 대장은 통합 조회로 모았다
   const q = ($("serialQ").value||"").trim().toLowerCase();
   const rows = [...DB.logs].sort((a,b)=>String(b.work_date+(b.serial||"")).localeCompare(String(a.work_date+(a.serial||""))))
     .filter(l=>{ if(!q) return true; const p=prodById(l.product_id);
@@ -19638,7 +19753,7 @@ async function xlsxOut(name, head, rows){
     ws["!freeze"] = { xSplit:0, ySplit:1 };
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "양식");
     XLSX.writeFile(wb, `${name}_${today()}.xlsx`);
-  } catch(e){ console.warn(e); csv(name, head, rows); }
+  } catch(e){ console.warn(e); csvPlain(name, head, rows); }   // 양식은 머리글이 1행이어야 다시 올릴 수 있다
 }
 /* 사업자 줄이 있는데 사업자 품목이 없으면 — 먼저 되살리기(fixBizSplit)를 묻고 미리보기 */
 async function previewBiz(){
@@ -23891,6 +24006,8 @@ function renderCapa(){
   tbl("capaSpec", H, group(r=>r.specT).sort((a,b)=>natCmp(a[0],b[0])).map(([k,s])=>line(k,s)));
   tbl("capaMach", H, group(r=>r.machine).sort((a,b)=>b[1].qty-a[1].qty).flatMap(([m,s])=>[line(`<b>${m}</b>`, s), ...group(r=>r.machine===m?r.specT:null).filter(([k])=>k!=="null").sort((a,b)=>natCmp(a[0],b[0])).map(([k,s2])=>line(`&nbsp;&nbsp;↳ ${k}`, s2))]));
   tbl("capaProd", ["품목","EA/h","kg/h","건수","수량","중량(kg)","실제 생산시간","중단","투입 인시","EA/인시"], group(r=>r.p.name).sort((a,b)=>b[1].qty-a[1].qty).map(([k,s])=>line(k,s)));
+  try { const sl = DB.logs.filter(l=>l.work_date >= from && l.work_date <= to); renderLogSum(sl);
+    capaHint("sum", `${fmt(sl.reduce((t,l)=>t+Number(l.qty_ea||0),0))} EA · 투입 ${fmt(Math.round(sl.reduce((t,l)=>t+Number(l.input_kg||0),0)*10)/10)}kg`); } catch(e){ console.warn(e); }
 
   /* 시간대별 — 각 건의 실제 생산 구간에 비례해 나눈다 */
   const hours = {};
@@ -23931,10 +24048,10 @@ function renderCapa(){
       ${Object.entries(g).sort((a,b)=>b[1].length - a[1].length || natCmp(a[0], b[0])).map(([k,R])=>{ const a = avgOf(R);
         return `<tr><td class="l">${k}</td><td>${fmt(a.n)}</td><td>${r1(a.q)} EA</td><td>${a.act != null ? fmtDur(a.act) : "—"}</td><td><b>${a.s.qph != null ? fmt(a.s.qph) : "—"}</b></td><td><b>${a.s.kgph != null ? fmt(a.s.kgph) : "—"}</b></td><td>${a.ppl != null ? r1(a.ppl) : "—"}</td><td>${fmt(a.s.nS)} / ${fmt(a.n)}</td></tr>`; }).join("")}
       </tbody></table></div>`;
-    const lw = $("capaLogsWrap"); if (lw) { lw.open = CAPA_LOGS_OPEN; lw.querySelector("summary").textContent = `건별 목록 보기 (${fmt(rows.length)}건)`; }
+    const lb = $("capaLogsBtn"); if (lb) lb.textContent = `건별 목록 보기 — ${fmt(rows.length)}건 (통합 조회) ›`;
     window.__capaAvg = A; }
   /* 건별 */
-  tbl("capaLogs", ["일자","일련번호","품목","설비","시작","완료","경과","중단","실제 생산시간","수량","중량(kg)","EA/h","kg/h","참여 작업자(투입)"],
+  if ($("capaLogs")) tbl("capaLogs", ["일자","일련번호","품목","설비","시작","완료","경과","중단","실제 생산시간","수량","중량(kg)","EA/h","kg/h","참여 작업자(투입)"],
     [...rows].reverse().map(r=>`<tr><td class="c">${r.date}</td><td class="l"><b>${r.serial||"—"}</b></td><td class="l">${r.p.name}</td><td class="c">${r.machine}</td>
       <td class="c" style="font-size:12px">${r.t?dtFull(r.t.start).slice(11):"—"}</td><td class="c" style="font-size:12px">${r.t?dtFull(r.t.end).slice(11):"—"}</td>
       <td>${r.t?fmtDur(r.t.elapsed):"—"}</td><td>${r.t&&r.t.pause?fmtDur(r.t.pause):"—"}</td><td><b>${r.t?fmtDur(r.t.active):"<span class='hint' style='padding:0'>시간 없음</span>"}</b></td>
@@ -23968,7 +24085,7 @@ const CH_COLORS = ["#1B4FD8","#F28E2B","#17A06B","#8A5CF6","#D93B4C","#2BB3C0","
    · 위쪽 칸을 누르면 그 숫자와 관련된 창만 표시 (다시 누르거나 [전체 보기] 로 해제)
    ══════════════════════════════════════════════════════════════ */
 const CAPA_SECS = [["capaSpec","speed","spec",1],["capaMach","speed","mach",1],["capaWorker","worker","worker",1],["capaPause","pause","pause",0],
-  ["capaRetro","retro","retro",1],["capaCh","ship","ch",0],["capaHour","hour","hour",0],["capaProd","prod","prod",0],["capaLogs","logs","logs",0],
+  ["capaRetro","retro","retro",1],["capaCh","ship","ch",0],["capaHour","hour","hour",0],["capaProd","prod","prod",0],["capaSumBox","prod","sum",0],["capaAvg","logs","logs",0],
   ["capaYearTbl","year","year",0],["capaYearCh","ship","yearch",0],["capaForecast","fc","fc",0]];
 const CAPA_CARD_G = [["prod","year"],["prod","year"],["hour","logs"],["pause"],["speed"],["speed"],["worker"],["worker"],["retro"],["retro"],["ship"]];
 let CAPA_LOGS_OPEN = false, CAPA_RETRO_TBL = false;
@@ -25163,15 +25280,8 @@ function renderCloseBean(d, rec){
           return `<tr><td class="c" title="${batchTip(m)}"><b>${batchShort(m)}</b></td><td class="l">${m.bean}</td><td class="c">${m.roast_date}</td><td><b>${fmt(m.stock_kg)}</b></td>
             <td class="c ${st}">${shelfLabel(m.roast_date)}</td><td class="l">${L <= 0 ? '<span class="bad">출고 불가</span>' : L === 1 ? '<span class="due">내일까지만 출고 가능</span>' : "사용 가능"}</td></tr>`; }).join("") + `</tbody></table>`
         : `<span class="hint" style="padding:0">잔량이 남은 배치가 없습니다</span>`);
-  { const L = yardShelfDays(), due = yardShelfLots("due"), bad = yardShelfLots("bad");
-    const tr = (l, cls, txt) => `<tr><td class="l">${yardLotName(l)}</td><td class="c">${l.mfg_date}</td><td class="c">${l.serial||"—"}</td><td><b>${fmt(l.left_qty)}</b></td><td class="c ${cls}">${txt}</td></tr>`;
-    h += row(`⑤ CFE 완제품(출고장 재고) — 금일 출고 필요 ${due.length}묶음 · 상미 초과 ${bad.length}묶음`,
-      !L ? `<span class="hint" style="padding:0">출고 › 출고장 재고에서 CFE 상미기한(일)을 입력하면 표시됩니다</span>`
-      : (due.length || bad.length) ? `<table style="width:100%"><thead><tr><th class="l">품목</th><th>제조일자</th><th>일련번호</th><th>잔여(개)</th><th>상태</th></tr></thead><tbody>` +
-          due.map(l=>tr(l, "due", "⚠ 금일 출고 필요 / 내일부터 출고 불가")).join("") + bad.map(l=>tr(l, "bad", `상미 초과 ${yardAge(l.mfg_date) - L}일`)).join("") + `</tbody></table>`
-        : `<span class="hint" style="padding:0">해당 묶음이 없습니다 — 출고는 오래된 제조일자부터 빠집니다 (CFE 상미기한 ${L}일)</span>`); }
   if (!B) h += can("plan")
-    ? `<button class="btn primary" onclick="beanCloseRun()">원두 일 마감 실행${S.rel.length ? ` — ${S.rel.length}건 배정 해제` : ""}</button> <span class="hint" style="padding:0">[마감 완료]를 눌러도 같이 실행됩니다</span>`
+    ? `<button class="btn primary" onclick="beanCloseRun()">원두 일 마감 실행${S.rel.length ? ` — ${S.rel.length}건 배정 해제` : ""}</button> <span class="hint" style="padding:0">[현장 마감 완료]를 눌러도 같이 실행됩니다</span>`
     : `<span class="hint" style="padding:0">배정 해제는 생산계획 권한이 있는 계정에서 실행합니다 (관리자 · 현장 관리자)</span>`;
   el.innerHTML = h;
 }
@@ -25197,6 +25307,7 @@ async function beanCloseRun(){
   const d = closeDay(), rec = closeRec(d), who = CURRENT_USER || LOGIN_USER?.name || "";
   if (!who) return toast("상단에서 본인 이름을 먼저 선택하십시오");
   if (rec.bean) return;
+  rec.items = rec.items || {};
   const br = await beanCloseDo(d, rec, who); if (br === null || !rec.bean) return;
   saveCloseRec(d, rec); toast(`${d} 원두 일 마감${br.msg}`);
 }
@@ -25228,6 +25339,14 @@ const CLOSE_AUTO = {
             n:d=>DB.mms.filter(m=>Number(m.stock_kg)<0).length, lbl:"음수 배치" },
   cfe:    { t:"CFE 완제품 재고 실사", s:"count", tab:"cfe", go:"완제품 실사", n:null },
   roast:  { t:"로스팅 입고 · 배치 등록 확인", s:"roast", tab:"stock", go:"배치 재고 열기", n:null },
+  /* ★ 2026-11-19 검수 파트 */
+  qflag:  { t:"검수 수량 불일치 건 — 현장 확인까지 완료", s:"qc", go:"검수 열기",
+            n:d=>DB.orders.filter(o=>{ try { return !!qtyFlag(o); } catch(_){ return false; } }).length, lbl:"확인 대기" },
+  rej:    { t:"반려 건 조치 완료", s:"qc", go:"검수 열기",
+            n:d=>DB.orders.filter(o=>{ try { return qcFlow(o) === "조치 필요"; } catch(_){ return false; } }).length, lbl:"조치 필요" },
+  /* 출고팀 (탭을 켰을 때만) */
+  yard:   { t:"CFE 완제품 금일 출고 필요 · 상미 초과 확인", s:"ship", go:"출고장 재고 열기",
+            n:d=>{ try { return yardShelfLots("due").length + yardShelfLots("bad").length; } catch(_){ return 0; } }, lbl:"확인 필요" },
 };
 const CLOSE_DEFAULT = [
   { id:"orders", auto:"orders" }, { id:"labels", auto:"labels" }, { id:"qc", auto:"qc" },
@@ -25246,7 +25365,40 @@ function goTo(s, tab){
   if (s === "work" && typeof wkMach !== "undefined") { wkMach = tab || ""; }
   go(s); closeNav();
 }
-const closeItems = () => { const v = SETTINGS[CLOSE_ITEMS_KEY]; return Array.isArray(v) && v.length ? v : CLOSE_DEFAULT; };
+/* ══ ★ 2026-11-19 마감을 파트별로 (Lee "현장작업에서 마감이 필요하고 검수에서도 마감이 필요 · 각자 마감은 다르잖아")
+   · 제품생산팀 = 현장 파트 + 검수 파트 → 탭 두 개. 출고장은 출고팀이 따로 — 출고팀 탭은 만들어 두되 꺼 둔다 (관리자가 나중에 켠다)
+   · 기록: close_log[날짜] = { items:{id:{by,at}}, teams:{ floor:{closed_by,closed_at}, qc:{…}, ship:{…} }, bean, note, closed_by, closed_at }
+     closed_at(하루 마감) 은 켜져 있는 파트가 모두 끝나면 자동으로 찍힌다 — 예전 기록(teams 없음 · closed_at 있음)은 전 파트 완료로 본다
+   · 항목: close_items2 = { floor:[…], qc:[…], ship:[…] } — 파트마다 [항목 편집] */
+const CLOSE_TEAMS = [ { id:"floor", name:"현장 마감" }, { id:"qc", name:"검수 마감" }, { id:"ship", name:"출고팀 마감", opt:true } ];
+const CLOSE_ITEMS2_KEY = "close_items2", CLOSE_SHIP_KEY = "close.ship_on";
+const CLOSE_TEAM_DEFAULT = {
+  floor: [ { id:"orders", auto:"orders" }, { id:"labels", auto:"labels" }, { id:"mat", auto:"mat" }, { id:"mms", auto:"mms" }, { id:"roast", auto:"roast" },
+           { id:"m1", t:"설비 전원 차단 · 작업장 정리·청소" }, { id:"m2", t:"잔여 원두 · 반제품 밀봉 보관" }, { id:"m3", t:"내일 생산계획 · 라벨 작업 확인" } ],
+  qc:    [ { id:"qc", auto:"qc" }, { id:"qflag", auto:"qflag" }, { id:"rej", auto:"rej" }, { id:"q1", t:"검수 구역 정리 · 청소" } ],
+  ship:  [ { id:"cfe", auto:"cfe" }, { id:"yard", auto:"yard" }, { id:"s1", t:"출고장 정리 · 내일 출고 준비 확인" } ],
+};
+const closeTeams = () => CLOSE_TEAMS.filter(t=>!t.opt || !!SETTINGS[CLOSE_SHIP_KEY]);
+let closeTab = "";
+function closeTeam(){ const ts = closeTeams();
+  if (!closeTab) { try { closeTab = localStorage.getItem("momos.closeTab") || ""; } catch(_){} if (!closeTab) closeTab = loginRole() === "qc" ? "qc" : "floor"; }
+  if (!ts.some(t=>t.id === closeTab)) closeTab = ts[0].id; return closeTab; }
+function setCloseTab(t){ closeTab = t; try { localStorage.setItem("momos.closeTab", t); } catch(_){} renderClose(); }
+function closeItems(team){ team = team || closeTeam();
+  const v2 = SETTINGS[CLOSE_ITEMS2_KEY], mine = v2 && Array.isArray(v2[team]) && v2[team].length ? v2[team] : null; if (mine) return mine;
+  const def = CLOSE_TEAM_DEFAULT[team] || [];
+  if (team !== "floor") return def;
+  /* 예전에 관리자가 직접 적어 넣은 항목(손 체크)은 현장 마감에 이어 붙인다 */
+  const old = SETTINGS[CLOSE_ITEMS_KEY], known = new Set(Object.values(CLOSE_TEAM_DEFAULT).flat().map(it=>it.id));
+  return Array.isArray(old) ? def.concat(old.filter(it=>!it.auto && !known.has(it.id))) : def; }
+const closeTeamRec = (rec, team) => (rec.teams && rec.teams[team]) || (!rec.teams && rec.closed_at ? { closed_by:rec.closed_by, closed_at:rec.closed_at } : null);
+/* 켜져 있는 파트가 모두 끝났으면 하루 마감(closed_at)을 찍고, 하나라도 풀리면 지운다 */
+function closeSyncDay(rec){ const all = closeTeams().every(t=>rec.teams && rec.teams[t.id] && rec.teams[t.id].closed_at);
+  if (all) { const last = closeTeams().map(t=>rec.teams[t.id]).sort((a,b)=>String(a.closed_at).localeCompare(String(b.closed_at))).pop(); rec.closed_at = last.closed_at; rec.closed_by = [...new Set(closeTeams().map(t=>rec.teams[t.id].closed_by))].join(" · "); }
+  else { delete rec.closed_at; delete rec.closed_by; } }
+async function closeShipToggle(){ const on = !SETTINGS[CLOSE_SHIP_KEY];
+  if (!(await ask(on ? "출고팀 마감 탭을 추가합니다.\n\n추가하면 하루 마감은 현장 · 검수 · 출고팀 세 마감이 모두 끝나야 완료로 표시됩니다." : "출고팀 마감 탭을 숨깁니다.\n\n숨기면 하루 마감은 현장 · 검수 두 마감으로 완료됩니다 (기록은 지워지지 않습니다).", { title:"출고팀 마감", yes: on ? "추가" : "숨기기" }))) return;
+  SETTINGS[CLOSE_SHIP_KEY] = on; renderClose(); saveSetting(CLOSE_SHIP_KEY, on); toast(on ? "출고팀 마감 탭을 추가했습니다" : "출고팀 마감 탭을 숨겼습니다"); }
 const closeLog = () => { const v = SETTINGS[CLOSE_LOG_KEY]; return (v && typeof v === "object") ? v : {}; };
 const closeDay = () => $("closeDate")?.value || today();
 function closeRec(d){ const L = closeLog(); return L[d] || { items:{} }; }
@@ -25263,14 +25415,22 @@ const screenOk = sc => { if (!isFloor()) return true; const b = document.querySe
 function renderClose(){
   if (!$("closeList")) return;
   if ($("closeDate") && !$("closeDate").value) $("closeDate").value = today();
-  const d = closeDay(), rec = closeRec(d), items = closeItems();
+  const d = closeDay(), rec = closeRec(d), team = closeTeam(), items = closeItems(team), TS = closeTeams(), T = TS.find(t=>t.id === team), tr = closeTeamRec(rec, team);
+  rec.items = rec.items || {};
   const who = CURRENT_USER || LOGIN_USER?.name || "";
   $("closeWho").textContent = who ? `확인자: ${who}` : "상단에서 본인 이름을 선택하십시오";
-  const doneN = items.filter(it=>rec.items[it.id]).length;
-  $("closeSum").innerHTML = ` <span class="tag ${doneN===items.length?"ok":"warn"}">${doneN} / ${items.length} 완료</span>` +
-    (rec.closed_at ? ` <span class="tag ok">마감 완료 · ${rec.closed_by} · ${fmtTime(rec.closed_at)}</span>` : "");
-  $("closeDoneBtn").textContent = rec.closed_at ? "마감 완료 취소" : "마감 완료";
-  $("closeEditBtn").style.display = isSystemAdmin() || loginRole()==="admin" ? "" : "none";
+  const doneN = items.filter(it=>rec.items[it.id]).length, isAdm = isSystemAdmin() || loginRole()==="admin";
+  if ($("closeTabs")) $("closeTabs").innerHTML = TS.map(t=>{ const r = closeTeamRec(rec, t.id), its = closeItems(t.id), n = its.filter(it=>rec.items[it.id]).length;
+      return `<button class="subtab ${t.id===team?"on":""}" onclick="setCloseTab('${t.id}')">${t.name} ${r ? `<span class="tag ok" style="font-size:10px">완료</span>` : `<span class="tag warn" style="font-size:10px">${n}/${its.length}</span>`}</button>`; }).join("") +
+    (isAdm ? `<button class="subtab" style="margin-left:auto;font-weight:600;color:var(--soft)" onclick="closeShipToggle()" title="출고팀도 이 화면에서 마감하게 되면 탭을 추가합니다">${SETTINGS[CLOSE_SHIP_KEY] ? "출고팀 마감 숨기기" : "＋ 출고팀 마감 추가"}</button>` : "");
+  if ($("closeListT")) $("closeListT").textContent = `${T.name} — 오늘 할 일`;
+  $("closeSum").innerHTML = ` <span class="tag ${doneN===items.length?"ok":"warn"}">${T.name} ${doneN} / ${items.length}</span>` +
+    (tr ? ` <span class="tag ok">${T.name} 완료 · ${tr.closed_by||"—"} · ${fmtTime(tr.closed_at)}</span>` : "") +
+    (rec.closed_at ? ` <span class="tag ok">하루 마감 완료</span>` : ` <span class="tag warn">하루 마감 ${TS.filter(t=>closeTeamRec(rec, t.id)).length} / ${TS.length}</span>`);
+  $("closeDoneBtn").textContent = tr ? `${T.name} 완료 취소` : `${T.name} 완료`;
+  $("closeEditBtn").style.display = isAdm ? "" : "none"; $("closeEditBtn").textContent = `${T.name} 항목 편집`;
+  if ($("closeBeanWrap")) $("closeBeanWrap").style.display = team === "floor" ? "" : "none";
+  if ($("closeYardWrap")) { $("closeYardWrap").style.display = team === "ship" ? "" : "none"; if (team === "ship") { try { renderCloseYard(); } catch(_){} } }
   /* 어제(가장 최근 이전 날) 비고 — 못 한 일을 이어받는다 */
   const L = closeLog(), prevD = Object.keys(L).filter(k=>k<d && (L[k].note||"").trim()).sort().pop();
   $("closePrev").innerHTML = prevD
@@ -25287,17 +25447,17 @@ function renderClose(){
         <div class="m">${ck ? `✓ ${ck.by||"—"} · ${fmtTime(ck.at)}` : (a && n > 0 ? "미완료 항목이 있습니다 — 완료 후 체크하십시오" : "")}</div></div>
       ${link}
     </div>`; }).join("");
-  try { renderCloseBean(d, rec); } catch(_){}
+  if (team === "floor") { try { renderCloseBean(d, rec); } catch(_){} }
   const ta = $("closeNote"); if (ta && document.activeElement !== ta) ta.value = rec.note || "";
   $("closeNoteWho").textContent = rec.note ? `${rec.note_by||"—"} · ${fmtTime(rec.note_at)}` : "";
   /* 최근 14일 */
   const days = Array.from({length:14}, (_,i)=>dayAfter(-i)).filter(k=>L[k]);
-  tbl("closeHist", ["일자","체크","마감자","마감 시각","비고"],
-    days.map(k=>{ const r = L[k], n = Object.keys(r.items||{}).length;
+  const cellT = (r, t) => { const x = closeTeamRec(r, t.id); return x ? `<span class="tag ok" style="font-size:11px">완료</span> ${x.closed_by||"—"}<br><span class="hint" style="padding:0;font-size:11px">${fmtTime(x.closed_at)}</span>` : '<span class="hint" style="padding:0">미완료</span>'; };
+  tbl("closeHist", ["일자", ...TS.map(t=>t.name), "하루 마감", "비고"],
+    days.map(k=>{ const r = L[k];
       return `<tr><td class="c"><a href="#" onclick="$('closeDate').value='${k}';renderClose();return false">${k}</a></td>
-        <td class="c">${n} / ${items.length}</td>
-        <td class="c">${r.closed_by || '<span class="hint" style="padding:0">미완료</span>'}</td>
-        <td class="c">${r.closed_at ? fmtTime(r.closed_at) : "—"}</td>
+        ${TS.map(t=>`<td class="c">${cellT(r, t)}</td>`).join("")}
+        <td class="c">${r.closed_at ? '<span class="tag ok">완료</span>' : '<span class="tag warn">진행 중</span>'}</td>
         <td class="l" style="white-space:pre-line">${r.note || ""}</td></tr>`; }));
 }
 function setCloseItem(id, on){
@@ -25313,25 +25473,41 @@ function saveCloseNote(v){
   saveCloseRec(d, rec); toast("비고를 저장했습니다");
 }
 async function finishClose(){
-  const d = closeDay(), rec = closeRec(d), items = closeItems();
+  const d = closeDay(), rec = closeRec(d), team = closeTeam(), items = closeItems(team), T = closeTeams().find(t=>t.id === team);
   const who = CURRENT_USER || LOGIN_USER?.name || "";
   if (!who) return toast("상단에서 본인 이름을 먼저 선택하십시오");
-  if (rec.closed_at) { if (await ask(`${d} 마감 완료를 취소하시겠습니까?${rec.bean && (rec.bean.released||[]).length ? `\n\n원두 일 마감으로 해제한 일반(온라인) 지시 ${rec.bean.released.length}건의 배치 배정도 되돌립니다 (이미 다른 배치를 받았거나 시작한 지시는 그대로 둡니다).` : ""}`, { title:"마감 취소" })) {
-      if (rec.bean) { await beanCloseUndo(d, rec); delete rec.bean; }
-      delete rec.closed_at; delete rec.closed_by; saveCloseRec(d, rec); } return; }
-  const left = items.filter(it=>!rec.items[it.id]);
-  if (left.length && !(await ask(`미체크 항목이 ${left.length}개 있습니다:\n${left.map(it=>"· "+closeItemText(it)).join("\n")}\n\n이대로 마감 완료로 기록하시겠습니까? (미처리 사항은 비고에 기재하십시오)`, { title:"마감 완료", yes:"완료로 기록" }))) return;
+  /* 예전 기록(teams 없음)을 파트별 기록으로 옮겨 둔다 */
+  if (!rec.teams) { rec.teams = {}; if (rec.closed_at) closeTeams().forEach(t=>{ rec.teams[t.id] = { closed_by:rec.closed_by, closed_at:rec.closed_at }; }); }
+  const cur = rec.teams[team];
+  if (cur && cur.closed_at) {
+    const hasBean = team === "floor" && rec.bean && (rec.bean.released||[]).length;
+    if (!(await ask(`${d} ${T.name} 완료를 취소하시겠습니까?${hasBean ? `\n\n원두 일 마감으로 해제한 일반(온라인) 지시 ${rec.bean.released.length}건의 배치 배정도 되돌립니다 (이미 다른 배치를 받았거나 시작한 지시는 그대로 둡니다).` : ""}`, { title:`${T.name} 취소` }))) return;
+    if (team === "floor" && rec.bean) { await beanCloseUndo(d, rec); delete rec.bean; }
+    delete rec.teams[team]; closeSyncDay(rec); saveCloseRec(d, rec); return; }
+  const left = items.filter(it=>!(rec.items||{})[it.id]);
+  if (left.length && !(await ask(`미체크 항목이 ${left.length}개 있습니다:\n${left.map(it=>"· "+closeItemText(it)).join("\n")}\n\n이대로 ${T.name} 완료로 기록하시겠습니까? (미처리 사항은 비고에 기재하십시오)`, { title:`${T.name} 완료`, yes:"완료로 기록" }))) return;
   let bmsg = "";
-  if (!rec.bean) { const br = await beanCloseDo(d, rec, who); if (br === null) return; bmsg = br.msg; }
-  rec.closed_by = who; rec.closed_at = nowISO();
-  saveCloseRec(d, rec); toast(`${d} 마감 완료 — ${who}${bmsg}`);
+  if (team === "floor" && !rec.bean) { const br = await beanCloseDo(d, rec, who); if (br === null) return; bmsg = br.msg; }
+  rec.teams[team] = { closed_by:who, closed_at:nowISO() }; closeSyncDay(rec);
+  saveCloseRec(d, rec); toast(`${d} ${T.name} 완료 — ${who}${bmsg}${rec.closed_at ? " · 하루 마감 완료" : ""}`);
+}
+/* 출고팀 탭 — CFE 완제품 금일 출고 필요 · 상미 초과 (출고장 재고) */
+function renderCloseYard(){
+  const el = $("closeYard"); if (!el) return;
+  const L = yardShelfDays(), due = yardShelfLots("due"), bad = yardShelfLots("bad");
+  if ($("closeYardSum")) $("closeYardSum").innerHTML = !L ? "" : (due.length || bad.length) ? ` <span class="tag due">금일 출고 필요 ${due.length}</span> <span class="tag bad">상미 초과 ${bad.length}</span>` : ` <span class="tag ok">해당 없음</span>`;
+  const tr = (l, cls, txt) => `<tr><td class="l">${yardLotName(l)}</td><td class="c">${l.mfg_date}</td><td class="c">${l.serial||"—"}</td><td><b>${fmt(l.left_qty)}</b></td><td class="c ${cls}">${txt}</td></tr>`;
+  el.innerHTML = !L ? `<span class="hint" style="padding:0">출고 › 출고장 재고에서 CFE 상미기한(일)을 입력하면 표시됩니다</span>`
+    : (due.length || bad.length) ? `<table style="width:100%"><thead><tr><th class="l">품목</th><th>제조일자</th><th>일련번호</th><th>잔여(개)</th><th>상태</th></tr></thead><tbody>` +
+        due.map(l=>tr(l, "due", "⚠ 금일 출고 필요 / 내일부터 출고 불가")).join("") + bad.map(l=>tr(l, "bad", `상미 초과 ${yardAge(l.mfg_date) - L}일`)).join("") + `</tbody></table>`
+      : `<span class="hint" style="padding:0">해당 묶음이 없습니다 — 출고는 오래된 제조일자부터 빠집니다 (CFE 상미기한 ${L}일)</span>`;
 }
 /* 관리자 — 항목 편집 (한 줄에 하나) */
 async function editCloseItems(){
-  const items = closeItems();
+  const team = closeTeam(), T = closeTeams().find(t=>t.id === team), items = closeItems(team);
   const txt = items.map(it=>it.auto ? `[${it.auto}]` : closeItemText(it)).join("\n");
   const v = await ask(`한 행에 한 항목씩 입력합니다. 대괄호 항목은 MES가 자동으로 집계하는 항목입니다 (${Object.keys(CLOSE_AUTO).map(k=>`[${k}] ${CLOSE_AUTO[k].t}`).join(" · ")}). 삭제하면 목록에서 제외되고, 순서를 변경하면 그대로 반영됩니다.`,
-    { prompt:true, multi:true, value:txt, title:"마감 항목 편집" });
+    { prompt:true, multi:true, value:txt, title:`${T.name} 항목 편집` });
   if (v == null) return;
   const out = []; let n = 0;
   v.split("\n").map(x=>x.trim()).filter(Boolean).forEach(line=>{
@@ -25340,7 +25516,8 @@ async function editCloseItems(){
     else { const old = items.find(it=>!it.auto && closeItemText(it)===line); out.push({ id: old?.id || ("m"+Date.now().toString(36)+(n++)), t:line }); }
   });
   if (!out.length) return toast("항목이 비어 있습니다");
-  SETTINGS[CLOSE_ITEMS_KEY] = out; renderClose(); saveSetting(CLOSE_ITEMS_KEY, out); toast(`마감 항목 ${out.length}개로 저장했습니다`);
+  const all = { ...(SETTINGS[CLOSE_ITEMS2_KEY] && typeof SETTINGS[CLOSE_ITEMS2_KEY] === "object" ? SETTINGS[CLOSE_ITEMS2_KEY] : {}) }; all[team] = out;
+  SETTINGS[CLOSE_ITEMS2_KEY] = all; renderClose(); saveSetting(CLOSE_ITEMS2_KEY, all); toast(`${T.name} 항목 ${out.length}개로 저장했습니다`);
 }
 
 /* ── 대시보드: 오늘 작업지시 + 설비 상태 ── */
