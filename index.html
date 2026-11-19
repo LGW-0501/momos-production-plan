@@ -1824,6 +1824,7 @@
     <button data-s="find" data-r="admin,lead,qc"><span class="ico">☰</span><span class="lb">통합 조회</span></button>
     <div class="grp" data-r="admin" data-t="분석 · 기준"></div>
     <button data-s="loss" data-r="admin"><span class="ico">▽</span><span class="lb">로스관리</span></button>
+    <button data-s="matuse" data-r="admin,lead"><span class="ico">▨</span><span class="lb">부자재 사용·로스</span></button>
     <button data-s="capa" data-r="admin,lead"><span class="ico">◔</span><span class="lb">생산분석</span></button>
     <button data-s="cal" data-r="admin"><span class="ico">▩</span><span class="lb">캘린더</span></button>
     <button data-s="base" data-r="admin"><span class="ico">◇</span><span class="lb">기준정보</span></button>
@@ -2223,6 +2224,21 @@
   </div>
 </section>
 
+<section class="screen" id="s-matuse">
+  <div class="cond" style="flex-wrap:wrap;gap:6px">
+    <label>기간 <input type="date" id="muFrom" onchange="renderMatUse()"> ~ <input type="date" id="muTo" onchange="renderMatUse()"></label>
+    <button class="btn" onclick="muQuick('today')">오늘</button><button class="btn" onclick="muQuick('week')">이번 주</button><button class="btn" onclick="muQuick('month')">이번 달</button>
+    <select id="muKind" onchange="renderMatUse()"><option value="bag">봉투 · 풀패키지</option><option value="label">라벨</option><option value="all">전체 부자재</option></select>
+    <label style="display:flex;align-items:center;gap:4px"><input type="checkbox" id="muAll" onchange="renderMatUse()"> 움직임 없는 자재도 보기</label>
+    <span style="margin-left:auto"></span>
+    <button class="btn" onclick="csvMatUse()">엑셀 다운로드</button>
+  </div>
+  <div class="body">
+    <div class="hint" style="padding:0 0 10px;font-size:13px">기간 동안 부자재가 얼마나 들어오고(입고 = 불출 받은 양) 얼마나 나갔는지 봅니다. <b>로스 = 폐기 + 재고 실사에서 줄어든 양</b> — 생산 사용은 양품 수량만큼 자동으로 빠지므로, 그보다 더 없어진 양이 로스입니다. 줄을 누르면 그 자재의 기록이 펼쳐집니다.</div>
+    <div id="muHero" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div class="panel"><div class="panel-h">자재별 <span class="r hint" id="muInfo"></span></div><div class="panel-b xscroll"><table id="muTbl"></table></div></div>
+  </div>
+</section>
 <section class="screen" id="s-ready">
   <div class="cond" style="flex-wrap:wrap;gap:8px">
     <b style="font-size:15px">시작 전 점검</b><span id="readySum"></span>
@@ -8082,6 +8098,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "부자재 사용 · 로스 화면", "메뉴 › 분석 · 기준 › [부자재 사용·로스] (관리자 · 현장 관리자) — 기간(오늘 · 이번 주 · 이번 달 · 직접)과 구분(봉투 · 풀패키지 / 라벨 / 전체)을 골라 자재별 기초 재고 · 입고(불출 받은 양) · 생산 사용 · 폐기 · 실사 조정 · 로스 · 로스율 · 기말 재고를 봅니다 · 로스 = 폐기 + 재고 실사에서 줄어든 양 · 로스율 = 로스 ÷ (생산 사용 + 로스) · 줄을 누르면 그 자재의 기록이 펼쳐집니다 · [엑셀 다운로드] · 이미 쌓이고 있는 부자재 입출고 기록을 더한 것이라 SQL 은 필요 없습니다 · 시작 전 점검에 088 설치 확인 추가"],
+  ["2026-11-19", "CFE 완제품 — 상미기한 지난 묶음은 출고 확정에서 제외 (088 SQL)", "출고 › 출고장 재고 — 상미기한이 지난 묶음은 [출고 확정] 때 빠지지 않습니다 (088_cfe_shelf.sql 실행 필요) · 전에는 경고만 뜨고 출고는 되었습니다 · 출고장 재고 칸에 「상미 초과 n개 — 출고 제외」 표시 · 확정 후 잔량 · 부족 계산도 출고 가능한 수량 기준 · 기한 지난 묶음은 그대로 남으니 실물 확인 후 재고 세기로 정리 · 상미기한 일수를 넣지 않았으면 전과 같습니다 · 코스트코 품목 · 제조일자를 모르는 묶음은 보지 않습니다"],
+  ["2026-11-19", "현장 카드 — 근거 없는 예상 시간은 숨김", "현장 작업 카드의 「⏱ 예상 약 …」은 그 설비 · 그 규격의 최근 실적이 있을 때만 보입니다 · 전에는 실적이 없으면 전체 평균으로 계산해 「약 6시간 31분」처럼 부풀려 나왔습니다 · 생산분석 › 예상 화면은 그대로입니다"],
   ["2026-11-19", "시작 전 점검 화면", "메뉴 › 기타 › [시작 전 점검] (관리자 · 현장 관리자) — 실제 사용 전에 지금 자료에서 막히거나 틀어질 곳을 한 화면에 모았습니다 · 생산 시작이 막히는 지시(원두 · 라벨 · 봉투) · 지난 날짜에 남은 대기 · 생산중 지시 · 재고 0 인 봉투 · 라벨 · 마이너스 재고 · 상미기한 지난 원두 배치 · 보류 배치 · 봉투 · 라벨 · 기준 중량이 빈 품목 · 권한 없는 작업자 · CFE 완제품 상미기한 · 서버 SQL(086 · 087) 설치 여부 · 자료 이상(남은 양보다 많이 배정된 배치 · 입고량보다 잔량이 많은 배치 · 완료인데 원두 차감이 없는 지시) · 보기 전용이며 자료를 바꾸지 않습니다 · 줄을 누르면 목록이 펼쳐지고 [열기]로 고칠 화면으로 갑니다"],
   ["2026-11-19", "생산 시작 — 서버에서 다시 확인 (087 SQL)", "원두 · 라벨 · 봉투가 입고되지 않았으면 서버도 생산 시작을 거부합니다 (087_start_rules.sql 실행 필요 · 086 을 먼저 실행) · 전에는 화면에서만 막아서, 옛 화면을 띄워 둔 기기나 연결이 늦은 기기에서는 시작이 될 수 있었습니다 · ① 원두: 지시에 적힌 배치가 입고 전이거나, 배치를 정하지 않았는데 쓸 수 있는 원두(보류 · 상미기한 초과 제외)가 없을 때 · ② 라벨: 지시의 라벨 재고가 0 이고 그날 그 품목의 라벨 작업도 없을 때 (풀패키지 · 코스트코 · 이카 제외) · ③ 봉투: 품목 BOM 의 봉투 · 풀패키지가 전부 재고 0 일 때 (이카 제외) · 화면에 보이는 것은 바뀌지 않습니다"],
   ["2026-11-19", "생산 완료 — 서버에서 다시 확인 (086 SQL)", "생산 완료 때 원두를 빼는 규칙을 서버에서도 지킵니다 (086_consume_rules.sql 실행 필요) · ① 지시에 적힌 배치가 아직 입고 전이면 완료를 거부합니다 — 전에는 말없이 다른 배치에서 뺐습니다 · ② 지시의 배치가 모자라 다른 배치로 넘어갈 때 상미기한이 지난 배치는 쓰지 않습니다 (지시에 직접 고른 배치와 코스트코 전용 원두는 예외) · 상미기한 일수는 [기준 변경]으로 정한 값을 서버도 같이 씁니다 · 서버에 연결되지 않았을 때의 앱 안 처리도 같은 규칙"],
@@ -9198,7 +9217,7 @@ function renderOne(s){
   ({ dash:renderDash, plan:renderPlan, roast:renderRoast, req:renderReq, log:renderLog,
      stock:renderStock, pqc:renderPqc, cal:renderCal, loss:renderLoss, base:renderBase,
      work:renderWork, qc:renderQc, ship:renderShip, order:renderOrder, trace:renderTrace,
-     rw:renderRw, mt:renderMt, close:renderClose, count:renderCount, help:renderHelp, approve:renderApprove, capa:renderCapa, find:renderFind, grind:renderGrind, home:renderHome, ready:renderReady })[s]?.();
+     rw:renderRw, mt:renderMt, close:renderClose, count:renderCount, help:renderHelp, approve:renderApprove, capa:renderCapa, find:renderFind, grind:renderGrind, home:renderHome, ready:renderReady, matuse:renderMatUse })[s]?.();
 }
 /* ★ 기준 순서 — 품목은 CFE 코드 번호, 원두는 MMS 코드 번호, 부자재는 구분→코드→이름 순.
      표·카드·계획·집계·여유분·재고 세기 전부 이 순서를 따른다 (머리글 정렬을 누르면 그게 우선) */
@@ -18759,7 +18778,7 @@ function rtBadge(){
    · 이제 지금 보고 있는 화면만 바로 그리고, 나머지는 쉬는 틈에 하나씩 그린다
    · 지금 화면에서 숫자를 치고 있을 때만 손을 뗄 때까지 기다린다 */
 const SCREENS = ["dash","plan","roast","req","log","stock","pqc","cal","loss","base",
-                 "work","qc","ship","order","trace","rw","mt","capa","find","grind","ready"];
+                 "work","qc","ship","order","trace","rw","mt","capa","find","grind","ready","matuse"];
 const curScreen = () => (document.querySelector(".screen.on")?.id || "s-dash").replace(/^s-/, "");
 const idle = f => (window.requestIdleCallback ? requestIdleCallback(f, { timeout:600 }) : setTimeout(f, 30));
 let RT_REST = null;
@@ -22166,6 +22185,7 @@ function capaMemo(machine, spec){ if (Date.now() - CAPA_MEMO.at > 60000) CAPA_ME
   const k = `${machine}|${spec}`; if (!(k in CAPA_MEMO.m)) { try { CAPA_MEMO.m[k] = recentCapa(machine, spec); } catch(_){ CAPA_MEMO.m[k] = null; } } return CAPA_MEMO.m[k]; }
 function ordEst(o){ const p = prodById(o?.product_id), spec = Number(p?.spec_g ?? o?.product_spec) || 0; if (!p || !spec) return null;
   const c = capaMemo(o.machine||"", spec); if (!c || !c.S || !(c.S.kgph > 0)) return null;
+  if (c.src !== "설비×규격") return null;      // ★ 2026-11-19 그 설비 · 규격의 실적이 없으면 예상을 보이지 않는다 — 전체 평균으로 계산하면 "약 6시간 31분"처럼 부풀려 나왔다
   const todo = Math.max(0, Math.round(ordPlan(o) - Number(o.qty_done||0))); if (!todo) return null;
   return { sec: todo * spec / 1000 / c.S.kgph * 3600, src:c.src, kgph:c.S.kgph, n:c.n, todo }; }
 function ordEstLine(o){ const e = ordEst(o); if (!e) return "";
@@ -22993,6 +23013,61 @@ function chOrdSave(){
   const c = beanCfg(); c.ch_order = CH_ORD_TMP.length ? [...CH_ORD_TMP] : CH_ORDER_DEF; saveBeanCfg(c); closeChOrder();
   toast(`채널 순서 — ${c.ch_order.join(" → ")} · [자동 정렬]을 누르면 반영됩니다`);
 }
+/* ══ ★ 2026-11-19 부자재 사용 · 로스 (Lee "봉투 로스 관리를 하려면 … 부자재 불출 개념이여서 우리가 얼마나 쓰는지도 판단해야해")
+   · 기간 동안 자재별 입고(불출 받은 양) · 생산 사용 · 폐기 · 실사 조정 · 기초/기말 재고를 부자재 입출고 기록(material_moves)에서 그대로 더한다 — 새로 저장하는 것은 없다
+   · 로스 = 폐기 + 실사 조정으로 줄어든 양 · 로스율 = 로스 ÷ (생산 사용 + 로스)
+   · 기말 재고 = 지금 장부 − 기간 뒤의 움직임, 기초 재고 = 기말 − 기간 안의 움직임 ══ */
+let MU_OPEN = {};
+function muRange(){ const t = today(); let f = $("muFrom")?.value, e = $("muTo")?.value;
+  if (!f) { f = t.slice(0,8) + "01"; if ($("muFrom")) $("muFrom").value = f; } if (!e) { e = t; if ($("muTo")) $("muTo").value = e; }
+  if (f > e) [f, e] = [e, f]; return { f, e }; }
+function muQuick(k){ const t = today(); let f = t;
+  if (k === "week") { const d = new Date(t + "T12:00:00"); f = addDaysStr(t, -((d.getDay() + 6) % 7)); } else if (k === "month") f = t.slice(0,8) + "01";
+  $("muFrom").value = f; $("muTo").value = t; renderMatUse(); }
+function matUseRows(f, e, kind, all){
+  const kinds = kind === "bag" ? ["봉투", MAT_FULL] : kind === "label" ? ["라벨"] : null, R = {};
+  DB.materials.forEach(M=>{ if (kinds && !kinds.includes(M.kind)) return;
+    R[M.id] = { M, inQ:0, use:0, scrap:0, adjUp:0, adjDown:0, after:0, inP:0, moves:[] }; });
+  DB.material_moves.forEach(mv=>{ const r = R[mv.material_id]; if (!r) return; const q = Number(mv.qty||0), d = String(mv.date || mv.at || "").slice(0,10); if (!q || !d) return;
+    if (d > e) { r.after += q; return; } if (d < f) return;
+    r.inP += q; r.moves.push(mv);
+    if (mv.kind === "입고") r.inQ += q;
+    else if (mv.kind === "생산사용" || mv.kind === "사용취소") r.use += -q;        // 취소는 사용에서 되돌린다
+    else if (mv.kind === "폐기") r.scrap += -q;
+    else if (q > 0) r.adjUp += q; else r.adjDown += -q; });
+  const r3 = n => Math.round(n * 1000) / 1000;
+  return Object.values(R).map(r=>{ const end = r3(Number(r.M.stock||0) - r.after), begin = r3(end - r.inP), loss = r3(r.scrap + r.adjDown);
+      return { ...r, end, begin, loss, use:r3(r.use), pct: (r.use + loss) > 0 ? Math.round(loss / (r.use + loss) * 1000) / 10 : null }; })
+    .filter(r=>all ? matActive(r.M) || r.moves.length : r.moves.length)
+    .sort((a,b)=>MAT_KINDS.indexOf(a.M.kind) - MAT_KINDS.indexOf(b.M.kind) || b.use - a.use || String(a.M.name).localeCompare(String(b.M.name)));
+}
+function muToggle(id){ MU_OPEN[id] = !MU_OPEN[id]; renderMatUse(); }
+function renderMatUse(){
+  if (!$("muTbl")) return;
+  const { f, e } = muRange(), rows = matUseRows(f, e, $("muKind")?.value || "bag", !!$("muAll")?.checked);
+  const S = k => rows.reduce((t,r)=>t + Number(r[k]||0), 0), use = S("use"), loss = S("loss");
+  const card = (t, v, sub, cls) => `<div class="panel" style="flex:1 1 150px;margin:0;padding:12px 16px"><div class="hint" style="padding:0;font-size:12px">${t}</div><div style="font-size:22px;font-weight:800" class="${cls||""}">${v}</div><div class="hint" style="padding:0;font-size:11.5px">${sub||"&nbsp;"}</div></div>`;
+  $("muHero").innerHTML = card("입고 (불출 받은 양)", fmt(S("inQ")), `${f.slice(5)} ~ ${e.slice(5)}`) + card("생산 사용", fmt(use), "양품 수량만큼 자동 차감")
+    + card("폐기", fmt(S("scrap")), "작업 중 불량 · 폐기 등록") + card("실사 감소", fmt(S("adjDown")), S("adjUp") ? `실사 증가 +${fmt(S("adjUp"))} 는 로스에서 빼지 않음` : "재고 실사 · 조정으로 줄어든 양")
+    + card("로스율", (use + loss) > 0 ? (Math.round(loss / (use + loss) * 1000) / 10) + "%" : "—", `로스 ${fmt(loss)} ÷ (사용 ${fmt(use)} + 로스)`, loss > 0 ? "bad" : "");
+  $("muInfo").textContent = `${rows.length}종 · 음수 기초/기말 재고는 입고를 적지 않고 사용만 기록된 자재입니다`;
+  const neg = v => v < 0 ? ` class="bad"` : "";
+  tbl("muTbl", ["구분","자재","기초 재고","입고","생산 사용","폐기","실사 조정","로스","로스율","기말 재고"],
+    rows.map(r=>{ const open = !!MU_OPEN[r.M.id], adj = r.adjUp - r.adjDown;
+      return `<tr style="cursor:pointer" onclick="muToggle('${r.M.id}')"><td class="c">${xh(r.M.kind||"")}</td><td class="l"><b>${xh(r.M.name)}</b> <span class="hint" style="padding:0;font-size:11px">${open?"▲":"▼"} ${r.moves.length}건</span></td>
+        <td${neg(r.begin)}>${fmt(r.begin)}</td><td>${r.inQ ? "+" + fmt(r.inQ) : "—"}</td><td>${r.use ? fmt(r.use) : "—"}</td><td class="${r.scrap>0?"bad":""}">${r.scrap ? fmt(r.scrap) : "—"}</td>
+        <td class="${adj<0?"bad":""}">${adj ? (adj > 0 ? "+" : "−") + fmt(Math.abs(adj)) : "—"}</td><td class="${r.loss>0?"bad":""}"><b>${r.loss ? fmt(r.loss) : "—"}</b></td><td class="${r.loss>0?"bad":""}">${r.pct != null && r.loss ? r.pct + "%" : "—"}</td><td${neg(r.end)}><b>${fmt(r.end)}</b></td></tr>`
+        + (open ? `<tr><td colspan="10" class="l" style="background:rgba(0,0,0,.02);padding:8px 14px 12px 44px;font-size:12.5px;line-height:1.7">${r.moves.slice().sort((a,b)=>String(b.at||b.date).localeCompare(String(a.at||a.date))).slice(0,80).map(mv=>
+            `<div style="border-bottom:1px dashed var(--line)">${String(mv.date||"").slice(5)} · <b>${xh(mv.kind||"")}</b> ${Number(mv.qty) > 0 ? "+" : "−"}${fmt(Math.abs(Number(mv.qty||0)))} → ${fmt(mv.after)} · ${xh(mv.note||"")}${mv.user ? " · " + xh(mv.user) : ""}</div>`).join("")}${r.moves.length > 80 ? `<div>… 외 ${fmt(r.moves.length-80)}건 (엑셀 다운로드에 모두 들어갑니다)</div>` : ""}</td></tr>` : ""); }),
+    rows.length ? `<td colspan="2" class="l"><b>합계</b></td><td></td><td><b>+${fmt(S("inQ"))}</b></td><td><b>${fmt(use)}</b></td><td><b>${fmt(S("scrap"))}</b></td><td></td><td><b>${fmt(loss)}</b></td><td></td><td></td>` : "");
+  if (!rows.length) $("muTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">이 기간에 움직인 자재가 없습니다 — 봉투 · 라벨 입고를 등록하고 생산을 완료하면 여기에 쌓입니다</td></tr></tbody>`;
+}
+function csvMatUse(){
+  const { f, e } = muRange(), rows = matUseRows(f, e, $("muKind")?.value || "bag", !!$("muAll")?.checked);
+  csv(`부자재 사용·로스 ${f}~${e}`, ["구분","자재","일자","종류","수량","기초 재고","입고","생산 사용","폐기","실사 조정","로스","로스율%","기말 재고","비고","작업자"],
+    rows.flatMap(r=>[[r.M.kind||"", r.M.name, "", "합계", "", r.begin, r.inQ, r.use, r.scrap, r.adjUp - r.adjDown, r.loss, r.pct != null ? r.pct : "", r.end, "", ""],
+      ...r.moves.slice().sort((a,b)=>String(a.at||a.date).localeCompare(String(b.at||b.date))).map(mv=>[r.M.kind||"", r.M.name, mv.date||"", mv.kind||"", Number(mv.qty||0), "", "", "", "", "", "", "", mv.after ?? "", mv.note||"", mv.user||""])]));
+}
 /* ══ ★ 2026-11-19 시작 전 점검 (Lee "시작은 다음주 월요일 기준 · 지금 필요한 내용 확인 필요")
    · 실제 사용 전에 지금 자료에서 ① 생산 시작이 막히는 곳 ② 재고 숫자가 틀어질 곳 ③ 기준정보가 빈 곳 ④ 서버 SQL 설치 여부를 한 화면에 모은다
    · 보기 전용 — 자료를 바꾸지 않는다. 판정은 현장 작업 카드와 같은 함수(ordReady · daysLeft · bagMatOf · labelOf)를 그대로 쓴다 ══ */
@@ -23058,18 +23133,20 @@ function readyChecks(){
   add("CFE 완제품 (출고팀)", "yardOld", "warn", "상미기한이 지난 CFE 완제품", "출고장 재고 기준. 실물 확인 후 정리하십시오", yardShelfLots("bad").map(l=>`${xh(yardLotName(l))} · ${String(l.mfg_date).slice(5)} 제조 · ${fmt(l.left_qty)}개`), "ship", "출고");
   /* ⑥ 서버 */
   if (sb) { const S = READY_SRV;
-    add("서버 (Supabase)", "srv", "bad", "서버 SQL 설치", !S ? "확인 중…" : "086 · 087 이 없으면 원두 · 라벨 · 봉투 확인이 화면에서만 됩니다. Supabase SQL Editor 에서 번호 순서대로 실행하십시오 (085 분쇄 시간 저장은 여기서 확인할 수 없습니다 — 분쇄 화면에서 [시작]이 저장되는지 보십시오)",
+    add("서버 (Supabase)", "srv", "bad", "서버 SQL 설치", !S ? "확인 중…" : "086 · 087 · 088 이 없으면 원두 · 라벨 · 봉투 · 완제품 기한 확인이 화면에서만 됩니다. Supabase SQL Editor 에서 번호 순서대로 실행하십시오 (085 분쇄 시간 저장은 여기서 확인할 수 없습니다 — 분쇄 화면에서 [시작]이 저장되는지 보십시오)",
       !S ? [] : [ S.s086 ? null : "086_consume_rules.sql 미설치 — 생산 완료 때 상미기한 · 입고 전 배치 확인이 서버에서 되지 않습니다",
                   S.s087 ? null : "087_start_rules.sql 미설치 — 생산 시작 때 원두 · 라벨 · 봉투 확인이 서버에서 되지 않습니다",
+                  S.s088 ? null : "088_cfe_shelf.sql 미설치 — 상미기한 지난 CFE 완제품이 출고 확정에서 빠지지 않습니다",
                   (S.s086 && S.life != null && S.life !== shelfLife()) ? `상미기한 일수가 다릅니다 — 화면 ${shelfLife()}일 · 서버 ${S.life}일` : null ].filter(Boolean), "", "");
   } else add("서버 (Supabase)", "srv", "warn", "서버 연결", "지금은 서버에 연결되지 않은 상태(이 기기에만 저장)입니다", ["서버 미연결"], "", "");
   return out;
 }
 async function readySrvProbe(){
   if (!sb || READY_SRV_BUSY) return; READY_SRV_BUSY = true;
-  const R = { s086:false, s087:false, life:null };
+  const R = { s086:false, s087:false, s088:false, life:null };
   try { const { data, error } = await sb.rpc("shelf_life_days"); if (!error) { R.s086 = true; R.life = Number(data); } } catch(_){}
   try { const { error } = await sb.rpc("order_start_block", { p_order_id:"00000000-0000-0000-0000-000000000000" }); if (!error) R.s087 = true; } catch(_){}
+  try { const { error } = await sb.rpc("cfe_shelf_days"); if (!error) R.s088 = true; } catch(_){}
   READY_SRV = R; READY_SRV_BUSY = false;
   if (curScreen() === "ready") renderReady();
 }
@@ -23910,8 +23987,13 @@ function yardAge(d){ if (!d) return null; return Math.floor((new Date(today()) -
 function yardShelfTag(d){ const a = yardAge(d); if (a == null) return ""; const L = yardShelfDays(); if (!L) return `<span class="hint" style="padding:0;font-size:10.5px">제조 ${a}일째</span>`;
   const left = L - a; return `<span class="tag ${left<0?"bad":left===0?"due":left<=Math.max(2,Math.round(L*0.2))?"warn":"ok"}" style="font-size:10.5px"${left===0?' title="오늘 출고하지 않으면 내일부터 출고 불가"':""}>${left<0?`상미 초과 ${-left}일`:left===0?"⚠ 금일 출고 필요":`D-${left}`}</span>`; }
 /* ★ 2026-11-19 CFE 완제품도 원두(MMS)와 같이 — 오늘까지만 출고 가능한 묶음(due) · 상미 초과 묶음(bad) */
+/* ★ 2026-11-19 상미기한이 지난 묶음은 출고 확정에서 빠진다 (서버 088) — d 일자 기준 · 코스트코 품목 · 제조일자 모르는 묶음은 보지 않는다 */
+const yardLotFree = l => isCostcoProd(prodById(l.product_id)) || /코스트코/.test(String(l.product_name||""));
+function yardLotExpired(l, d){ const L = yardShelfDays(); if (!L || !l.mfg_date || yardLotFree(l)) return false;
+  return Math.floor((new Date(d || today()) - new Date(l.mfg_date))/86400000) > L; }
+const yardExpQty = (pid, d) => YARD_LOTS.filter(l=>l.product_id===pid && Number(l.left_qty) > 0 && yardLotExpired(l, d)).reduce((t,l)=>t+Number(l.left_qty||0),0);
 function yardShelfLots(kind){ const L = yardShelfDays(); if (!L) return [];
-  return YARD_LOTS.filter(l=>Number(l.left_qty) > 0 && l.mfg_date).filter(l=>{ const left = L - yardAge(l.mfg_date); return kind === "due" ? left === 0 : left < 0; })
+  return YARD_LOTS.filter(l=>Number(l.left_qty) > 0 && l.mfg_date && !yardLotFree(l)).filter(l=>{ const left = L - yardAge(l.mfg_date); return kind === "due" ? left === 0 : left < 0; })
     .sort((a,b)=>String(a.mfg_date).localeCompare(String(b.mfg_date)) || String(a.product_name||"").localeCompare(String(b.product_name||""))); }
 const yardLotName = l => l.product_name || prodById(l.product_id)?.name || "";
 function yardNoteHTML(){
@@ -23923,14 +24005,15 @@ function yardNoteHTML(){
 }
 /* 로컬(서버 없음) 모드 — 출고 완료 때 묶음을 만든다 */
 function yardLocalIn(o){ if (sb) return; YARD_LOTS.push({ id:uid(), product_id:o.product_id, product_name:o.product_name, order_id:o.id, serial:o.serial, mfg_date:mfgDateOf(o)||o.work_date, in_date:today(), qty:Number(o.qty_done||0), left_qty:Number(o.qty_done||0), src:"ship", at:nowISO(), by_name:CURRENT_USER }); }
-function yardTakeLocal(pid, q, d, batch, kind, note){ let left = q; for (const l of yardLotsOf(pid)) { if (left <= 0) break; const t = Math.min(Number(l.left_qty), left); l.left_qty = Number(l.left_qty) - t; left -= t;
+function yardTakeLocal(pid, q, d, batch, kind, note){ let left = q; for (const l of yardLotsOf(pid)) { if (left <= 0) break; if (kind === "dispatch" && yardLotExpired(l, d)) continue; const t = Math.min(Number(l.left_qty), left); l.left_qty = Number(l.left_qty) - t; left -= t;
     YARD_OUTS.push({ id:uid(), batch_id:batch, out_date:d, product_id:pid, product_name:l.product_name, lot_id:l.id, serial:l.serial, mfg_date:l.mfg_date, qty:t, kind, note, by_name:CURRENT_USER, at:nowISO() }); } return left; }
 function yardRows(d){
   const pids = new Set([...YARD_LOTS.filter(l=>Number(l.left_qty)>0).map(l=>l.product_id), ...DB.tallies.filter(t=>t.date===d).map(t=>t.product_id), ...YARD_OUTS.filter(x=>x.out_date===d).map(x=>x.product_id)]);
   return [...pids].map(pid=>prodById(pid)).filter(Boolean).sort(prodCmp).map(p=>{
     const order = hasTally(p.id, d) ? Number(tallyQty(p.id, undefined, d)||0) : 0, out = yardOutQty(p.id, d);
     const plan = Math.max(0, Math.round(order - out)), have = yardQty(p.id);
-    return { p, order, out, plan, have, lots:yardLotsOf(p.id), inQ:yardInQty(p.id, d) }; });
+    const exp = yardExpQty(p.id, d);
+    return { p, order, out, plan, have, exp, ship: Math.max(0, have - exp), lots:yardLotsOf(p.id), inQ:yardInQty(p.id, d) }; });
 }
 var YARD_EDIT = {};
 function renderYard(){
@@ -23940,12 +24023,12 @@ function renderYard(){
   if (YARD_OK === "missing") { $("yardTbl").innerHTML = `<tbody><tr><td class="c bad" style="padding:16px">서버에 073 SQL 을 실행해야 출고장 재고를 사용할 수 있습니다</td></tr></tbody>`; return; }
   try { const yn = yardNoteHTML(); if ($("yardNote")) $("yardNote").innerHTML = yn ? `<div class="beanNote" style="margin-top:12px">${yn}</div>` : ""; } catch(_){}
   const rows = yardRows(d);
-  const short = rows.filter(r=>r.plan > r.have).length;
+  const short = rows.filter(r=>r.plan > r.ship).length;
   if ($("yardInfo")) $("yardInfo").innerHTML = `출고장 ${fmt(rows.reduce((t,r)=>t+r.have,0))}개 · ${d.slice(5).replace("-","/")} 출고 예정 ${fmt(rows.reduce((t,r)=>t+r.plan,0))}개${short?` · <b class="bad">부족 ${short}품목</b>`:""}`;
   tbl("yardTbl", ["품목","출고장 재고","제조일자별 (선입순 출고 · 눌러서 여유분↔필요분)",`${d.slice(5).replace("-","/")} 입고`,"주문","기출고","출고 수량","확정 후 잔량"],
-    rows.map(r=>{ const k = `${d}|${r.p.id}`; const q = YARD_EDIT[k] != null ? YARD_EDIT[k] : r.plan; const after = r.have - q;
+    rows.map(r=>{ const k = `${d}|${r.p.id}`; const q = YARD_EDIT[k] != null ? YARD_EDIT[k] : r.plan; const after = r.ship - q;
       return `<tr><td class="l"><b>${r.p.name}</b><br><span class="hint" style="padding:0;font-size:11px">${r.p.code||""}</span></td>
-        <td><b style="font-size:15px">${fmt(r.have)}</b>${(()=>{ const b = yardBufQty(r.p.id); return b ? `<br><span style="font-size:11px">필요 ${fmt(r.have-b)} · <b style="color:var(--d-warn-ink,#B26B00)">여유 ${fmt(b)}</b></span>` : ""; })()}</td>
+        <td><b style="font-size:15px">${fmt(r.have)}</b>${r.exp ? `<br><span class="tag bad" style="font-size:10.5px" title="상미기한이 지난 묶음은 출고 확정에서 빠집니다 — 실물 확인 후 재고 세기로 정리하십시오">상미 초과 ${fmt(r.exp)}개 — 출고 제외</span>` : ""}${(()=>{ const b = yardBufQty(r.p.id); return b ? `<br><span style="font-size:11px">필요 ${fmt(r.have-b)} · <b style="color:var(--d-warn-ink,#B26B00)">여유 ${fmt(b)}</b></span>` : ""; })()}</td>
         <td class="l" style="font-size:12px">${r.lots.length ? r.lots.slice(0,8).map(l=>`<span onclick="yardLotAct('${l.id}')" title="눌러서 ${l.is_buf?"필요분":"여유분"}으로 이동" style="cursor:pointer;display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;border:1.5px ${l.is_buf?"dashed #F5A524;background:var(--d-warn-soft,#FFF8EC)":"solid var(--line)"};border-radius:6px">${l.is_buf?'<b style="color:var(--d-warn-ink,#B26B00)">여유</b> ':""}${l.mfg_date?l.mfg_date.slice(5).replace("-","/"):"—"}${l.serial?` · ${l.serial}`:""} <b>${fmt(l.left_qty)}</b> ${yardShelfTag(l.mfg_date)}</span>`).join("") + (r.lots.length>8?` 외 ${r.lots.length-8}`:"") : '<span class="hint" style="padding:0">없음</span>'}</td>
         <td>${r.inQ?`<span style="color:var(--ok);font-weight:700">+${fmt(r.inQ)}</span>`:"—"}</td>
         <td>${r.order?fmt(r.order):"—"}</td><td>${r.out?fmt(r.out):"—"}</td>
@@ -23963,8 +24046,8 @@ async function yardDispatch(){
   const d = $("yardDay")?.value || today();
   const items = yardRows(d).map(r=>({ r, q: YARD_EDIT[`${d}|${r.p.id}`] != null ? YARD_EDIT[`${d}|${r.p.id}`] : r.plan })).filter(x=>x.q > 0);
   if (!items.length) return toast("출고 수량이 없습니다 — 주문 집계를 확인하거나 수량을 입력하십시오");
-  const sh = items.filter(x=>x.q > x.r.have);
-  if (!(await ask(`${d} 출고 확정 — 제조일자가 빠른 순으로 차감합니다.\n\n${items.slice(0,14).map(x=>`· ${x.r.p.name} ${fmt(x.q)}개${x.q>x.r.have?` (출고장 ${fmt(x.r.have)} — ${fmt(x.q-x.r.have)}개 부족)`:""}`).join("\n")}${items.length>14?`\n… 외 ${items.length-14}`:""}\n\n합계 ${fmt(items.reduce((t,x)=>t+x.q,0))}개${sh.length?`\n※ 부족한 ${sh.length}품목은 보유 수량만큼만 차감됩니다`:""}`, { title:"오늘 출고 확정", yes:"확정" }))) return;
+  const sh = items.filter(x=>x.q > x.r.ship);
+  if (!(await ask(`${d} 출고 확정 — 제조일자가 빠른 순으로 차감합니다.\n\n${items.slice(0,14).map(x=>`· ${x.r.p.name} ${fmt(x.q)}개${x.q>x.r.ship?` (출고 가능 ${fmt(x.r.ship)}${x.r.exp?` · 상미 초과 ${fmt(x.r.exp)}개 제외`:""} — ${fmt(x.q-x.r.ship)}개 부족)`:""}`).join("\n")}${items.length>14?`\n… 외 ${items.length-14}`:""}\n\n합계 ${fmt(items.reduce((t,x)=>t+x.q,0))}개${sh.length?`\n※ 부족한 ${sh.length}품목은 보유 수량만큼만 차감됩니다`:""}`, { title:"오늘 출고 확정", yes:"확정" }))) return;
   const batch = uid();
   const r = await rpc("cfe_dispatch", { p_date:d, p_items:items.map(x=>({ product_id:x.r.p.id, qty:x.q })), p_note:null, p_user_name:CURRENT_USER }, () => {
     const short = []; items.forEach(x=>{ const s0 = yardTakeLocal(x.r.p.id, x.q, d, batch, "dispatch", null); if (s0 > 0) short.push({ product_id:x.r.p.id, short:s0 }); }); return { ok:true, short }; });
