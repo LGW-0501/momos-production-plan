@@ -4602,7 +4602,8 @@ const CH_ORDER_DEF = ["코스트코","컬리","네이버","라이브","온라인
 const beanCfg = () => { const c = SETTINGS[BEAN_CFG_KEY]; const o = (c && typeof c === "object") ? c : {};
   return { def_bag: Math.max(0, Number(o.def_bag)||0), ch_order: Array.isArray(o.ch_order) && o.ch_order.length ? o.ch_order : CH_ORDER_DEF,
            items: (o.items && typeof o.items === "object") ? o.items : {},
-           bean_order: (o.bean_order && typeof o.bean_order === "object") ? o.bean_order : {} }; };   // ★ 2026-11-19 설비별 원두 순서 { 설비 종류(수동 · 리팩 · 이카):{ list:[원두…], first:true } }
+           bean_order: (o.bean_order && typeof o.bean_order === "object") ? o.bean_order : {},
+           grind_cfg: (o.grind_cfg && typeof o.grind_cfg === "object") ? o.grind_cfg : null }; };   // ★ 2026-11-19 분쇄도 · 원두 · 중량 순서   // ★ 2026-11-19 설비별 원두 순서 { 설비 종류(수동 · 리팩 · 이카):{ list:[원두…], first:true } }
 const beanCfgOf = beanName => { const b = beanInfo(beanName); return (b && beanCfg().items[b.id]) || {}; };
 const cfgNum = v => (v != null && v !== "" && Number(v) >= 0) ? Number(v) : null;
 function saveBeanCfg(c){ SETTINGS[BEAN_CFG_KEY] = c; keepFocus(renderAll); saveSetting(BEAN_CFG_KEY, c).then(r=>{ if (r && r.ok === false) toast("원두별 설정 저장 실패 — " + (r.message||"서버 연결 확인")); }); }
@@ -8047,6 +8048,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-19", "메뉴 설정 — 끌어서 순서 바꾸기", "[메뉴 설정] 창에서 각 줄 왼쪽의 ☰ 를 잡고 위아래로 끌면 메뉴 순서가 바뀝니다 (마우스 · 터치). ▲▼ 도 그대로 쓸 수 있습니다 · 놓는 즉시 저장"],
+  ["2026-11-19", "작업 소요시간 — 실제 + 예상", "① 현장 작업 카드: 대기 중인 지시에 「⏱ 예상 약 N분」(최근 90일 그 설비 × 규격 생산속도 기준), 생산 중인 지시에는 실제 생산시간 옆에 「남은 예상」 · 설비 제목 줄에 그 설비의 남은 예상 시간 합계 · ② 분쇄 화면: 분쇄도마다 [▶ 분쇄 시작]을 누르면 그때부터 마지막 완료 체크까지 소요시간을 잽니다 — 진행 중에는 「▶ 진행 N분」, 끝나면 「⏱ 소요 N분」 · 시작을 누르지 않고 완료를 체크하면 첫 체크 시각이 시작이 되고 * 표시 · 기록이 쌓이면 분쇄도별 「예상 약 N분」도 표시 · 위쪽에 오늘 소요 · 남은 예상 합계"],
+  ["2026-11-19", "분쇄도 · 원두 · 중량 순서 설정", "분쇄도 순서를 에스프레소 → 모카포트 → 더치 → 핸드드립 → 커피메이커로 바꿨습니다 (분쇄 작업 · 분쇄량 그래프 · 분쇄 수량표) · 분쇄 화면 [순서 설정] / 현장 작업 [분쇄도 · 중량 순서] 버튼 — 분쇄도 · 원두 · 중량을 끌어서 순서를 정하고, 분쇄 화면에서 묶는 순서(분쇄도 → 원두 → 중량 / 분쇄도 → 중량 → 원두)를 고릅니다 · 현장 작업 [자동 정렬]에는 중량 순서와 분쇄도 순서(홀빈 먼저, 분쇄는 정한 순서)가 반영됩니다 · 모든 기기 공통"],
   ["2026-11-19", "라벨 · 봉투 미입고면 생산 시작 불가", "원두가 없을 때처럼, 라벨이나 봉투가 입고되지 않은 지시는 [생산 시작]이 막힙니다 · 라벨 미입고 = 라벨 재고 0장이고 그날 그 품목의 라벨 작업도 없을 때 (라벨 작업을 마쳤으면 통과) · 봉투 미입고 = 봉투(풀패키지 포함) 재고 0장 — 입고를 한 번도 등록하지 않은 봉투도 포함 · 카드 버튼이 「생산 불가 — 라벨 · 봉투 미입고」로 바뀌고 누르면 사유와 입고 등록 위치가 나옵니다 · 재고가 있는데 모자라는 경우는 전처럼 경고만 · [자동 정렬] 때 시작할 수 없는 지시는 맨 아래로 · 이미 생산 중인 지시와 생산 완료는 막지 않습니다"],
   ["2026-11-19", "현장 작업 — 설비별 원두 순서", "현장 작업 위쪽에 [원두 순서] 버튼이 생겼습니다 (채널 순서 옆 · 생산계획 권한). 설비(수동 · 리팩 · 이카 — 현장 작업의 설비 탭과 같은 묶음, 수동 2구 · 1구는 수동으로 같이)를 고르고 원두 줄을 끌어서 순서를 정합니다 — ▲▼ · ⤒(맨 위)도 됩니다 · 설비마다 따로 저장되고 모든 기기에 같이 적용 · 「원두 순서를 규격보다 먼저」를 켜면 준비 → 채널 → 원두 → 규격, 끄면 같은 규격 안에서만 원두 순서 · [저장] 후 [자동 정렬]을 누르면 그 설비 카드가 정한 순서로 섭니다 · 순서를 정하지 않은 설비는 전과 같습니다 (규격순 → MMS 코드순) · 오늘 그 설비에 작업이 있는 원두는 「작업 있음」으로 표시"],
   ["2026-11-19", "마감 — 현장 마감 · 검수 마감으로 분리", "마감 화면 위쪽에 [현장 마감] · [검수 마감] 탭이 생겼습니다. 파트마다 항목과 [완료] 버튼이 따로이고, 탭에 진행 수(예 3/8)와 완료 여부가 보입니다 · 현장 마감 = 생산 완료 · 라벨 작업 · 부자재 실사 · 원두 재고 · 로스팅 입고 · 설비 · 밀봉 · 내일 계획 + 원두 일 마감(현장 마감 완료 때 같이 실행) · 검수 마감 = 검수 · 수령 확인 · 수량 불일치 · 반려 조치 · 검수 구역 정리 · 두 마감이 모두 끝나면 그날은 자동으로 「하루 마감 완료」 · 검수 계정은 검수 마감 탭이 먼저 열림 · 항목은 파트별로 [항목 편집] · CFE 완제품 확인은 출고팀 일이라 제품생산팀 마감에서 뺐습니다 — 출고팀 마감 탭은 만들어 두고 꺼 두었으며 관리자가 [＋ 출고팀 마감 추가]로 켤 수 있습니다 · 최근 마감 기록 표도 파트별로"],
@@ -8818,16 +8822,36 @@ function renderMenuCfg(){
   const sc = d.querySelector(".ml")?.scrollTop || 0;
   d.innerHTML = `<div class="mbox">
     <div class="mh"><b>메뉴 설정</b><button class="x" onclick="closeMenuCfg()" title="닫기">✕</button></div>
-    <div class="mt hint">체크를 해제하면 메뉴에서 숨겨지고, ▲▼ 로 순서를 변경합니다. <b>[탭]</b>은 휴대폰 하단 탭에 표시할 화면입니다 (최대 3개).<br>이 기기의 내 계정에만 저장되며, 숨겨도 권한은 그대로입니다.</div>
+    <div class="mt hint">체크를 해제하면 메뉴에서 숨겨지고, <b>☰ 를 잡고 끌거나</b> ▲▼ 로 순서를 변경합니다. <b>[탭]</b>은 휴대폰 하단 탭에 표시할 화면입니다 (최대 3개).<br>이 기기의 내 계정에만 저장되며, 숨겨도 권한은 그대로입니다.</div>
     <div class="ml">${list.map((x,i)=>{ const hid = p.hide.includes(x.s), ti = tabs.indexOf(x.s);
-      return `<div class="mr ${hid?"off":""}">
+      return `<div class="mr ${hid?"off":""}" data-s="${x.s}">
+        <span class="grip" title="끌어서 옮기기" style="cursor:grab;touch-action:none;font-size:17px;color:var(--soft);width:26px;height:38px;display:flex;align-items:center;justify-content:center;flex:none;user-select:none;-webkit-user-select:none">☰</span>
         <label><input type="checkbox" ${hid?"":"checked"} onchange="menuCfgToggle('${x.s}')"><span class="ico">${x.ico}</span><span class="nm">${x.n}</span></label>
         <button class="tb ${ti>=0?"on":""}" ${hid?"disabled":""} onclick="menuCfgTab('${x.s}')" title="휴대폰 하단 탭에 표시">${ti>=0?`탭 ${ti+1}`:"탭"}</button>
         <button class="mv" ${i===0?"disabled":""} onclick="menuCfgMove('${x.s}',-1)" title="위로">▲</button>
         <button class="mv" ${i===list.length-1?"disabled":""} onclick="menuCfgMove('${x.s}',1)" title="아래로">▼</button>
       </div>`; }).join("")}</div>
     <div class="mf"><button class="btn" onclick="menuCfgReset()">기본값으로</button><button class="btn primary" onclick="closeMenuCfg()">완료</button></div></div>`;
-  const ml = d.querySelector(".ml"); if (ml) ml.scrollTop = sc;
+  const ml = d.querySelector(".ml"); if (ml) { ml.scrollTop = sc;
+    ml.querySelectorAll(".mr .grip").forEach(gp=>gp.addEventListener("pointerdown", e=>menuCfgDrag(e, gp.closest(".mr")))); }
+}
+/* ★ 2026-11-19 메뉴 순서를 끌어서 (Lee "메뉴 커스텀 하는거 그것도 끌어 쓸 수 있게") — ☰ 를 잡고 위아래로 · 마우스 · 터치 · 목록 끝에 닿으면 저절로 넘어간다 */
+function menuCfgDrag(e, row){
+  if (!row || (e.pointerType === "mouse" && e.button !== 0)) return;
+  const list = row.parentElement, pid = e.pointerId; e.preventDefault();
+  row.style.background = "var(--d-blue-soft,#EAF0FF)"; row.style.boxShadow = "0 6px 18px rgba(0,0,0,.2)"; row.style.position = "relative"; row.style.zIndex = "2";
+  const put = ref => { if (ref === row || ref === row.nextSibling) return; list.insertBefore(row, ref); };
+  const move = ev => { if (ev.pointerId !== pid) return; ev.preventDefault();
+    const lb = list.getBoundingClientRect(); if (ev.clientY < lb.top + 28) list.scrollTop -= 14; else if (ev.clientY > lb.bottom - 28) list.scrollTop += 14;
+    const rows = [...list.querySelectorAll(".mr")].filter(r=>r !== row); if (!rows.length) return;
+    const f = rows[0].getBoundingClientRect(), l = rows[rows.length-1].getBoundingClientRect();
+    if (ev.clientY < f.top) return put(rows[0]); if (ev.clientY > l.bottom) return put(null);
+    const over = rows.find(r=>{ const b = r.getBoundingClientRect(); return ev.clientY >= b.top && ev.clientY <= b.bottom; }); if (!over) return;
+    const b = over.getBoundingClientRect(); put(ev.clientY > b.top + b.height / 2 ? over.nextSibling : over); };
+  const end = ev => { if (ev && ev.pointerId !== pid) return;
+    window.removeEventListener("pointermove", move, true); window.removeEventListener("pointerup", end, true); window.removeEventListener("pointercancel", end, true);
+    const p = menuPref(); p.order = [...list.querySelectorAll(".mr")].map(r=>r.dataset.s); saveMenuPref(p); };
+  window.addEventListener("pointermove", move, true); window.addEventListener("pointerup", end, true); window.addEventListener("pointercancel", end, true);
 }
 function menuCfgToggle(s){
   const p = menuPref(), list = menuCfgList(), i = p.hide.indexOf(s);
@@ -10064,7 +10088,20 @@ function renderTally(){
 
 /* ══ 분쇄 집계 (★ 2026-11-08 — Lee "프로그램에 추가로 분쇄 시트를 추가해줄래") ══
    플토 '분쇄 집계' 시트와 같은 표: 원두명 × 용량 × 분쇄도 × 수량. 분쇄 SKU(CFE…A~E) 줄은 생산은 홀빈 품목으로, 갈 수량은 여기로. */
-const GRIND_ORDER = ["핸드드립","커피메이커","더치","모카포트","에스프레소"];
+/* ★ 2026-11-19 분쇄도 순서를 에스프레소 → 모카 → 더치 → 핸드 → 커피로 · 원두 · 중량 순서도 정할 수 있게
+   (Lee "분쇄도에 맞게 보였으면 좋겠어 에스프레소 - 모카 - 더치 - 핸드 - 커피 · 원두별 + 중량별 이것도 순서 세팅 가능하게")
+   bean_cfg.grind_cfg = { grinds:[분쇄도…], beans:[원두…], specs:[1000,500,200,100], first:"bean"|"spec" } — 분쇄 화면 + 현장 작업 [자동 정렬] 공통 */
+const GRIND_ORDER_DEF = ["에스프레소","모카포트","더치","핸드드립","커피메이커"], SPEC_ORDER_DEF = [1000,500,200,100];
+function grindCfg(){ const g = beanCfg().grind_cfg || {};
+  const gs = Array.isArray(g.grinds) ? g.grinds.filter(Boolean) : [];
+  const sp = Array.isArray(g.specs) ? g.specs.map(Number).filter(x=>SPEC_ORDER_DEF.includes(x)) : [];
+  return { grinds:[...new Set([...gs, ...GRIND_ORDER_DEF])], beans: Array.isArray(g.beans) ? g.beans : [],
+           specs:[...new Set([...sp, ...SPEC_ORDER_DEF])], specSet: sp.length > 0, first: g.first === "spec" ? "spec" : "bean" }; }
+const grindOrd = () => grindCfg().grinds;
+const grindRank = g => { if (!g || g === "홀빈") return -1; const i = grindOrd().indexOf(g); return i < 0 ? 99 : i; };
+const specRankG = (g, C) => { const i = (C || grindCfg()).specs.indexOf(bucketOf(Number(g)||100)); return i < 0 ? 99 : i; };
+const beanCmpG = (a, b, C) => { const L = (C || grindCfg()).beans, ia = L.indexOf(a), ib = L.indexOf(b);
+  return ((ia < 0 ? 9999 : ia) - (ib < 0 ? 9999 : ib)) || beanCmp(a||"", b||""); };
 let grindDate = "";
 const grindDay = () => grindDate || tallyDay();
 function setGrindDate(v){ grindDate = v || ""; renderGrind(); }
@@ -10101,7 +10138,7 @@ async function addGrindRow(){
   const prods = DB.products.filter(p=>!p.off).slice().sort(prodCodeCmp);
   const pid = await ask("분쇄할 품목(홀빈)을 선택하십시오", { title:"분쇄 직접 추가", choices:[...prods.slice(0,60).map(p=>({ v:p.id, label:`${p.code?p.code+" ":""}${p.name}` })), { v:null, label:"취소" }] });
   if (!pid) return;
-  const g = await ask("분쇄도", { title:"분쇄도", choices:[...GRIND_ORDER.map(x=>({ v:x, label:x, cls:"primary" })), { v:null, label:"취소" }] }); if (!g) return;
+  const g = await ask("분쇄도", { title:"분쇄도", choices:[...grindOrd().map(x=>({ v:x, label:x, cls:"primary" })), { v:null, label:"취소" }] }); if (!g) return;
   const q = await askText("수량(EA)", "1", "수량"); if (q === null || !(Number(q) > 0)) return;
   putGrind(prodById(pid), g, Number(q), tallyRound, grindDay(), ""); renderGrind();
 }
@@ -10147,7 +10184,8 @@ function grindItems(d){
     x.qty += Number(r.qty||0); x.kg += grindKgOf(r);
     if (r.done_at) { x.doneQty += Number(r.qty||0); if (String(r.done_at) > String(x.at)) { x.at = r.done_at; x.by = r.done_by || ""; } } });
   return Object.values(m).map(x=>({ ...x, state: x.qty > 0 && x.doneQty >= x.qty ? "done" : x.doneQty > 0 ? "part" : "todo" }))
-    .sort((a,b)=>prodCodeCmp(a.p||{code:a.code,name:a.name}, b.p||{code:b.code,name:b.name}));
+    .sort((()=>{ const C = grindCfg(), bc = (a,b)=>beanCmpG(a.bean, b.bean, C), sc = (a,b)=>specRankG(a.spec, C) - specRankG(b.spec, C);
+      return (a,b)=>(C.first === "spec" ? sc(a,b) || bc(a,b) : bc(a,b) || sc(a,b)) || prodCodeCmp(a.p||{code:a.code,name:a.name}, b.p||{code:b.code,name:b.name}); })());
 }
 async function grindWho(label){
   if (GRIND_WHO && Date.now() - GRIND_WHO.at < GRIND_WHO_MS) { GRIND_WHO.at = Date.now(); CURRENT_USER = GRIND_WHO.name; return GRIND_WHO.name; }
@@ -10175,12 +10213,103 @@ async function grindMark(grind, pid, done){
     if (!left.length) return toast("이미 모두 완료되었습니다");
     if (!(await ask(`${grind} — 남은 ${left.length}품목 · ${fmt(left.reduce((t,x)=>t+x.qty-x.doneQty,0))}개를 모두 분쇄 완료로 표시합니다.`, { title:"분쇄도 전체 완료", yes:"전체 완료" }))) return; }
   const who = await grindWho(done ? "분쇄 완료" : "분쇄 완료 취소"); if (!who) return;
+  if (done && !grindTimeRec(d, grind)) { try { await grindTimeSet(d, grind, { start_at:nowISO(), by:who, auto:true }); } catch(_){} }   // [분쇄 시작]을 누르지 않았으면 첫 완료 체크 시각부터
   const r = await mesGrindMark({ date:d, grind, product_id:pid || null, done, worker:who });
   if (!r || r.ok === false) { const msg = String(r?.message || "처리하지 못했습니다");
     return ask(/grind_mark|schema cache|function|done_at/i.test(msg) ? "서버에 최신 000_install_all.sql 을 먼저 실행하십시오 (분쇄 완료 체크 기능)." : msg, { title:"분쇄 완료", yes:"확인", only:true }); }
   if (sb) { try { await pullWhere("grind_tallies", "date", d); } catch(_){} }
   renderGrind();
   toast(done ? `${grind}${pid ? ` · ${its[0].name}` : " 전체"} — 분쇄 완료 (${who})` : "분쇄 완료를 취소했습니다");
+}
+/* ══ ★ 2026-11-19 분쇄 작업 소요시간 (Lee "작업소요시간도 확인이 되게") — 실제 + 예상
+   · 실제: 분쇄도마다 [▶ 분쇄 시작] ~ 마지막 완료 체크. 시작을 누르지 않고 체크하면 첫 체크 시각이 시작이 된다 (그만큼 짧게 나온다 — "시작 미입력" 표시)
+   · 예상: 지난 기록의 분쇄 속도(kg/시간 — 그 분쇄도, 없으면 전체 평균)로 계산. 기록이 없으면 표시하지 않는다
+   · 저장: 공용 설정 grind_time = { 날짜:{ 분쇄도:{ start_at, by, auto } } } — 서버 표를 바꾸지 않는다 · 60일만 둔다 */
+const GRIND_TIME_KEY = "grind_time";
+const grindTimeAll = () => { const v = SETTINGS[GRIND_TIME_KEY]; return (v && typeof v === "object") ? v : {}; };
+const grindTimeRec = (d, g) => (grindTimeAll()[d] || {})[g] || null;
+async function grindTimeSet(d, g, rec){
+  const all = { ...grindTimeAll() }; all[d] = { ...(all[d]||{}) }; if (rec) all[d][g] = rec; else delete all[d][g];
+  Object.keys(all).sort().slice(0, -60).forEach(k=>delete all[k]);
+  SETTINGS[GRIND_TIME_KEY] = all; return saveSetting(GRIND_TIME_KEY, all); }
+async function grindStart(g){
+  if (!canGrind()) return toast("분쇄 시작은 현장 작업 또는 계획 권한이 있는 계정만 할 수 있습니다");
+  const who = await grindWho("분쇄 시작"); if (!who) return;
+  const r = await grindTimeSet(grindDay(), g, { start_at:nowISO(), by:who }); renderGrind();
+  toast(r && r.ok === false ? `${g} 분쇄 시작 — 이 기기에만 기록되었습니다 (서버에 085 SQL 을 실행하면 모든 기기에 저장됩니다)` : `${g} 분쇄 시작 — ${who}`); }
+async function grindStartUndo(g){
+  if (!(await ask(`${g}\n\n분쇄 시작 시각을 지웁니다. 소요시간을 다시 재려면 [▶ 분쇄 시작]을 다시 누르십시오.`, { title:"분쇄 시작 취소", yes:"지우기" }))) return;
+  await grindTimeSet(grindDay(), g, null); renderGrind(); }
+/* 지난 기록의 분쇄 속도 kg/h — { 분쇄도:{kg,sec}, all:{kg,sec} } (60초 동안 기억) */
+let GRIND_RATE_MEMO = null;
+function grindRates(){
+  if (GRIND_RATE_MEMO && Date.now() - GRIND_RATE_MEMO.at < 60000) return GRIND_RATE_MEMO.v;
+  const T = grindTimeAll(), v = { all:{ kg:0, sec:0 } }, by = {};
+  (DB.grind_tallies||[]).forEach(t=>{ const k = `${t.date}|${t.grind}`; const x = by[k] || (by[k] = { n:0, done:0, kg:0, last:"" });
+    x.n++; x.kg += grindKgOf(t); if (t.done_at) { x.done++; if (String(t.done_at) > x.last) x.last = t.done_at; } });
+  Object.entries(by).forEach(([k, x])=>{ const [d, g] = k.split("|"), r = (T[d]||{})[g];
+    if (!r || r.auto || !x.n || x.done < x.n || !x.last) return;                 // 시작을 직접 누르고 끝까지 마친 기록만
+    const sec = secOf(r.start_at, x.last); if (!(sec > 60) || sec > 12*3600 || !(x.kg > 0)) return;
+    (v[g] = v[g] || { kg:0, sec:0 }); v[g].kg += x.kg; v[g].sec += sec; v.all.kg += x.kg; v.all.sec += sec; });
+  GRIND_RATE_MEMO = { at:Date.now(), v }; return v; }
+function grindEstSec(g, kg){ const R = grindRates(), r = (R[g] && R[g].sec > 0) ? R[g] : R.all; return r && r.sec > 0 && r.kg > 0 && kg > 0 ? kg / (r.kg / r.sec) : null; }
+function grindTimeTag(d, g, li, gKg){
+  const r = grindTimeRec(d, g), all = li.length && li.every(x=>x.state === "done"), last = li.reduce((m,x)=>String(x.at) > m ? String(x.at) : m, "");
+  const hm = at => { const t = new Date(at); return isNaN(t) ? "" : `${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`; };
+  const leftKg = li.filter(x=>x.state !== "done").reduce((t,x)=>t + x.kg * (x.qty > 0 ? Math.max(0, x.qty - x.doneQty) / x.qty : 1), 0);
+  const est = grindEstSec(g, all ? gKg : leftKg), estT = est != null ? `예상 ${all ? "" : "남은 "}약 ${fmtDur(est)}` : "";
+  const undo = canGrind() && r && !all ? ` <a href="#" onclick="grindStartUndo('${g}');return false" style="font-size:11px;color:var(--soft)" title="시작 시각 지우기">↺</a>` : "";
+  if (r && all && last) return `<span class="tag ok" title="${hm(r.start_at)} ~ ${hm(last)}${r.auto ? " · 시작 미입력 — 첫 완료 체크부터" : ""}">⏱ 소요 ${fmtDur(secOf(r.start_at, last))}${r.auto ? " *" : ""}</span>${est != null && !r.auto ? ` <span class="hint" style="padding:0;font-size:11px">예상 ${fmtDur(est)}</span>` : ""}`;
+  if (r) return `<span class="tag warn" title="${hm(r.start_at)} 시작 · ${r.by||""}${r.auto ? " · 시작 미입력 — 첫 완료 체크부터" : ""}">▶ 진행 ${fmtDur(secOf(r.start_at, nowISO()))}${r.auto ? " *" : ""}</span>${estT ? ` <span class="hint" style="padding:0;font-size:11px">${estT}</span>` : ""}${undo}`;
+  return estT ? `<span class="hint" style="padding:0;font-size:11.5px">⏱ ${estT}</span>` : "";
+}
+function grindTimeTotal(d, its){
+  const gs = [...new Set(its.map(x=>x.grind))]; let act = 0, nAct = 0, est = 0, nEst = 0;
+  gs.forEach(g=>{ const li = its.filter(x=>x.grind===g), r = grindTimeRec(d, g), all = li.every(x=>x.state === "done"), last = li.reduce((m,x)=>String(x.at) > m ? String(x.at) : m, "");
+    if (r) { act += secOf(r.start_at, all && last ? last : nowISO()); nAct++; }
+    const e = grindEstSec(g, li.filter(x=>x.state !== "done").reduce((t,x)=>t+x.kg,0)); if (e != null) { est += e; nEst++; } });
+  return [nAct ? `소요 ${fmtDur(act)}` : "", nEst && est > 0 ? `남은 예상 약 ${fmtDur(est)}` : ""].filter(Boolean).join(" · "); }
+/* ══ 순서 설정 창 — 분쇄도 · 원두 · 중량을 끌어서 (분쇄 화면 + 현장 작업 [자동 정렬]) ══ */
+let GR_ORD = null;
+function editGrindOrder(){
+  if (!can("plan")) return deny("plan");
+  const C = grindCfg(), allB = bnBeansAll();
+  GR_ORD = { tab:"grinds", grinds:[...C.grinds], beans:[...C.beans.filter(b=>allB.includes(b)), ...allB.filter(b=>!C.beans.includes(b))], specs:[...C.specs], first:C.first, beanSet:C.beans.length > 0, specSet:C.specSet };
+  let d = $("chOrdDlg");
+  if (!d) { d = document.createElement("div"); d.id = "chOrdDlg"; d.addEventListener("click", e=>{ if (e.target === d) closeChOrder(); }); document.body.appendChild(d); }
+  renderGrindOrder();
+}
+function renderGrindOrder(){
+  const d = $("chOrdDlg"); if (!d || !GR_ORD) return;
+  const t = GR_ORD.tab, list = GR_ORD[t], keep = d.querySelector("#grOrdList")?.scrollTop || 0;
+  const lab = v => t === "specs" ? specLabel(Number(v)) : xh(v);
+  const TABS = [["grinds","분쇄도"],["beans","원두"],["specs","중량"]];
+  d.innerHTML = `<div class="mbox" style="width:460px;max-height:92vh">
+    <div class="mh"><b>순서 설정 — 분쇄도 · 원두 · 중량</b><button class="x" onclick="closeChOrder()" title="닫기">✕</button></div>
+    <div class="mt hint">줄을 잡고 끌어 옮기거나 ▲▼ 를 누르십시오. 위에 있는 것부터 먼저입니다. <b>분쇄 화면</b>은 분쇄도 → (원두 · 중량) 순서로 보이고, <b>현장 작업 [자동 정렬]</b>에는 중량 · 분쇄도 순서가 반영됩니다 (현장 작업의 원두 순서는 [원두 순서]에서 설비별로 정합니다).</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 10px">${TABS.map(([k,n])=>`<button class="btn ${k===t?"primary":""}" style="height:34px" onclick="grOrdTab('${k}')">${n}</button>`).join("")}</div>
+    <label style="display:flex;gap:8px;align-items:center;padding:0 16px 10px;font-size:12.5px;font-weight:700">분쇄 화면에서 묶는 순서
+      <select onchange="grOrdFirst(this.value)" style="height:32px"><option value="bean" ${GR_ORD.first==="bean"?"selected":""}>분쇄도 → 원두 → 중량</option><option value="spec" ${GR_ORD.first==="spec"?"selected":""}>분쇄도 → 중량 → 원두</option></select></label>
+    <div class="col" id="grOrdList" style="overflow:auto;flex:1 1 auto;max-height:50vh">${list.map((v,i)=>`<div class="cor" data-c="${xh(v)}">
+      <span class="grip" title="끌어서 옮기기">☰</span><span class="no">${i+1}</span><span class="nm"><b>${lab(v)}</b></span>
+      <button class="btn" data-nodrag onclick="grOrdMove(${i},-9999)" ${i===0?"disabled":""} title="맨 위로">⤒</button><button class="btn" data-nodrag onclick="grOrdMove(${i},-1)" ${i===0?"disabled":""} title="위로">▲</button><button class="btn" data-nodrag onclick="grOrdMove(${i},1)" ${i===list.length-1?"disabled":""} title="아래로">▼</button></div>`).join("")}</div>
+    <div class="mf"><button class="btn" onclick="grOrdReset()" title="이 항목을 기본 순서로 되돌립니다">${TABS.find(x=>x[0]===t)[1]} 기본 순서로</button><span style="flex:1"></span><button class="btn" onclick="closeChOrder()">취소</button><button class="btn primary" onclick="grOrdSave()">저장</button></div>
+  </div>`;
+  const L = $("grOrdList"); L.scrollTop = keep;
+  L.querySelectorAll(".cor").forEach(row=>row.addEventListener("pointerdown", e=>chOrdDrag(e, row, ids=>{ GR_ORD[t] = t === "specs" ? ids.map(Number) : ids; if (t === "beans") GR_ORD.beanSet = true; if (t === "specs") GR_ORD.specSet = true; renderGrindOrder(); })));
+}
+function grOrdTab(t){ if (!GR_ORD) return; GR_ORD.tab = t; const L = $("grOrdList"); if (L) L.scrollTop = 0; renderGrindOrder(); }
+function grOrdFirst(v){ if (GR_ORD) GR_ORD.first = v === "spec" ? "spec" : "bean"; }
+function grOrdMove(i, by){ if (!GR_ORD) return; const t = GR_ORD.tab, a = GR_ORD[t], j = Math.max(0, Math.min(a.length-1, i + by)); if (j === i) return;
+  const [x] = a.splice(i, 1); a.splice(j, 0, x); if (t === "beans") GR_ORD.beanSet = true; if (t === "specs") GR_ORD.specSet = true; renderGrindOrder(); }
+function grOrdReset(){ if (!GR_ORD) return; const t = GR_ORD.tab;
+  if (t === "grinds") GR_ORD.grinds = [...GRIND_ORDER_DEF]; else if (t === "specs") { GR_ORD.specs = [...SPEC_ORDER_DEF]; GR_ORD.specSet = false; } else { GR_ORD.beans = bnBeansAll(); GR_ORD.beanSet = false; }
+  renderGrindOrder(); }
+function grOrdSave(){
+  if (!GR_ORD) return; const c = beanCfg();
+  c.grind_cfg = { grinds:[...GR_ORD.grinds], beans: GR_ORD.beanSet ? [...GR_ORD.beans] : [], specs: GR_ORD.specSet ? GR_ORD.specs.map(Number) : [], first:GR_ORD.first };
+  GR_ORD = null; saveBeanCfg(c); closeChOrder();
+  toast(`순서 저장 — 분쇄도 ${c.grind_cfg.grinds.slice(0,3).join(" → ")}… · 현장 작업은 [자동 정렬]을 누르면 반영됩니다`);
 }
 function renderGrindWork(){
   const box = $("grindWork"); if (!box) return;
@@ -10190,9 +10319,11 @@ function renderGrindWork(){
   const pct = ea ? Math.round(eaDone/ea*100) : 0;
   $("grindWorkSum").innerHTML = nAll ? `<span class="tag">${d === T ? "오늘" : d.slice(5).replace("-","/")}</span> <span class="tag">${fmt(ea)}개 · ${fmt(kg)}kg</span> <span class="tag ${nDone === nAll ? "ok" : "warn"}">완료 ${nDone} / ${nAll}품목 · ${pct}%</span>` : "";
   $("grindWorkTools").innerHTML = nAll ? (GRIND_WHO && Date.now() - GRIND_WHO.at < GRIND_WHO_MS ? `<span class="hint" style="padding:0">작업자 <b>${xh(GRIND_WHO.name)}</b></span><button class="btn" style="height:30px;font-size:12px" onclick="grindWhoReset()">작업자 변경</button>` : "") +
-    `<label class="hint" style="padding:0;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" ${GRIND_HIDE_DONE?"checked":""} onchange="grindHideDone(this.checked)">완료 숨기기</label>` : "";
+    `<label class="hint" style="padding:0;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" ${GRIND_HIDE_DONE?"checked":""} onchange="grindHideDone(this.checked)">완료 숨기기</label>` +
+    (can("plan") ? `<button class="btn" style="height:30px;font-size:12px" onclick="editGrindOrder()" title="분쇄도 · 원두 · 중량 순서를 끌어서 정합니다">순서 설정</button>` : "") : (can("plan") ? `<button class="btn" style="height:30px;font-size:12px" onclick="editGrindOrder()">순서 설정</button>` : "");
+  { const tt = grindTimeTotal(d, its); if (nAll && tt) $("grindWorkSum").innerHTML += ` <span class="tag" title="분쇄도별 [분쇄 시작] ~ 마지막 완료 체크">⏱ ${tt}</span>`; }
   if (!nAll) { box.innerHTML = `<div class="wempty" style="margin:0">${d} 분쇄할 품목이 없습니다<br><span>플토 엑셀을 [엑셀 업로드]로 등록하면 분쇄 SKU가 분쇄도별 카드로 표시됩니다</span></div>`; return; }
-  const grinds = GRIND_ORDER.filter(g=>its.some(x=>x.grind===g)).concat([...new Set(its.map(x=>x.grind))].filter(g=>!GRIND_ORDER.includes(g)));
+  const GO = grindOrd(), grinds = GO.filter(g=>its.some(x=>x.grind===g)).concat([...new Set(its.map(x=>x.grind))].filter(g=>!GO.includes(g)));
   const can1 = canGrind();
   const hhmm = at => { const t = new Date(at); return isNaN(t) ? "" : `${String(t.getHours()).padStart(2,"0")}:${String(t.getMinutes()).padStart(2,"0")}`; };
   box.innerHTML = `<div class="gwrap">${grinds.map(g=>{
@@ -10202,6 +10333,8 @@ function renderGrindWork(){
     return `<div class="ggrp ${all?"alldone":""}">
       <div class="ggrp-h"><span class="gname">${g}</span><span class="tag">${fmt(gEa)}개 · ${fmt(gKg)}kg</span>
         <span class="gcnt ${all?"ok":""}">${all ? "✓ 모두 완료" : `완료 ${dn} / ${li.length}`}</span>
+        ${grindTimeTag(d, g, li, gKg)}
+        ${can1 && !all && !grindTimeRec(d, g) ? `<button class="btn primary" style="height:30px;font-size:12px" onclick="grindStart('${g}')" title="누른 시각부터 이 분쇄도의 작업 소요시간을 잽니다">▶ 분쇄 시작</button>` : ""}
         ${can1 && !all ? `<button class="btn" style="height:30px;font-size:12px" onclick="grindMark('${g}', '', true)" title="이 분쇄도의 남은 품목을 모두 분쇄 완료로 표시합니다">전체 완료</button>` : ""}</div>
       <div class="gbar"><i style="width:${gPct}%"></i></div>
       ${shown.map(x=>`<div class="gi ${x.state}">
@@ -10260,7 +10393,7 @@ function renderGrindCharts(){
   const kgs = days.map(d=>r1(rows.filter(t=>t.date===d).reduce((t,x)=>t+grindKgOf(x),0)));
   const on = kgs.filter(v=>v > 0), avg = on.length ? r1(on.reduce((t,v)=>t+v,0)/on.length) : 0;
   const mk = monthKey(T), mo = rows.filter(t=>monthKey(t.date)===mk);
-  const gs = GRIND_ORDER.filter(g=>mo.some(t=>t.grind===g)).concat([...new Set(mo.map(t=>t.grind))].filter(g=>!GRIND_ORDER.includes(g)));
+  const GO = grindOrd(), gs = GO.filter(g=>mo.some(t=>t.grind===g)).concat([...new Set(mo.map(t=>t.grind))].filter(g=>!GO.includes(g)));
   if ($("grindShareLb")) $("grindShareLb").textContent = `${Number(mk.slice(5))}월 · 합계 ${fmt(r1(mo.reduce((t,x)=>t+grindKgOf(x),0)))}kg`;
   const blue = "#3B6CF6", soft = "#9AA4B8";
   draw([
@@ -10341,7 +10474,7 @@ function renderGrind(){
   const prods = {}; rows.forEach(r=>{ const k = key(r); if (!prods[k]) prods[k] = { p: prodById(r.product_id), name:r.product_name, bean:r.bean, spec:Number(r.spec_g)||0, code:liveCode(prodById(r.product_id), r.product_code), g:{}, tot:0 };
     prods[k].g[r.grind] = (prods[k].g[r.grind]||0) + Number(r.qty||0); prods[k].tot += Number(r.qty||0); });
   const list = Object.values(prods).sort((a,b)=>prodCodeCmp(a.p||{code:a.code,name:a.name}, b.p||{code:b.code,name:b.name}));
-  const grinds = GRIND_ORDER.filter(g=>rows.some(r=>r.grind===g)).concat([...new Set(rows.map(r=>r.grind))].filter(g=>!GRIND_ORDER.includes(g)));
+  const GO = grindOrd(), grinds = GO.filter(g=>rows.some(r=>r.grind===g)).concat([...new Set(rows.map(r=>r.grind))].filter(g=>!GO.includes(g)));
   if ($("asof-grind")) $("asof-grind").textContent = ` ${d}`;
   if (!list.length) { $("grindTbl").innerHTML = `<tbody><tr><td class="c hint" style="padding:18px">${d} 분쇄 집계가 없습니다 — 플토 엑셀을 [엑셀 업로드]로 등록하면 분쇄 SKU 행이 이 화면에 누적됩니다</td></tr></tbody>`; $("grindLog").innerHTML = ""; if ($("grindSku")) $("grindSku").innerHTML = ""; return; }
   /* 마스터파일 분쇄 옵션 — SKU별 (원래 SKU코드·상품명 그대로) */
@@ -21914,12 +22047,23 @@ function workTime(o){
   return { start:st, end, elapsed, pause, active: Math.max(0, elapsed - pause), running: !o.done_at };
 }
 const openWorkers = o => DB.order_workers.filter(w=>w.order_id===o.id && !w.out_at).map(w=>w.worker_name);
+/* ★ 2026-11-19 예상 소요시간 — 최근 90일 생산속도(설비 × 규격, 없으면 규격, 없으면 전체)로 남은 수량을 나눈다 · 속도는 60초 동안 기억 */
+let CAPA_MEMO = { at:0, m:{} };
+function capaMemo(machine, spec){ if (Date.now() - CAPA_MEMO.at > 60000) CAPA_MEMO = { at:Date.now(), m:{} };
+  const k = `${machine}|${spec}`; if (!(k in CAPA_MEMO.m)) { try { CAPA_MEMO.m[k] = recentCapa(machine, spec); } catch(_){ CAPA_MEMO.m[k] = null; } } return CAPA_MEMO.m[k]; }
+function ordEst(o){ const p = prodById(o?.product_id), spec = Number(p?.spec_g ?? o?.product_spec) || 0; if (!p || !spec) return null;
+  const c = capaMemo(o.machine||"", spec); if (!c || !c.S || !(c.S.kgph > 0)) return null;
+  const todo = Math.max(0, Math.round(ordPlan(o) - Number(o.qty_done||0))); if (!todo) return null;
+  return { sec: todo * spec / 1000 / c.S.kgph * 3600, src:c.src, kgph:c.S.kgph, n:c.n, todo }; }
+function ordEstLine(o){ const e = ordEst(o); if (!e) return "";
+  return `<div class="meta" style="margin-top:4px"><span class="tag" title="최근 90일 ${e.src} ${e.n}건 · ${fmt(e.kgph)}kg/h 기준">⏱ 예상 약 ${fmtDur(e.sec)}</span> <span class="hint" style="padding:0;font-size:11px">${fmt(e.todo)}개 · 최근 ${e.src} 속도</span></div>`; }
 function workTimeLine(o){
   const t = workTime(o), ws = openWorkers(o);
   const st = o.paused_at ? `<span class="tag bad">⏸ 정지 중 — ${o.pause_reason||""} (${fmtDur(secOf(o.paused_at, nowISO()))})</span>` : `<span class="tag ok">▶ 생산 ${t?fmtDur(t.active):"—"}</span>`;
   const pz = t && t.pause ? ` <span class="hint" style="padding:0">중단 ${fmtDur(t.pause)}</span>` : "";
   const who = ws.length ? `<b>${ws.join(", ")}</b>` : `<span class="hint" style="padding:0">${o.started_by||"—"}</span>`;
-  return `<div class="meta" style="margin-top:4px">${st}${pz} · 참여 ${who}</div>`;
+  const e = ordEst(o), est = e ? ` <span class="hint" style="padding:0" title="최근 90일 ${e.src} ${e.n}건 · ${fmt(e.kgph)}kg/h 기준">· 남은 예상 약 ${fmtDur(e.sec)}</span>` : "";
+  return `<div class="meta" style="margin-top:4px">${st}${pz}${est} · 참여 ${who}</div>`;
 }
 async function pauseWork(id){
   if (!(await requireUser({ ask:"일시정지" }))) return;
@@ -22990,7 +23134,7 @@ async function sortOrdersBySpec(d, opt = {}){
   const machines = [...new Set(open.map(o=>o.machine||""))];
   const rows = [];
   machines.forEach(m=>{
-    const bo = beanOrdOf(m);                                       // ★ 2026-11-19 이 설비에 정해 둔 원두 순서 (없으면 null)
+    const bo = beanOrdOf(m), GC = grindCfg();                      // ★ 2026-11-19 이 설비에 정해 둔 원두 순서 (없으면 null) · 중량 · 분쇄도 순서
     open.filter(o=>(o.machine||"")===m).sort((a,b)=>{
       const ra = a.status==="생산중" ? 0 : 1, rb = b.status==="생산중" ? 0 : 1;
       if (ra !== rb) return ra - rb;                               // 하고 있는 건 그대로 맨 위
@@ -23001,11 +23145,11 @@ async function sortOrdersBySpec(d, opt = {}){
       const pa = prodById(a.product_id), pb = prodById(b.product_id);
       if (bo && bo.first) { const r = bo.rank(pa?.bean) - bo.rank(pb?.bean); if (r) return r; }   // 원두 순서를 규격보다 먼저
       const sa = bucketOf(specOf(a)||100), sb2 = bucketOf(specOf(b)||100);
-      if (sa !== sb2) return asc ? sa - sb2 : sb2 - sa;
+      if (sa !== sb2) return GC.specSet ? specRankG(sa, GC) - specRankG(sb2, GC) : (asc ? sa - sb2 : sb2 - sa);   // 중량 순서를 정해 두었으면 그 순서
       const bn = (bo ? bo.rank(pa?.bean) - bo.rank(pb?.bean) : 0) || beanCodeCmp(pa?.bean||"", pb?.bean||"");
       if (bn) return bn;                                           // 같은 원두는 붙여서 (MMS 코드순) — 청소·교체 줄이기
-      const ga = (pa?.grind||"홀빈")==="홀빈" ? 0 : 1, gb = (pb?.grind||"홀빈")==="홀빈" ? 0 : 1;
-      if (ga !== gb) return ga - gb;                               // 홀빈 먼저, 분쇄는 뒤
+      const ga = grindRank(pa?.grind), gb = grindRank(pb?.grind);
+      if (ga !== gb) return ga - gb;                               // 홀빈 먼저, 분쇄는 정해 둔 분쇄도 순서 (에스프레소 → 모카 → 더치 → 핸드 → 커피)
       return (Number(a.batch_seq)||0) - (Number(b.batch_seq)||0) || byPriority(a,b);
     }).forEach((o,k)=>{ if (Number(o.priority) !== k+1) rows.push({ id:o.id, priority:k+1 }); });
   });
@@ -23138,6 +23282,7 @@ function renderWork(){
     (canEdit ? `<button class="btn" onclick="sortOrdersBySpec($('wkDate').value||today())"
        title="설비별로 ① 준비 완료 건(원두·라벨·봉투 확보) 우선 ② 채널 순서 ③ 규격순 ④ 동일 원두 묶음 — 작업 순서를 일괄 재지정합니다. 원두가 없는 지시는 최하단으로 이동합니다">자동 정렬 (준비 → 채널 → ${specDir()==="asc"?"100g→1kg":"1kg→100g"})</button>` : "") +
     (can("plan") ? `<button class="btn" onclick="editChOrder()" title="자동 정렬 시 우선 작업할 채널 순서">채널 순서: ${beanCfg().ch_order.slice(0,3).join(" → ")}…</button>` : "") +
+    (can("plan") ? `<button class="btn" onclick="editGrindOrder()" title="분쇄도 · 중량 순서를 끌어서 정합니다 — [자동 정렬]에 반영됩니다">분쇄도 · 중량 순서</button>` : "") +
     (can("plan") ? `<button class="btn" onclick="editBeanOrder()" title="설비마다 원두 작업 순서를 직접 정합니다 — [자동 정렬]을 누르면 반영됩니다">원두 순서${(()=>{ const n = Object.keys(beanCfg().bean_order).length; return n ? `: ${n}개 설비 지정` : ": 설비별 지정"; })()}</button>` : "") +
     (mixedAll.length && can("plan") ? `<button class="btn primary" onclick="splitAllOrders()"
        title="여러 배치가 묶인 지시를 배치별 1건씩으로 분할합니다">배치별 분할 ${mixedAll.length}건</button>` : "") +
@@ -23290,7 +23435,7 @@ function renderWork(){
                 : `<button class="go" onclick="startWork('${o.id}')">생산 시작</button>`; })())
           : `<button class="go" onclick="finishWork('${o.id}')">생산 완료</button>`}
       </div>
-      ${run ? workTimeLine(o) : ""}
+      ${run ? workTimeLine(o) : (o.status === "대기" ? ordEstLine(o) : "")}
       <div class="btns sm">
         <button onclick="ngWork('${o.id}')">부적합 등록</button>
         ${o.status==="대기" ? "" : (o.paused_at ? `<button onclick="resumeWork('${o.id}')" style="color:var(--ok);font-weight:800">▶ 작업 재개</button>` : `<button onclick="pauseWork('${o.id}')" title="일시정지 — 휴식·설비 이상 등. [작업 재개]를 누르면 이어서 진행됩니다">⏸ 일시정지</button>`)}
@@ -23358,6 +23503,7 @@ function renderWork(){
         ${(()=>{ const cs = {}; g.items.filter(o=>stIdx(o)<2).forEach(o=>{ const c = ordCh(o); cs[c] = (cs[c]||0)+1; });
           const ks = Object.keys(cs).sort((a,b)=>chRank(a)-chRank(b)); return ks.length > 1 ? ks.map(c=>`<span style="margin-left:2px">${chChip(c)}<b>${cs[c]}</b></span>`).join("") : ""; })()}
         ${(()=>{ const n = g.items.filter(o=>ordReady(o).beanNone).length, n2 = g.items.filter(o=>{ const r = ordReady(o); return !r.beanNone && (r.labelNone || r.bagNone); }).length; return (n ? `<span class="tag bad">원두 없음 ${n}건</span>` : "") + (n2 ? ` <span class="tag bad">라벨 · 봉투 미입고 ${n2}건</span>` : ""); })()}
+        ${(()=>{ let s = 0, k = 0; g.items.forEach(o=>{ const e = ordEst(o); if (e) { s += e.sec; k++; } }); return k ? `<span class="tag" title="남은 지시 ${k}건을 최근 생산속도로 계산한 시간 (중단 제외)">⏱ 남은 예상 약 ${fmtDur(s)}</span>` : ""; })()}
         <span class="r">지시 <b>${fmt(ea)}</b>개 · 생산 <b>${fmt(madeEa)}</b>개${
           bund?` · 라벨 <b>${bund}</b>묶음`:""}${
           lack.length?` · <span class="bad">라벨 부족 ${lack.length}건</span>`:""}</span>
