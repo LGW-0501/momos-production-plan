@@ -1813,6 +1813,36 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
 #personalLoginGate .pl-note{margin-top:13px;padding-top:13px;border-top:1px solid var(--d-line,#E4E7EE);color:var(--d-soft,#6E7585);
  font-size:11.5px;line-height:1.6}
 
+/* ★ 2026-11-20 메뉴 쪽이 좌우로 움직이지 않게 (Lee "메뉴쪽 보며 좌우로 같이 움직이는데 고정 해줘")
+   ① 페이지 자체는 어떤 배치에서도 옆으로 밀리지 않는다 — 넓은 표는 그 표 상자 안에서만 옆으로 민다
+      html 은 옆으로 넘친 것을 숨기고 body 는 잘라낸다(clip). clip 은 body 를 "스크롤 상자"로 만들지 않아서 위쪽 띠 · 왼쪽 메뉴의 제자리 고정(sticky)이 그대로 산다
+      (전에는 좁은 화면(760px 이하)에서 body 가 스크롤 상자가 되어, 화면을 내리면 위쪽 띠가 같이 올라가 버렸다)
+   ② 끝에서 더 밀 때 화면 전체가 고무줄처럼 끌려가는 것 · 두 손가락으로 옆으로 밀면 "뒤로 가기"가 되는 것을 막는다 — 메뉴까지 같이 끌려가 보이던 원인
+   ③ 왼쪽 메뉴는 옆으로 움직이지 않고, 스크롤 막대가 생겼다 없어졌다 하며 너비가 바뀌지도 않는다 (막대는 숨기고 휠 · 두 손가락 · 손끝으로 넘긴다)
+   ④ 마우스 · 트랙패드를 쓰는 기기 — 페이지 스크롤 막대 자리를 늘 잡아 둔다 (화면이 짧았다 길었다 할 때 위쪽 띠 · 탭 줄의 오른쪽 단추가 좌우로 밀리던 것) */
+@media screen{
+  html{overflow-x:hidden; overscroll-behavior-x:none;}
+  body{overflow-x:clip; overscroll-behavior-x:none;}
+  .gnb{overflow-x:hidden; scrollbar-width:none;}
+  .gnb::-webkit-scrollbar{width:0; height:0; display:none;}
+  .panel-b{overscroll-behavior-x:contain;}
+}
+@media screen and (hover:hover) and (pointer:fine){
+  html{overflow-y:scroll; overscroll-behavior-y:none;}
+}
+@media screen and (max-width:760px){
+  html{max-width:none;}                         /* 글자 크기 115 · 130% 일 때 화면이 그 배율만큼 좁아져 오른쪽이 비던 것 (html 은 배율이 안 걸리는데 배율로 나눈 폭을 줘서 생긴 일 — 폭 제한은 body 쪽만으로 충분하다) */
+  #tabBar{left:0;}                              /* 좁은 창에서는 왼쪽 메뉴가 서랍이라 자리를 차지하지 않는다 — 탭 줄을 왼쪽 끝부터 */
+  table thead th .grip{display:none;}           /* 표 머리가 고정이 아닌 배치에서는 열 너비 손잡이가 표 밖(화면 오른쪽 끝)으로 나가 페이지를 3px 넓혔다 */
+}
+/* 화면이 확대된 채 남아 있을 때의 안내 — 두 손가락 확대(핀치)를 하면 메뉴까지 화면 전체가 상하좌우로 움직인다. 막을 수는 없어서 알려 준다 */
+#zoomTip{position:fixed; z-index:2147483000; left:0; top:0; max-width:340px; padding:9px 12px 9px 13px; border-radius:11px; background:#1B2550; color:#fff;
+  font-family:"Pretendard Variable",Pretendard,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; font-size:12.5px; font-weight:600; line-height:1.5; letter-spacing:-.2px; box-shadow:0 10px 30px rgba(10,16,40,.35); display:flex; gap:10px; align-items:flex-start; transform-origin:0 0;}
+#zoomTip b{color:#FFD466;}
+#zoomTip button{flex:none; width:24px; height:24px; border-radius:50%; border:none; background:rgba(255,255,255,.16); color:#fff; font:inherit; font-size:12px; cursor:pointer; line-height:1;}
+@media print{ #zoomTip{display:none !important;} }
+
+
 </style>
 </head>
 <body>
@@ -8220,6 +8250,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-20", "메뉴 쪽이 좌우로 움직이지 않게 고정", "화면 전체가 옆으로 밀리거나 끌려가면서 위쪽 띠 · 탭 줄 · 왼쪽 메뉴까지 같이 움직이던 것을 막았습니다 · 페이지 자체는 옆으로 밀리지 않고, 넓은 표만 그 표 안에서 옆으로 움직입니다 · 두 손가락으로 옆으로 밀 때 화면이 끌려가거나 뒤로 가기가 되던 것도 막았습니다 · 왼쪽 메뉴는 스크롤 막대가 생겨도 너비가 바뀌지 않습니다 · 창을 좁게 줄였을 때(760px 이하)도 위쪽 띠와 탭 줄이 화면 위에 그대로 있고, 탭 줄 왼쪽의 빈칸이 없어졌습니다 · 화면이 두 손가락 확대된 채 남아 있으면 왼쪽 아래에 안내가 뜹니다"],
   ["2026-11-19", "탭 줄이 위쪽 바에 가려지던 것 수정", "위쪽 남색 바 바로 아래의 탭 줄(대시보드 · 검수 · 현장 작업 …)이 바 밑으로 들어가 윗부분이 잘려 보이던 것을 고쳤습니다 · 탭 줄을 위쪽 바에 붙여서, 글자 크기 배율이나 브라우저가 달라도 항상 바 바로 아래에 옵니다"],
   ["2026-11-19", "기준정보 나머지 탭 간략하게 · 속도 설정 다섯 번째", "① 부자재 재고(10칸 → 8칸) · 설비(16칸 → 7칸) · 원두별 설정(12칸 → 7칸)도 평소에는 핵심 칸만 보입니다 — 표 위 [모든 칸 보기]로 전부 (기기마다 기억) · ② 품목 탭의 CFE코드 엑셀 등록 · 빈 코드 자동생성, 부자재 재고 탭의 표준 자재 등록 · 품목별 라벨 생성 · 코드 맞추기는 [도구 ▾] 안으로 · ③ 속도 설정에 「저장 · 입고 뒤에 모든 화면을 한꺼번에 그리지 않기」 추가 (기본 꺼짐) — 켜면 지금 보는 화면만 바로 그리고 나머지는 쉬는 틈에 그립니다 · 기능은 지운 것이 없습니다"],
   ["2026-11-19", "기준정보 › 원두 · MMS코드 탭 간략하게", "가끔 쓰는 버튼 7개(열 너비 초기화 · 원두 마스터 재등록 · 완제품 자동 추가 · 중복 품목 정리 · MMS코드 엑셀 등록 · 원두 마스터 엑셀 등록 · 머신 종류 기준 설정)를 [도구 ▾] 안으로 모았습니다 · 표는 평소 핵심 칸만 보입니다 (상태 · MMS 코드 · 원두명 · 컬러 · 품목보고번호 · 원산지 · 처리) — [모든 칸 보기]로 로스터기 · 적요 · 출시일 · 종료일 · 재고 · 배치 수 · 연결 완제품까지 · 기기마다 기억합니다"],
@@ -9272,6 +9303,29 @@ function mFoldConds(){
 try { mFoldConds(); } catch(e){ console.warn(e); }
 try { PHONE_MQ && PHONE_MQ.addEventListener("change", ()=>{ try { const s = document.querySelector(".screen.on")?.id?.replace(/^s-/, ""); if (s) render(s); } catch(e){ console.warn(e); } }); } catch(_){ errQuiet(_); }
 
+/* ★ 2026-11-20 화면이 확대된 채 남아 있으면 알려 준다 (Lee "메뉴쪽 보며 좌우로 같이 움직이는데")
+   트랙패드에서 두 손가락을 벌리면(핀치) 화면이 조금 확대되는데, 그 상태에서는 위쪽 띠 · 왼쪽 메뉴까지 화면 전체가 상하좌우로 같이 움직인다 — 브라우저 기능이라 막을 수 없다
+   마우스 · 트랙패드를 쓰는 기기에서만, 확대된 동안만 작은 안내를 보인다 (손끝으로 확대해 보는 휴대폰 · 태블릿에서는 띄우지 않는다) */
+let ZOOM_TIP_OFF = false;
+function zoomTipCheck(){
+  try {
+    const vv = window.visualViewport; if (!vv || EMBED) return;
+    const fine = window.matchMedia && window.matchMedia("(hover:hover) and (pointer:fine)").matches;
+    const sc = vv.scale || 1, on = fine && sc > 1.02;
+    let t = $("zoomTip");
+    if (!on) { if (t) t.remove(); if (sc <= 1.02) ZOOM_TIP_OFF = false; return; }
+    if (ZOOM_TIP_OFF) return;
+    if (!t) { t = document.createElement("div"); t.id = "zoomTip"; t.setAttribute("role", "status");
+      t.innerHTML = `<span>화면이 <b></b> 확대돼 있습니다. 이 상태에서는 메뉴까지 화면 전체가 좌우로 움직입니다 — <b>두 손가락을 오므리거나 새로고침</b>하면 원래대로 돌아옵니다</span><button type="button" title="닫기" aria-label="닫기">✕</button>`;
+      t.querySelector("button").onclick = () => { ZOOM_TIP_OFF = true; t.remove(); };
+      document.documentElement.appendChild(t); }        // body 밖(글자 크기 배율과 무관한 자리)에 붙인다
+    t.querySelector("b").textContent = Math.round(sc * 100) + "%";
+    // 지금 보이는 부분(확대된 창)의 왼쪽 아래에 — 확대 배율만큼 줄여서 글자 크기는 평소대로
+    const k = 1 / sc, h = t.offsetHeight * k;
+    t.style.transform = `translate(${vv.offsetLeft + 10 * k}px, ${vv.offsetTop + vv.height - h - 10 * k}px) scale(${k})`;
+  } catch(_){ errQuiet(_); }
+}
+try { if (window.visualViewport) { window.visualViewport.addEventListener("resize", zoomTipCheck); window.visualViewport.addEventListener("scroll", zoomTipCheck); } } catch(_){ errQuiet(_); }
 /* ══ 모바일 보기 — 태블릿·휴대폰 배치. 한 번 켜면 그 기기가 기억한다.
    처음 열 때 화면이 1100px 보다 좁으면(태블릿) 저절로 켠다. */
 function applyMobile(on){
