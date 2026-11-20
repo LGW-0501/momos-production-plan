@@ -776,6 +776,8 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   .selbar{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 14px;
     border-bottom:1px solid var(--line); font-size:13px;}
   .selbar .n{font-weight:800;}
+  .selbar .selmove{display:inline-flex; align-items:center; gap:4px; padding-left:8px; margin-left:2px; border-left:1px solid var(--line);}
+  .selbar .selmove select{height:30px; font-weight:700; max-width:170px;}
   /* 규격 표시 — 1kg / 500g / 200g / 100g 를 색으로 한눈에 */
   .specb{display:inline-flex; align-items:center; justify-content:center; flex:none;
     min-width:44px; height:24px; padding:0 7px; margin-right:6px; border-radius:6px;
@@ -8250,6 +8252,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-20", "작업지시 — 여러 건 골라 설비 한 번에 이동", "작업지시 목록에서 줄 왼쪽 체크박스로 여러 건을 고르면(Shift+클릭 = 구간 전체) 선택 줄에 [옮길 설비 선택] · [선택 설비 이동]이 나옵니다 — 수동 → 리팩, 리팩 → 수동처럼 한 번에 옮깁니다 · 대기 지시만 옮기고, 생산이 시작된 지시 · 이미 그 설비인 지시 · 그 설비로 만들 수 없는 품목(이카전용 · 분쇄 불가 · 그 규격 속도 0)은 제외하고 건수를 알려 줍니다 · 옮긴 지시는 옮겨 간 설비의 맨 뒤에 순서대로 붙고 일련번호 · 배치 · 라벨은 그대로 · 줄마다 설비 칸에서 한 건씩 바꾸는 것도 전과 같습니다"],
   ["2026-11-20", "메뉴 쪽이 좌우로 움직이지 않게 고정", "화면 전체가 옆으로 밀리거나 끌려가면서 위쪽 띠 · 탭 줄 · 왼쪽 메뉴까지 같이 움직이던 것을 막았습니다 · 페이지 자체는 옆으로 밀리지 않고, 넓은 표만 그 표 안에서 옆으로 움직입니다 · 두 손가락으로 옆으로 밀 때 화면이 끌려가거나 뒤로 가기가 되던 것도 막았습니다 · 왼쪽 메뉴는 스크롤 막대가 생겨도 너비가 바뀌지 않습니다 · 창을 좁게 줄였을 때(760px 이하)도 위쪽 띠와 탭 줄이 화면 위에 그대로 있고, 탭 줄 왼쪽의 빈칸이 없어졌습니다 · 화면이 두 손가락 확대된 채 남아 있으면 왼쪽 아래에 안내가 뜹니다"],
   ["2026-11-19", "탭 줄이 위쪽 바에 가려지던 것 수정", "위쪽 남색 바 바로 아래의 탭 줄(대시보드 · 검수 · 현장 작업 …)이 바 밑으로 들어가 윗부분이 잘려 보이던 것을 고쳤습니다 · 탭 줄을 위쪽 바에 붙여서, 글자 크기 배율이나 브라우저가 달라도 항상 바 바로 아래에 옵니다"],
   ["2026-11-19", "기준정보 나머지 탭 간략하게 · 속도 설정 다섯 번째", "① 부자재 재고(10칸 → 8칸) · 설비(16칸 → 7칸) · 원두별 설정(12칸 → 7칸)도 평소에는 핵심 칸만 보입니다 — 표 위 [모든 칸 보기]로 전부 (기기마다 기억) · ② 품목 탭의 CFE코드 엑셀 등록 · 빈 코드 자동생성, 부자재 재고 탭의 표준 자재 등록 · 품목별 라벨 생성 · 코드 맞추기는 [도구 ▾] 안으로 · ③ 속도 설정에 「저장 · 입고 뒤에 모든 화면을 한꺼번에 그리지 않기」 추가 (기본 꺼짐) — 켜면 지금 보는 화면만 바로 그리고 나머지는 쉬는 틈에 그립니다 · 기능은 지운 것이 없습니다"],
@@ -17829,9 +17832,11 @@ function selBar(t){
     ? `<span class="n">선택 ${n}개</span>
        <button class="btn danger" onclick="delSelected('${t}')">선택 삭제</button>
        ${t==="products" ? `<button class="btn" onclick="offSelected()">선택 사용중지</button>` : ""}
+       ${t==="orders" ? `<span class="selmove"><select id="woMoveTo" onchange="WO_MOVE_TO = this.value" title="선택한 지시를 옮길 설비"><option value="">옮길 설비 선택</option>${
+           DB.machines.map(m=>`<option ${m.name===WO_MOVE_TO?"selected":""}>${xh(m.name)}</option>`).join("")}</select><button class="btn primary" onclick="moveSelectedOrders()" title="선택한 대기 지시를 고른 설비로 한 번에 옮깁니다 — 생산이 시작된 지시는 제외">선택 설비 이동</button></span>` : ""}
        ${t==="materials" && n>=2 ? `<button class="btn primary" onclick="mergeSelectedMaterials()" title="선택한 행을 하나로 병합합니다 — 재고 합산, 이력·LOT·연결은 모두 대표 행으로 이관">선택 병합 (${n}행 → 1행)</button>` : ""}
        <button class="btn" onclick="selClear('${t}')">선택 해제</button>`
-    : `<span class="hint" style="padding:0">행 왼쪽 체크박스로 여러 건을 선택하여 일괄 삭제할 수 있습니다 · Shift+클릭 = 구간 전체</span>`)
+    : `<span class="hint" style="padding:0">행 왼쪽 체크박스로 여러 건을 선택하여 ${t==="orders" ? "설비를 한 번에 옮기거나 " : ""}일괄 삭제할 수 있습니다 · Shift+클릭 = 구간 전체</span>`)
     + (t==="tallies"
       ? `<button class="btn" style="margin-left:auto" onclick="selOrphan()" title="품목 삭제로 '이전 기록'으로 남은 행">이전 기록 행 선택</button>`
       : (t==="products" || t==="beans")
@@ -21645,6 +21650,56 @@ async function delOrder(id){
   const r = await mesDeleteOrder({ order_id:id, idem:`od-${id}-${uid()}` });
   if (!r || !r.ok) { renderAll(); return toast(r?.message || "삭제하지 못했습니다"); }
   renderAll(); toast("삭제했습니다");
+}
+
+/* ★ 2026-11-20 작업지시 — 여러 건을 골라 설비를 한 번에 옮기기 (Lee "여러개 선택하여 수동 > 리팩 / 리팩 > 수동 … 지금은 하나하나 선택")
+   · 대기 지시만 옮긴다 (생산이 시작된 지시는 한 건씩 옮길 때와 같이 제외) · 이미 그 설비인 지시는 건너뜀
+   · 그 설비로 만들 수 없는 품목(이카전용 · 분쇄 불가 · 그 규격 속도 0)은 제외하고 알려 준다 — 꼭 옮겨야 하면 줄의 설비 칸에서 한 건씩
+   · 옮긴 지시는 옮겨 간 설비의 맨 뒤에, 지금 보이는 순서 그대로 · 일련번호 · 배치 · 라벨은 건드리지 않는다 */
+let WO_MOVE_TO = "";
+async function moveSelectedOrders(){
+  if (!can("plan")) return toast("생산계획 권한이 필요합니다");
+  const to = WO_MOVE_TO || ($("woMoveTo") && $("woMoveTo").value) || "";
+  const tm = DB.machines.find(m=>m.name===to);
+  if (!tm) return toast("옮길 설비를 먼저 선택하십시오");
+  const picked = SHOWN.orders.filter(id=>SEL.orders.has(id)).map(ordById).filter(Boolean);
+  if (!picked.length) return toast("옮길 지시를 먼저 선택하십시오");
+  const nm = o => `${o.product_name || prodById(o.product_id)?.name || ""} ${fmt(o.qty_plan||0)}개`;
+  const same = picked.filter(o=>(o.machine||"")===to);
+  const busy = picked.filter(o=>(o.machine||"")!==to && o.status!=="대기");
+  const rest = picked.filter(o=>(o.machine||"")!==to && o.status==="대기");
+  const cant = rest.filter(o=>{ const p = prodById(o.product_id); try { return !!p && !canRun(tm, p); } catch(e){ return false; } });
+  const go = rest.filter(o=>!cant.includes(o));
+  const skip = [same.length && `이미 ${to} — ${same.length}건`, busy.length && `생산이 시작된 지시 — ${busy.length}건`,
+                cant.length && `${to}(으)로 만들 수 없는 품목 — ${cant.length}건 (${cant.slice(0,3).map(nm).join(", ")}${cant.length>3?" …":""})`].filter(Boolean);
+  if (!go.length) return toast(`옮길 수 있는 지시가 없습니다 — ${skip.join(" · ")}`);
+  const by = {}; go.forEach(o=>{ const k = o.machine || "설비 미지정"; (by[k] = by[k] || []).push(o); });
+  const msg = Object.entries(by).map(([k,a])=>`${k} → ${to} : ${a.length}건 · ${fmt(a.reduce((t,o)=>t+(Number(o.qty_plan)||0),0))}개`).join("\n")
+    + (skip.length ? `\n\n제외: ${skip.join(" · ")}` : "");
+  if (!(await ask(`선택한 지시 ${go.length}건의 설비를 옮기시겠습니까?\n\n${msg}`, { title:"설비 이동", yes:`${go.length}건 이동` }))) return;
+  const d = go[0].work_date, froms = [...new Set(go.map(o=>o.machine||""))];
+  let done = 0; const fail = [];
+  for (const o of go) {
+    const r = await mesEditOrder({ order_id:o.id, patch:{ machine:to }, idem:`om-${o.id}-${uid()}` });
+    if (!r || !r.ok) { fail.push(`${nm(o)} — ${r?.message || "저장하지 못했습니다"}`); continue; }
+    o.machine = to; o.machine_id = tm.id || null; o.__mv = ++done;
+  }
+  if (done) {
+    /* 순서 — 옮겨 간 설비: 있던 지시 뒤에 옮긴 순서대로 · 떠난 설비: 빈 번호를 당긴다 */
+    const live = mc => ordsOf(d).filter(x=>(x.machine||"")===mc && stIdx(x) < 2);
+    const tgt = live(to).filter(x=>!x.__mv).sort(byPriority).concat(live(to).filter(x=>x.__mv).sort((a,b)=>a.__mv-b.__mv));
+    const rows = tgt.map((x,k)=>({ id:x.id, priority:k+1 }))
+      .concat(...froms.filter(f=>f!==to).map(f=>live(f).sort(byPriority).map((x,k)=>({ id:x.id, priority:k+1 }))))
+      .filter(x => Number(ordById(x.id)?.priority) !== x.priority);
+    go.forEach(o=>{ delete o.__mv; });
+    if (rows.length) { const res = await mesReorderOrders({ rows, idem:`ord-mv-${uid()}` });
+      if (!res || !res.ok) toast(res?.message || "설비는 옮겼지만 순서를 정리하지 못했습니다"); }
+    try { logAudit("작업지시 설비 일괄 이동", `${to} ← ${froms.map(f=>f||"미지정").join(", ")}`, `${done}건`); } catch(e){ errQuiet(e); }
+  }
+  SEL.orders.clear(); SEL_LAST.orders = null;
+  renderOrder(); renderWork(); renderDash();
+  if (fail.length) await ask(`${done}건을 옮겼고, ${fail.length}건은 옮기지 못했습니다.\n\n${fail.slice(0,8).join("\n")}`, { title:"설비 이동", yes:"확인" });
+  else toast(`${done}건을 ${to}(으)로 옮겼습니다` + (skip.length ? ` · 제외 ${same.length + busy.length + cant.length}건` : ""));
 }
 
 /* ── 현장: 생산 시작 ── */
