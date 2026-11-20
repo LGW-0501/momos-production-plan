@@ -1827,6 +1827,17 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   body{overflow-x:clip; overscroll-behavior-x:none;}
   .gnb{overflow-x:hidden; scrollbar-width:none;}
   .gnb::-webkit-scrollbar{width:0; height:0; display:none;}
+  @supports not (scrollbar-color:auto){               /* 옛 Safari */
+    html::-webkit-scrollbar{width:12px; background:transparent;}
+    html::-webkit-scrollbar-thumb{background:transparent; border-radius:8px; border:3px solid transparent; background-clip:padding-box;}
+    html.sbon::-webkit-scrollbar-thumb{background-color:rgba(120,128,150,.6);}
+  }
+  /* ★ 2026-11-20 본문 스크롤 막대 — 움직일 때만 보이고 가만히 있으면 사라짐 (Lee "옮길때는 보이게 가만히 있으면 사라지게")
+     자리는 그대로 두고 색만 숨긴다 → 막대가 나타났다 사라져도 화면이 옆으로 밀리지 않는다 · html.sbon 은 아래 sbShow() 가 붙였다 뗀다 */
+  html{scrollbar-color:transparent transparent;}
+  html.sbon{scrollbar-color:rgba(120,128,150,.6) transparent;}
+  body, body *{scrollbar-color:auto;}                 /* 표 · 창 안의 스크롤 막대는 전과 같이 */
+  .gnb{scrollbar-width:none;}
   .panel-b{overscroll-behavior-x:contain;}
 }
 @media screen and (hover:hover) and (pointer:fine){
@@ -8252,6 +8263,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-20", "본문 스크롤 막대 — 움직일 때만 표시", "화면 오른쪽의 스크롤 막대가 항상 떠 있던 것을, 화면을 움직일 때(또는 마우스를 오른쪽 끝에 댈 때)만 보이고 멈추면 1.2초 뒤 사라지게 했습니다 · 막대 자리는 그대로 두어 나타났다 사라져도 화면이 옆으로 밀리지 않습니다 · 표나 창 안의 스크롤 막대는 전과 같습니다"],
   ["2026-11-20", "작업지시 — 여러 건 골라 설비 한 번에 이동", "작업지시 목록에서 줄 왼쪽 체크박스로 여러 건을 고르면(Shift+클릭 = 구간 전체) 선택 줄에 [옮길 설비 선택] · [선택 설비 이동]이 나옵니다 — 수동 → 리팩, 리팩 → 수동처럼 한 번에 옮깁니다 · 대기 지시만 옮기고, 생산이 시작된 지시 · 이미 그 설비인 지시 · 그 설비로 만들 수 없는 품목(이카전용 · 분쇄 불가 · 그 규격 속도 0)은 제외하고 건수를 알려 줍니다 · 옮긴 지시는 옮겨 간 설비의 맨 뒤에 순서대로 붙고 일련번호 · 배치 · 라벨은 그대로 · 줄마다 설비 칸에서 한 건씩 바꾸는 것도 전과 같습니다"],
   ["2026-11-20", "메뉴 쪽이 좌우로 움직이지 않게 고정", "화면 전체가 옆으로 밀리거나 끌려가면서 위쪽 띠 · 탭 줄 · 왼쪽 메뉴까지 같이 움직이던 것을 막았습니다 · 페이지 자체는 옆으로 밀리지 않고, 넓은 표만 그 표 안에서 옆으로 움직입니다 · 두 손가락으로 옆으로 밀 때 화면이 끌려가거나 뒤로 가기가 되던 것도 막았습니다 · 왼쪽 메뉴는 스크롤 막대가 생겨도 너비가 바뀌지 않습니다 · 창을 좁게 줄였을 때(760px 이하)도 위쪽 띠와 탭 줄이 화면 위에 그대로 있고, 탭 줄 왼쪽의 빈칸이 없어졌습니다 · 화면이 두 손가락 확대된 채 남아 있으면 왼쪽 아래에 안내가 뜹니다"],
   ["2026-11-19", "탭 줄이 위쪽 바에 가려지던 것 수정", "위쪽 남색 바 바로 아래의 탭 줄(대시보드 · 검수 · 현장 작업 …)이 바 밑으로 들어가 윗부분이 잘려 보이던 것을 고쳤습니다 · 탭 줄을 위쪽 바에 붙여서, 글자 크기 배율이나 브라우저가 달라도 항상 바 바로 아래에 옵니다"],
@@ -9309,6 +9321,12 @@ try { PHONE_MQ && PHONE_MQ.addEventListener("change", ()=>{ try { const s = docu
 /* ★ 2026-11-20 화면이 확대된 채 남아 있으면 알려 준다 (Lee "메뉴쪽 보며 좌우로 같이 움직이는데")
    트랙패드에서 두 손가락을 벌리면(핀치) 화면이 조금 확대되는데, 그 상태에서는 위쪽 띠 · 왼쪽 메뉴까지 화면 전체가 상하좌우로 같이 움직인다 — 브라우저 기능이라 막을 수 없다
    마우스 · 트랙패드를 쓰는 기기에서만, 확대된 동안만 작은 안내를 보인다 (손끝으로 확대해 보는 휴대폰 · 태블릿에서는 띄우지 않는다) */
+/* 본문 스크롤 막대 — 화면을 움직이거나 마우스를 오른쪽 끝에 대면 보이고, 멈춘 뒤 1.2초면 숨는다 */
+let SB_T = 0;
+function sbShow(){ try { document.documentElement.classList.add("sbon"); clearTimeout(SB_T);
+  SB_T = setTimeout(()=>{ try { document.documentElement.classList.remove("sbon"); } catch(_){} }, 1200); } catch(_){ errQuiet(_); } }
+try { window.addEventListener("scroll", sbShow, { passive:true });
+  window.addEventListener("mousemove", e=>{ if (e.clientX >= window.innerWidth - 22) sbShow(); }, { passive:true }); } catch(_){ errQuiet(_); }
 let ZOOM_TIP_OFF = false;
 function zoomTipCheck(){
   try {
