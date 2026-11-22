@@ -8392,6 +8392,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-22", "여유분 켜기 · 끄기 — 꺼도 달라지지 않던 것", "여유분이 어느 지시에 몇 개 들었는지를 지시를 만들 때 한 번만 적어 두어서, 그 뒤 [현장 지시 계획 동기화]로 수량이 바뀌거나 지시를 손으로 추가하거나 집계 · 여유분 설정이 바뀌면 '여유분만으로 된 배치'를 알아보지 못했습니다 (끄나 켜나 같았음). 이제 지시별 여유분 몫을 그때그때 다시 셉니다. 규칙은 그대로입니다 — ① 요일별 여유분만 스위치를 따릅니다 (기본 여유 25개는 항상 포함) ② 여유분만으로 된 배치는 끄면 숨겨집니다 ③ 주문분과 여유분이 섞인 배치는 전부 생산합니다. 섞인 배치 카드에는 '여유분 끔 — 주문분과 섞인 배치라 전부 생산'이 크게 표시되고, 스위치를 바꾸면 숨긴 배치 수와 전부 생산하는 배치 수를 알려 줍니다. 서버 SQL 불필요."],
   ["2026-11-22", "작업자 선택 — 묻는 처리를 넓힘", "처리할 때 작업자를 고르는 창이 더 많은 곳에서 뜹니다. 전부터: 생산 시작 · 일시정지 · 작업 참여 · 부적합 등록 · 라벨작업 시작/완료 · 반려 · 재검수 · 출고 · 검수 완료(검수자) · 생산 완료(완료 창). 새로: 원두 입고(한 배치 · 선택 · 전체 · 계획 단위) · 입고 취소 · 배치 보류/해제/폐기 · 배치 잔량 수정 · 실측/실사 적용 · 재작업 · 부적합 조치 · X-ray 선별 완료 · 부자재 입고/폐기 · 봉투 LOT 입고 · 생산 외 사용 · 수령 확인 · 출고장 출고. 고른 사람이 그 처리의 입고자 · 처리자 · 실측자로 남습니다. 한 번 고른 뒤 바로 이어지는 처리(보류 입고의 보류, kg 수정의 다시 입고)는 다시 묻지 않습니다. 서버: 092_actor_worker.sql 실행 필요 — 실행 전에는 원두 입고 · 보류 등 서버가 이름을 적는 기록이 로그인한 계정 이름으로 남습니다."],
   ["2026-11-22", "누가 했는지 — 빠져 있던 표에 표시", "기록은 되어 있는데 화면에 안 보이던 곳에 작업자를 표시했습니다. ① 로스팅 › 사용이력 — [작업자] 칸 (그 생산의 작업자) ② 로스팅 › 수불 › 배치별 실측 — [실측자] 칸 (실측한 사람 · 시각) ③ 로스팅 › 입고 배치 카드 — 입고한 사람 ④ 로스팅 계획 · 로스팅 요청의 계획 표 — 예정은 작성자, 입고완료는 입고자. 다른 화면(생산실적 · 작업지시 · 라벨작업 · 검수 · 출고 · 품질관리 · 보류 · 재작업 · 로스 · 마감)은 전부터 표시되고 있고, 모든 처리는 기준정보 › 변경 이력에 처리한 사람과 함께 남습니다."],
   ["2026-11-22", "부적합 — 품질관리로 바로 넘어오게", "부적합을 등록하면 서버에는 기록되는데, 화면은 실시간 알림이 올 때까지 품질관리에 나타나지 않았습니다 (알림이 늦거나 끊기면 새로고침 전까지 안 보임). 이제 생산 중 [부적합 등록] · 생산 완료 창의 부적합 수량 · 반려 폐기/재검수 · 품질관리 수기 등록 뒤에 그 품질 기록을 바로 받아 옵니다. 서버 SQL 불필요."],
@@ -10081,17 +10082,39 @@ const tallyChOf = t => t.channel || prodChan(prodById(t.product_id));
    · 생산중인 지시는 숨기지 않는다 */
 const SW_KEY = "prod_switch", SW_DEF = [["costco","코스트코"],["kurly","컬리"],["buf","여유분"]];
 const swState = () => ({ costco:true, kurly:true, buf:true, ...((typeof SETTINGS === "object" && SETTINGS && SETTINGS[SW_KEY]) || {}) });
-const swOn = k => swState()[k] !== false;
+let SW_FORCE_BUF = 0;                                   // 지시별 여유분 몫을 셀 때만 — 스위치와 상관없이 "켜져 있다면 얼마였나"를 본다
+const swOn = k => (k === "buf" && SW_FORCE_BUF > 0) ? true : swState()[k] !== false;
 const swChOff = ch => { const b = chBucket(ch||"일반"); return (b === "코스트코" && !swOn("costco")) || (b === "컬리" && !swOn("kurly")); };
 /* 여유분을 껐을 때 이 지시에서 빼는 수량
    ★ 2026-11-18 (2) 한 배치(지시)에 주문 수량과 여유분이 섞여 있으면 그 배치는 전부 생산한다 — 목표를 줄이지 않는다 (Lee "한 배치에 여유수량이 있으면 그 배치는 전부 생산하는 걸로 잡아줘")
      배치 전체가 여유분인 지시(주문분이 0)만 통째로 뺀다 — 아직 시작하지 않은 것만 */
-const bufOnly = o => !!o && Number(o.buf_qty) > 0 && Number(o.buf_qty) >= (Number(o.qty_plan)||0);
+/* ★ 2026-11-22 여유분을 꺼도 적용이 안 되던 것 (Lee "작업할때 여유분 on/off 시 적용이 안 돼")
+   여유분이 어느 지시에 몇 개 들었는지를 지시를 만들 때 한 번만 적어 두었다(buf_qty). 그 뒤 [현장 지시 계획 동기화]로 수량이 바뀌거나, 지시를 손으로 추가하거나,
+   집계 · 여유분 설정이 바뀌면 그 숫자가 맞지 않아 "여유분만으로 된 배치"를 알아보지 못했다 → 끄나 켜나 똑같았다.
+   이제 지시별 여유분 몫을 그때그때 다시 센다: 그날 그 품목의 요일별 여유분(남은 만큼)을, 시작 전인 기본 채널 대기 지시의 맨 뒤 배치부터 채운다.
+   규칙은 그대로 (Lee 2026-11-22 확인): 요일별 여유분만 스위치를 따른다 · 기본 여유(블렌드 25개)는 항상 포함 · 주문분과 섞인 배치는 전부 생산 · 여유분만으로 된 배치만 숨긴다 */
+let BUFQ_MEMO = { sig:"", m:{} };
+function bufQtyMap(d){
+  const os = DB.orders.filter(o=>o.work_date === d && o.status !== "폐기");
+  const sig = d + "|" + os.map(o=>o.id + ":" + (Number(o.qty_plan)||0) + ":" + o.status + ":" + (Number(o.qty_done)||0) + ":" + (o.channel||"") + ":" + (o.priority||0)).join(",") + "|" + bufCapSig() + "|" + DB.tallies.reduce((t,x)=>t + (x.date === d ? Number(x.qty||0) : 0), 0) + "|" + JSON.stringify(swState());
+  if (BUFQ_MEMO.sig === sig) return BUFQ_MEMO.m;
+  const m = {}, byP = {};
+  os.forEach(o=>{ if (o.status === "대기" && !(Number(o.qty_done) > 0) && !isCostcoOrd(o)) (byP[o.product_id] = byP[o.product_id] || []).push(o); });
+  Object.entries(byP).forEach(([pid, list])=>{ const p = prodById(pid); if (!p) return;
+    let left = 0; SW_FORCE_BUF++; try { left = Math.max(0, Math.round(planCalc(p, d).buf || 0)); } catch(_){ left = 0; } finally { SW_FORCE_BUF--; }
+    if (!left) return;
+    const def = prodChan(p), mine = list.filter(o=>(o.channel || "일반") === def), L = (mine.length ? mine : list).slice().sort(byPriority);
+    for (let i = L.length - 1; i >= 0 && left > 0; i--) { const b = Math.min(Number(L[i].qty_plan)||0, left); if (b > 0) { m[L[i].id] = b; left -= b; } } });
+  BUFQ_MEMO = { sig, m }; return m;
+}
+/* 이 지시에 든 여유분 — 다시 센 값이 있으면 그 값, 없으면 지시에 적어 둔 값 (생산중 · 완료된 지시는 적어 둔 값 그대로) */
+const ordBuf = o => { if (!o) return 0; if (o.status === "대기" && !(Number(o.qty_done) > 0) && o.work_date) { try { const v = bufQtyMap(o.work_date)[o.id]; return v != null ? v : 0; } catch(_){ errQuiet(_); } } return Number(o.buf_qty)||0; };
+const bufOnly = o => !!o && ordBuf(o) > 0 && ordBuf(o) >= (Number(o.qty_plan)||0);
 const bufCut = o => (!o || swOn("buf") || stIdx(o) >= 2 || !bufOnly(o) || o.status !== "대기" || Number(o.qty_done) > 0) ? 0 : (Number(o.qty_plan)||0);
 const ordPlan = o => (Number(o?.qty_plan)||0) - bufCut(o);
 /* 꺼져 있어서 숨기는 지시인가 — 대기(현장) · 생산완료(검수 대기)만. 생산중 · 반려 재작업은 숨기지 않는다 */
 const swHide = o => !!o && (o.status === "대기" || o.status === "생산완료") && !(o.status === "대기" && Number(o.qty_done) > 0)
-  && (swChOff(ordShipCh(o)) || (o.status === "대기" && !swOn("buf") && Number(o.buf_qty) > 0 && ordPlan(o) <= 0));
+  && (swChOff(ordShipCh(o)) || (o.status === "대기" && !swOn("buf") && ordBuf(o) > 0 && ordPlan(o) <= 0));
 const canSw = () => can("work") || can("qc") || can("plan");
 async function setSw(k, on){
   const nm = (SW_DEF.find(x=>x[0]===k)||[])[1]; if (!nm) return;
@@ -10108,6 +10131,9 @@ async function setSw(k, on){
   const r = await saveSetting(SW_KEY, val);
   if (r && r.ok === false) { toast(/prod_switch|권한|roast/i.test(String(r.message||"")) ? "서버에 최신 000_install_all.sql 을 실행해야 모든 기기에 적용됩니다 — 지금은 이 기기에만 적용" : "저장 실패 — " + (r.message||"서버")); return; }
   logAudit("생산 스위치", nm, on ? "켬" : "끔");
+  if (k === "buf") { const t = today(), ws = DB.orders.filter(o=>o.work_date === t && o.status === "대기" && !(Number(o.qty_done) > 0)), all = ws.filter(o=>ordBuf(o) > 0), only = all.filter(bufOnly);
+    return toast(on ? `여유분 켬 — 숨겨 둔 여유분 배치 ${only.length}건이 다시 나타납니다 · 모든 기기에 적용`
+      : (all.length ? `여유분 끔 — 여유분만으로 된 배치 ${only.length}건 숨김 · 주문분과 섞인 배치 ${all.length - only.length}건은 전부 생산 · 모든 기기에 적용` : "여유분 끔 — 오늘 대기 지시에 요일별 여유분이 든 배치가 없습니다 (기본 여유 25개는 스위치와 상관없이 포함됩니다) · 모든 기기에 적용")); }
   toast(`${nm} ${on ? "켬" : "끔"} — 모든 기기에 적용됩니다`);
 }
 /* 스위치 줄 — 현장 작업 · 검수 화면 공용. hidden = 지금 숨겨져 있는 건수 { costco, kurly, buf } */
@@ -21881,7 +21907,7 @@ function planOrderDiff(d){
     const p = prodById(pid); if (!p) return;
     /* ★ 2026-11-18 꺼 둔 채널이 있으면 켜져 있는 채널 지시가 만든 수량만 더한다 · 여유분을 껐어도 이미 지시에 들어 있는 여유분은 그대로 인정한다 (스위치를 껐다고 지시 수량을 줄이라고 하지 않는다) */
     const madeT = (!swOn("costco") || !swOn("kurly")) ? list.reduce((t,o)=>t+Number(o.qty_done||0),0) : madeQty(pid, d);
-    const bufKeep = swOn("buf") ? 0 : list.reduce((t,o)=>t+(Number(o.buf_qty)||0),0);
+    const bufKeep = swOn("buf") ? 0 : list.reduce((t,o)=>t+ordBuf(o),0);
     const target = (pid in planEA ? Number(planEA[pid]||0) : planCalc(p, d).total) + madeT + bufKeep;   // 계획 목표 (이미 만든 것 포함)
     const sum = list.reduce((s,o)=>s+Number(o.qty_plan||0),0);
     const wait = list.filter(o=>o.status === "대기");
@@ -24873,7 +24899,9 @@ function renderWork(){
       <div class="z1"><span class="zn">${o.priority||"-"}</span>${specChip(specOf(o))}<span class="nm">${CH_STYLE[o.channel] ? chChip(o.channel) : ""}${p?.name||"품목 없음"}</span><span class="q"><b>${fmt(o.qty_done)}</b> / ${fmt(ordPlan(o))}개</span></div>
       <div class="z2"><span>배치 <b class="${ps.length>1?"bad":""}">${bt}</b></span>${m ? `<span>중량 <b>${tot!=null?`총 ${fmt(tot)}kg`:"총 —"}</b> · 사용 가능 <b>${fmt(left)}kg</b>${canEa!=null?` · <b class="${canEa<todo?"bad":""}">약 ${fmt(canEa)}개</b>`:""}</span>` : ""}</div>
       <div class="z2">${b ? `<span>컬러 <b class="${b.color?"":"bad"}">${b.color||"없음"}</b></span><span>제조일자 <b>${mfg||"—"}</b></span>${o.serial?`<span>일련번호 <b>${o.serial}</b></span>`:""}` : `<span class="bad">한글표시사항 없음 — 원두 마스터 확인</span>`}</div>
-      ${Number(o.buf_qty) > 0 && stIdx(o) < 2 ? `<div class="z2"><span class="tag buf" style="font-size:11px">${bufOnly(o) ? `여유분 ${fmt(o.buf_qty)}개 (배치 전체)` : `여유분 ${fmt(o.buf_qty)}개 포함${swOn("buf") ? "" : " · 배치 전부 생산"}`}</span></div>` : ""}
+      ${ordBuf(o) > 0 && stIdx(o) < 2 ? `<div class="z2">${bufOnly(o) ? `<span class="tag buf" style="font-size:11px">여유분 ${fmt(ordBuf(o))}개 (배치 전체)</span>`
+        : swOn("buf") ? `<span class="tag buf" style="font-size:11px">여유분 ${fmt(ordBuf(o))}개 포함</span>`
+        : `<span class="tag warn" style="font-size:12px;font-weight:800">여유분 끔 — 주문분과 섞인 배치라 전부 생산 (여유분 ${fmt(ordBuf(o))}개 포함)</span>`}</div>` : ""}
       ${cCarryIds.has(o.id) || /\[원두 이동\]/.test(String(o.note||"")) ? `<div class="z2">${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${/\[원두 이동\]/.test(String(o.note||"")) ? `<span class="warn">${xh(o.note)}</span>` : ""}</div>` : ""}
       ${rd.msgs.length ? `<div class="z3">${rd.msgs.map(t=>`<span>⚠ ${t}</span>`).join("")}</div>` : ""}
       <div class="z4">눌러서 펼치기 ▾</div>
@@ -24891,7 +24919,9 @@ function renderWork(){
           can("plan") ? `<span class="prib">
             <button onclick="moveOrd('${o.id}',-1)" title="순서 앞으로">▲</button>
             <button onclick="moveOrd('${o.id}',1)" title="순서 뒤로">▼</button></span>` : ""}</div>
-        <div class="sub">${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 재생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${Number(o.buf_qty) > 0 && stIdx(o) < 2 ? `<span class="tag buf" style="font-size:11px;margin-right:4px" title="이 지시에 포함된 여유분 — 여유분 스위치를 끄면 목표 수량에서 빠집니다">${bufOnly(o) ? `여유분 ${fmt(o.buf_qty)}개 (배치 전체)` : `여유분 ${fmt(o.buf_qty)}개 포함${swOn("buf") ? "" : " · 배치 전부 생산"}`}</span>` : ""}${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px;margin-right:4px" title="코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"일련번호":"일련번호"} ${o.serial}`:""}${
+        <div class="sub">${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 재생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${ordBuf(o) > 0 && stIdx(o) < 2 ? (bufOnly(o) ? `<span class="tag buf" style="font-size:11px;margin-right:4px" title="배치 전체가 요일별 여유분입니다 — 여유분 스위치를 끄면 이 카드는 숨겨집니다">여유분 ${fmt(ordBuf(o))}개 (배치 전체)</span>`
+          : swOn("buf") ? `<span class="tag buf" style="font-size:11px;margin-right:4px" title="이 지시에 포함된 요일별 여유분 — 주문분과 한 배치에 섞여 있어, 여유분 스위치를 꺼도 이 배치는 전부 생산합니다">여유분 ${fmt(ordBuf(o))}개 포함</span>`
+          : `<span class="tag warn" style="font-size:12px;font-weight:800;margin-right:4px" title="주문분과 여유분이 한 배치에 섞여 있으면 그 배치는 전부 생산합니다">여유분 끔 — 섞인 배치라 전부 생산 (여유 ${fmt(ordBuf(o))}개 포함)</span>`) : ""}${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px;margin-right:4px" title="코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"일련번호":"일련번호"} ${o.serial}`:""}${
           o.batch_of>1?` · 배치 ${o.batch_seq}/${o.batch_of}`:""}${
           run && o.started_at ? ` · <span title="작업 시작 일시">시작 ${dtFull(o.started_at)}${o.started_by?` ${o.started_by}`:""}</span>` : ""}</div>
       </div>
