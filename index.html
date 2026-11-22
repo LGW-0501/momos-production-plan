@@ -504,6 +504,11 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   details.toolMenu{position:relative;display:inline-block} details.toolMenu > summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center} details.toolMenu > summary::-webkit-details-marker{display:none}
   details.toolMenu > .tm{position:absolute;right:0;top:calc(100% + 6px);z-index:40;display:flex;flex-direction:column;gap:6px;padding:10px;min-width:210px;background:var(--card,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,0,0,.22)}
   details.toolMenu > .tm .btn{width:100%;justify-content:flex-start;text-align:left;white-space:nowrap}
+  /* ★ 2026-11-22 휴대폰 — 메뉴 안 버튼이 납작하게 눌리던 것 (조회 줄 버튼용 반폭 규칙이 메뉴 안까지 먹었다) */
+  details.toolMenu > .tm .btn, details.toolMenu > .tm > span > .btn{flex:0 0 auto !important;height:auto !important;min-height:36px}
+  details.toolMenu > .tm > span > .btn{flex:1 1 auto !important}
+  @media(max-width:760px){ details.toolMenu > .tm .btn{min-height:42px;font-size:14px;white-space:normal} details.toolMenu > .tm{gap:8px;padding:12px} }
+  body.mobile details.toolMenu > .tm .btn{min-height:42px;font-size:14px;white-space:normal}
   #planCfg .btn{margin-left:0 !important;} #planCfg label{display:flex;align-items:center;gap:6px;margin-left:0 !important;font-size:12.5px;font-weight:700;color:var(--soft);white-space:nowrap;}
   details.hintFold{padding:6px 18px 4px} details.hintFold > summary{cursor:pointer;list-style:none} details.hintFold > summary::-webkit-details-marker{display:none} details.hintFold[open] > summary{margin-bottom:4px}
   .rdRow{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--line);cursor:pointer}
@@ -1592,7 +1597,7 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
     #s-work h2.page, #s-work .autoStamp, #s-home h2.page, .screen .body > .guidebtn{display:none;}
     /* ④-1 도구 버튼 접기 — 버튼이 3개 이상인 조회 줄은 [도구] 로 접어 둔다 */
     .cond.mfold > .mtool{display:block; height:34px !important; font-size:12.5px !important; color:var(--soft); border-style:dashed; grid-column:1 / -1; flex:1 1 100% !important;}
-    .cond.mfold:not(.open) > .btn:not(.mtool), .cond.mfold:not(.open) > #planMode{display:none !important;}
+    .cond.mfold:not(.open) > .btn:not(.mtool):not(.mkeep), .cond.mfold:not(.open) > #planMode{display:none !important;}
     /* ④-2 숫자 상자 — 큰 숫자만, 누르면 세부 */
     body .kpis{grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; margin-bottom:12px;}
     body #mtSum.kpis{grid-template-columns:repeat(3,minmax(0,1fr));}
@@ -1899,6 +1904,23 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
 @media print{ #zoomTip{display:none !important;} }
 
 
+
+/* ★ 2026-11-22 라벨 작업 추가 창 */
+.mtAddBox{background:var(--paper);width:620px;max-width:94vw;height:640px;max-height:calc(var(--vhz,100vh) - 32px);border-radius:12px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column}
+#mtAddList{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);overscroll-behavior:contain}
+.mtAddFoot{padding:12px 16px;display:flex;gap:8px;align-items:center;flex:0 0 auto;background:var(--paper)}
+.mtAddRow{display:grid;grid-template-columns:26px minmax(0,1fr);gap:2px 8px;padding:9px 16px;border-bottom:1px solid var(--line);cursor:pointer;align-items:start}
+.mtAddRow:hover{background:rgba(120,128,150,.08)}
+.mtAddRow.on{background:rgba(59,110,245,.10)}
+.mtAddRow input[type=checkbox]{width:18px;height:18px;margin:2px 0 0}
+.mtAddRow .nm{font-weight:700;line-height:1.35;overflow-wrap:anywhere} .mtAddRow .sub{overflow-wrap:anywhere}
+.mtAddRow .sub{font-size:11.5px;color:var(--soft);line-height:1.4}
+.mtAddRow .pick{grid-column:2;display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:6px;cursor:default}
+.mtAddRow .pick select{flex:1 1 180px;min-width:0;height:32px}
+.mtAddRow .pick input{width:96px;height:32px;text-align:right}
+.mtAddSec{padding:6px 16px;font-size:11.5px;font-weight:700;color:var(--soft);background:rgba(120,128,150,.10);position:sticky;top:0;z-index:1}
+@media(max-width:760px){ #mtAddDlg{padding:0 !important} .mtAddBox{width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0}
+  #mtAddQ{height:42px;font-size:16px} .mtAddRow .pick select,.mtAddRow .pick input{height:40px;font-size:16px} .mtAddFoot button{height:42px;min-width:84px} }
 </style>
 </head>
 <body>
@@ -2914,7 +2936,7 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
     <span id="mtInfo" class="hint" style="padding:0"></span>
     <span style="margin-left:auto"></span>
     <button class="btn primary" onclick="mtAuto()">생산계획에서 불러오기</button>
-    <button class="btn" onclick="addMulti(addMt, this)" title="오른쪽 숫자만큼 빈 줄을 한 번에 추가합니다">1차 직접 추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 수 (최대 50)" style="width:50px;height:30px;margin-left:2px" onclick="this.select()">
+    <button class="btn mkeep" onclick="mtAddOpen()" title="품목을 찾아서 골라 라벨 작업을 추가합니다 — 여러 품목을 한 번에">작업 추가</button>
     <button class="btn" onclick="csvMt()">엑셀 다운로드</button>
     <button class="btn primary" onclick="printMt()">작업지시서 출력</button>
   </div>
@@ -3605,6 +3627,23 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   </div>
 </div>
 
+
+<!-- ══ ★ 2026-11-22 라벨 작업 추가 창 — 품목을 찾아서 고른다 (Lee "추가는 창이 떠서 · 하나하나 입력하는게 아닌 보기가 있어 찾아서 하는 방식") ══ -->
+<div id="mtAddDlg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:79;align-items:center;justify-content:center;padding:16px">
+  <div class="mtAddBox">
+    <div class="panel-h" style="flex:0 0 auto"><span id="mtAddTitle">라벨 작업 추가</span></div>
+    <div style="padding:12px 16px 8px;flex:0 0 auto">
+      <input type="search" id="mtAddQ" placeholder="품목명 · 코드 · 원두 · 라벨로 찾기" oninput="mtAddDraw()" autocomplete="off" style="width:100%">
+      <div class="hint" id="mtAddInfo" style="padding:6px 0 0"></div>
+    </div>
+    <div id="mtAddList"></div>
+    <div class="mtAddFoot">
+      <span id="mtAddCnt" class="hint" style="padding:0;margin-right:auto"></span>
+      <button class="btn" onclick="mtAddClose()">취소</button>
+      <button class="btn primary" id="mtAddGo" onclick="mtAddSave()">추가</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══ 비밀번호 변경 창 (계정 메뉴에서) ══ -->
 <div id="pwDlg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:81;align-items:center;justify-content:center;padding:16px">
@@ -5674,7 +5713,8 @@ async function resubmitQcFloor(id){
   if (!(await ask(`${nm} ${fmt(n)}개를 재검수 대기로 전환합니다.\n\n맞으면 [재검수 요청]을 누르십시오.`, { title:"재검수 요청", yes:"재검수 요청" }))) return;
   const r = await mesResubmitQc({ order_id:id, note:"재포장 (현장)", qty:n, rest_action:null, merged_batch:null, idem:`rsq-${id}-${uid()}` });
   if (!r || !r.ok) { quickRender(); return ask(r?.message||"재검수 요청에 실패했습니다", { title:"재검수 요청에 실패했습니다", yes:"확인", only:true }); }
-  quickRender(); toast("재검수 대기로 전환했습니다 — 검수가 완료되면 이 영역에서 제외됩니다");
+  const bl = r.replayed ? 0 : await bagLossOnRepack(ordById(id) || o, n);      // 다시 포장한 수만큼 새 봉투
+  quickRender(); toast(`재검수 대기로 전환했습니다 — 검수가 완료되면 이 영역에서 제외됩니다${bl ? ` · 재포장 봉투 ${fmt(bl)}장은 봉투 로스로 기록했습니다` : ""}`);
 }
 /* ★ 2026-11-02 반려 카드 — 수량이 잘못 들어갔으면 고쳐서 다시 검수로 (Lee)
    현장에서 센 수량을 적어 재검수에 올리고, 검수 카드의 [실제 확인수량] 에 그 수량이 미리 들어간다 → 검수 완료 때 생산실적·재고가 그 수량으로 정정 (서버 064) */
@@ -5770,6 +5810,8 @@ async function resubmitQc(id){
   const r = await mesResubmitQc({ order_id:id, note:String(note).trim(), qty, rest_action, merged_batch:merged, idem:`rsq-${id}-${uid()}` });
   if (!r || !r.ok) { quickRender(); return ask(`${r?.message||"재검수 요청에 실패했습니다"}${/resubmit_qc|schema cache/i.test(r?.message||"") ? "\n\n서버에 038_qc_resubmit.sql 이 실행되지 않았습니다." : ""}`, { title:"재검수 요청에 실패했습니다", yes:"확인" }); }
   if (sb && rest > 0) await pullWhere("products", "id", o.product_id);
+  const bl = (!r.replayed && qty > 0 && /재포장/.test(pick)) ? await bagLossOnRepack(ordById(id) || o, qty) : 0;      // 조치가 재포장일 때만 — 재실링 · 라벨 교체는 봉투를 새로 안 쓴다
+  if (bl) setTimeout(()=>toast(`재포장 봉투 ${fmt(bl)}장은 봉투 로스로 기록했습니다`), 2200);
   quickRender(); toast(qty === 0 ? `재검수 없이 종료했습니다 — ${fmt(rest)}개 ${rest_action==="scrap"?"폐기":"원두로 합침"}` : `재검수 대기로 전환했습니다 (${fmt(qty)}개${rest>0?` · 나머지 ${fmt(rest)}개 처리`:""})`);
 }
 /* ══ 출고 반려 — 출고 대기(검수완료)에서 문제가 보이면 되돌린다 (045) ══ */
@@ -8319,6 +8361,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-22", "봉투 로스 — 빠지던 곳 4군데 보완", "전에는 생산 완료 창의 [폐기 봉투] 칸에 적은 수만 봉투 로스로 잡혔습니다. ① 라벨 작업 완료 — 폐기 수량 다음에 [폐기 봉투]를 묻습니다 (라벨을 잘못 붙여 봉투째 버린 수 · 없으면 0). ② 생산 완료 — 부적합 수량만큼 봉투가 자동으로 봉투 로스에 기록됩니다 (전에는 양품 수량만큼만 봉투가 빠졌습니다). [폐기 봉투] 칸은 봉투만 버린 수를 적는 칸 그대로입니다. ③ 검수 반려 → 재포장해서 재검수 요청 — 다시 포장한 수만큼 봉투 로스 (재실링 · 라벨 교체 등은 제외). ④ 재작업 화면 — 재포장은 새 봉투를 봉투 로스로, 소분은 새 봉투를 생산 사용으로 뺍니다 (세트구성 제외). 라벨 작업 완료 취소 · 재작업 취소를 하면 같이 되돌아갑니다. 부자재 사용·로스 화면의 [폐기] 칸에 사유별(라벨 작업 · 생산 부적합 · 봉투만 폐기 · 반려 재포장 · 재작업) 수량이 나옵니다. 서버: 091_bag_loss_more.sql 실행 필요 — 실행 전에는 지시가 있는 건(②③)만 사유 없이 수량이 기록되고, ①④는 기록되지 않는다는 안내가 뜹니다."],
+  ["2026-11-22", "휴대폰 — [도구 ▾] · [계획 설정 ▾] 메뉴가 화면 밖으로 나가던 것", "휴대폰에서 [계획 설정 ▾]이나 [도구 ▾]를 누르면 메뉴가 화면 왼쪽 밖으로 잘려 보이지 않았습니다. 이제 열릴 때 화면 안으로 자리를 잡고, 휴대폰에서는 화면 폭에 맞춰 펼쳐집니다. 메뉴가 길면 그 안에서 스크롤됩니다. 다른 화면의 [도구 ▾]도 같습니다."],
+  ["2026-11-22", "라벨 · 부자재 작업 — [작업 추가] 창", "① 줄 추가 버튼을 [도구 ▾] 밖으로 꺼냈습니다 — 위쪽 줄의 [작업 추가]. ② 누르면 창이 뜹니다 — 품목명 · 코드 · 원두 · 라벨로 찾아서 품목을 누르면 선택되고, 선택한 품목은 맨 위에 모입니다. 라벨은 품목에 정해 둔 것을 그대로 쓰므로 수량만 넣고 [추가]를 누르면 됩니다 (라벨이 안 정해진 품목만 고르는 칸이 나옵니다). 여러 품목을 한 번에 추가할 수 있습니다. 보기에는 라벨을 붙이는 품목만 나옵니다 — 풀패키지 품목과 종료된 원두의 품목은 나오지 않습니다. ③ 예전처럼 빈 줄을 먼저 넣고 줄에서 고치는 방식(1차 직접 추가 · 숫자 칸)은 없어졌습니다. 엑셀 다운로드는 위쪽 줄에 그대로 있습니다."],
   ["2026-11-22", "휴대폰 — 로스팅 화면의 표를 카드로", "휴대폰에서 옆으로 밀어야 보이던 표를 한 줄 = 카드 한 장으로 바꿨습니다 (검수 화면처럼) — 칸 이름은 값 위에 작게, 두 칸씩 나란히 · 로스팅의 상미기한 · 배치 재고 · 보류 · 입고 · 계획 · 필요 MMS · 수불 · 사용이력 · 배치별 실측과 마감의 최근 마감 기록에 적용 · 체크 · 버튼 · 입력칸은 그대로 · PC 와 태블릿에서는 전과 같은 표입니다"],
   ["2026-11-22", "휴대폰 메뉴 — 묶음으로 나누기 · 메뉴를 연 채 화면이 끌려 내려오던 것", "① 휴대폰에서 메뉴를 연 채 화면을 밀면 메뉴는 그대로인데 뒤 화면(위쪽 띠)이 끌려 내려와 메뉴 위에 겹치던 것 — 메뉴가 열려 있는 동안에는 뒤 화면이 움직이지 않고 메뉴 목록 안에서만 스크롤됩니다 ② 휴대폰 메뉴도 PC 와 같이 현장 / 생산 관리 / 재고·이력 / 분석·기준 / 기타 묶음으로 나뉩니다 — 묶음 머리를 누르면 펼치고 접으며, 접힌 묶음에는 알림 숫자가 모여 보입니다 · [메뉴 설정]에서 바꾼 순서는 묶음 안에서 적용됩니다"],
   ["2026-11-20", "다른 화면도 위쪽 버튼 줄 간략하게", "작업지시 · 통합 조회 · 재고 실사 · 요청서 · 라벨작업 · 생산실적 · 재고 현황 — 위쪽 줄에는 늘 쓰는 버튼(파란 버튼 · 날짜 · 조회)만 남기고, 가끔 쓰는 버튼(지시 추가 · 엑셀 다운로드 · 붙여넣기 · 엑셀 업로드 · 입력 초기화 · 행 추가 · 배정 초기화 등)은 [도구 ▾] 안으로 옮겼습니다 · 기능은 그대로이고 누르는 자리만 바뀌었습니다 · 버튼이 원래 적은 화면은 그대로 둡니다"],
@@ -9408,7 +9453,7 @@ function kpiReopen(){ KPI_OPEN.forEach(key=>{ const i = key.lastIndexOf(":"); $(
 function mFoldConds(){
   document.querySelectorAll(".screen > .cond").forEach(c=>{
     if ([...c.children].some(e=>e.classList.contains("mtool"))) return;
-    const n = [...c.children].filter(e=>e.classList.contains("btn")).length, wk = c.parentElement.id === "s-work";
+    const n = [...c.children].filter(e=>e.classList.contains("btn") && !e.classList.contains("mkeep")).length, wk = c.parentElement.id === "s-work";
     if (n < 3 && !wk) return;
     c.classList.add("mfold");
     const lb = wk ? "정렬 · 새로고침 ▾" : `도구 ${n}개 ▾`;
@@ -11125,7 +11170,6 @@ const COND_TOOLS = {
   find:  ["조건 초기화","엑셀 다운로드"],
   count: ["이 일자 입력 초기화","붙여넣기","엑셀 업로드"],
   req:   ["미지정 자동 배정","배정 초기화","행 추가","로스팅 계획으로 전송","엑셀 다운로드"],
-  mt:    ["1차 직접 추가","직접 추가","엑셀 다운로드"],
   log:   ["과거 실적 엑셀 등록","엑셀 다운로드"],
   stock: ["엑셀 업로드","엑셀 다운로드"],
 };
@@ -11145,6 +11189,24 @@ function condTidy(){
     document.addEventListener("click", e=>{ const path = e.composedPath ? e.composedPath() : []; if (d.open && !d.contains(e.target) && !path.includes(d)) d.open = false; });
   });
 }
+/* ★ 2026-11-22 [도구 ▾] · [계획 설정 ▾] 을 열면 화면 밖으로 나가던 것 (Lee 휴대폰 "도구 누르면 안 보여") — 버튼 오른쪽 끝에 맞춰 펼치다 보니
+   버튼이 화면 왼쪽에 있으면 메뉴가 왼쪽 밖으로 잘렸다. 열릴 때마다 화면 안에 들어오게 자리를 다시 잡는다 (좁은 화면은 화면 폭 전체로) */
+function toolMenuFit(d){
+  const tm = d && d.querySelector(":scope > .tm"); if (!tm || !d.open) return;
+  tm.style.left = ""; tm.style.right = ""; tm.style.width = ""; tm.style.maxHeight = ""; tm.style.overflowY = "";
+  const vw = document.documentElement.clientWidth, vh = window.innerHeight, pad = 8, dr = d.getBoundingClientRect();
+  if (vw <= 760) { tm.style.right = "auto"; tm.style.left = (pad - dr.left) + "px"; tm.style.width = (vw - pad*2) + "px"; }
+  else { let r = tm.getBoundingClientRect();
+    if (r.left < pad) { tm.style.right = "auto"; tm.style.left = "0px"; r = tm.getBoundingClientRect();
+      if (r.right > vw - pad) tm.style.left = (vw - pad - r.width - dr.left) + "px"; } }
+  const navH = (document.body.classList.contains("mobile") || vw <= 760) ? 64 : 0;
+  let r2 = tm.getBoundingClientRect(); const over = r2.bottom - (vh - pad - navH);
+  if (over > 0) { const y0 = window.scrollY; window.scrollBy(0, Math.min(over, Math.max(0, r2.top - 70))); if (window.scrollY !== y0) r2 = tm.getBoundingClientRect(); }   // 아래로 넘치면 화면을 그만큼 올린다
+  const room = vh - r2.top - pad - navH;
+  if (r2.height > room && room > 120) { tm.style.maxHeight = room + "px"; tm.style.overflowY = "auto"; }
+}
+document.addEventListener("toggle", e=>{ const d = e.target; if (d && d.classList && d.classList.contains("toolMenu") && d.open) toolMenuFit(d); }, true);
+window.addEventListener("resize", ()=>document.querySelectorAll("details.toolMenu[open]").forEach(toolMenuFit));
 /* 계획 설정 · 도구 메뉴 — 바깥을 누르면 닫힘 · 집계 칸의 긴 설명은 한 줄만 보이고 [설명 더 보기] */
 function planCfgTidy(){
   ["planCfgMenu","planToolMenu"].forEach(id=>{ const d = $(id); if (!d || d.dataset.w) return; d.dataset.w = "1";
@@ -11713,6 +11775,12 @@ async function mtDone(id){
                                  {t:"+5", add:5}, {t:"+10", add:10} ] });
   if (n===null) return;
   const ng = Math.max(0, Math.round(numOf(n)));
+  /* ★ 2026-11-22 라벨을 잘못 붙여 봉투째 버린 수 — 라벨 폐기와 따로 봉투 재고에서 빼고 봉투 로스로 남긴다 */
+  const bagM = (t.task_type || "label") === "label" ? bagOfProd(prodById(t.product_id)) : null; let bagNg = 0;
+  if (bagM) { const b = await askNum("폐기 봉투",
+      `라벨을 잘못 붙였거나 작업 중 찢어져 <b>봉투째 버린 수량</b><br>봉투 재고(${xh(bagM.name)})에서 빠지고 <b>봉투 로스</b>로 기록됩니다 · 없으면 <b>[없음 0]</b>`,
+      0, { unit:"장", quick:[ {t:"없음 0", set:0}, ...(ng > 0 ? [{t:`라벨 폐기와 같이 ${fmt(ng)}`, set:ng}] : []), {t:"+1", add:1}, {t:"+5", add:5} ] });
+    if (b === null) return; bagNg = Math.max(0, Math.round(numOf(b))); }
   const use = done + ng;                       // 실제로 빠지는 수량
   /* 장부 재고보다 많이 써도 완료는 된다 — 입고를 아직 안 적은 경우가 대부분. 마감 자재 현황에 빨갛게 뜬다 */
   if (M && Number(M.stock||0) < use && !(await ask(
@@ -11730,11 +11798,13 @@ async function mtDone(id){
               { title:"완료하지 못했습니다", yes:"확인" });
     return;
   }
+  if (bagNg > 0 && !r.replayed) { const br = await mesBagLossEx({ material_id:bagM.id, qty:bagNg, why:"라벨 작업", name:t.product_name||"", ref:`bl:mt:${id}`, idem:`blmt-${id}-${uid()}` });
+    if (!br || br.ok === false) { bagLossFail(br, "라벨 작업"); bagNg = 0; } }
   const endAt = DB.material_tasks.find(x=>x.id===id)?.end_at || nowISO();
   const mins = minsSince(startAt, endAt);
   renderAll();
   if (Number(r.short) > 0) setTimeout(()=>toast(`${t.material_name} 장부가 ${fmt(r.short)}${t.unit} 부족합니다 — 마감 시 입고를 등록하여 정리하십시오`), 2200);
-  toast(`${t.material_name} 작업 완료 — ${packText(done,pack,t.unit)} 부착 · ${fmt(use)}${t.unit} 차감 (폐기 ${fmt(ng)})` +
+  toast(`${t.material_name} 작업 완료 — ${packText(done,pack,t.unit)} 부착 · ${fmt(use)}${t.unit} 차감 (폐기 ${fmt(ng)})${bagNg > 0 ? ` · 봉투 로스 ${fmt(bagNg)}장` : ""}` +
     (startAt ? ` · ${fmtTime(startAt)} → ${fmtTime(endAt)} ${durText(mins)} 소요`
              : ` · ${fmtTime(endAt)} — [작업 시작]을 누르지 않아 소요 시간은 기록되지 않았습니다`));
 }
@@ -11746,7 +11816,8 @@ async function mtBack(id){
                   `사용 기록은 삭제하지 않고 "사용취소" 로 1건이 추가 기록됩니다.`,
         {title:"완료 취소", yes:"완료 취소", danger:true}))) return;
   const r = await mesRevertMt({ task_id:id, idem:`mtb-${id}-${uid()}` });
-  await mesTell(r, "대기 상태로 전환했습니다");
+  const back = (r && r.ok && !r.replayed) ? await bagLossUndo(`bl:mt:${id}`) : 0;      // 완료 때 적은 봉투 로스도 같이 되돌린다
+  await mesTell(r, `대기 상태로 전환했습니다${back ? ` · 봉투 로스 ${fmt(back)}장도 되돌렸습니다` : ""}`);
 }
 function setMt(id, k, v){
   const t = DB.material_tasks.find(x=>x.id===id); if(!t) return;
@@ -12101,16 +12172,85 @@ function printMt(){
   doPrint(html);
   logAudit("라벨작업지시서출력", d, `${list.length}건`);
 }
-async function addMt(){
+/* ★ 2026-11-22 라벨 작업 추가 — 창에서 품목을 찾아 고른다 (Lee "행 추가는 도구에 안 넣었으면 · 추가는 창이 떠서 · 하나하나 입력하는게 아닌 보기가 있어 찾아서 하는 방식")
+   예전: 첫 품목 · 첫 부자재로 빈 줄을 넣고 줄에서 고치기 → 이제: 목록에서 찾아 체크 · 라벨과 수량을 정하고 [추가] (여러 품목 한 번에) */
+let MT_ADD = { sel:{}, order:[] };
+const mtAddDate = () => $("mtDate")?.value || today();
+const mtAddLabels = () => (DB.materials||[]).filter(isLabelMat);
+function mtAddText(p){ const L = labelOf(p); return [p.code, p.name, p.bean, specLabel(Number(p.spec_g)||0), isGround(p.grind) ? p.grind : "홀빈", L ? L.name : ""].join(" ").toLowerCase(); }
+/* ★ 2026-11-22 보기에는 라벨을 붙이는 · 지금 파는 품목만 (Lee "풀패키지는 없어야하고 상품 종료된 원두도 뜨면 안돼")
+   · 풀패키지(봉투에 인쇄 · 코스트코 · 이카) 품목 제외 · 종료일이 적힌 원두의 품목 제외 */
+const mtAddProds = () => PRODS().filter(p=>packState(p) !== "풀패키지" && !beanIsOff(p.bean)).sort(prodCodeCmp);
+async function mtAddOpen(){
   if (!(await requireUser())) return;
-  const p = PRODS()[0], M = DB.materials[0];
-  if (!p || !M) return toast("품목과 부자재를 먼저 등록하십시오");
-  const r = await mesAddMt({ date:$("mtDate")?.value || today(),
-    product_id:p.id, material_id:M.id, qty:0, idem:`mta-${uid()}` });
-  if (!r || !r.ok) return toast(r?.message || "행을 추가하지 못했습니다");
-  if (sb && r.task_id) { try { await pullWhere("material_tasks", "id", r.task_id); } catch(_){ errQuiet(_); } }   // ★ 2026-11-18 실시간 연결이 끊겨 있어도 추가한 줄이 바로 보이게
-  renderMt(); focusNewRow("mtTbl", 'input');
+  if (!mtAddLabels().length) return toast("라벨(부자재 구분 '라벨')을 먼저 등록하십시오");
+  if (!mtAddProds().length) return toast("라벨을 붙이는 품목이 없습니다 — 풀패키지 · 종료된 원두의 품목은 나오지 않습니다");
+  MT_ADD = { sel:{}, order:[] };
+  $("mtAddTitle").textContent = `라벨 작업 추가 — ${mtAddDate()}`;
+  $("mtAddQ").value = ""; $("mtAddDlg").style.display = "flex"; mtAddDraw();
+  $("mtAddList").scrollTop = 0;
+  if (!document.body.classList.contains("mobile")) setTimeout(()=>$("mtAddQ").focus(), 30);
 }
+function mtAddClose(){ $("mtAddDlg").style.display = "none"; }
+function mtAddRowHtml(p, d){
+  const s = MT_ADD.sel[p.id], L = labelOf(p), st = packState(p);
+  const has = (DB.material_tasks||[]).filter(t=>t.date === d && t.product_id === p.id).length;
+  const tags = `${has ? ` <span class="tag" style="font-size:10.5px">이 날 작업 ${has}건 있음</span>` : ""}${!L ? ` <span class="tag bad" style="font-size:10.5px">라벨 미지정</span>` : ""}`;
+  /* ★ 2026-11-22 라벨은 품목에 정해 둔 것을 그대로 쓴다 — 고르는 칸 없이 수량만 (Lee "작업을하면 그 해당 라벨을 쓰는거는 당연한거 아니야?")
+     품목에 라벨이 아직 안 정해진 경우에만 고르는 칸이 나온다 */
+  const pick = !s ? "" : `<div class="pick" onclick="event.stopPropagation()">
+      ${L ? `<span class="sub" style="flex:1 1 180px;min-width:0">라벨 <b style="color:inherit">${xh(L.name)}</b></span>`
+          : `<select onchange="mtAddSet('${p.id}','mid',this.value)" title="이 품목은 라벨이 정해져 있지 않습니다 — 붙일 라벨을 고르십시오"><option value="">라벨 선택…</option>${mtAddLabels().map(M=>`<option value="${M.id}" ${M.id === s.mid ? "selected" : ""}>${xh(M.name)}</option>`).join("")}</select>`}
+      <input type="number" inputmode="numeric" min="0" placeholder="수량" value="${s.qty === "" ? "" : s.qty}" oninput="mtAddSet('${p.id}','qty',this.value)" title="라벨 작업 수량"></div>`;
+  return `<div class="mtAddRow ${s ? "on" : ""}" onclick="mtAddToggle('${p.id}')"><input type="checkbox" ${s ? "checked" : ""} tabindex="-1">
+    <div><div class="nm">${p.code ? `<span class="sub">[${xh(p.code)}]</span> ` : ""}${xh(p.name)}${tags}</div>
+      <div class="sub">${xh(p.bean || "")} · ${specLabel(Number(p.spec_g)||0)}${isGround(p.grind) ? ` · ${xh(p.grind)}` : ""}${L ? ` · 라벨 ${xh(L.name)}` : ""}</div></div>${pick}</div>`;
+}
+function mtAddDraw(){
+  const d = mtAddDate(), q = String($("mtAddQ").value || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const all = mtAddProds();
+  const picked = MT_ADD.order.map(id=>prodById(id)).filter(Boolean);
+  const rest = all.filter(p=>!MT_ADD.sel[p.id] && q.every(w=>mtAddText(p).includes(w)));
+  const MAX = 120, show = rest.slice(0, MAX);
+  $("mtAddList").innerHTML =
+    (picked.length ? `<div class="mtAddSec">선택한 품목 ${picked.length}개 — 수량을 넣으십시오</div>${picked.map(p=>mtAddRowHtml(p, d)).join("")}<div class="mtAddSec">${q.length ? "찾은 품목" : "전체 품목"}</div>` : "")
+    + (show.length ? show.map(p=>mtAddRowHtml(p, d)).join("") : `<div class="hint" style="padding:22px 16px;text-align:center">찾는 품목이 없습니다 — 검색어를 줄여 보십시오</div>`)
+    + (rest.length > MAX ? `<div class="hint" style="padding:10px 16px;text-align:center">외 ${fmt(rest.length - MAX)}개 — 검색어를 넣으면 좁혀집니다</div>` : "");
+  $("mtAddInfo").textContent = q.length ? `${fmt(rest.length)}개 찾음 · 품목을 누르면 선택됩니다` : `라벨 붙이는 품목 ${fmt(all.length)}개 · 누르면 선택됩니다 (여러 개 가능) · 풀패키지 · 종료 원두 제외`;
+  mtAddFoot();
+}
+function mtAddFoot(){ const n = MT_ADD.order.length; $("mtAddCnt").textContent = n ? `선택 ${n}개` : "선택한 품목이 없습니다"; $("mtAddGo").textContent = n ? `${n}건 추가` : "추가"; $("mtAddGo").disabled = !n; }
+function mtAddToggle(pid){
+  if (MT_ADD.sel[pid]) { delete MT_ADD.sel[pid]; MT_ADD.order = MT_ADD.order.filter(x=>x !== pid); }
+  else { const p = prodById(pid); if (!p) return; MT_ADD.sel[pid] = { mid: labelOf(p)?.id || "", qty:"" }; MT_ADD.order.push(pid); }
+  const box = $("mtAddList"), top = box.scrollTop; mtAddDraw(); box.scrollTop = top;
+  if (MT_ADD.sel[pid]) { const el = box.querySelector(`.mtAddRow.on:nth-of-type(${MT_ADD.order.length + 1}) .pick input`) || [...box.querySelectorAll(".mtAddRow.on .pick input")].pop(); if (el) { box.scrollTop = 0; el.focus(); } }
+}
+function mtAddSet(pid, k, v){ const s = MT_ADD.sel[pid]; if (!s) return; s[k] = k === "qty" ? String(v).trim() : v; }
+async function mtAddSave(){
+  if (!(await requireUser())) return;
+  const d = mtAddDate();
+  const items = MT_ADD.order.map(id=>({ p:prodById(id), s:MT_ADD.sel[id] })).filter(x=>x.p && x.s);
+  if (!items.length) return toast("추가할 품목을 선택하십시오");
+  const noL = items.filter(x=>!matById(x.s.mid)), noQ = items.filter(x=>!(Math.round(numOf(x.s.qty)) > 0));
+  if (noL.length) return toast(`라벨을 선택하십시오 — ${noL[0].p.name}${noL.length > 1 ? ` 외 ${noL.length - 1}개` : ""}`);
+  if (noQ.length) return toast(`수량을 입력하십시오 — ${noQ[0].p.name}${noQ.length > 1 ? ` 외 ${noQ.length - 1}개` : ""}`);
+  const busy = setBusy(`추가 중… (${items.length}건)`); let ok = 0; const fail = [];
+  try {
+    for (const x of items) {
+      const r = await mesAddMt({ date:d, product_id:x.p.id, material_id:x.s.mid, qty:Math.round(numOf(x.s.qty)), idem:`mta-${uid()}` });
+      if (r && r.ok) { ok++; delete MT_ADD.sel[x.p.id]; MT_ADD.order = MT_ADD.order.filter(i=>i !== x.p.id);
+        if (sb && r.task_id) { try { await pullWhere("material_tasks", "id", r.task_id); } catch(_){ errQuiet(_); } } }   // 실시간 연결이 끊겨 있어도 추가한 줄이 바로 보이게
+      else fail.push(`${x.p.name}${r?.message ? ` (${r.message})` : ""}`);
+    }
+  } finally { busy(); }
+  renderMt(); if (typeof mtBadge === "function") mtBadge();
+  if (fail.length) { mtAddDraw(); return toast(`${ok}건 추가 · ${fail.length}건은 추가하지 못했습니다 — ${fail[0]}`); }
+  mtAddClose(); toast(`라벨 작업 ${ok}건을 추가했습니다`);
+}
+document.addEventListener("keydown", e=>{ if (e.key === "Escape" && $("mtAddDlg") && $("mtAddDlg").style.display !== "none" && $("dlg").style.display === "none") mtAddClose(); });
+/* 예전 이름 — 다른 곳에서 부르면 창을 연다 */
+async function addMt(){ return mtAddOpen(); }
 /* ★ 2차 회차 — 기존 완료 줄의 수량을 늘리지 않고 새 줄을 만듭니다 (Lee 확정).
      계획이 늘었으면 그 차이를 제안하고, 현장 사유면 사람이 수량을 넣습니다.
      어느 쪽이든 사람이 확인하고 고칠 수 있습니다. */
@@ -13093,9 +13233,13 @@ async function doRework(){
     lot:$("rwLot").value.trim(), note:$("rwNote").value.trim(), date,
     idem:`rw-${uid()}` });
   if (!r || !r.ok) { renderAll(); return toast(r?.message || "등록하지 못했습니다"); }
+  /* ★ 2026-11-22 재작업에 쓴 새 봉투 — 재포장은 봉투 로스, 소분은 생산 사용 (세트구성은 봉투를 안 쓴다) */
+  const rk = rwKind(), rwBag = rk === "세트구성" ? null : bagOfProd(op); let rwBl = 0;
+  if (rwBag && !r.replayed) { const br = await mesBagLossEx({ material_id:rwBag.id, qty:oq, use: rk === "소분", why:`재작업(${rk})`, name:`${serial} ${op.name}`, ref:`bl:rw:${serial}`, idem:`blrw-${serial}-${uid()}` });
+    if (!br || br.ok === false) bagLossFail(br, "재작업"); else rwBl = oq; }
   rwIn = []; $("rwQty").value = "0"; $("rwLot").value = ""; $("rwNote").value = "";
   renderAll();
-  toast(`${op.name} ${fmt(oq)}개 재작업 등록 — 일련번호 ${serial}`);
+  toast(`${op.name} ${fmt(oq)}개 재작업 등록 — 일련번호 ${serial}${rwBl ? ` · ${rwBag.name} ${fmt(rwBl)}장 ${rk === "소분" ? "사용" : "봉투 로스"} 기록` : ""}`);
 }
 async function undoRework(id){
   if (!(await requireUser())) return;
@@ -13113,7 +13257,8 @@ async function undoRework(id){
   const why = await askText("취소 사유 (생략 가능)", "", "재작업 취소");
   if (why === null) return;
   const r = await mesUndoRework({ rework_id:id, reason:why || null, idem:`ur-${id}-${uid()}` });
-  await mesTell(r, "취소했습니다 — 기록은 취소 표시로 유지됩니다");
+  const back = (r && r.ok && !r.replayed) ? await bagLossUndo(`bl:rw:${w.serial}`) : 0;      // 재작업에 쓴 봉투도 같이 되돌린다
+  await mesTell(r, `취소했습니다 — 기록은 취소 표시로 유지됩니다${back ? ` · 봉투 ${fmt(back)}장도 되돌렸습니다` : ""}`);
 }
 function csvRw(){
   csv("완제품재작업", ["작업일","일련번호","구분","투입품목","투입수량","투입일련번호","생산품목","생산수량","원두배치","LOT","메모","작업자"],
@@ -18399,7 +18544,7 @@ function renderBeanSet(){
   const act = {};
   DB.material_moves.filter(m=>isBagLossMove(m) && String(m.date||"") >= since).forEach(m=>{
     const o = DB.orders.find(x=>x.order_no && x.order_no === m.ref); const bn = prodById(o?.product_id)?.bean; if (!bn) return;
-    const a = act[bn] = act[bn] || { loss:0, made:0, ids:new Set() }; a.loss += Math.abs(Number(m.qty)||0);
+    const a = act[bn] = act[bn] || { loss:0, made:0, ids:new Set() }; a.loss += -(Number(m.qty)||0);
     if (!a.ids.has(o.id)) { a.ids.add(o.id); a.made += Number(o.qty_done||0) + Number(o.qty_ng||0); } });
   const show = rows.filter(x=>!bsetOnly || x.miss.length);
   tbl("tBset", ['<span class="fixl">원두명</span>',"MMS 코드","컬러","품목보고번호","원산지","완제품 · 라벨/봉투",
@@ -22555,7 +22700,7 @@ function finishDialog(o, p, ctx){
           <button class="btn" data-n="1" style="${btnS}">+1</button>
           <select id="finNgType" style="height:44px;display:none;flex:1;min-width:140px">${NG_TYPES.map(x=>`<option value="${esc(x)}"${x==="기타"?" selected":""}>${esc(ngLabel(x))}</option>`).join("")}</select>
         </div>
-        ${ctx.bagMat ? `<div style="font-weight:600;margin:14px 0 4px">폐기 봉투 <span class="hint" style="padding:0">원두 충전 전·실링 불량 등으로 <b>봉투만</b> 폐기 수량 — 봉투 재고(${esc(ctx.bagMat.name)})에서 추가 차감합니다${ctx.bagPct?` (기준 로스 ${ctx.bagPct}% ≈ ${fmt(ctx.bagExp)}장)`:""}</span></div>
+        ${ctx.bagMat ? `<div style="font-weight:600;margin:14px 0 4px">폐기 봉투 <span class="hint" style="padding:0">원두 충전 전·실링 불량 등으로 <b>봉투만</b> 폐기 수량 — 봉투 재고(${esc(ctx.bagMat.name)})에서 추가 차감합니다 · <b>부적합 수량의 봉투는 여기에 적지 않아도 자동으로 봉투 로스에 기록됩니다</b>${ctx.bagPct?` (기준 로스 ${ctx.bagPct}% ≈ ${fmt(ctx.bagExp)}장)`:""}</span></div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <button class="btn" data-b="-1" style="${btnS}">−1</button>
           <input id="finBagLoss" type="number" inputmode="numeric" min="0" value="0" style="width:80px;height:44px;font-size:18px;text-align:center">
@@ -22858,7 +23003,7 @@ async function ecDoneApply(pick){
         if (was === "대기") { try { await mesStopWork({ order_id:o.id, reason:note0, idem:`ecd-stop-${o.id}-${uid()}` }); } catch(_){ errQuiet(_); } }   // 시작만 해 놓고 남지 않게 되돌림
         continue; }
       ok++;
-      if (!res.replayed) { ordLotOnFinish(ordById(o.id) || o, r.qty + ng).catch(()=>{}); const lid = res.log_id || o.log_id; if (lid) recordLoss(lid, LZ).catch(()=>{}); }
+      if (!res.replayed) { if (ng > 0) await bagLossOnFinish(ordById(o.id) || o, ng, null, 0, res.log_id); ordLotOnFinish(ordById(o.id) || o, r.qty + ng).catch(()=>{}); const lid = res.log_id || o.log_id; if (lid) recordLoss(lid, LZ).catch(()=>{}); }
     } catch(e){ fail.push(`${nm} (${e?.message||"오류"})`); }
   }
   busy(); if (sb) await reloadDB({ silent:true }); renderAll();
@@ -22936,11 +23081,8 @@ async function finishWork(id){
       F._carryMsg = `${fmt(cr.kg)}kg 이월${addMsg}`;
     }
   }
-  /* ★ 2026-11-16 봉투 로스 — 버린 봉투 수만큼 봉투 재고에서 더 뺀다 */
-  if (!r.replayed && F.bagLoss > 0) { const M = ordIca(o) ? null : ordLotMat(o);
-    if (M) { const br = await mesBagLoss({ order_id:o.id, material_id:M.id, qty:F.bagLoss, idem:`bl-${o.id}-${r.log_id||uid()}` });
-      if (!br || br.ok === false) toast(`봉투 로스를 기록하지 못했습니다 — ${br?.message || ""} (000_install_all.sql 의 "봉투 로스" 절 실행 여부 확인) · 봉투 재고는 변동 없습니다`);
-      else if (sb) { try { await pullWhere("materials", "id", M.id); } catch(_){ errQuiet(_); } } } }
+  /* ★ 2026-11-16 봉투 로스 — 버린 봉투 수만큼 봉투 재고에서 더 뺀다 · ★ 2026-11-22 부적합 수량의 봉투도 같이 (전에는 양품 수량만큼만 빠졌다) */
+  if (!r.replayed && ((ng||0) > 0 || F.bagLoss > 0)) F._bagLoss = await bagLossOnFinish(ordById(o.id) || o, ng, ngType, F.bagLoss, r.log_id);
   /* ★ 봉투 LOT별 사용수량 — 행이 없으면 선입선출로 나눠 남기고, 있으면 완료 수량(정상+버림)에 맞춘다 */
   if (!r.replayed) ordLotOnFinish(ordById(o.id) || o, good + (ng||0)).catch(()=>{});
   /* 로스 기록 — 재고와는 별개. 기다리지 않고 뒤에서 보낸다 */
@@ -23896,7 +24038,8 @@ function renderMatUse(){
   const S = k => rows.reduce((t,r)=>t + Number(r[k]||0), 0), use = S("use"), loss = S("loss");
   const card = (t, v, sub, cls) => `<div class="panel" style="flex:1 1 150px;margin:0;padding:12px 16px"><div class="hint" style="padding:0;font-size:12px">${t}</div><div style="font-size:22px;font-weight:800" class="${cls||""}">${v}</div><div class="hint" style="padding:0;font-size:11.5px">${sub||"&nbsp;"}</div></div>`;
   $("muHero").innerHTML = card("입고 (불출 받은 양)", fmt(S("inQ")), `${f.slice(5)} ~ ${e.slice(5)}`) + card("생산 사용", fmt(use), "양품 수량만큼 자동 차감")
-    + card("폐기", fmt(S("scrap")), "작업 중 불량 · 폐기 등록") + card("실사 감소", fmt(S("adjDown")), S("adjUp") ? `실사 증가 +${fmt(S("adjUp"))} 는 로스에서 빼지 않음` : "재고 실사 · 조정으로 줄어든 양")
+    + card("폐기", fmt(S("scrap")), (()=>{ const by = {}; rows.forEach(r=>r.moves.forEach(m=>{ if (isBagLossMove(m)) { const k = bagLossWhy(m); by[k] = (by[k]||0) - Number(m.qty||0); } }));
+      const t = Object.entries(by).filter(x=>x[1] > 0).map(x=>`${x[0]} ${fmt(x[1])}`).join(" · "); return t ? "봉투 로스 — " + t : "작업 중 불량 · 폐기 등록"; })()) + card("실사 감소", fmt(S("adjDown")), S("adjUp") ? `실사 증가 +${fmt(S("adjUp"))} 는 로스에서 빼지 않음` : "재고 실사 · 조정으로 줄어든 양")
     + card("로스율", (use + loss) > 0 ? (Math.round(loss / (use + loss) * 1000) / 10) + "%" : "—", `로스 ${fmt(loss)} ÷ (사용 ${fmt(use)} + 로스)`, loss > 0 ? "bad" : "");
   $("muInfo").textContent = `${rows.length}종 · 음수 기초/기말 재고는 입고를 적지 않고 사용만 기록된 자재입니다`;
   const neg = v => v < 0 ? ` class="bad"` : "";
@@ -24142,6 +24285,79 @@ async function mesBagLoss(a){
     }, { quiet:true });
 }
 const isBagLossMove = m => m && m.kind === "폐기" && /^봉투 로스/.test(String(m.note||""));
+/* ══ ★ 2026-11-22 봉투 로스 누락 보완 (Lee "봉투 로스 확인이 안 돼 누락 … 라벨에서 누락되고 생산시에도 누락 · 부적합으로 빠지고 재작업을 하게 되면 그게 다시 봉투 로스")
+   전에는 생산 완료 창의 [폐기 봉투] 칸에 손으로 적은 수만 봉투 로스였다. 빠져 있던 곳:
+   ① 라벨 작업 — 라벨 폐기만 적고, 라벨을 잘못 붙여 봉투째 버린 수는 적을 곳이 없었다 → 완료 때 [폐기 봉투] 를 같이 묻는다
+   ② 생산 완료 — 봉투는 양품 수량만큼만 빠졌다. 부적합 수량의 봉투는 어디에도 안 빠졌다 → 부적합 수량만큼 자동으로 봉투 로스
+   ③ 검수 반려 → 재포장 — 새 봉투를 쓰는데 빠지지 않았다 → 재검수 요청한 수만큼 봉투 로스
+   ④ 재작업 화면 — 재포장은 새 봉투 = 봉투 로스 · 소분은 새 봉투 = 생산 사용 (세트구성은 봉투를 안 쓴다)
+   서버: bag_loss_ex (091_bag_loss_more.sql). 아직 없으면 지시가 있는 건은 옛 bag_loss 로 수량만이라도 남긴다
+   적요: "봉투 로스 · 사유 · 지시번호 품목" — 부자재 사용·로스 화면이 사유별로 나눠 보여 준다 · 재고가 모자라도 그대로 뺀다(음수 = 입고 미기록) ══ */
+async function mesBagLossEx(a){
+  const q = Math.round(Number(a.qty)||0);
+  const r = await rpc("bag_loss_ex", { p_material_id:a.material_id, p_qty:q, p_why:a.why||"", p_name:a.name||"", p_ref:a.ref||"", p_order_id:a.order_id||null, p_use:!!a.use, p_idempotency:a.idem||null },
+    () => {
+      const hit = idemHit(a.idem); if (hit) return hit;
+      const M = matById(a.material_id);
+      if (!M) return MES_ERR("no_material","봉투를 찾을 수 없습니다");
+      if (!q) return MES_ERR("bad_qty","봉투 수량을 입력하십시오");
+      const before = Number(M.stock||0), after = Math.round((before - q)*1000)/1000, date = today();
+      const note = (a.use ? "" : `봉투 로스${q < 0 ? " 취소" : ""} · `) + [a.why, a.name].filter(Boolean).join(" · ") + (a.use && q < 0 ? " 취소" : "");
+      const kind = a.use ? (q > 0 ? "생산사용" : "사용취소") : "폐기";
+      return localTx(T => {
+        T.upd(M, { stock: after, last_use: date }); save("materials", M);
+        const mv = T.add("material_moves", { id:uid(), date, at:nowISO(), material_id:M.id, material_name:M.name, label_id:M.id, label_name:M.name,
+          kind, qty:-q, before, after, note, ref:a.ref||"", user:CURRENT_USER||"(미지정)" });
+        save("material_moves", mv);
+        putMove(T, { kind:"부자재", ref_type:"material_move", ref_id:M.id, material_id:M.id, qty:-q, unit:unitOf(M), reason:kind, note, move_date:date, user_name:CURRENT_USER });
+        logAudit(a.use ? "봉투 사용" : (q < 0 ? "봉투 로스 취소" : "봉투 로스"), M.name, `${[a.why, a.name].filter(Boolean).join(" · ")} ${q > 0 ? "−" : "+"}${fmt(Math.abs(q))} → ${fmt(after)}`);
+        const r = { ok:true, qty:q, after }; idemPut(T, a.idem, "bag_loss_ex", M.id, r); return r;
+      });
+    }, { quiet:true });
+  if (sb && r && r.ok === false && /bag_loss_ex|schema cache|does not exist|could not find/i.test(r.message||"")) {
+    if (a.order_id && q > 0 && !a.use) { const r2 = await mesBagLoss({ order_id:a.order_id, material_id:a.material_id, qty:q, idem:a.idem }); if (r2 && r2.ok) r2.old = true; return r2; }   // 수량만이라도 남긴다 (사유는 안 남는다)
+    return { ok:false, missing:true, message:"서버에 091_bag_loss_more.sql 이 실행되지 않았습니다" };
+  }
+  if (sb && r && r.ok) { try { await Promise.all([ pullWhere("materials", "id", a.material_id), a.ref ? pullWhere("material_moves", "ref", a.ref) : null ]); } catch(_){ errQuiet(_); } }
+  return r;
+}
+const bagLossFail = (br, what) => toast(`${what} 봉투 로스를 기록하지 못했습니다 — ${br?.message || ""}${br?.missing ? " (Supabase 에서 091_bag_loss_more.sql 실행)" : ""} · 봉투 재고는 변동 없습니다`);
+/* 그 지시가 쓰는 봉투 (이카 롤패키지는 장 단위가 아니라 보지 않는다) */
+const bagOfOrder = o => { const M = (!o || ordIca(o)) ? null : ordLotMat(o); return M && (M.kind === "봉투" || isFullBag(M)) ? M : null; };
+/* 그 품목의 봉투 — 라벨 작업 · 재작업처럼 지시가 없는 곳 */
+const bagOfProd = p => { const M = (!p || p.ica) ? null : bagMatOf(p); return M && (M.kind === "봉투" || isFullBag(M)) ? M : null; };
+/* 이미 적힌 부적합 봉투 로스 — 완료를 되돌렸다가 다시 완료해도 두 번 빠지지 않게 */
+const bagLossNgDone = o => !o?.order_no ? 0 : Math.max(0, -DB.material_moves.filter(m=>m.ref === o.order_no && m.kind === "폐기" && /^봉투 로스( 취소)? · 부적합/.test(String(m.note||""))).reduce((t,m)=>t + Number(m.qty||0), 0));
+/* 생산 완료 뒤 — 부적합 수량만큼 + 봉투만 버린 수 */
+async function bagLossOnFinish(o, ng, ngType, extra, logId){
+  const M = bagOfOrder(o); if (!M) return 0;
+  const name = `${o.order_no||""} ${o.product_name || prodById(o.product_id)?.name || ""}`.trim(), base = { material_id:M.id, order_id:o.id, ref:o.order_no||"", name };
+  const addNg = Math.max(0, Math.round(Number(ng)||0) - bagLossNgDone(o)), ex = Math.max(0, Math.round(Number(extra)||0)); let n = 0;
+  if (addNg > 0) { const br = await mesBagLossEx({ ...base, qty:addNg, why:`부적합${ngType ? " " + ngLabel(ngType) : ""}`, idem:`blng-${o.id}-${logId||uid()}` }); if (!br || br.ok === false) bagLossFail(br, "부적합"); else n += addNg; }
+  if (ex > 0) { const br = await mesBagLossEx({ ...base, qty:ex, why:"봉투만 폐기", idem:`bl-${o.id}-${logId||uid()}` }); if (!br || br.ok === false) bagLossFail(br, "폐기"); else n += ex; }
+  return n;
+}
+/* 검수 반려 → 재포장 — 다시 포장한 수만큼 새 봉투 */
+async function bagLossOnRepack(o, qty){
+  const M = bagOfOrder(o), q = Math.max(0, Math.round(Number(qty)||0)); if (!M || !q) return 0;
+  const br = await mesBagLossEx({ material_id:M.id, order_id:o.id, ref:o.order_no||"", name:`${o.order_no||""} ${o.product_name || prodById(o.product_id)?.name || ""}`.trim(), qty:q, why:"반려 재포장", idem:`blrp-${o.id}-${uid()}` });
+  if (!br || br.ok === false) { bagLossFail(br, "재포장"); return 0; } return q;
+}
+/* 되돌리기 — 그 ref 로 적힌 봉투 기록을 자재 · 종류별로 모아 반대로 한 줄 */
+async function bagLossUndo(ref){
+  if (!ref) return 0; const net = {};
+  DB.material_moves.filter(m=>m.ref === ref).forEach(m=>{ const use = m.kind === "생산사용" || m.kind === "사용취소"; if (!use && !isBagLossMove(m)) return;
+    const k = m.material_id + "|" + (use ? 1 : 0), x = net[k] = net[k] || { mid:m.material_id, use, q:0, name:String(m.note||"").replace(/^봉투 로스( 취소)? · /, "").replace(/ 취소$/, "") }; x.q += Number(m.qty||0); });
+  let n = 0;
+  for (const x of Object.values(net)) { if (!(x.q < 0)) continue;
+    const parts = x.name.split(" · "), br = await mesBagLossEx({ material_id:x.mid, qty:x.q, use:x.use, why:parts[0], name:parts.slice(1).join(" · "), ref, idem:`blu-${ref}-${uid()}` });
+    if (!br || br.ok === false) bagLossFail(br, "되돌린"); else n += -x.q; }
+  return n;
+}
+/* 사유별 묶음 — 부자재 사용·로스 화면 */
+function bagLossWhy(m){ const t = String(m.note||"").replace(/^봉투 로스( 취소)? · /, "").split(" · ")[0];
+  return /^라벨 작업/.test(t) ? "라벨 작업" : /^부적합/.test(t) ? "생산 부적합" : /^반려 재포장/.test(t) ? "반려 재포장" : /^재작업/.test(t) ? "재작업" : "생산 중 봉투만 폐기"; }
+
 /* ══ 현장 (작업자) — 카드 하나에 버튼 네 개 ══ */
 /* 우선순위 — 번호가 작을수록 먼저. 기계 안에서 위아래로 옮긴다. */
 async function moveOrd(id, dir){
