@@ -2866,6 +2866,7 @@ details.wkTool #wkToolSw .swb{height:38px}
     <div class="panel">
       <div class="panel-h">MMS 배치 재고 현황 (현재) <span class="r">
         <button class="btn primary" onclick="addBatchQuick()" title="로스팅 계획 없이 배치를 직접 등록 (보유 원두가 장부에 없는 경우) — 창에서 원두를 골라 여러 배치를 한 번에 등록합니다">배치 추가</button>
+        <button class="btn" id="mmsPasteBtn" onclick="openBulk('mms')" title="지금 갖고 있는 배치 재고를 엑셀 재고표(날짜 · 원두 · 순번 · kg)에서 복사해 한 번에 붙여넣어 등록합니다">엑셀 붙여넣기</button>
         <button class="btn" onclick="csvBatches()">엑셀 다운로드</button></span></div>
       <div class="hint">재고가 있는 배치만 · 선입 순 (생산 시 상위 배치부터 차감) · <b>계획 사용</b>은 현재 생산계획에서 이 배치에 할당된 예정 수량입니다 ·
         <b>[수정]</b>은 마감자가 실사한 잔량으로 장부를 조정하는 기능입니다 — 차이는 조정 이력에 기록됩니다 · <b>[입고 취소]</b>는 미사용 배치를 입고 전(로스팅 행) 상태로 복원하며, <b>[삭제]</b>는 그 외 배치를 삭제합니다 (생산에 사용한 배치는 관리자만 가능 · 사유 입력 필요)</div>
@@ -8403,7 +8404,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
-  ["2026-11-23", "MMS 배치 일괄 입력 — 엑셀 재고표를 그대로 붙여넣기", "기준정보 › MMS 재고 › [일괄 입력]에 엑셀 재고표를 붙여넣으면 들어가지 않던 것을 고쳤습니다. 원인 — 날짜가 '11월 19일' 글자라 읽지 못했고, 엑셀의 칸 순서(날짜 · 원두 · 순번 · kg)가 입력 표(원두 · 로스팅일 · 순번 · kg)와 달랐고, 가운데 빈 칸이 있었습니다. 이제 줄마다 날짜 칸 · 이름 칸 · 숫자 칸(앞 = 순번, 뒤 = kg)을 알아서 나눠 넣습니다. 날짜는 '11월 19일' · '11/19' · '2026.11.19'를 읽고(연도가 없으면 올해, 오늘보다 뒤면 작년), '원두 에스쇼콜라' · '… [CRI0758]'처럼 적힌 이름도 등록된 원두로 맞춥니다. 빈 줄은 건너뜁니다. 붙여넣은 뒤 [저장]을 누르면 줄마다 검사합니다."],
+  ["2026-11-23", "배치 재고 — [엑셀 붙여넣기] 버튼", "지금 갖고 있는 원두 배치 재고를 엑셀에서 한 번에 넣는 창(MMS 배치 일괄 입력)이 메뉴 어디에도 없었습니다 — 기준정보를 묶음으로 정리할 때 'MMS 원두재고' 탭이 빠지면서 들어가는 길이 사라졌습니다. 로스팅 › 배치 재고의 [배치 추가] 옆에 [엑셀 붙여넣기] 버튼을 넣었습니다. 누르면 창이 뜨고, 엑셀 재고표(날짜 · 원두 · 순번 · kg)를 복사해 표에 붙여넣은 뒤 [저장]하면 배치 재고에 바로 보입니다. 재고 담당 권한이 필요합니다."],
+  ["2026-11-23", "MMS 배치 일괄 입력 — 엑셀 재고표를 그대로 붙여넣기", "MMS 배치 일괄 입력 창(로스팅 › 배치 재고 › [엑셀 붙여넣기])에 엑셀 재고표를 붙여넣으면 들어가지 않던 것을 고쳤습니다. 원인 — 날짜가 '11월 19일' 글자라 읽지 못했고, 엑셀의 칸 순서(날짜 · 원두 · 순번 · kg)가 입력 표(원두 · 로스팅일 · 순번 · kg)와 달랐고, 가운데 빈 칸이 있었습니다. 이제 줄마다 날짜 칸 · 이름 칸 · 숫자 칸(앞 = 순번, 뒤 = kg)을 알아서 나눠 넣습니다. 날짜는 '11월 19일' · '11/19' · '2026.11.19'를 읽고(연도가 없으면 올해, 오늘보다 뒤면 작년), '원두 에스쇼콜라' · '… [CRI0758]'처럼 적힌 이름도 등록된 원두로 맞춥니다. 빈 줄은 건너뜁니다. 붙여넣은 뒤 [저장]을 누르면 줄마다 검사합니다."],
   ["2026-11-23", "작업자 직급 — 파트타이머 추가", "기준정보 › 작업자의 [직급]에 '파트타이머'를 추가했습니다 (부서장 · 팀장 · 매니저 · 파트장 · 사원 · 파트타이머). 작업자 표와 일괄 입력에서 고를 수 있고, 목록은 직급 순서대로 맨 뒤에 정렬됩니다. 업무 역할(수정 권한)은 직급과 따로이며 전과 같이 고릅니다."],
   ["2026-11-23", "원두 일괄 입력 — 이미 있는 원두는 변경 · 빈칸 채움", "기준정보 › 원두 › [일괄 입력]에 이미 등록된 원두를 넣으면 '동일 원두명이 이미 있음'으로 그 줄이 통째로 막혔습니다 (마스터 엑셀을 붙여넣으면 저장 가능한 행이 없음). 이제 같은 원두가 있으면 그 원두를 고칩니다 — 표에 값이 있고 지금 값과 다르면 변경, 지금 비어 있던 칸은 채움, 표에서 비워 둔 칸은 그대로 둡니다 (지우지 않음). 저장 전에 줄마다 [상태] 칸에 '변경: 컬러 · 원산지 / 빈칸 채움: 출시일'처럼 바뀌는 칸이 표시되고, 확인 창에 새로 등록 · 변경 · 바뀐 칸 없음 건수가 나옵니다. 원두명 자체는 일괄 입력으로 바꾸지 않습니다 (기준정보 표에서 수정). MMS 코드가 다른 원두의 코드와 겹치면 그 줄만 막습니다."],
   ["2026-11-23", "배치 재고 [배치 추가] — 창 하나에서 여러 배치를 한 번에", "로스팅 › 배치 재고의 [배치 추가]가 창 방식으로 바뀌었습니다. 전에는 원두 → 로스팅일 → 번호 → 잔량을 창 네 개로 차례로 묻고 배치마다 되풀이했습니다. 이제 창 하나에서 원두를 여러 개 고르고, 맨 위 [로스팅일]을 고른 원두 모두에 한 번에 적용하고, 원두마다 1배치 kg 와 배치 수만 넣습니다. 배치 번호는 그날 다음 번호부터 자동으로 붙고, 칸 옆에 등록될 번호와 합계 kg 이 미리 보입니다. 버튼 옆 숫자 칸은 없어졌습니다."],
@@ -26727,12 +26729,13 @@ const BULK_DEFS = {
       if (DB.mms.some(m=>m.bean===v.bean.trim() && m.roast_date===v.roast_date && Number(m.batch)===Number(v.batch))) return `${v.roast_date} ${v.batch}번 배치가 이미 있음`;
       if (all.some((o,j)=>j<i && o.bean.trim()===v.bean.trim() && o.roast_date===v.roast_date && Number(o.batch)===Number(v.batch))) return "위 행과 중복";
       return ""; },
-    async save(v){ const r = await mesAddMms({ bean:v.bean.trim(), roast_date:v.roast_date, batch:Number(v.batch), kg:Number(v.kg)||0, idem:`bkm-${uid()}` }); return r && r.ok ? { ok:true } : { ok:false, message:r?.message||"생성하지 못함" }; } },
+    async save(v){ const r = await mesAddMms({ bean:v.bean.trim(), roast_date:v.roast_date, batch:Number(v.batch), kg:Number(v.kg)||0, idem:`bkm-${uid()}` }); if (r && r.ok && sb && r.mms_id) { try { await pullWhere("mms", "id", r.mms_id); } catch(_){ errQuiet(_); } }      /* ★ 2026-11-23 저장하면 배치 재고 표에 바로 보이게 */
+      return r && r.ok ? { ok:true } : { ok:false, message:r?.message||"생성하지 못함" }; } },
 };
 function openBulk(t){
   const def = BULK_DEFS[t]; if (!def) return;
   const need = TCAP[t] || "base";
-  if (t === "workers" ? !isSystemAdmin() : !can(need)) return toast(t === "workers" ? "시스템 관리자만 작업자를 추가할 수 있습니다" : "권한이 없습니다 — 기준정보 담당만");
+  if (t === "workers" ? !isSystemAdmin() : !can(need)) return toast(t === "workers" ? "시스템 관리자만 작업자를 추가할 수 있습니다" : `권한이 없습니다 — ${need === "stock" ? "재고 담당만" : need === "roast" ? "로스팅 담당만" : "기준정보 담당만"}`);
   bulkT = t; $("bkTitle").textContent = def.title; $("bkHint").textContent = def.hint;
   $("bkTbl").innerHTML = `<thead><tr><th>No</th>${def.cols.map(c=>`<th style="min-width:${c.w}px">${c.l}${c.req?' <span class="bad">*</span>':""}</th>`).join("")}<th>상태</th></tr></thead><tbody></tbody>`;
   bulkAddRows(5);
@@ -26802,7 +26805,7 @@ async function bulkSave(){
   /* 성공한 줄은 지운다 — 실패한 줄만 남겨서 고치게 */
   okRows.forEach(r=>r.tr.remove());
   const tb_ = $("bkTbl").querySelector("tbody"); [...tb_.rows].forEach((r,i)=>r.cells[0].textContent = i+1);
-  if (!tb_.rows.length) closeBulk();
+  if (!tb_.rows.length || !bulkRows().some(r=>r.filled)) closeBulk();      /* ★ 2026-11-23 남은 것이 빈 줄뿐이면 창을 닫는다 (실패한 줄이 있으면 그대로 둔다) */
 }
 $("bulk").addEventListener("keydown", e=>{ if (e.key === "Escape") closeBulk(); });
 /* ★ 2026-10-31 — 엑셀에서 복사한 줄을 일괄 입력 표에 바로 붙여넣기 (Lee "이거를 인식 못해")
