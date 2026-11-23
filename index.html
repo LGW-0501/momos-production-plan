@@ -1484,6 +1484,14 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   .gwrap{display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:12px; align-items:start}
   .ggrp{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--card,transparent)}
   .ggrp.alldone{opacity:.72}
+  /* ★ 2026-11-23 분쇄 차수(1차 · 2차 …) 나눠 보기 */
+  .grdbar{display:flex; gap:6px; flex-wrap:wrap; align-items:center; padding:10px 14px 0}
+  .grdbar .btn{height:34px; padding:0 14px; font-weight:800}
+  .rdtag{display:inline-block; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:800; color:#fff; background:#6B7280; white-space:nowrap}
+  .rdtag.r1{background:#2563EB} .rdtag.r2{background:#EA580C} .rdtag.r3{background:#7C3AED} .rdtag.r4{background:#0F766E} .rdtag.r5{background:#BE185D}
+  .grd{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:8px 12px; font-size:12.5px; font-weight:700; border-top:1px solid var(--line); background:rgba(127,127,127,.05)}
+  .grd .gcnt{margin-left:auto; white-space:nowrap} .grd .gcnt.ok{color:var(--ok)}
+  .gi.rd1{border-left:4px solid #2563EB} .gi.rd2{border-left:4px solid #EA580C} .gi.rd3{border-left:4px solid #7C3AED} .gi.rd4{border-left:4px solid #0F766E} .gi.rd5{border-left:4px solid #BE185D} .gi.rd0{border-left:4px solid #6B7280}
   .ggrp-h{display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px 12px; border-bottom:1px solid var(--line); background:var(--soft-bg,rgba(127,127,127,.06))}
   .ggrp-h .gname{font-size:15.5px; font-weight:800}
   .ggrp-h .gcnt{margin-left:auto; font-size:12.5px; font-weight:700; white-space:nowrap}
@@ -2237,6 +2245,7 @@ details.wkTool #wkToolSw .swb{height:38px}
     <!-- ★ 2026-11-17 분쇄 작업 — 분쇄도별 카드 · [분쇄 완료] 체크 (Lee "분쇄 들어가보니깐 너무 허접하더라 분쇄 조금 더 신경써줘") -->
     <div class="panel" id="grindWorkP">
       <div class="panel-h" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">분쇄 작업 <span id="grindWorkSum"></span><span class="r" id="grindWorkTools" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"></span></div>
+      <div class="grdbar" id="grindRoundBar"></div>
       <div id="grindWork" style="padding:12px 14px 14px"></div>
     </div>
     <div class="panel">
@@ -2256,6 +2265,7 @@ details.wkTool #wkToolSw .swb{height:38px}
     </div>
     <div class="panel">
       <div class="panel-h">분쇄 수량표 <span id="grindSum"></span></div>
+      <div class="grdbar" id="grindRoundBar2" style="padding-bottom:8px"></div>
       <div class="hint">A 핸드드립 · B 커피메이커 · C 가정용더치 · D 모카포트 · E 가정용에스프레소 — 집계·출고지시서·계획EA 붙여넣기 시 자동으로 반영됩니다 · 플토 분쇄 집계 시트와 같은 표</div>
       <div class="panel-b"><table id="grindTbl"></table></div>
     </div>
@@ -8440,6 +8450,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-23", "분쇄 — 1차 · 2차 나눠 보기", "분쇄 화면에서 같은 품목 · 분쇄도는 1차와 2차가 한 줄로 합쳐져, 2차로 새로 들어온 것이 무엇인지 알기 어려웠습니다. 이제 그날 차수가 둘 이상이면 ① 분쇄 작업 카드 안에서 차수별로 나눠 보입니다 (1차 파랑 · 2차 주황 · 차수마다 수량 · 완료 수 · [1차 완료] 버튼) ② 완료 체크가 차수마다 따로입니다 ③ 위의 [전체 · 1차 · 2차] 를 누르면 그 차수만 보입니다 — 분쇄 작업 · 분쇄 수량표 · SKU 표 · 입력 내역이 같이 바뀝니다 ④ 전체를 볼 때 분쇄 수량표에 차수별 수량 칸이 붙습니다. 차수가 하나뿐인 날은 전과 같습니다. 차수마다 따로 체크하려면 Supabase 에서 093_grind_round.sql 을 한 번 실행해야 합니다 (실행 전에는 그 품목의 모든 차수가 함께 체크되고 안내가 뜹니다)."],
   ["2026-11-23", "지시의 중량 변경 — 1kg 지시를 200g · 500g 으로", "대기 중인 작업지시를 같은 원두의 다른 품목으로 바꿀 수 있습니다. 현장 작업 카드의 일련번호 옆, 생산 관리 › 작업지시 표의 품목 옆에 [중량 변경] 버튼이 생겼습니다. 누르면 같은 원두의 품목 목록 창이 뜨고, 품목을 골라 수량을 적습니다 (여러 개를 골라 나눌 수 있음 — 예: 1kg 20개 → 500g 20개 + 200g 40개). 새 지시는 출고처 · 설비 · 순서 · 배치(일련번호)를 원래 지시에서 물려받고, 원래 지시는 남는 원두만큼 수량이 줄거나(다 쓰면) 삭제됩니다. 이 지시가 가진 원두량을 넘게는 적을 수 없습니다. 대기 중이고 실적이 없는 지시만 · 계획 담당과 관리자만 바꿀 수 있습니다. 서버 SQL 은 새로 돌릴 필요가 없습니다."],
   ["2026-11-23", "작업자 — 직급 순 · 가나다 · 파트(자동 · 수동 · 분쇄 · 검수)", "작업자 명단이 어디서나 직급 순(부서장 · 팀장 · 매니저 · 파트장 · 사원 · 파트타이머)으로, 같은 직급 안에서는 가나다 순으로 나옵니다 (기준정보 › 작업자 표 · 계정 표 · 작업자 선택 창 · 생산 완료 창 · 실적 입력의 작업자 고르기). 전에는 화면마다 달라 등록한 순서로 나오는 곳이 있었습니다. 기준정보 › 작업자 표에 [파트] 칸을 넣었습니다 — 작업자마다 자동 · 수동 · 분쇄 · 검수를 눌러 켜고 끕니다 (한 사람이 여러 파트 가능 · 부서장 · 팀장 · 매니저는 파트 표시 없음). [파트 관리]에서 파트 이름을 추가 · 변경할 수 있습니다. 작업자 선택 창 위에 [전체 · 자동 · 수동 · 분쇄 · 검수] 가 생겨 그 파트 사람만 골라 볼 수 있고, 고른 파트는 그 기기에 남습니다. 파트는 묶어 보는 용도이며 수정 권한(업무 역할)은 전과 같습니다. 서버 SQL 을 새로 돌릴 필요가 없습니다."],
   ["2026-11-23", "작업지시 표 — 일련번호(배치) [변경] 버튼", "생산 관리 › 작업지시 표의 [일련번호] 칸에 [변경] 버튼을 넣었습니다. 전에는 자동으로 배정된 배치를 현장 작업 카드에서만 바꿀 수 있었습니다. 누르면 그 원두의 배치 목록 창(일련번호 · 로스팅일 · 잔여 kg · 남는 kg · 상미)이 뜨고, 줄을 누르면 그 배치로 바뀝니다 (일련번호도 그 배치 번호로). 목록에 없는 번호는 아래 칸에 직접 적어 [번호만 변경]. 대기 · 생산중이고 아직 실적이 없는 지시만 바꿀 수 있습니다 (계획 담당 · 관리자)."],
@@ -10884,10 +10895,26 @@ async function setBlade(){
 let GRIND_WHO = null, GRIND_HIDE_DONE = false;
 const GRIND_WHO_MS = 10 * 60 * 1000;
 const canGrind = () => can("work") || can("plan");
-function grindItems(d){
-  const rows = (DB.grind_tallies||[]).filter(t=>t.date===d), m = {};
-  rows.forEach(r=>{ const k = `${r.grind}|${r.product_id}`; const p = prodById(r.product_id);
-    const x = m[k] || (m[k] = { grind:r.grind, pid:r.product_id, p, name:p?.name || r.product_name || "", bean:p?.bean || r.bean || r.product_name || "", spec:Number(p?.spec_g ?? r.spec_g)||0, code:liveCode(p, r.product_code), qty:0, kg:0, doneQty:0, by:"", at:"" });
+/* ★ 2026-11-23 분쇄 1차 · 2차 나눠 보기 (Lee "분쇄 1차 2차 확인이 어렵더라고 나눠서 보여줄 수 있어? 작업할때도 확인이 어렵더라고")
+   전에는 같은 품목 · 분쇄도면 1차와 2차를 한 줄로 합쳐 보였다 (2차가 들어오면 "추가 N개 남음") — 어느 것이 2차로 새로 들어온 것인지 알 수 없었다
+   · 그날 차수가 둘 이상이면 분쇄 작업 카드 안에서 차수별로 나눠 보이고(1차 파랑 · 2차 주황), 완료 체크도 차수마다 따로
+   · 위의 [전체 · 1차 · 2차] 를 누르면 그 차수만 — 분쇄 작업 카드 · 분쇄 수량표 · SKU 표 · 입력 내역이 같이 바뀐다
+   · 차수가 하나뿐인 날은 전과 똑같이 보인다 */
+let GRIND_ROUND = "";                                   // "" = 전체
+const grindRounds = d => { const rs = [...new Set((DB.grind_tallies||[]).filter(t=>t.date===d).map(t=>t.round||""))]; return TALLY_ROUNDS.filter(r=>rs.includes(r)).concat(rs.filter(r=>!TALLY_ROUNDS.includes(r))); };
+const rdCls = r => { const i = TALLY_ROUNDS.indexOf(r); return i >= 0 && i < 5 ? `r${i+1}` : ""; };
+const rdTag = r => `<span class="rdtag ${rdCls(r)}">${xh(r || "차수 없음")}</span>`;
+function setGrindRound(v){ GRIND_ROUND = v || ""; renderGrind(); }
+function grindRoundBarHtml(d){
+  const rs = grindRounds(d); if (rs.length < 2) return "";
+  const all = (DB.grind_tallies||[]).filter(t=>t.date===d), sum = r => all.filter(t=>r === null || (t.round||"") === r).reduce((t,x)=>t+Number(x.qty||0),0);
+  return `<span class="hint" style="padding:0;font-weight:700">차수</span>` + [[null,"전체"], ...rs.map(r=>[r, r || "차수 없음"])].map(([r, t])=>
+    `<button type="button" class="btn grdBtn ${(r === null ? "" : r) === GRIND_ROUND && (r !== null || !GRIND_ROUND) ? "primary" : ""}" data-rd="${r === null ? "" : xh(r)}" onclick="setGrindRound(this.dataset.rd)">${xh(t)} <span style="font-weight:600;opacity:.8">${fmt(sum(r))}개</span></button>`).join("");
+}
+function grindItems(d, split){
+  const rows = (DB.grind_tallies||[]).filter(t=>t.date===d && (!split || !GRIND_ROUND || (t.round||"") === GRIND_ROUND)), m = {};
+  rows.forEach(r=>{ const k = `${r.grind}|${r.product_id}${split ? `|${r.round||""}` : ""}`; const p = prodById(r.product_id);
+    const x = m[k] || (m[k] = { grind:r.grind, pid:r.product_id, round: split ? (r.round||"") : null, p, name:p?.name || r.product_name || "", bean:p?.bean || r.bean || r.product_name || "", spec:Number(p?.spec_g ?? r.spec_g)||0, code:liveCode(p, r.product_code), qty:0, kg:0, doneQty:0, by:"", at:"" });
     x.qty += Number(r.qty||0); x.kg += grindKgOf(r);
     if (r.done_at) { x.doneQty += Number(r.qty||0); if (String(r.done_at) > String(x.at)) { x.at = r.done_at; x.by = r.done_by || ""; } } });
   return Object.values(m).map(x=>({ ...x, state: x.qty > 0 && x.doneQty >= x.qty ? "done" : x.doneQty > 0 ? "part" : "todo" }))
@@ -10902,31 +10929,41 @@ async function grindWho(label){
 function grindWhoReset(){ GRIND_WHO = null; renderGrind(); toast("다음 체크 때 작업자를 다시 선택합니다"); }
 function grindHideDone(v){ GRIND_HIDE_DONE = !!v; renderGrind(); }
 async function mesGrindMark(a){
-  return rpc("grind_mark", { p_date:a.date, p_grind:a.grind, p_product_id:a.product_id || null, p_done:a.done !== false, p_worker:a.worker || null }, () => {
-    const hit = (DB.grind_tallies||[]).filter(t=>t.date===a.date && t.grind===a.grind && (!a.product_id || t.product_id===a.product_id) && (a.done !== false ? !t.done_at : !!t.done_at));
+  const args = { p_date:a.date, p_grind:a.grind, p_product_id:a.product_id || null, p_done:a.done !== false, p_worker:a.worker || null };
+  if (a.round != null) args.p_round = a.round;          // ★ 2026-11-23 차수마다 따로 체크 (서버 093_grind_round.sql)
+  return rpc("grind_mark", args, () => {
+    const hit = (DB.grind_tallies||[]).filter(t=>t.date===a.date && t.grind===a.grind && (!a.product_id || t.product_id===a.product_id) && (a.round == null || (t.round||"") === a.round) && (a.done !== false ? !t.done_at : !!t.done_at));
     hit.forEach(t=>{ t.done_at = a.done !== false ? nowISO() : null; t.done_by = a.done !== false ? (a.worker || CURRENT_USER || "") : null; save("grind_tallies", t); });
-    if (hit.length) logAudit(a.done !== false ? "분쇄 완료" : "분쇄 완료 취소", a.date, `${a.grind} · ${a.product_id ? (prodById(a.product_id)?.name||"") : "전체"} · ${hit.length}줄`);
+    if (hit.length) logAudit(a.done !== false ? "분쇄 완료" : "분쇄 완료 취소", a.date, `${a.grind}${a.round != null ? ` · ${a.round || "차수 없음"}` : ""} · ${a.product_id ? (prodById(a.product_id)?.name||"") : "전체"} · ${hit.length}줄`);
     return { ok:true, rows:hit.length };
   }, { quiet:true });
 }
 /* [분쇄 완료] · 체크 · [취소] — pid 가 없으면 그 분쇄도 전체 */
-async function grindMark(grind, pid, done){
+let GRIND_ROUND_SRV = null;                             // 서버가 차수별 체크를 받는지 (null = 아직 모름 · false = 093 미설치)
+async function grindMark(grind, pid, done, round){
+  if (round === undefined || round === "*") round = null;
   if (!canGrind()) return toast("분쇄 완료 체크는 현장 작업 또는 계획 권한이 있는 계정만 할 수 있습니다");
   if (MISSING_TABLES.includes("grind_tallies")) return toast("분쇄 집계 표가 서버에 없습니다 — 000_install_all.sql 을 실행하십시오");
-  const d = grindDay(), its = grindItems(d).filter(x=>x.grind===grind && (!pid || x.pid===pid));
+  const d = grindDay(), rdName = round != null ? ` · ${round || "차수 없음"}` : "";
+  const its = (round != null ? (()=>{ const keep = GRIND_ROUND; GRIND_ROUND = ""; try { return grindItems(d, true).filter(x=>x.round === round); } finally { GRIND_ROUND = keep; } })() : grindItems(d)).filter(x=>x.grind===grind && (!pid || x.pid===pid));
   if (!its.length) return;
-  if (!done && !(await ask(`${grind}${pid ? ` · ${its[0].name}` : " 전체"}\n\n분쇄 완료 표시를 취소합니다.`, { title:"분쇄 완료 취소", yes:"완료 취소" }))) return;
+  if (!done && !(await ask(`${grind}${rdName}${pid ? ` · ${its[0].name}` : " 전체"}\n\n분쇄 완료 표시를 취소합니다.`, { title:"분쇄 완료 취소", yes:"완료 취소" }))) return;
   if (done && !pid) { const left = its.filter(x=>x.state !== "done");
     if (!left.length) return toast("이미 모두 완료되었습니다");
-    if (!(await ask(`${grind} — 남은 ${left.length}품목 · ${fmt(left.reduce((t,x)=>t+x.qty-x.doneQty,0))}개를 모두 분쇄 완료로 표시합니다.`, { title:"분쇄도 전체 완료", yes:"전체 완료" }))) return; }
+    if (!(await ask(`${grind}${rdName} — 남은 ${left.length}품목 · ${fmt(left.reduce((t,x)=>t+x.qty-x.doneQty,0))}개를 모두 분쇄 완료로 표시합니다.`, { title: round != null ? "차수 전체 완료" : "분쇄도 전체 완료", yes:"전체 완료" }))) return; }
   const who = await grindWho(done ? "분쇄 완료" : "분쇄 완료 취소"); if (!who) return;
   if (done && !grindTimeRec(d, grind)) { try { await grindTimeSet(d, grind, { start_at:nowISO(), by:who, auto:true }); } catch(_){ errQuiet(_); } }   // [분쇄 시작]을 누르지 않았으면 첫 완료 체크 시각부터
-  const r = await mesGrindMark({ date:d, grind, product_id:pid || null, done, worker:who });
+  let r = await mesGrindMark({ date:d, grind, product_id:pid || null, done, worker:who, round: GRIND_ROUND_SRV === false ? null : round });
+  /* 서버에 093 이 아직 없으면 (p_round 를 모름) 전처럼 그 품목의 모든 차수를 함께 체크한다 — 한 번 알려 준다 */
+  if (round != null && GRIND_ROUND_SRV !== false && (!r || r.ok === false) && /p_round|schema cache|function|PGRST20/i.test(String(r?.message || r?.code || ""))) {
+    GRIND_ROUND_SRV = false; r = await mesGrindMark({ date:d, grind, product_id:pid || null, done, worker:who });
+    if (r && r.ok !== false) toast("서버에 093_grind_round.sql 이 아직 없어 이 품목의 모든 차수가 함께 체크됩니다 — SQL 을 실행하면 차수마다 따로 체크됩니다"); }
+  else if (round != null && r && r.ok !== false && GRIND_ROUND_SRV === null) GRIND_ROUND_SRV = true;
   if (!r || r.ok === false) { const msg = String(r?.message || "처리하지 못했습니다");
     return ask(/grind_mark|schema cache|function|done_at/i.test(msg) ? "서버에 최신 000_install_all.sql 을 먼저 실행하십시오 (분쇄 완료 체크 기능)." : msg, { title:"분쇄 완료", yes:"확인", only:true }); }
   if (sb) { try { await pullWhere("grind_tallies", "date", d); } catch(_){ errQuiet(_); } }
   renderGrind();
-  toast(done ? `${grind}${pid ? ` · ${its[0].name}` : " 전체"} — 분쇄 완료 (${who})` : "분쇄 완료를 취소했습니다");
+  toast(done ? `${grind}${rdName}${pid ? ` · ${its[0].name}` : " 전체"} — 분쇄 완료 (${who})` : "분쇄 완료를 취소했습니다");
 }
 /* ══ ★ 2026-11-19 분쇄 작업 소요시간 (Lee "작업소요시간도 확인이 되게") — 실제 + 예상
    · 실제: 분쇄도마다 [▶ 분쇄 시작] ~ 마지막 완료 체크. 시작을 누르지 않고 체크하면 첫 체크 시각이 시작이 된다 (그만큼 짧게 나온다 — "시작 미입력" 표시)
@@ -11020,7 +11057,10 @@ function grOrdSave(){
 }
 function renderGrindWork(){
   const box = $("grindWork"); if (!box) return;
-  const d = grindDay(), its = grindItems(d), T = today();
+  const d = grindDay(), T = today(), RS = grindRounds(d), multi = RS.length > 1;
+  if (!multi || !RS.includes(GRIND_ROUND)) GRIND_ROUND = "";
+  { const h = grindRoundBarHtml(d); ["grindRoundBar","grindRoundBar2"].forEach(id=>{ const el = $(id); if (el) { el.innerHTML = h; el.style.display = h ? "flex" : "none"; } }); }
+  const its = grindItems(d, multi);
   const nAll = its.length, nDone = its.filter(x=>x.state === "done").length;
   const ea = its.reduce((t,x)=>t+x.qty,0), eaDone = its.reduce((t,x)=>t+Math.min(x.qty, x.doneQty),0), kg = Math.round(its.reduce((t,x)=>t+x.kg,0)*10)/10;
   const pct = ea ? Math.round(eaDone/ea*100) : 0;
@@ -11042,14 +11082,19 @@ function renderGrindWork(){
         <span class="gcnt ${all?"ok":""}">${all ? "✓ 모두 완료" : `완료 ${dn} / ${li.length}`}</span>
         ${grindTimeTag(d, g, li, gKg)}
         ${can1 && !all && !grindTimeRec(d, g) ? `<button class="btn primary" style="height:30px;font-size:12px" onclick="grindStart('${g}')" title="누른 시각부터 이 분쇄도의 작업 소요시간을 잽니다">▶ 분쇄 시작</button>` : ""}
-        ${can1 && !all ? `<button class="btn" style="height:30px;font-size:12px" onclick="grindMark('${g}', '', true)" title="이 분쇄도의 남은 품목을 모두 분쇄 완료로 표시합니다">전체 완료</button>` : ""}</div>
+        ${can1 && !all ? `<button class="btn" style="height:30px;font-size:12px" data-rd="${multi && GRIND_ROUND ? xh(GRIND_ROUND) : "*"}" onclick="grindMark('${g}', '', true, this.dataset.rd)" title="이 분쇄도의 남은 품목을 모두 분쇄 완료로 표시합니다${multi && GRIND_ROUND ? ` (${GRIND_ROUND}만)` : ""}">전체 완료</button>` : ""}</div>
       <div class="gbar"><i style="width:${gPct}%"></i></div>
-      ${shown.map(x=>`<div class="gi ${x.state}">
-        <button class="gck" ${can1 ? `onclick="grindMark('${g}','${x.pid}', ${x.state === "done" ? "false" : "true"})"` : "disabled"} title="${x.state === "done" ? "누르면 완료 표시를 취소합니다" : "누르면 분쇄 완료로 표시합니다"}">${x.state === "done" ? "✓" : ""}</button>
+      ${(multi ? RS.filter(r=>li.some(x=>x.round === r)) : [null]).map(rd=>{ const sub = rd === null ? shown : shown.filter(x=>x.round === rd), liR = rd === null ? li : li.filter(x=>x.round === rd);
+        const rDn = liR.filter(x=>x.state === "done").length, rAll = rDn === liR.length;
+        const head = rd === null ? "" : `<div class="grd">${rdTag(rd)}<span>${fmt(liR.reduce((t,x)=>t+x.qty,0))}개 · ${fmt(Math.round(liR.reduce((t,x)=>t+x.kg,0)*10)/10)}kg</span>
+          <span class="gcnt ${rAll?"ok":""}">${rAll ? "✓ 완료" : `완료 ${rDn} / ${liR.length}`}</span>
+          ${can1 && !rAll ? `<button class="btn" style="height:28px;font-size:12px" data-rd="${xh(rd)}" onclick="grindMark('${g}', '', true, this.dataset.rd)" title="이 차수의 남은 품목만 분쇄 완료로 표시합니다">${xh(rd || "차수 없음")} 완료</button>` : ""}</div>`;
+        return head + (sub.map(x=>`<div class="gi ${x.state} ${rd === null ? "" : `rd${Math.min(5, TALLY_ROUNDS.indexOf(rd) + 1)}`}">
+        <button class="gck" ${can1 ? `data-rd="${rd === null ? "*" : xh(rd)}" onclick="grindMark('${g}','${x.pid}', ${x.state === "done" ? "false" : "true"}, this.dataset.rd)"` : "disabled"} title="${x.state === "done" ? "누르면 완료 표시를 취소합니다" : "누르면 분쇄 완료로 표시합니다"}">${x.state === "done" ? "✓" : ""}</button>
         <div class="gnm">${x.spec ? specChip(x.spec) : ""}<b>${xh(x.bean)}</b></div>
         <div class="gq"><b>${fmt(x.qty)}</b>개<br>${fmt(Math.round(x.kg*10)/10)}kg</div>
         <div class="gst">${x.state === "done" ? `<b>✓ ${xh(x.by||"")}</b><br>${hhmm(x.at)}` : x.state === "part" ? `<span class="warn" style="font-weight:800">추가 ${fmt(x.qty - x.doneQty)}개 남음</span><br>${fmt(x.doneQty)}개 완료` : `<span>대기</span>`}</div>
-      </div>`).join("") || `<div class="hint" style="padding:12px">완료한 품목은 숨겼습니다</div>`}</div>`; }).join("")}</div>`;
+      </div>`).join("") || (rd === null ? "" : `<div class="hint" style="padding:8px 12px">완료한 품목은 숨겼습니다</div>`)); }).join("") || `<div class="hint" style="padding:12px">완료한 품목은 숨겼습니다</div>`}</div>`; }).join("")}</div>`;
 }
 /* 칼날 — 교체 기준 kg 를 정해 두면 누적량을 막대로 · 80% 부터 알림 */
 const bladeRaw = () => (typeof SETTINGS === "object" && SETTINGS && SETTINGS[BLADE_KEY]) || {};
@@ -11169,17 +11214,19 @@ function renderGrind(){
         <span>현재는 임시 코드(예: ${fl[0].code})입니다. 분쇄 SKU(예: CFE1535A)에서 끝 글자를 제외한 코드(CFE1535)를 해당 홀빈 품목의 코드로 등록합니다. 아래 표에는 찾은 코드를 미리 표시합니다.</span></div>
       <button class="btn primary cf-btn" onclick="fillCodesFromFile()">CFE 코드 ${fl.length}개 일괄 입력</button></div>` : ""; }
   const d = grindDay(); if ($("grindDateIn") && $("grindDateIn").value !== d) $("grindDateIn").value = d;
-  const rows = (DB.grind_tallies||[]).filter(t=>t.date===d);
+  const RS = grindRounds(d), multi = RS.length > 1;
+  const rows = (DB.grind_tallies||[]).filter(t=>t.date===d && (!multi || !GRIND_ROUND || (t.round||"") === GRIND_ROUND));      // ★ 2026-11-23 위에서 고른 차수만
   const missing = MISSING_TABLES.includes("grind_tallies");
   /* 용량별 총수량 (플토 분쇄 수량표 위쪽) */
   const specs = [100,200,500,1000];
   const bySpec = {}; rows.forEach(r=>{ const sg = Number(r.spec_g)||0; bySpec[sg] = (bySpec[sg]||0) + Number(r.qty||0); });
-  $("grindSum").innerHTML = `<span class="hint" style="padding:0 0 0 8px">${d} · ${specs.map(g=>`${specLabel(g)} <b>${fmt(bySpec[g]||0)}</b>`).join(" · ")} · 합계 <b>${fmt(rows.reduce((t,r)=>t+Number(r.qty||0),0))}</b>EA</span>` +
+  $("grindSum").innerHTML = `<span class="hint" style="padding:0 0 0 8px">${d}${multi && GRIND_ROUND ? ` · ${rdTag(GRIND_ROUND)}` : ""} · ${specs.map(g=>`${specLabel(g)} <b>${fmt(bySpec[g]||0)}</b>`).join(" · ")} · 합계 <b>${fmt(rows.reduce((t,r)=>t+Number(r.qty||0),0))}</b>EA</span>` +
     (missing ? ` <span class="tag bad" title="000_install_all.sql 의 '분쇄 집계' 절을 Supabase SQL Editor 에서 실행하십시오">서버 표 없음 — 저장되지 않음</span>` : "");
   /* 원두 × 용량 × 분쇄도 */
   const key = r => `${r.product_id}`;
-  const prods = {}; rows.forEach(r=>{ const k = key(r); if (!prods[k]) prods[k] = { p: prodById(r.product_id), name:r.product_name, bean:r.bean, spec:Number(r.spec_g)||0, code:liveCode(prodById(r.product_id), r.product_code), g:{}, tot:0 };
-    prods[k].g[r.grind] = (prods[k].g[r.grind]||0) + Number(r.qty||0); prods[k].tot += Number(r.qty||0); });
+  const prods = {}; rows.forEach(r=>{ const k = key(r); if (!prods[k]) prods[k] = { p: prodById(r.product_id), name:r.product_name, bean:r.bean, spec:Number(r.spec_g)||0, code:liveCode(prodById(r.product_id), r.product_code), g:{}, rd:{}, tot:0 };
+    prods[k].g[r.grind] = (prods[k].g[r.grind]||0) + Number(r.qty||0); prods[k].rd[r.round||""] = (prods[k].rd[r.round||""]||0) + Number(r.qty||0); prods[k].tot += Number(r.qty||0); });
+  const RC = multi && !GRIND_ROUND ? RS : [];                                     // 전체를 볼 때는 차수별 수량 칸을 덧붙인다
   const list = Object.values(prods).sort((a,b)=>prodCodeCmp(a.p||{code:a.code,name:a.name}, b.p||{code:b.code,name:b.name}));
   const GO = grindOrd(), grinds = GO.filter(g=>rows.some(r=>r.grind===g)).concat([...new Set(rows.map(r=>r.grind))].filter(g=>!GO.includes(g)));
   if ($("asof-grind")) $("asof-grind").textContent = ` ${d}`;
@@ -11194,13 +11241,13 @@ function renderGrind(){
       sl.map(x=>`<tr><td class="l"><b>${x.sku}</b></td><td class="l">${x.name||"—"}</td><td class="c"><span class="tag">${x.grind}</span></td><td class="l">${x.prod}</td><td class="l">${x.code||"—"}</td><td class="c">${[...x.rounds].join("·")}</td><td><b>${fmt(x.qty)}</b></td></tr>`),
       `<td class="l" colspan="6"><b>합계</b></td><td><b>${fmt(sl.reduce((t,x)=>t+x.qty,0))}</b></td>`);
   }
-  tbl("grindTbl", ["CFE코드","원두","용량",...grinds,"총수량"],
+  tbl("grindTbl", ["CFE코드","원두","용량",...grinds,...RC.map(r=>r || "차수 없음"),"총수량"],
     list.map(x=>`<tr><td class="l">${x.code||"—"}</td><td class="l"><b>${x.bean||x.name}</b></td><td class="c">${x.spec?specLabel(x.spec):"—"}</td>` +
-      grinds.map(g=>`<td>${x.g[g]?fmt(x.g[g]):""}</td>`).join("") + `<td><b>${fmt(x.tot)}</b></td></tr>`),
-    `<td class="l" colspan="3"><b>합계</b></td>${grinds.map(g=>`<td><b>${fmt(list.reduce((t,x)=>t+(x.g[g]||0),0))}</b></td>`).join("")}<td><b>${fmt(list.reduce((t,x)=>t+x.tot,0))}</b></td>`);
+      grinds.map(g=>`<td>${x.g[g]?fmt(x.g[g]):""}</td>`).join("") + RC.map(r=>`<td style="color:var(--soft)">${x.rd[r]?fmt(x.rd[r]):""}</td>`).join("") + `<td><b>${fmt(x.tot)}</b></td></tr>`),
+    `<td class="l" colspan="3"><b>합계</b></td>${grinds.map(g=>`<td><b>${fmt(list.reduce((t,x)=>t+(x.g[g]||0),0))}</b></td>`).join("")}${RC.map(r=>`<td><b>${fmt(list.reduce((t,x)=>t+(x.rd[r]||0),0))}</b></td>`).join("")}<td><b>${fmt(list.reduce((t,x)=>t+x.tot,0))}</b></td>`);
   const log = rows.slice().sort((a,b)=>String(a.at).localeCompare(String(b.at)));
   tbl("grindLog", ["No","차수","품목","분쇄도","SKU","수량(EA)","입력자","입력 시각",""],
-    log.map((t,i)=>`<tr><td class="rowno">${i+1}</td><td class="c">${t.round||""}</td><td class="l">${t.product_name||""}</td><td class="c">${t.grind}</td><td class="l">${t.sku_code||""}</td><td>${fmt(t.qty)}</td><td class="c">${t.user||""}</td><td class="c">${String(t.at||"").slice(5,16).replace("T"," ")}</td>
+    log.map((t,i)=>`<tr><td class="rowno">${i+1}</td><td class="c">${t.round ? rdTag(t.round) : ""}</td><td class="l">${t.product_name||""}</td><td class="c">${t.grind}</td><td class="l">${t.sku_code||""}</td><td>${fmt(t.qty)}</td><td class="c">${t.user||""}</td><td class="c">${String(t.at||"").slice(5,16).replace("T"," ")}</td>
       <td class="c">${can("plan") ? `<button class="btn danger" onclick="delGrind('${t.id}')">삭제</button>` : ""}</td></tr>`));
 }
 function csvGrind(){
