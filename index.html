@@ -8281,14 +8281,20 @@ const STATION_PERMS = { work:["floor","lead"], qc:["qc"], ship:["qc"] };
    파트는 서버 표를 바꾸지 않고 설정(worker_parts = { 작업자 id: [파트…] } · worker_part_list = 파트 이름 목록)에 둔다 — SQL 을 새로 돌릴 필요가 없다
    파트는 "누가 어느 일을 하는지" 묶어 보는 용도 — 수정 권한(업무 역할)은 전과 같이 따로다 */
 const PART_DEF = ["자동","수동","분쇄","검수"];
-const wkCmp = (a, b) => String(a?.name||"").localeCompare(String(b?.name||""), "ko");
+/* 순서 = 직급(부서장 · 팀장 · 매니저 · 파트장 · 사원 · 파트타이머) → 같은 직급 안에서는 가나다 (Lee "순서도 부서장 팀장 매니저 파트장 사원 파트타이머 순으로") */
+const wkRank = w => { const i = RANKS.indexOf(w?.role); return i < 0 ? RANKS.length : i; };
+const wkCmp = (a, b) => wkRank(a) - wkRank(b) || String(a?.name||"").localeCompare(String(b?.name||""), "ko");
 const workersABC = () => [...DB.workers].sort(wkCmp);
 const partList = () => { const v = SETTINGS.worker_part_list; return Array.isArray(v) && v.length ? v : PART_DEF; };
-const partsOf = w => { const m = SETTINGS.worker_parts, v = m && w ? m[w.id] : null, L = partList(); return Array.isArray(v) ? L.filter(x=>v.includes(x)) : []; };
+/* ★ 2026-11-23 부서장 · 팀장 · 매니저는 파트 표시를 하지 않는다 (Lee "매니저 부서장 팀장 은 따로 표시 없어도 될 거 같아") — 전에 정해 둔 값이 있어도 없는 것으로 본다 */
+const PART_SKIP_RANKS = ["부서장","팀장","매니저"];
+const partSkip = w => !!w && PART_SKIP_RANKS.includes(w.role);
+const partsOf = w => { if (partSkip(w)) return []; const m = SETTINGS.worker_parts, v = m && w ? m[w.id] : null, L = partList(); return Array.isArray(v) ? L.filter(x=>v.includes(x)) : []; };
 const partsOfName = n => partsOf(DB.workers.find(w=>w.name === n));
 async function togglePart(id, part){
   if (!isSystemAdmin()) return toast("시스템 관리자 계정만 변경할 수 있습니다");
   const w = DB.workers.find(x=>x.id === id); if (!w) return;
+  if (partSkip(w)) return toast(`${w.role}은(는) 파트를 정하지 않습니다`);
   const map = Object.assign({}, SETTINGS.worker_parts || {}), cur = new Set(Array.isArray(map[id]) ? map[id] : []);
   cur.has(part) ? cur.delete(part) : cur.add(part);
   map[id] = partList().filter(x=>cur.has(x)); if (!map[id].length) delete map[id];
@@ -8434,7 +8440,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
-  ["2026-11-23", "작업자 — 가나다 순 · 파트(자동 · 수동 · 분쇄 · 검수)", "작업자 명단이 어디서나 가나다 순으로 나옵니다 (기준정보 › 작업자 표 · 계정 표 · 작업자 선택 창 · 생산 완료 창 · 실적 입력의 작업자 고르기). 전에는 직급 순이거나 등록한 순서였습니다. 기준정보 › 작업자 표에 [파트] 칸을 넣었습니다 — 작업자마다 자동 · 수동 · 분쇄 · 검수를 눌러 켜고 끕니다 (한 사람이 여러 파트 가능). [파트 관리]에서 파트 이름을 추가 · 변경할 수 있습니다. 작업자 선택 창 위에 [전체 · 자동 · 수동 · 분쇄 · 검수] 가 생겨 그 파트 사람만 골라 볼 수 있고, 고른 파트는 그 기기에 남습니다. 파트는 묶어 보는 용도이며 수정 권한(업무 역할)은 전과 같습니다. 서버 SQL 을 새로 돌릴 필요가 없습니다."],
+  ["2026-11-23", "작업자 — 직급 순 · 가나다 · 파트(자동 · 수동 · 분쇄 · 검수)", "작업자 명단이 어디서나 직급 순(부서장 · 팀장 · 매니저 · 파트장 · 사원 · 파트타이머)으로, 같은 직급 안에서는 가나다 순으로 나옵니다 (기준정보 › 작업자 표 · 계정 표 · 작업자 선택 창 · 생산 완료 창 · 실적 입력의 작업자 고르기). 전에는 화면마다 달라 등록한 순서로 나오는 곳이 있었습니다. 기준정보 › 작업자 표에 [파트] 칸을 넣었습니다 — 작업자마다 자동 · 수동 · 분쇄 · 검수를 눌러 켜고 끕니다 (한 사람이 여러 파트 가능 · 부서장 · 팀장 · 매니저는 파트 표시 없음). [파트 관리]에서 파트 이름을 추가 · 변경할 수 있습니다. 작업자 선택 창 위에 [전체 · 자동 · 수동 · 분쇄 · 검수] 가 생겨 그 파트 사람만 골라 볼 수 있고, 고른 파트는 그 기기에 남습니다. 파트는 묶어 보는 용도이며 수정 권한(업무 역할)은 전과 같습니다. 서버 SQL 을 새로 돌릴 필요가 없습니다."],
   ["2026-11-23", "작업지시 표 — 일련번호(배치) [변경] 버튼", "생산 관리 › 작업지시 표의 [일련번호] 칸에 [변경] 버튼을 넣었습니다. 전에는 자동으로 배정된 배치를 현장 작업 카드에서만 바꿀 수 있었습니다. 누르면 그 원두의 배치 목록 창(일련번호 · 로스팅일 · 잔여 kg · 남는 kg · 상미)이 뜨고, 줄을 누르면 그 배치로 바뀝니다 (일련번호도 그 배치 번호로). 목록에 없는 번호는 아래 칸에 직접 적어 [번호만 변경]. 대기 · 생산중이고 아직 실적이 없는 지시만 바꿀 수 있습니다 (계획 담당 · 관리자)."],
   ["2026-11-23", "배치 재고 — [엑셀 붙여넣기] 버튼", "지금 갖고 있는 원두 배치 재고를 엑셀에서 한 번에 넣는 창(MMS 배치 일괄 입력)이 메뉴 어디에도 없었습니다 — 기준정보를 묶음으로 정리할 때 'MMS 원두재고' 탭이 빠지면서 들어가는 길이 사라졌습니다. 로스팅 › 배치 재고의 [배치 추가] 옆에 [엑셀 붙여넣기] 버튼을 넣었습니다. 누르면 창이 뜨고, 엑셀 재고표(날짜 · 원두 · 순번 · kg)를 복사해 표에 붙여넣은 뒤 [저장]하면 배치 재고에 바로 보입니다. 재고 담당 권한이 필요합니다."],
   ["2026-11-23", "MMS 배치 일괄 입력 — 엑셀 재고표를 그대로 붙여넣기", "MMS 배치 일괄 입력 창(로스팅 › 배치 재고 › [엑셀 붙여넣기])에 엑셀 재고표를 붙여넣으면 들어가지 않던 것을 고쳤습니다. 원인 — 날짜가 '11월 19일' 글자라 읽지 못했고, 엑셀의 칸 순서(날짜 · 원두 · 순번 · kg)가 입력 표(원두 · 로스팅일 · 순번 · kg)와 달랐고, 가운데 빈 칸이 있었습니다. 이제 줄마다 날짜 칸 · 이름 칸 · 숫자 칸(앞 = 순번, 뒤 = kg)을 알아서 나눠 넣습니다. 날짜는 '11월 19일' · '11/19' · '2026.11.19'를 읽고(연도가 없으면 올해, 오늘보다 뒤면 작년), '원두 에스쇼콜라' · '… [CRI0758]'처럼 적힌 이름도 등록된 원두로 맞춥니다. 빈 줄은 건너뜁니다. 붙여넣은 뒤 [저장]을 누르면 줄마다 검사합니다."],
@@ -19132,12 +19138,12 @@ function renderBaseInner(){
 
   const adminN = DB.workers.filter(w=>permOf(w)==="admin").length;
   const rankIdx = w => { const i = RANKS.indexOf(w.role); return i<0 ? RANKS.length : i; };
-  const wlist = sorted("tWork", workersABC());                                    // ★ 2026-11-23 가나다 순 (전에는 직급 순)
+  const wlist = sorted("tWork", workersABC());                                    // ★ 2026-11-23 직급 순 → 같은 직급은 가나다
   const PL = partList();
   if ($("workHint")) $("workHint").innerHTML =
     `<b>작업자와 로그인 계정은 별개의 정보입니다.</b> 직급·업무 역할은 현장 운영용이며,
      <b>시스템 관리자</b>만 작업자 수정·계정 생성을 할 수 있습니다 · 실제 작업자를 변경해도 로그인 권한은 변경되지 않습니다.<br>
-     명단은 <b>가나다 순</b>입니다 · <b>파트</b>(${PL.join(" · ")})는 이름을 눌러 켜고 끕니다 — 한 사람이 여러 파트여도 됩니다 · 작업자 선택 창에서 파트별로 골라 볼 수 있습니다 · 파트는 수정 권한(업무 역할)과 따로입니다.`;
+     명단은 <b>직급 순</b>(부서장 · 팀장 · 매니저 · 파트장 · 사원 · 파트타이머)이고 같은 직급 안에서는 가나다 순입니다 · <b>파트</b>(${PL.join(" · ")})는 이름을 눌러 켜고 끕니다 — 한 사람이 여러 파트여도 됩니다 · 부서장 · 팀장 · 매니저는 파트를 표시하지 않습니다 · 작업자 선택 창에서 파트별로 골라 볼 수 있습니다 · 파트는 수정 권한(업무 역할)과 따로입니다.`;
   tbl("tWork", ["No","이름","직급","파트","업무 역할","수정 가능 항목",""],
     wlist.map((w,i)=>{
       const pm = permOf(w);
@@ -19145,7 +19151,7 @@ function renderBaseInner(){
       return `<tr><td class="rowno">${i+1}</td>
       <td class="l">${inp("workers",w.id,"name",w.name)}</td>
       <td class="c">${sel("workers",w.id,"role",w.role,RANKS)}</td>
-      <td class="c" style="white-space:nowrap">${(()=>{ const mine = partsOf(w); return PL.map(pt=>`<button type="button" class="btn partBtn ${mine.includes(pt)?"primary":""}" data-part="${xh(pt)}" style="height:28px;padding:0 9px;font-size:12.5px;margin:1px" onclick="togglePart('${w.id}', this.dataset.part)">${xh(pt)}</button>`).join(""); })()}</td>
+      <td class="c" style="white-space:nowrap">${(()=>{ if (partSkip(w)) return `<span class="hint" style="padding:0">—</span>`; const mine = partsOf(w); return PL.map(pt=>`<button type="button" class="btn partBtn ${mine.includes(pt)?"primary":""}" data-part="${xh(pt)}" style="height:28px;padding:0 9px;font-size:12.5px;margin:1px" onclick="togglePart('${w.id}', this.dataset.part)">${xh(pt)}</button>`).join(""); })()}</td>
       <td class="c"><select onchange="setPerm('${w.id}',this.value)" style="font-weight:800" ${last?"disabled title='마지막 관리자입니다 — 다른 사용자를 먼저 관리자로 지정하십시오'":""}>
         ${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${k===pm?"selected":""}>${v}</option>`).join("")}
       </select>${last?'<br><span class="tag warn" style="margin-top:4px;display:inline-block">마지막 관리자</span>':''}</td>
