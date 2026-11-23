@@ -3426,7 +3426,7 @@ details.wkTool #wkToolSw .swb{height:38px}
     </div>
     <div class="subpane" id="p-work">
       <div class="panel">
-        <div class="panel-h">작업자 명단 · 권한 <span class="r"><button class="btn" onclick="addMulti(addWorker, this)">행 추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="일괄 추가할 행 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()"> <button class="btn primary" onclick="openBulk('workers')">일괄 입력</button></span></div>
+        <div class="panel-h">작업자 명단 · 권한 <span class="r"><button class="btn" onclick="addMulti(addWorker, this)">행 추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="일괄 추가할 행 수" style="width:50px;height:30px;margin-left:2px" onclick="this.select()"> <button class="btn primary" onclick="openBulk('workers')">일괄 입력</button> <button class="btn" id="partListBtn" onclick="editPartList()" title="파트 이름을 추가 · 변경합니다 (기본: 자동 · 수동 · 분쇄 · 검수)">파트 관리</button></span></div>
         <div class="hint" id="workHint"></div>
         <div class="panel-b"><table id="tWork"></table></div>
       </div>
@@ -4552,7 +4552,7 @@ const SORT_COLS = {
   tMms:   { 1:m=>batchLabel(m), 2:m=>m.bean, 3:m=>m.roast_date, 4:m=>Number(m.batch)||0, 5:m=>Number(m.stock_kg)||0 },
   tMat:   { 1:M=>M.kind, 2:M=>M.name, 3:M=>M.code, 4:M=>M.spec, 5:M=>Number(M.pack_qty)||0, 6:M=>Number(M.stock)||0, 7:M=>Number(M.safety)||0 },
   tMach:  { 1:m=>m.name, 2:m=>Number(m.workers)||0, 3:m=>Number(m.hours)||0 },
-  tWork:  { 1:w=>w.name, 2:w=>w.role, 3:w=>w.perm },
+  tWork:  { 1:w=>w.name, 2:w=>w.role, 3:w=>partsOf(w).join(" "), 4:w=>w.perm },
   /* 작업지시 · 라벨작업 · 실적 · 출고 · 재고확인 · 로스팅 · 집계 · 변경이력 */
   woTbl:  { 1:o=>Number(o.priority)||0, 2:o=>o.serial||"", 3:o=>o.product_name||prodById(o.product_id)?.name||"", 4:o=>o.channel,
             5:o=>o.machine||"", 6:o=>Number(o.qty_plan)||0, 7:o=>Number(o.qty_done)||0, 8:o=>Number(o.qty_ng)||0,
@@ -8277,7 +8277,37 @@ function stationAll(){ try { return JSON.parse(localStorage.getItem(STATION_KEY)
 /* 화면별로 뜨는 사람 — 기준정보 › 생산자의 "업무 역할" 기준 (Lee "해당 작업자만 · 관리자는 안 뜨게")
    현장 작업 = 현장 작업자 · 현장 관리자 / 검수 · 출고 = 검수·출고 */
 const STATION_PERMS = { work:["floor","lead"], qc:["qc"], ship:["qc"] };
-const stationWorkers = st => DB.workers.filter(w=>(STATION_PERMS[st]||[]).includes(permOf(w)) && w.active !== false);
+/* ★ 2026-11-23 작업자는 어디서나 가나다 순 · 작업자마다 파트(자동 · 수동 · 분쇄 · 검수)를 정한다 (Lee "작업자 가나다 순서로 · 각자 파트별로 설정")
+   파트는 서버 표를 바꾸지 않고 설정(worker_parts = { 작업자 id: [파트…] } · worker_part_list = 파트 이름 목록)에 둔다 — SQL 을 새로 돌릴 필요가 없다
+   파트는 "누가 어느 일을 하는지" 묶어 보는 용도 — 수정 권한(업무 역할)은 전과 같이 따로다 */
+const PART_DEF = ["자동","수동","분쇄","검수"];
+const wkCmp = (a, b) => String(a?.name||"").localeCompare(String(b?.name||""), "ko");
+const workersABC = () => [...DB.workers].sort(wkCmp);
+const partList = () => { const v = SETTINGS.worker_part_list; return Array.isArray(v) && v.length ? v : PART_DEF; };
+const partsOf = w => { const m = SETTINGS.worker_parts, v = m && w ? m[w.id] : null, L = partList(); return Array.isArray(v) ? L.filter(x=>v.includes(x)) : []; };
+const partsOfName = n => partsOf(DB.workers.find(w=>w.name === n));
+async function togglePart(id, part){
+  if (!isSystemAdmin()) return toast("시스템 관리자 계정만 변경할 수 있습니다");
+  const w = DB.workers.find(x=>x.id === id); if (!w) return;
+  const map = Object.assign({}, SETTINGS.worker_parts || {}), cur = new Set(Array.isArray(map[id]) ? map[id] : []);
+  cur.has(part) ? cur.delete(part) : cur.add(part);
+  map[id] = partList().filter(x=>cur.has(x)); if (!map[id].length) delete map[id];
+  SETTINGS.worker_parts = map; renderBase();
+  const r = await saveSetting("worker_parts", map); if (r && r.ok === false) toast("저장 실패 — " + (r.message || "서버 연결 확인"));
+  logAudit("작업자 파트", w.name||"", (map[id]||[]).join(" · ") || "없음");
+}
+async function editPartList(){
+  if (!isSystemAdmin()) return toast("시스템 관리자 계정만 변경할 수 있습니다");
+  const v = await askText("파트 이름을 쉼표(,)로 나눠 적으십시오 — 적은 순서대로 보입니다.\n\n· 새 이름을 뒤에 붙이면 파트가 추가됩니다 (예: 자동, 수동, 분쇄, 검수, 출고)\n· 이름을 지우면 그 파트는 사라지고, 작업자에게 정해 둔 그 파트도 빠집니다", partList().join(", "), "파트 관리");
+  if (v === null) return;
+  const list = [...new Set(String(v).split(/[,，、\n]/).map(x=>x.trim()).filter(Boolean))].slice(0, 12);
+  if (!list.length) return toast("파트 이름을 하나 이상 적으십시오");
+  if (list.some(x=>x.length > 10)) return toast("파트 이름은 10자 이내로 적으십시오");
+  SETTINGS.worker_part_list = list; renderBase();
+  const r = await saveSetting("worker_part_list", list); if (r && r.ok === false) toast("저장 실패 — " + (r.message || "서버 연결 확인"));
+  logAudit("작업자 파트 목록", "", list.join(" · ")); toast(`파트 ${list.length}개 — ${list.join(" · ")}`);
+}
+const stationWorkers = st => DB.workers.filter(w=>(STATION_PERMS[st]||[]).includes(permOf(w)) && w.active !== false).sort(wkCmp);
 /* ★ 2026-11-15 화면 위 "작업자 — 누가 하나요?" 고르는 칸을 없앴다 (Lee "작업자 누가 하나요는 다 지워줘 · 작업은 다 할때 어느 작업자가 했는지 물어봐줘야")
    미리 골라 두는 작업자는 없다 — 작업을 누를 때마다 requireUser({ask}) 가 이름을 묻는다 */
 const stationWho = st => "";
@@ -8404,6 +8434,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-23", "작업자 — 가나다 순 · 파트(자동 · 수동 · 분쇄 · 검수)", "작업자 명단이 어디서나 가나다 순으로 나옵니다 (기준정보 › 작업자 표 · 계정 표 · 작업자 선택 창 · 생산 완료 창 · 실적 입력의 작업자 고르기). 전에는 직급 순이거나 등록한 순서였습니다. 기준정보 › 작업자 표에 [파트] 칸을 넣었습니다 — 작업자마다 자동 · 수동 · 분쇄 · 검수를 눌러 켜고 끕니다 (한 사람이 여러 파트 가능). [파트 관리]에서 파트 이름을 추가 · 변경할 수 있습니다. 작업자 선택 창 위에 [전체 · 자동 · 수동 · 분쇄 · 검수] 가 생겨 그 파트 사람만 골라 볼 수 있고, 고른 파트는 그 기기에 남습니다. 파트는 묶어 보는 용도이며 수정 권한(업무 역할)은 전과 같습니다. 서버 SQL 을 새로 돌릴 필요가 없습니다."],
+  ["2026-11-23", "작업지시 표 — 일련번호(배치) [변경] 버튼", "생산 관리 › 작업지시 표의 [일련번호] 칸에 [변경] 버튼을 넣었습니다. 전에는 자동으로 배정된 배치를 현장 작업 카드에서만 바꿀 수 있었습니다. 누르면 그 원두의 배치 목록 창(일련번호 · 로스팅일 · 잔여 kg · 남는 kg · 상미)이 뜨고, 줄을 누르면 그 배치로 바뀝니다 (일련번호도 그 배치 번호로). 목록에 없는 번호는 아래 칸에 직접 적어 [번호만 변경]. 대기 · 생산중이고 아직 실적이 없는 지시만 바꿀 수 있습니다 (계획 담당 · 관리자)."],
   ["2026-11-23", "배치 재고 — [엑셀 붙여넣기] 버튼", "지금 갖고 있는 원두 배치 재고를 엑셀에서 한 번에 넣는 창(MMS 배치 일괄 입력)이 메뉴 어디에도 없었습니다 — 기준정보를 묶음으로 정리할 때 'MMS 원두재고' 탭이 빠지면서 들어가는 길이 사라졌습니다. 로스팅 › 배치 재고의 [배치 추가] 옆에 [엑셀 붙여넣기] 버튼을 넣었습니다. 누르면 창이 뜨고, 엑셀 재고표(날짜 · 원두 · 순번 · kg)를 복사해 표에 붙여넣은 뒤 [저장]하면 배치 재고에 바로 보입니다. 재고 담당 권한이 필요합니다."],
   ["2026-11-23", "MMS 배치 일괄 입력 — 엑셀 재고표를 그대로 붙여넣기", "MMS 배치 일괄 입력 창(로스팅 › 배치 재고 › [엑셀 붙여넣기])에 엑셀 재고표를 붙여넣으면 들어가지 않던 것을 고쳤습니다. 원인 — 날짜가 '11월 19일' 글자라 읽지 못했고, 엑셀의 칸 순서(날짜 · 원두 · 순번 · kg)가 입력 표(원두 · 로스팅일 · 순번 · kg)와 달랐고, 가운데 빈 칸이 있었습니다. 이제 줄마다 날짜 칸 · 이름 칸 · 숫자 칸(앞 = 순번, 뒤 = kg)을 알아서 나눠 넣습니다. 날짜는 '11월 19일' · '11/19' · '2026.11.19'를 읽고(연도가 없으면 올해, 오늘보다 뒤면 작년), '원두 에스쇼콜라' · '… [CRI0758]'처럼 적힌 이름도 등록된 원두로 맞춥니다. 빈 줄은 건너뜁니다. 붙여넣은 뒤 [저장]을 누르면 줄마다 검사합니다."],
   ["2026-11-23", "작업자 직급 — 파트타이머 추가", "기준정보 › 작업자의 [직급]에 '파트타이머'를 추가했습니다 (부서장 · 팀장 · 매니저 · 파트장 · 사원 · 파트타이머). 작업자 표와 일괄 입력에서 고를 수 있고, 목록은 직급 순서대로 맨 뒤에 정렬됩니다. 업무 역할(수정 권한)은 직급과 따로이며 전과 같이 고릅니다."],
@@ -16148,7 +16180,7 @@ function renderReq(){
   /* 희망 로스팅일 — 기본은 당일 (전에는 무조건 다음날로 잡혔다). [오늘]·[내일] 로 바로 바꿀 수 있다 */
   if (!$("rqWant").value) $("rqWant").value = today();
   const by = $("rqBy").value;
-  $("rqBy").innerHTML = DB.workers.map(w=>`<option ${w.name===by?"selected":""}>${w.name}</option>`).join("");
+  $("rqBy").innerHTML = workersABC().map(w=>`<option ${w.name===by?"selected":""}>${w.name}</option>`).join("");
 
   try { renderBeanUse(); } catch(e){ console.warn(e); }
   const all = reqRows.map(r=>({ r, c:reqCalc(r) }));
@@ -16611,8 +16643,8 @@ function fillSelects(){
   $("fMach").innerHTML = DB.machines.map(m=>`<option>${m.name}</option>`).join("");
   fillLabelSel();
   const w = $("fWorker").value, e = $("fEnter").value;
-  $("fWorker").innerHTML = DB.workers.map(x=>`<option ${x.name===w?"selected":""}>${x.name}</option>`).join("");
-  $("fEnter").innerHTML  = DB.workers.map(x=>`<option ${x.name===e?"selected":""}>${x.name}</option>`).join("");
+  $("fWorker").innerHTML = workersABC().map(x=>`<option ${x.name===w?"selected":""}>${x.name}</option>`).join("");
+  $("fEnter").innerHTML  = workersABC().map(x=>`<option ${x.name===e?"selected":""}>${x.name}</option>`).join("");
   fillBatch();
 }
 /* 생산실적 폼의 라벨 칸 — 품목을 바꾸면 그 품목 기본 라벨로 맞춘다 */
@@ -16729,7 +16761,7 @@ async function openEdit(id){
   $("edTitle").textContent = `일련번호 ${l.serial||""} · 입력 ${l.entered_by||""} ${fmtDT(l.created_at)}`;
   $("edProd").innerHTML = PRODS().map(p=>`<option value="${p.id}" ${p.id===l.product_id?"selected":""}>${p.code?`[${p.code}] `:""}${p.name}</option>`).join("");
   $("edMach").innerHTML = DB.machines.map(m=>`<option ${m.name===l.machine?"selected":""}>${m.name}</option>`).join("");
-  $("edWorker").innerHTML = DB.workers.map(w=>`<option ${w.name===l.worker?"selected":""}>${w.name}</option>`).join("");
+  $("edWorker").innerHTML = workersABC().map(w=>`<option ${w.name===l.worker?"selected":""}>${w.name}</option>`).join("");
   $("edDate").value = l.work_date; $("edQty").value = l.qty_ea;
   $("edInput").value = l.input_kg; $("edLeft").value = l.leftover_kg ?? 0;
   $("edLot").value = l.lot || ""; $("edNote").value = "";
@@ -17638,7 +17670,7 @@ function renderPqc(){
   $("qMach").innerHTML = `<option value="">(공정 미지정)</option>` +
     DB.machines.map(m=>`<option>${m.name}</option>`).join("");
   const w = $("qWorker").value;
-  $("qWorker").innerHTML = DB.workers.map(x=>`<option ${x.name===w?"selected":""}>${x.name}</option>`).join("");
+  $("qWorker").innerHTML = workersABC().map(x=>`<option ${x.name===w?"selected":""}>${x.name}</option>`).join("");
 
   const tD = PQCL().filter(q=>q.date===today());
   const thisWeek = PQCL().filter(q=>weekKey(q.date)===weekKey(today()));
@@ -19100,17 +19132,20 @@ function renderBaseInner(){
 
   const adminN = DB.workers.filter(w=>permOf(w)==="admin").length;
   const rankIdx = w => { const i = RANKS.indexOf(w.role); return i<0 ? RANKS.length : i; };
-  const wlist = sorted("tWork", [...DB.workers].sort((a,b)=> rankIdx(a)-rankIdx(b) || String(a.name).localeCompare(String(b.name))));
+  const wlist = sorted("tWork", workersABC());                                    // ★ 2026-11-23 가나다 순 (전에는 직급 순)
+  const PL = partList();
   if ($("workHint")) $("workHint").innerHTML =
     `<b>작업자와 로그인 계정은 별개의 정보입니다.</b> 직급·업무 역할은 현장 운영용이며,
-     <b>시스템 관리자</b>만 작업자 수정·계정 생성을 할 수 있습니다 · 실제 작업자를 변경해도 로그인 권한은 변경되지 않습니다.`;
-  tbl("tWork", ["No","이름","직급","업무 역할","수정 가능 항목",""],
+     <b>시스템 관리자</b>만 작업자 수정·계정 생성을 할 수 있습니다 · 실제 작업자를 변경해도 로그인 권한은 변경되지 않습니다.<br>
+     명단은 <b>가나다 순</b>입니다 · <b>파트</b>(${PL.join(" · ")})는 이름을 눌러 켜고 끕니다 — 한 사람이 여러 파트여도 됩니다 · 작업자 선택 창에서 파트별로 골라 볼 수 있습니다 · 파트는 수정 권한(업무 역할)과 따로입니다.`;
+  tbl("tWork", ["No","이름","직급","파트","업무 역할","수정 가능 항목",""],
     wlist.map((w,i)=>{
       const pm = permOf(w);
       const last = pm==="admin" && adminN<=1;
       return `<tr><td class="rowno">${i+1}</td>
       <td class="l">${inp("workers",w.id,"name",w.name)}</td>
       <td class="c">${sel("workers",w.id,"role",w.role,RANKS)}</td>
+      <td class="c" style="white-space:nowrap">${(()=>{ const mine = partsOf(w); return PL.map(pt=>`<button type="button" class="btn partBtn ${mine.includes(pt)?"primary":""}" data-part="${xh(pt)}" style="height:28px;padding:0 9px;font-size:12.5px;margin:1px" onclick="togglePart('${w.id}', this.dataset.part)">${xh(pt)}</button>`).join(""); })()}</td>
       <td class="c"><select onchange="setPerm('${w.id}',this.value)" style="font-weight:800" ${last?"disabled title='마지막 관리자입니다 — 다른 사용자를 먼저 관리자로 지정하십시오'":""}>
         ${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${k===pm?"selected":""}>${v}</option>`).join("")}
       </select>${last?'<br><span class="tag warn" style="margin-top:4px;display:inline-block">마지막 관리자</span>':''}</td>
@@ -19121,6 +19156,7 @@ function renderBaseInner(){
     `<td colspan="2" class="c">합 계 · ${DB.workers.length}명</td>
      <td class="c">${RANKS.map(r=>{ const n=DB.workers.filter(w=>w.role===r).length;
         return n?`${r} ${n}`:null; }).filter(Boolean).join(" · ") || "—"}</td>
+     <td class="c">${PL.map(pt=>`${xh(pt)} ${DB.workers.filter(w=>partsOf(w).includes(pt)).length}`).join(" · ")}</td>
      <td class="c">${Object.entries(ROLES).map(([k,v])=>`${v} ${DB.workers.filter(w=>permOf(w)===k).length}`).join(" · ")}</td>
      <td colspan="2"></td>`);
   if (!isSystemAdmin()) {
@@ -19152,7 +19188,7 @@ function accountForWorker(workerId){
 function renderAccountManagement(){
   if (!$("tAccounts")) return;
   const rankIdx = w => { const i=RANKS.indexOf(w.role); return i<0?RANKS.length:i; };
-  const rows=[...DB.workers].sort((a,b)=>rankIdx(a)-rankIdx(b)||String(a.name).localeCompare(String(b.name)));
+  const rows=workersABC();
   tbl("tAccounts", ["이름","직급","업무 역할","로그인 ID","계정 상태",'<span title="체크하면 이 계정으로 로그인한 사용자가 상단에서 작업자를 선택합니다 — 태블릿 공용 계정">공용 (작업자 선택)</span>',"관리"],
     rows.map(w=>{
       const a=accountForWorker(w.id);
@@ -23754,18 +23790,32 @@ function pickWho(opt){
       <div id="pwBox" style="border:2px solid var(--line-2);border-radius:10px;padding:12px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><b>${esc(opt.label || "검수자")}</b><span class="tag bad" id="pwReq">필수</span>
           <span class="hint" id="pwTxt" style="padding:0;margin-left:auto;font-size:12.5px">${esc(opt.hint || "검수 담당자를 선택하십시오")}</span></div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px">${names.map(n=>`<button type="button" class="btn pwBtn" data-who="${esc(n)}" style="height:46px;padding:0 18px;font-size:15.5px;font-weight:700">${esc(n)}</button>`).join("")
-          || `<span class="hint" style="padding:0">선택 가능한 인원이 없습니다 — 기준정보 › 작업자에서 업무 역할을 지정하십시오</span>`}</div>
+        <div id="pwParts" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px"></div>
+        <div id="pwNames" style="display:flex;flex-wrap:wrap;gap:8px"></div>
       </div>
       <div id="pwWarn" style="color:var(--bad);font-weight:700;min-height:22px;margin-top:8px"></div>
       <div style="display:flex;gap:8px;margin-top:6px"><button class="btn" id="pwNo" style="flex:1;height:48px">취소</button>
         <button class="btn primary" id="pwOk" style="flex:2;height:48px;font-size:16px;font-weight:800">${esc(opt.yes || "검수 완료")}</button></div></div>`;
     document.body.appendChild(ov);
     let who = "";
-    ov.querySelectorAll(".pwBtn").forEach(b=>b.onclick=()=>{ who = b.dataset.who;
-      ov.querySelectorAll(".pwBtn").forEach(x=>x.classList.toggle("primary", x === b));
-      ov.querySelector("#pwBox").style.borderColor = "var(--ok)"; ov.querySelector("#pwReq").style.display = "none";
-      ov.querySelector("#pwTxt").innerHTML = `${esc(opt.label || "검수자")} <b>${esc(who)}</b>`; ov.querySelector("#pwWarn").textContent = ""; });
+    /* ★ 2026-11-23 파트별로 골라 보기 — 이 창에 나오는 사람 중 파트가 정해진 사람이 있으면 위에 [전체 · 자동 · 수동 · 분쇄 · 검수] 가 보인다
+       고른 파트는 이 기기에 남는다 (다음에 열어도 그 파트부터) · 그 파트에 사람이 없으면 전체로 */
+    const PW_KEY = "momos.pickwho.part", useParts = partList().filter(pt=>names.some(n=>partsOfName(n).includes(pt)));
+    let part = ""; try { part = localStorage.getItem(PW_KEY) || ""; } catch(_){ errQuiet(_); } if (!useParts.includes(part)) part = "";
+    const drawNames = () => {
+      const show = part ? names.filter(n=>partsOfName(n).includes(part) || n === who) : names;
+      ov.querySelector("#pwParts").style.display = useParts.length ? "flex" : "none";
+      ov.querySelector("#pwParts").innerHTML = useParts.length ? [["", `전체 ${names.length}`], ...useParts.map(pt=>[pt, `${pt} ${names.filter(n=>partsOfName(n).includes(pt)).length}`])]
+        .map(([v, t])=>`<button type="button" class="btn pwPart ${v === part ? "primary" : ""}" data-part="${esc(v)}" style="height:32px;padding:0 12px;font-size:13px">${esc(t)}</button>`).join("") : "";
+      ov.querySelector("#pwNames").innerHTML = show.map(n=>`<button type="button" class="btn pwBtn ${n === who ? "primary" : ""}" data-who="${esc(n)}" style="height:46px;padding:0 18px;font-size:15.5px;font-weight:700">${esc(n)}</button>`).join("")
+        || `<span class="hint" style="padding:0">선택 가능한 인원이 없습니다 — 기준정보 › 작업자에서 업무 역할을 지정하십시오</span>`;
+      ov.querySelectorAll(".pwPart").forEach(b=>b.onclick=()=>{ part = b.dataset.part; try { localStorage.setItem(PW_KEY, part); } catch(_){ errQuiet(_); } drawNames(); });
+      ov.querySelectorAll(".pwBtn").forEach(b=>b.onclick=()=>{ who = b.dataset.who;
+        ov.querySelectorAll(".pwBtn").forEach(x=>x.classList.toggle("primary", x === b));
+        ov.querySelector("#pwBox").style.borderColor = "var(--ok)"; ov.querySelector("#pwReq").style.display = "none";
+        ov.querySelector("#pwTxt").innerHTML = `${esc(opt.label || "검수자")} <b>${esc(who)}</b>`; ov.querySelector("#pwWarn").textContent = ""; });
+    };
+    drawNames();
     ov.querySelector("#pwNo").onclick = ()=>{ ov.remove(); done(null); };
     ov.querySelector("#pwOk").onclick = ()=>{
       if (!who) { ov.querySelector("#pwWarn").textContent = `${opt.label || "검수자"}를 선택하십시오 — 선택해야 다음 단계로 진행됩니다`;
@@ -24167,7 +24217,8 @@ function renderOrder(){
       const p = prodById(o.product_id);
       const lock = stIdx(o) >= 2;
       return `<tr class="${SEL.orders.has(o.id)?"selrow":""}" data-co="${o.id}">${selTd("orders",o.id,oi)}<td>${lock?o.priority:`<input type="number" class="num" style="width:52px" value="${o.priority||0}" onchange="setOrd('${o.id}','priority',this.value)">`}</td>
-        <td class="l"><b>${o.serial||"—"}</b>${
+        <td class="l" style="white-space:nowrap"><b>${o.serial||"—"}</b>${
+          canPickBatch(o) ? ` <button class="btn woBatchBtn" style="height:26px;padding:0 8px;font-size:12px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="이 지시에 쓸 원두 배치(=일련번호)를 직접 고르거나, 일련번호만 직접 적어 바꿉니다 — 자동 배정된 배치를 손으로 바꿀 때">변경</button>` : ""}${
           o.batch_of>1?`<br><span class="tag" style="font-size:10px">배치 ${o.batch_seq}/${o.batch_of}</span>`:""}${
           isMixedOrder(o)?`<br><span class="tag bad" style="font-size:10px">배치 ${batchParts(o.batch_plan).length}개 혼재</span>`:""}</td>
         <td class="l" style="white-space:nowrap">${specChip(specOf(o))}${p?.name||"—"}${/\[원두 이동\]/.test(String(o.note||"")) ? `<br><span class="hint" style="padding:0;font-size:11px;color:var(--warn);white-space:normal">${xh(o.note).replace(/ \[원두 이동\]/g, "<br>[원두 이동]")}</span>` : ""}</td>
