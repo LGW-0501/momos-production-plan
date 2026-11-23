@@ -8440,6 +8440,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-23", "지시의 중량 변경 — 1kg 지시를 200g · 500g 으로", "대기 중인 작업지시를 같은 원두의 다른 품목으로 바꿀 수 있습니다. 현장 작업 카드의 일련번호 옆, 생산 관리 › 작업지시 표의 품목 옆에 [중량 변경] 버튼이 생겼습니다. 누르면 같은 원두의 품목 목록 창이 뜨고, 품목을 골라 수량을 적습니다 (여러 개를 골라 나눌 수 있음 — 예: 1kg 20개 → 500g 20개 + 200g 40개). 새 지시는 출고처 · 설비 · 순서 · 배치(일련번호)를 원래 지시에서 물려받고, 원래 지시는 남는 원두만큼 수량이 줄거나(다 쓰면) 삭제됩니다. 이 지시가 가진 원두량을 넘게는 적을 수 없습니다. 대기 중이고 실적이 없는 지시만 · 계획 담당과 관리자만 바꿀 수 있습니다. 서버 SQL 은 새로 돌릴 필요가 없습니다."],
   ["2026-11-23", "작업자 — 직급 순 · 가나다 · 파트(자동 · 수동 · 분쇄 · 검수)", "작업자 명단이 어디서나 직급 순(부서장 · 팀장 · 매니저 · 파트장 · 사원 · 파트타이머)으로, 같은 직급 안에서는 가나다 순으로 나옵니다 (기준정보 › 작업자 표 · 계정 표 · 작업자 선택 창 · 생산 완료 창 · 실적 입력의 작업자 고르기). 전에는 화면마다 달라 등록한 순서로 나오는 곳이 있었습니다. 기준정보 › 작업자 표에 [파트] 칸을 넣었습니다 — 작업자마다 자동 · 수동 · 분쇄 · 검수를 눌러 켜고 끕니다 (한 사람이 여러 파트 가능 · 부서장 · 팀장 · 매니저는 파트 표시 없음). [파트 관리]에서 파트 이름을 추가 · 변경할 수 있습니다. 작업자 선택 창 위에 [전체 · 자동 · 수동 · 분쇄 · 검수] 가 생겨 그 파트 사람만 골라 볼 수 있고, 고른 파트는 그 기기에 남습니다. 파트는 묶어 보는 용도이며 수정 권한(업무 역할)은 전과 같습니다. 서버 SQL 을 새로 돌릴 필요가 없습니다."],
   ["2026-11-23", "작업지시 표 — 일련번호(배치) [변경] 버튼", "생산 관리 › 작업지시 표의 [일련번호] 칸에 [변경] 버튼을 넣었습니다. 전에는 자동으로 배정된 배치를 현장 작업 카드에서만 바꿀 수 있었습니다. 누르면 그 원두의 배치 목록 창(일련번호 · 로스팅일 · 잔여 kg · 남는 kg · 상미)이 뜨고, 줄을 누르면 그 배치로 바뀝니다 (일련번호도 그 배치 번호로). 목록에 없는 번호는 아래 칸에 직접 적어 [번호만 변경]. 대기 · 생산중이고 아직 실적이 없는 지시만 바꿀 수 있습니다 (계획 담당 · 관리자)."],
   ["2026-11-23", "배치 재고 — [엑셀 붙여넣기] 버튼", "지금 갖고 있는 원두 배치 재고를 엑셀에서 한 번에 넣는 창(MMS 배치 일괄 입력)이 메뉴 어디에도 없었습니다 — 기준정보를 묶음으로 정리할 때 'MMS 원두재고' 탭이 빠지면서 들어가는 길이 사라졌습니다. 로스팅 › 배치 재고의 [배치 추가] 옆에 [엑셀 붙여넣기] 버튼을 넣었습니다. 누르면 창이 뜨고, 엑셀 재고표(날짜 · 원두 · 순번 · kg)를 복사해 표에 붙여넣은 뒤 [저장]하면 배치 재고에 바로 보입니다. 재고 담당 권한이 필요합니다."],
@@ -23517,6 +23518,63 @@ function ordBatchMms(o){
   const hit = DB.mms.find(m=>(!bean || m.bean===bean) && batchFull(m)===bp.full);
   return hit || (bean ? null : (DB.mms.find(m=>batchFull(m)===bp.full) || null));
 }
+/* ══ ★ 2026-11-23 중량 변경 — 대기 중인 지시를 같은 원두의 다른 품목(200g · 500g …)으로 바꾼다 (Lee "200g / 500g 다른 중량으로 생산 하고 싶은데 그걸 변경이 안돼")
+   창에서 같은 원두의 품목을 골라 수량을 적는다 (여러 개 가능 — 1kg 20개 → 500g 20개 + 200g 40개)
+   · 고른 품목마다 새 지시를 만든다 — 출고처 · 설비 · 순서 · 배치(일련번호)는 원래 지시 것을 물려받는다
+   · 원래 지시는 쓰고 남는 원두만큼 수량을 줄이고, 남는 것이 1개 분량도 안 되면 삭제한다
+   · 이 지시가 가진 원두량을 넘게는 못 적는다 (모자라면 지시를 따로 추가)
+   서버 SQL 은 그대로 — 지시 추가 · 수정 · 삭제 기능만 쓴다. 새 지시를 다 만든 뒤에 원래 지시를 줄이므로, 중간에 실패하면 원래 지시는 그대로 남는다 ══ */
+const canChangeSpec = o => !!o && o.status === "대기" && !o.log_id && !Number(o.qty_done) && (can("plan") || isManager());
+const specUnitKg = p => needKg(p, 1000) / 1000;
+async function changeOrderSpec(id){
+  const o = ordById(id); if (!o) return;
+  if (!canChangeSpec(o)) return toast("대기 중이고 실적이 없는 지시만 중량을 바꿀 수 있습니다 (계획 담당 · 관리자)");
+  const p = prodById(o.product_id); if (!p || !p.bean) return toast("이 지시의 품목에 원두가 정해져 있지 않습니다");
+  const qty0 = Math.round(Number(o.qty_plan)||0); if (!(qty0 > 0)) return toast("계획 수량이 0인 지시입니다");
+  const kg0 = needKg(p, qty0), r2 = v => Math.round(v*100)/100;
+  const items = pickProdItems(q=>q.bean === p.bean && q.id !== p.id, q=>` <span class="tag" style="font-size:10.5px">원두 전부 쓰면 ${fmt(Math.floor(kg0 / specUnitKg(q) + 1e-6))}개</span>`);
+  if (!items.length) return ask(`${p.bean} 원두로 만드는 다른 품목이 없습니다.\n\n기준정보 › 품목에 200g · 500g 품목을 먼저 등록하십시오.`, { title:"중량 변경", yes:"확인", only:true });
+  if (!(await requireUser({ ask:"중량 변경" }))) return;
+  const usedOf = list => list.reduce((t, x)=>t + needKg(x.item.p, Number(x.v.qty)||0), 0);
+  const got = await pickDlg({ title:`중량 변경 — ${p.name} ${fmt(qty0)}개 (원두 ${fmt(r2(kg0))}kg)`, ph:"품목명 · 규격으로 찾기", fields:[{ k:"qty", ph:"수량", label:"수량", req:true }],
+    hint:`같은 원두(${p.bean})의 품목만 · 여러 개를 골라 나눠도 됩니다 · 쓰고 남는 원두는 원래 품목 지시로 남습니다`, empty:"같은 원두의 다른 품목이 없습니다", items,
+    note:(it, sel)=>{ const n = numOf(sel.v.qty); return n > 0 ? `원두 ${fmt(r2(needKg(it.p, n)))}kg 사용` : ""; },
+    valid:list=>{ const u = usedOf(list); return u > kg0 * 1.002 + 0.005 ? `원두가 모자랍니다 — 이 지시의 원두 ${fmt(r2(kg0))}kg · 적은 수량은 ${fmt(r2(u))}kg 입니다. 수량을 줄이십시오` : ""; } });
+  if (!got || !got.length) return;
+  const used = usedOf(got), remKg = Math.max(0, kg0 - used), remEa = Math.min(qty0, Math.floor(remKg / specUnitKg(p) + 1e-6)), lostKg = Math.max(0, remKg - needKg(p, remEa));
+  if (!(await ask(`${p.name} ${fmt(qty0)}개 (원두 ${fmt(r2(kg0))}kg) 를 아래와 같이 바꿉니다.\n\n${got.map(x=>`· ${x.item.name} ${fmt(x.v.qty)}개 — 원두 ${fmt(r2(needKg(x.item.p, x.v.qty)))}kg`).join("\n")}\n\n` +
+      (remEa > 0 ? `원래 지시(${p.name})는 ${fmt(remEa)}개로 줄입니다.` : `원래 지시(${p.name})는 삭제합니다.`) + (lostKg > 0.05 ? `\n지시에 잡히지 않는 원두 약 ${fmt(r2(lostKg))}kg 이 남습니다.` : "") +
+      `\n\n새 지시는 출고처 · 설비 · 순서 · 배치(일련번호)를 원래 지시에서 물려받습니다 — 설비는 목록에서 바꿀 수 있습니다.`, { title:"중량 변경", yes:"변경" }))) return;
+  const bp1 = batchParts(o.batch_plan), oneBatch = bp1.length === 1 && bp1[0].kg > 0;
+  const bpText = kg => String(o.batch_plan).replace(/([\d.]+)(\s*kg)/i, (_, x, u) => `${r2(kg)}${u}`);
+  const busy = setBusy("중량 변경 중…"); const made = [], fail = []; let oldMsg = "";
+  try {
+    for (const x of got) {
+      const r = await mesAddOrder({ date:o.work_date, product_id:x.id, idem:`sc-${o.id}-${x.id}-${uid()}` });
+      if (!r || !r.ok) { fail.push(`${x.item.name}${r?.message ? ` (${r.message})` : ""}`); break; }
+      const patch = { qty_plan:x.v.qty, channel:o.channel || x.item.p.channel || "일반", machine:o.machine || "", priority:Number(o.priority)||0,
+        note:`[중량 변경] ${p.name} ${o.order_no||""} 에서`.trim() };
+      if (o.machine_id) patch.machine_id = o.machine_id;
+      if (oneBatch) { patch.batch_plan = bpText(needKg(x.item.p, x.v.qty)); patch.serial = o.serial || ""; patch.serial_full = o.serial_full || ""; }
+      const er = await mesEditOrder({ order_id:r.order_id, patch, idem:`sce-${r.order_id}-${uid()}` });
+      if (sb && r.order_id) { try { await pullOrder(r.order_id); } catch(_){ errQuiet(_); } }
+      if (er && er.ok === false) { fail.push(`${x.item.name} — 지시는 만들었지만 수량 · 설비를 넣지 못했습니다 (${er.message||""}) · 목록에서 직접 넣으십시오`); break; }
+      made.push(x);
+    }
+    /* 새 지시를 전부 만들었을 때만 원래 지시를 줄이거나 지운다 */
+    if (!fail.length) {
+      if (remEa > 0) { const patch = { qty_plan:remEa }; if (oneBatch) patch.batch_plan = bpText(needKg(p, remEa));
+        const r = await mesEditOrder({ order_id:o.id, patch, idem:`sco-${o.id}-${uid()}` });
+        if (r && r.ok) { if (sb) { try { await pullOrder(o.id); } catch(_){ errQuiet(_); } } } else oldMsg = `원래 지시의 수량을 줄이지 못했습니다 (${r?.message||""}) — 목록에서 ${fmt(remEa)}개로 직접 고치십시오`; }
+      else { const r = await mesDeleteOrder({ order_id:o.id, idem:`scd-${o.id}-${uid()}` });
+        if (r && r.ok) { const i = DB.orders.findIndex(x=>x.id === o.id); if (i >= 0) DB.orders.splice(i, 1); } else oldMsg = `원래 지시를 삭제하지 못했습니다 (${r?.message||""}) — 목록에서 직접 삭제하십시오`; }
+    }
+  } finally { busy(); }
+  logAudit("중량 변경", o.order_no||"", `${p.name} ${fmt(qty0)}개 → ${made.map(x=>`${x.item.name} ${fmt(x.v.qty)}개`).join(" + ") || "없음"}${fail.length ? "" : remEa > 0 ? ` · 원래 ${fmt(remEa)}개 남김` : " · 원래 지시 삭제"}`);
+  renderAll();
+  if (fail.length || oldMsg) return ask(`중량 변경을 끝까지 하지 못했습니다.\n\n${made.length ? `만든 지시: ${made.map(x=>`${x.item.name} ${fmt(x.v.qty)}개`).join(" · ")}\n` : ""}${fail.length ? `실패: ${fail.join(" · ")}\n원래 지시(${p.name} ${fmt(qty0)}개)는 그대로 있습니다 — 만든 지시가 있으면 수량이 겹치니 확인하십시오.` : oldMsg}`, { title:"중량 변경 — 확인 필요", yes:"확인", only:true });
+  toast(`중량을 변경했습니다 — ${made.map(x=>`${x.item.name} ${fmt(x.v.qty)}개`).join(" + ")}${remEa > 0 ? ` · ${p.name} ${fmt(remEa)}개 남김` : ""}`);
+}
 const canPickBatch = o => o && ["대기","생산중"].includes(o.status) && !o.log_id && (can("plan") || isManager());
 async function pickOrderBatch(id){
   if (!(await requireUser())) return;
@@ -24227,7 +24285,7 @@ function renderOrder(){
           canPickBatch(o) ? ` <button class="btn woBatchBtn" style="height:26px;padding:0 8px;font-size:12px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="이 지시에 쓸 원두 배치(=일련번호)를 직접 고르거나, 일련번호만 직접 적어 바꿉니다 — 자동 배정된 배치를 손으로 바꿀 때">변경</button>` : ""}${
           o.batch_of>1?`<br><span class="tag" style="font-size:10px">배치 ${o.batch_seq}/${o.batch_of}</span>`:""}${
           isMixedOrder(o)?`<br><span class="tag bad" style="font-size:10px">배치 ${batchParts(o.batch_plan).length}개 혼재</span>`:""}</td>
-        <td class="l" style="white-space:nowrap">${specChip(specOf(o))}${p?.name||"—"}${/\[원두 이동\]/.test(String(o.note||"")) ? `<br><span class="hint" style="padding:0;font-size:11px;color:var(--warn);white-space:normal">${xh(o.note).replace(/ \[원두 이동\]/g, "<br>[원두 이동]")}</span>` : ""}</td>
+        <td class="l" style="white-space:nowrap">${specChip(specOf(o))}${p?.name||"—"}${canChangeSpec(o) && p?.bean ? ` <button class="btn woSpecBtn" style="height:26px;padding:0 8px;font-size:12px;margin-left:6px" onclick="event.stopPropagation();changeOrderSpec('${o.id}')" title="같은 원두의 다른 중량(200g · 500g …) 품목으로 바꿉니다 — 여러 품목으로 나눌 수도 있습니다">중량 변경</button>` : ""}${/\[원두 이동\]/.test(String(o.note||"")) ? `<br><span class="hint" style="padding:0;font-size:11px;color:var(--warn);white-space:normal">${xh(o.note).replace(/ \[원두 이동\]/g, "<br>[원두 이동]")}</span>` : ""}</td>
         <td class="c">${lock ? o.channel : `<select onchange="setOrd('${o.id}','channel',this.value)">${
           SHIP_CH.map(c=>`<option ${c===o.channel?"selected":""}>${c}</option>`).join("")}</select>`}</td>
         <td class="c">${lock ? (o.machine||"—") : `<select onchange="setOrd('${o.id}','machine',this.value)"><option value="">미지정</option>${
@@ -25126,7 +25184,8 @@ function renderWork(){
                 : ex.per ? `사용 가능 ${fmt(ex.left)}kg${ex.others?` (같은 배치 다른 지시 ${fmt(ex.others)}개분 ${fmt(ex.othersKg)}kg 제외)`:""} ÷ 1개 ${fmt(ex.per)}kg = 최대 ${fmt(ex.max)}개 · 남은 목표 ${fmt(ex.todo)}개${ex.lack > 0 ? ` · ＋1개까지 ${fmt(ex.lack)}kg 부족` : ""}` : "";
               return why ? `<div class="xqty"><span>잔여 원두</span><b class="xwhy none">추가 없음</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">이월 ${fmt(ck)}kg 포함 · ${why}</span></div>` : ""; })()}` : ""}`; })()}
         ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"일련번호":"일련번호"}</span><b>${o.serial || "완료 시 부여"}</b>${
-          canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="사용할 배치(=일련번호)를 직접 선택하거나 일련번호를 직접 입력합니다">변경</button>` : ""}</div>`}
+          canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="사용할 배치(=일련번호)를 직접 선택하거나 일련번호를 직접 입력합니다">변경</button>` : ""}${
+          canChangeSpec(o) && prodById(o.product_id)?.bean ? ` <button class="btn wkSpecBtn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();changeOrderSpec('${o.id}')" title="같은 원두의 다른 중량(200g · 500g …) 품목으로 바꿉니다 — 여러 품목으로 나눌 수도 있습니다">중량 변경</button>` : ""}</div>`}
         ${(()=>{ const rows = ordLotRows(o), al = autoLotOf(o), lot = rows.length ? lotRowsText(rows) : (o.lot || al);
           const canLot = o.status !== "폐기" && o.status !== "출고완료" && (stIdx(o) < 2 ? (can("work") || can("plan")) : can("plan"));
           const btn = canLot ? ` <button class="btn" style="height:${isFloor()?32:24}px;padding:0 8px;margin-left:6px" onclick="event.stopPropagation();openOrderLots('${o.id}')" title="LOT별 잔량 확인 후 선택 · 복수 LOT 분할 입력 · 변경 이력">LOT 관리</button>` : "";
