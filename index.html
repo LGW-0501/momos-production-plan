@@ -2735,9 +2735,11 @@ details.wkTool #wkToolSw .swb{height:38px}
         실제 배치 수가 계획보다 적으면 해당 행만 <b>[취소]</b>하십시오.
       </div>
       <div id="inSelBar" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:8px 14px;border-bottom:1px solid var(--line)">
+        <b style="white-space:nowrap">로스팅일</b>
+        <input type="date" id="inRoastAll" style="height:34px;font-size:14px" title="선택한 배치의 로스팅일을 한 번에 바꿉니다 — 비워 두면 로스팅일은 그대로">
         <b style="white-space:nowrap">입고 일자</b>
-        <input type="date" id="inDayAll" style="height:34px;font-size:14px">
-        <button class="btn" style="height:34px" onclick="inDaySel()">선택한 배치에 적용</button>
+        <input type="date" id="inDayAll" style="height:34px;font-size:14px" title="선택한 배치의 입고 일자를 한 번에 바꿉니다 — 비워 두면 입고 일자는 그대로">
+        <button class="btn" style="height:34px" onclick="inDaySel()" title="위 두 날짜 중 넣은 것을 선택한 배치에 한 번에 적용합니다 (선택이 없으면 입고 예정 배치 전체에 적용할지 묻습니다)">선택한 배치에 적용</button>
         <button class="btn" style="height:34px" onclick="inDayQuick(0)">오늘 일자로</button>
         <button class="btn" style="height:34px" onclick="inDayQuick(-1)">어제 일자로</button>
         <button class="btn primary" style="height:34px" onclick="takeSel()">선택한 배치 입고</button>
@@ -2863,7 +2865,7 @@ details.wkTool #wkToolSw .swb{height:38px}
     </div>
     <div class="panel">
       <div class="panel-h">MMS 배치 재고 현황 (현재) <span class="r">
-        <button class="btn primary" onclick="addRepeat(addBatchQuick, this, ()=>DB.mms.length + '|' + DB.mms.reduce((t,m)=>t+Number(m.in_kg||0),0))" title="로스팅 계획 없이 배치를 직접 등록 (보유 원두가 장부에 없는 경우) — 오른쪽 숫자만큼 이어서 입력합니다">배치 추가</button><input type="number" class="num addN" value="1" min="1" max="50" title="한 번에 추가할 수 (최대 50)" style="width:50px;height:30px;margin-left:2px" onclick="this.select()">
+        <button class="btn primary" onclick="addBatchQuick()" title="로스팅 계획 없이 배치를 직접 등록 (보유 원두가 장부에 없는 경우) — 창에서 원두를 골라 여러 배치를 한 번에 등록합니다">배치 추가</button>
         <button class="btn" onclick="csvBatches()">엑셀 다운로드</button></span></div>
       <div class="hint">재고가 있는 배치만 · 선입 순 (생산 시 상위 배치부터 차감) · <b>계획 사용</b>은 현재 생산계획에서 이 배치에 할당된 예정 수량입니다 ·
         <b>[수정]</b>은 마감자가 실사한 잔량으로 장부를 조정하는 기능입니다 — 차이는 조정 이력에 기록됩니다 · <b>[입고 취소]</b>는 미사용 배치를 입고 전(로스팅 행) 상태로 복원하며, <b>[삭제]</b>는 그 외 배치를 삭제합니다 (생산에 사용한 배치는 관리자만 가능 · 사유 입력 필요)</div>
@@ -3652,6 +3654,7 @@ details.wkTool #wkToolSw .swb{height:38px}
     <div class="panel-h" style="flex:0 0 auto"><span id="mtAddTitle">라벨 작업 추가</span></div>
     <div style="padding:12px 16px 8px;flex:0 0 auto">
       <input type="search" id="mtAddQ" placeholder="품목명 · 코드 · 원두 · 라벨로 찾기" oninput="pickDraw()" autocomplete="off" style="width:100%">
+      <div id="mtAddTop" style="display:none;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0 0"></div>
       <div class="hint" id="mtAddInfo" style="padding:6px 0 0"></div>
     </div>
     <div id="mtAddList"></div>
@@ -8400,6 +8403,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-23", "배치 재고 [배치 추가] — 창 하나에서 여러 배치를 한 번에", "로스팅 › 배치 재고의 [배치 추가]가 창 방식으로 바뀌었습니다. 전에는 원두 → 로스팅일 → 번호 → 잔량을 창 네 개로 차례로 묻고 배치마다 되풀이했습니다. 이제 창 하나에서 원두를 여러 개 고르고, 맨 위 [로스팅일]을 고른 원두 모두에 한 번에 적용하고, 원두마다 1배치 kg 와 배치 수만 넣습니다. 배치 번호는 그날 다음 번호부터 자동으로 붙고, 칸 옆에 등록될 번호와 합계 kg 이 미리 보입니다. 버튼 옆 숫자 칸은 없어졌습니다."],
+  ["2026-11-23", "로스팅 입고 — 로스팅일 · 입고 일자를 한 번에 바꾸기", "로스팅 › 입고 확인 표 위에 [로스팅일] 날짜 칸이 생겼습니다. 로스팅일과 입고 일자 중 넣은 것을 [선택한 배치에 적용]으로 한 번에 바꿉니다 (둘 다 넣으면 둘 다). 배치를 선택하지 않고 누르면 입고 예정 배치 전체에 적용할지 묻습니다. 입고 일자가 로스팅일보다 앞서게 되는 배치는 바꾸지 않고 알려 줍니다. [오늘 일자로] · [어제 일자로]는 전처럼 입고 일자만 바꿉니다. 서버 SQL 불필요."],
   ["2026-11-22", "행 추가 창 — 로스팅 계획은 1배치 kg 기준 · Enter 로 값이 사라지지 않게", "① 로스팅 계획 [행 추가] 창의 kg 는 1배치 기준입니다 — 58.5 를 넣고 배치 수 10 이면 배치마다 58.5kg (합계 585kg). 칸 옆에 '58.5kg × 10배치 = 합계 585kg'이 바로 보입니다. ② 추가 창에서 Enter 를 누르면 다음 칸으로 넘어가고 넣은 값은 그대로 남습니다 (마지막 칸에서는 그 자리에 머뭅니다). 검색 칸에서 Enter 는 찾은 것이 하나일 때 그 줄을 고릅니다. 추가는 [N건 추가] 버튼을 눌러야 됩니다."],
   ["2026-11-22", "현장 작업 — 설정은 [도구 ▾] 안으로", "현장 작업 화면 위쪽에 늘어서 있던 설정을 [도구 ▾] 하나에 모았습니다. ① 작업 순서 — 자동 정렬 · 채널 순서 · 중량 순서 · 원두 순서 ② 켜기 · 끄기 — 코스트코 · 컬리 · 여유분. 기능은 그대로입니다. 꺼 둔 것이 있으면 도구 버튼 옆에 '꺼짐 — 여유분 (여유분 배치 2건 숨김)'처럼 빨간 꼬리표가 항상 보이고, 누르면 도구가 열립니다. 계획과 다른 지시 · 동기화 · 배치 번호 부여처럼 바로 해야 하는 버튼은 줄에 그대로 있습니다. 검수 화면의 켜기 · 끄기 줄은 전과 같습니다."],
   ["2026-11-22", "여유분 켜기 · 끄기 — 꺼도 달라지지 않던 것", "여유분이 어느 지시에 몇 개 들었는지를 지시를 만들 때 한 번만 적어 두어서, 그 뒤 [현장 지시 계획 동기화]로 수량이 바뀌거나 지시를 손으로 추가하거나 집계 · 여유분 설정이 바뀌면 '여유분만으로 된 배치'를 알아보지 못했습니다 (끄나 켜나 같았음). 이제 지시별 여유분 몫을 그때그때 다시 셉니다. 규칙은 그대로입니다 — ① 요일별 여유분만 스위치를 따릅니다 (기본 여유 25개는 항상 포함) ② 여유분만으로 된 배치는 끄면 숨겨집니다 ③ 주문분과 여유분이 섞인 배치는 전부 생산합니다. 섞인 배치 카드에는 '여유분 끔 — 주문분과 섞인 배치라 전부 생산'이 크게 표시되고, 스위치를 바꾸면 숨긴 배치 수와 전부 생산하는 배치 수를 알려 줍니다. 서버 SQL 불필요."],
@@ -12258,6 +12263,7 @@ function pickDlg(opt){
     if (PICK) { const o = PICK; PICK = null; try { o.res(null); } catch(_){ errQuiet(_); } }
     PICK = { opt, sel:{}, order:[], res, by:Object.fromEntries((opt.items||[]).map(it=>[it.id, it])) };
     $("mtAddTitle").textContent = opt.title || "추가"; $("mtAddQ").value = ""; $("mtAddQ").placeholder = opt.ph || "이름 · 코드로 찾기";
+    { const top = $("mtAddTop"); if (top) { top.innerHTML = opt.top || ""; top.style.display = opt.top ? "flex" : "none"; } }      // 선택한 것 모두에 같이 적용할 값 (예: 로스팅일)
     $("mtAddDlg").style.display = "flex"; pickDraw(); $("mtAddList").scrollTop = 0;
     if (!document.body.classList.contains("mobile")) setTimeout(()=>$("mtAddQ").focus(), 30);
   });
@@ -14922,13 +14928,29 @@ var TAKE_SMALL_OK = new Set();
 var IN_SEL = new Set();
 function inSel(id, on){ on ? IN_SEL.add(id) : IN_SEL.delete(id); renderIn(); }
 function inSelAll(on){ IN_SEL = new Set(on ? openLines().map(x=>x.l.id) : []); renderIn(); }
-function inDayQuick(d){ const t = new Date(); t.setDate(t.getDate()+d); $("inDayAll").value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`; inDaySel(); }
-function inDaySel(){
-  const v = $("inDayAll")?.value; if (!v) return toast("입고 일자를 선택하십시오");
-  if (!IN_SEL.size) return toast("왼쪽 체크박스로 입고 일자를 변경할 배치를 선택하십시오");
-  let n = 0, bad = 0;
-  IN_SEL.forEach(id=>{ const l = DB.roast_lines.find(x=>x.id===id); if (!l) return; if (l.roast_date && v < l.roast_date) { bad++; return; } l.in_date = v; n++; });
-  renderIn(); toast(`배치 ${n}개 입고 일자 → ${v}${bad?` · ${bad}개는 로스팅일 이전이므로 변경하지 않음`:""}`);
+function inDayQuick(d){ const t = new Date(); t.setDate(t.getDate()+d); $("inDayAll").value = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`; if ($("inRoastAll")) $("inRoastAll").value = ""; inDaySel(); }   // 빠른 버튼은 입고 일자만 바꾼다
+/* ★ 2026-11-23 로스팅일 · 입고 일자를 한 번에 (Lee "로스팅 입고시 일괄 날짜 변경 로스팅일자 및 생산일자 한번에 바꿀수 있게")
+   전에는 입고 일자만 한 번에 바꿀 수 있었고 로스팅일은 줄마다 하나씩 바꿔야 했다 → 두 날짜 칸 중 넣은 것을 선택한 배치에 한 번에 적용
+   · 선택이 없으면 입고 예정 배치 전체에 적용할지 묻는다  · 입고 일자는 로스팅일보다 앞설 수 없다 (그런 배치는 건너뛰고 알려 준다)
+   · 로스팅일은 서버의 입고 줄에도 바로 저장한다 (새로고침해도 남는다) — 입고 일자는 입고할 때 함께 보낸다 (전과 같음) */
+async function inDaySel(){
+  const vr = $("inRoastAll")?.value || "", vi = $("inDayAll")?.value || "";
+  if (!vr && !vi) return toast("바꿀 로스팅일 또는 입고 일자를 선택하십시오");
+  let rows = openLines().map(x=>x.l).filter(l=>IN_SEL.has(l.id));
+  if (!rows.length) { const all = openLines().map(x=>x.l); if (!all.length) return toast("입고 예정 배치가 없습니다");
+    if (!(await ask(`선택한 배치가 없습니다.\n\n입고 예정 배치 전체 ${all.length}개에 적용할까요?\n${vr ? `· 로스팅일 → ${vr}\n` : ""}${vi ? `· 입고 일자 → ${vi}` : ""}`, { title:"날짜 한 번에 바꾸기", yes:`전체 ${all.length}개에 적용` }))) return;
+    rows = all; }
+  let n = 0, bad = 0; const chg = [];
+  rows.forEach(l=>{ const r2 = vr || l.roast_date || "", i2 = vi || l.in_date || today();
+    if (r2 && i2 < r2) { bad++; return; }                                                  // 입고 일자(안 정했으면 오늘)가 로스팅일보다 앞서게 되는 배치
+    if (vr && l.roast_date !== vr) { l.roast_date = vr; chg.push(l); }
+    if (vi) l.in_date = vi; n++; });
+  if (sb && chg.length) { const busy = setBusy(`로스팅일 저장 중… (${chg.length}배치)`); let i = 0, fail = 0;
+    const work = async () => { while (i < chg.length) { const l = chg[i++]; const r = await mesEditRoastLine({ line_id:l.id, patch:{ roast_date:l.roast_date }, idem:`rl-rd-${l.id}-${uid()}` }); if (r && r.ok === false) fail++; } };
+    try { await Promise.all(Array.from({ length:Math.min(4, chg.length) }, work)); } finally { busy(); }
+    if (fail) toast(`${fail}개 배치는 로스팅일을 서버에 저장하지 못했습니다 — 입고할 때 다시 맞춥니다`); }
+  renderIn(); renderRoast();
+  toast(`배치 ${n}개 — ${[vr ? `로스팅일 → ${vr}` : "", vi ? `입고 일자 → ${vi}` : ""].filter(Boolean).join(" · ")}${bad ? ` · ${bad}개는 입고 일자가 로스팅일보다 앞서게 되어 바꾸지 않음` : ""}`);
 }
 async function takeSel(){
   if (!(await requireUser({ ask:"원두 입고" }))) return;
@@ -15516,30 +15538,32 @@ async function fixBatchQty(mmsId){
   logAudit(`원두 실측 차이 — ${reason}`, `${m.bean} ${batchFull(m)}`, `${d>0?"+":""}${fmt(d)}kg (잔량 수정 ${fmt(cur)} → ${fmt(kg)}kg)${memo ? ` · ${memo}` : ""}`);
   renderAll(); toast(`${batchShort(m)} 잔량 ${fmt(cur)} → ${fmt(kg)}kg`);
 }
-/* ── 배치 바로 추가 — 로스팅 계획 없이 (장부에 없는 원두가 실제로 있을 때) ── */
+/* ── 배치 바로 추가 — 로스팅 계획 없이 (장부에 없는 원두가 실제로 있을 때) ──
+   ★ 2026-11-23 창에서 한 번에 (Lee "배치재고 mms 배치 추가도 창이 떠서 일괄 변경할수 있게")
+   전: 원두 → 로스팅일 → 번호 → 잔량을 창 네 개로 차례로 묻고, 배치 하나마다 되풀이
+   이제: 창 하나에서 원두를 여러 개 고르고 · 맨 위 로스팅일은 고른 것 모두에 한 번에 적용 · 원두마다 1배치 kg 와 배치 수만 넣는다 (번호는 그날 다음 번호부터 자동) */
 async function addBatchQuick(){
-  if (!(await requireUser())) return;
-  const bn0 = await askText("원두명을 입력하십시오 (일부만 입력해도 됩니다)", "", "배치 추가 ① 원두");
-  if (bn0 == null) return;
-  const bean = matchBean(bn0) || nearBean(bn0)?.bean;
-  if (!bean) return toast(`"${bn0}" 과 일치하는 원두가 없습니다 — 기준정보 > 원두에서 먼저 등록하십시오`);
-  const dt = await askText(`원두: ${bean}\n\n로스팅일을 입력하십시오 (YYYY-MM-DD)`, today(), "배치 추가 ② 로스팅일");
-  if (dt == null) return;
-  const date = String(dt).trim().replace(/\./g,"-").replace(/\//g,"-");
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toast("일자 형식이 올바르지 않습니다 — 예: 2026-10-25");
-  const used = DB.mms.filter(m=>m.bean===bean && m.roast_date===date).map(m=>Number(m.batch)||0);
-  const nextNo = (used.length ? Math.max(...used) : 0) + 1;
-  const bno = await askText(`${bean} · ${date}\n당일 배치 순번을 입력하십시오. (기등록: ${used.length ? used.join(", ") : "없음"})`, String(nextNo), "배치 추가 ③ 배치 번호");
-  if (bno == null) return;
-  const batch = Math.round(numOf(bno)); if (!(batch > 0)) return toast("배치 번호는 1 이상이어야 합니다");
-  if (used.includes(batch)) return toast(`${date} 의 ${batch}번 배치가 이미 있습니다`);
-  const kgS = await askText(`${bean} · ${date} · ${batch}번 배치\n\n현재 잔량(kg)을 입력하십시오`, "", "배치 추가 ④ 잔량");
-  if (kgS == null) return;
-  const kg = numOf(kgS); if (!(String(kgS).trim()) || isNaN(kg) || kg < 0) return toast("숫자로 입력하십시오");
-  const r = await mesAddMms({ bean, roast_date:date, batch, kg, idem:`mms-q-${uid()}` });
-  if (!r || !r.ok) return toast(r?.message || "배치를 생성하지 못했습니다");
+  if (!(await requireUser({ ask:"배치 추가" }))) return;
+  const nextNos = (bean, date, n) => { const used = new Set([...DB.mms.filter(m=>m.bean === bean && m.roast_date === date).map(m=>Number(m.batch)||0),
+      ...DB.roast_lines.filter(l=>!l.done && l.bean === bean && l.roast_date === date && l.batch_no).map(l=>Number(l.batch_no)||0)]); const out = []; let k = 1;
+    while (out.length < n) { if (!used.has(k)) out.push(k); k++; } return out; };
+  const dateOf = () => String($("bqDate")?.value || "").trim();
+  const got = await pickDlg({ title:"배치 추가 — 로스팅 계획 없이 바로 등록", ph:"원두명 · MMS 코드로 찾기", hint:"종료 원두 제외", empty:"사용 중인 원두가 없습니다 — 기준정보 › 원두에서 먼저 등록하십시오",
+    top:`<b style="white-space:nowrap">로스팅일</b><input type="date" id="bqDate" value="${today()}" style="height:34px;font-size:14px" onchange="pickDraw()"><span class="hint" style="padding:0">고른 원두 모두 이 로스팅일로 등록됩니다 · 배치 번호는 그날 다음 번호부터 자동</span>`,
+    fields:[{ k:"kg", ph:"1배치 kg", label:"1배치 kg", req:true, dec:true }, { k:"n", ph:"배치 수", label:"배치 수", def:1 }],
+    items: pickBeanItems(b=>{ const d = dateOf() || today(), n = DB.mms.filter(m=>m.bean === b.name && m.roast_date === d).length; return n ? ` <span class="tag" style="font-size:10.5px">이 날 배치 ${n}개 있음</span>` : ""; }),
+    note: (it, s) => { const d = dateOf(), n = Math.min(50, Math.max(1, Math.round(numOf(s.v.n)) || 1)), kg = numOf(s.v.kg); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return "위에서 로스팅일을 고르십시오";
+      const nos = nextNos(it.name, d, n).map(k=>batchShort({ roast_date:d, batch:k })); return `${nos.length > 3 ? nos.slice(0, 2).join(" · ") + " … " + nos[nos.length-1] : nos.join(" · ")}${kg > 0 ? ` · 합계 <b style="color:inherit">${fmt(Math.round(kg*n*100)/100)}kg</b>` : ""}`; },
+    valid: L => !/^\d{4}-\d{2}-\d{2}$/.test(dateOf()) ? "로스팅일을 고르십시오" : dateOf() > today() ? "로스팅일이 오늘보다 뒤입니다 — 아직 없는 배치는 로스팅 계획으로 등록하십시오" : L.some(x=>(x.v.n || 1) > 50) ? "배치 수는 원두마다 50 이하로 넣으십시오" : "" });
+  if (!got) return;
+  const date = dateOf(), jobs = []; got.forEach(x=>nextNos(x.item.name, date, Math.max(1, x.v.n || 1)).forEach(no=>jobs.push({ bean:x.item.name, no, kg:x.v.kg })));
+  const busy = setBusy(`배치 등록 중… (${jobs.length}개)`); let ok = 0, sum = 0; const fail = [];
+  try { for (const j of jobs) { const r = await mesAddMms({ bean:j.bean, roast_date:date, batch:j.no, kg:j.kg, idem:`mms-q-${uid()}` });
+      if (r && r.ok) { ok++; sum += j.kg; if (sb && r.mms_id) { try { await pullWhere("mms", "id", r.mms_id); } catch(_){ errQuiet(_); } } } else fail.push(`${j.bean} ${batchShort({ roast_date:date, batch:j.no })} — ${r?.message || "등록하지 못했습니다"}`); } }
+  finally { busy(); }
   renderAll(); setRoastTab("stock");
-  toast(`${bean} ${date}-${String(batch).padStart(2,"0")} 배치 등록 · ${fmt(kg)}kg`);
+  fail.length ? ask(`${ok}개 배치 등록 · ${fail.length}개는 등록하지 못했습니다.\n\n${fail.slice(0,12).map(x=>"· " + x).join("\n")}`, { title:"배치 추가 결과", yes:"확인", only:true })
+    : toast(`${date} 배치 ${ok}개 등록 · 합계 ${fmt(Math.round(sum*100)/100)}kg`);
 }
 async function cntFix(mmsId){
   if (!(await requireUser({ ask:"실측 적용" }))) return;
