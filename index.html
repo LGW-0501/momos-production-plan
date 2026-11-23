@@ -8403,6 +8403,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-23", "MMS 배치 일괄 입력 — 엑셀 재고표를 그대로 붙여넣기", "기준정보 › MMS 재고 › [일괄 입력]에 엑셀 재고표를 붙여넣으면 들어가지 않던 것을 고쳤습니다. 원인 — 날짜가 '11월 19일' 글자라 읽지 못했고, 엑셀의 칸 순서(날짜 · 원두 · 순번 · kg)가 입력 표(원두 · 로스팅일 · 순번 · kg)와 달랐고, 가운데 빈 칸이 있었습니다. 이제 줄마다 날짜 칸 · 이름 칸 · 숫자 칸(앞 = 순번, 뒤 = kg)을 알아서 나눠 넣습니다. 날짜는 '11월 19일' · '11/19' · '2026.11.19'를 읽고(연도가 없으면 올해, 오늘보다 뒤면 작년), '원두 에스쇼콜라' · '… [CRI0758]'처럼 적힌 이름도 등록된 원두로 맞춥니다. 빈 줄은 건너뜁니다. 붙여넣은 뒤 [저장]을 누르면 줄마다 검사합니다."],
   ["2026-11-23", "작업자 직급 — 파트타이머 추가", "기준정보 › 작업자의 [직급]에 '파트타이머'를 추가했습니다 (부서장 · 팀장 · 매니저 · 파트장 · 사원 · 파트타이머). 작업자 표와 일괄 입력에서 고를 수 있고, 목록은 직급 순서대로 맨 뒤에 정렬됩니다. 업무 역할(수정 권한)은 직급과 따로이며 전과 같이 고릅니다."],
   ["2026-11-23", "원두 일괄 입력 — 이미 있는 원두는 변경 · 빈칸 채움", "기준정보 › 원두 › [일괄 입력]에 이미 등록된 원두를 넣으면 '동일 원두명이 이미 있음'으로 그 줄이 통째로 막혔습니다 (마스터 엑셀을 붙여넣으면 저장 가능한 행이 없음). 이제 같은 원두가 있으면 그 원두를 고칩니다 — 표에 값이 있고 지금 값과 다르면 변경, 지금 비어 있던 칸은 채움, 표에서 비워 둔 칸은 그대로 둡니다 (지우지 않음). 저장 전에 줄마다 [상태] 칸에 '변경: 컬러 · 원산지 / 빈칸 채움: 출시일'처럼 바뀌는 칸이 표시되고, 확인 창에 새로 등록 · 변경 · 바뀐 칸 없음 건수가 나옵니다. 원두명 자체는 일괄 입력으로 바꾸지 않습니다 (기준정보 표에서 수정). MMS 코드가 다른 원두의 코드와 겹치면 그 줄만 막습니다."],
   ["2026-11-23", "배치 재고 [배치 추가] — 창 하나에서 여러 배치를 한 번에", "로스팅 › 배치 재고의 [배치 추가]가 창 방식으로 바뀌었습니다. 전에는 원두 → 로스팅일 → 번호 → 잔량을 창 네 개로 차례로 묻고 배치마다 되풀이했습니다. 이제 창 하나에서 원두를 여러 개 고르고, 맨 위 [로스팅일]을 고른 원두 모두에 한 번에 적용하고, 원두마다 1배치 kg 와 배치 수만 넣습니다. 배치 번호는 그날 다음 번호부터 자동으로 붙고, 칸 옆에 등록될 번호와 합계 kg 이 미리 보입니다. 버튼 옆 숫자 칸은 없어졌습니다."],
@@ -26708,13 +26709,14 @@ const BULK_DEFS = {
       const w = { id:uid(), name:v.name.trim(), role:v.role||"사원", perm:permKey };
       const r = await saveRowAsync("workers", w); if (r.ok) DB.workers.push(w); return r; } },
   mms: { title:"MMS 배치 일괄 입력 (로스팅 입고)", table:"mms", tab:"mms",
-    hint:"이전 원두 일괄 등록 — 원두(\"쇼콜라\" 와 같이 줄여 입력 가능) · 로스팅일 · 당일 순번 · kg · 로스팅일 대신 \"당일 순번\" 항목에 현장번호(2801 = 28일 1번) 또는 전체번호(26102801)를 입력해도 됩니다 · 동일 일자에 동일 번호가 있으면 안내합니다",
+    hint:"이전 원두 일괄 등록 — 엑셀 재고표(날짜 · 원두 · 순번 · kg)를 복사해 표에 그대로 붙여넣으면 칸에 맞춰 들어갑니다 (날짜 \"11월 19일\" · 빈 칸 · 빈 줄 가능) · 원두(\"쇼콜라\" 와 같이 줄여 입력 가능) · 로스팅일 · 당일 순번 · kg · 로스팅일 대신 \"당일 순번\" 항목에 현장번호(2801 = 28일 1번) 또는 전체번호(26102801)를 입력해도 됩니다 · 동일 일자에 동일 번호가 있으면 안내합니다",
     cols:[ { k:"bean", l:"원두", w:220, req:true, list:"beanDL" }, { k:"roast_date", l:"로스팅일", w:130, date:true }, { k:"batch", l:"당일 순번 (또는 2801)", w:120, req:true }, { k:"kg", l:"재고(kg)", w:90, num:true, req:true } ],
     validate(v, i, all){
       if (!v.bean) return "원두 없음";
       /* ★ 2026-11-01 — 원두 이름은 줄여 적어도 (쇼콜라 → 블렌드 에스쇼콜라) · 현장번호 2801 / 전체번호 26102801 도 읽음 (Lee "이전 원두 한 번에") */
       if (!DB.beans.some(b=>b.name===v.bean.trim())) { const hit = DB.beans.find(b=>beanNrm(b.name)===beanNrm(v.bean)) ? DB.beans.find(b=>beanNrm(b.name)===beanNrm(v.bean)).name : matchBean(v.bean);
-        if (hit) v.bean = hit; else return `원두 "${v.bean}" 가 원두 표에 없음`; }
+        const hit2 = hit || matchBean(String(v.bean).replace(/^원두\s+/, "")) || nearBean(v.bean)?.bean;                    // ★ 2026-11-23 "원두 에스쇼콜라" · "… [CRI0758]" 처럼 적힌 이름도
+        if (hit2) v.bean = hit2; else return `원두 "${v.bean}" 가 원두 표에 없음`; }
       { const raw = String(v.batch||"").replace(/[^\d]/g,"");
         if (raw.length === 8) { v.roast_date = `20${raw.slice(0,2)}-${raw.slice(2,4)}-${raw.slice(4,6)}`; v.batch = String(Number(raw.slice(6))); }
         else if (raw.length === 4 && !v.roast_date) { const d = Number(raw.slice(0,2)), t = new Date(today()); let y = t.getFullYear(), m = t.getMonth()+1;
@@ -26807,6 +26809,31 @@ $("bulk").addEventListener("keydown", e=>{ if (e.key === "Escape") closeBulk(); 
    전에는 붙여넣으면 한 칸에 통째로 들어갔다. 이제 커서가 있는 칸부터 오른쪽·아래로 채우고, 줄이 모자라면 늘린다.
    칸 안에 줄바꿈이 있는 값(품목보고번호 2010014↵7027129)은 엑셀이 "…" 로 감싸 주므로 한 칸으로 읽고,
    숫자만이면 붙여서(20100147027129), 글자면 띄어서 잇는다 · 날짜 2026/10/27 · 2026.10.27 → 2026-10-27 */
+/* ★ 2026-11-23 엑셀의 재고표를 그대로 붙여넣기 (Lee "지난 원두인데 엑셀로 붙여넣기 하고 싶은데 안되네")
+   그의 표: 11월 19일 | 원두 에스쇼콜라 | (빈 칸) | 8 | 7.2  — 날짜가 "11월 19일" 글자이고, 칸 순서가 입력 표(원두 · 로스팅일 · 순번 · kg)와 다르고, 가운데 빈 칸 · 빈 줄이 있다
+   → 날짜는 "11월 19일" · "11/19" · "2026.11.19" 도 읽는다 (연도가 없으면 올해, 오늘보다 뒤면 작년)
+   → MMS 배치 표는 칸 순서와 상관없이 줄마다 날짜 칸 · 이름 칸 · 숫자 칸(앞 = 순번, 뒤 = kg)을 알아서 나눠 넣는다 · 빈 칸과 빈 줄은 건너뛴다 */
+function bulkDate(v){
+  const t = String(v||"").trim(); let m, y, mo, d;
+  if ((m = t.match(/^(\d{4})\s*[.\/\-년]\s*(\d{1,2})\s*[.\/\-월]\s*(\d{1,2})\s*일?\.?$/))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
+  else if ((m = t.match(/^(\d{2})\s*[.\/\-]\s*(\d{1,2})\s*[.\/\-]\s*(\d{1,2})$/)) && +m[2] <= 12 && +m[3] <= 31) { y = 2000 + +m[1]; mo = +m[2]; d = +m[3]; }
+  else if ((m = t.match(/^(\d{1,2})\s*월\s*(\d{1,2})\s*일?$/)) || (m = t.match(/^(\d{1,2})\s*\/\s*(\d{1,2})$/))) { mo = +m[1]; d = +m[2];
+    const now = today(); y = +now.slice(0,4); if (`${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}` > now) y--; }
+  else return "";
+  if (!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return "";
+  return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
+/* MMS 배치 한 줄 — 칸 순서와 상관없이 나눈다. 알아볼 수 없으면 null (그러면 전처럼 칸 순서대로 넣는다) */
+function bulkMmsRow(cells){
+  const c = cells.map(x=>String(x||"").trim()).filter(Boolean); if (c.length < 2) return null;
+  const di = c.findIndex(x=>bulkDate(x)), num = x => /^-?[\d,]+(\.\d+)?$/.test(x);
+  const texts = c.filter((x, i)=>i !== di && !num(x)), nums = c.filter((x, i)=>i !== di && num(x)).map(x=>x.replace(/,/g,""));
+  if (!texts.length || (di < 0 && c.length <= 4 && !num(c[0]))) return null;             // 날짜가 없고 이름이 맨 앞이면 원래 순서로 본다
+  if (di < 0) return null;
+  const out = { bean: texts.sort((a,b)=>b.length - a.length)[0].replace(/^원두\s+/, ""), roast_date: bulkDate(c[di]), batch:"", kg:"" };
+  if (nums.length >= 2) { out.batch = nums[0]; out.kg = nums[nums.length - 1]; } else if (nums.length === 1) out.kg = nums[0];
+  return out;
+}
 $("bkTbl").addEventListener("paste", e=>{
   const txt = e.clipboardData?.getData("text/plain") || ""; if (!txt) return;
   const grid = parseTSV(txt).map(r=>r.map(c=>{ const t = String(c||"").trim();
@@ -26822,18 +26849,24 @@ $("bkTbl").addEventListener("paste", e=>{
   if (grid[0].length >= colKeys.length) ci0 = 0;
   const tb_ = $("bkTbl").querySelector("tbody"); let ri = [...tb_.rows].indexOf(tr);
   const norm = (k, v) => { const c = def.cols.find(x=>x.k===k); if (!c) return v;
-    if (/launch|date|end_date/.test(k)) { const m = v.match(/^(\d{4})[./\-](\d{1,2})[./\-](\d{1,2})$/); if (m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`; }
+    if (/launch|date|end_date/.test(k)) { const d = bulkDate(v); if (d) return d; }
     if (c.num) return v.replace(/[^\d.\-]/g,"");
     if (c.sel && !c.sel.includes(v)) { const hit = c.sel.find(o=>o.startsWith(v) || v.startsWith(o)); return hit || v; }
     return v; };
-  grid.forEach(rowVals=>{
+  let put = 0;
+  const smart = bulkT === "mms" ? grid.map(bulkMmsRow) : [];
+  if (smart.some(Boolean)) { ri = [...tb_.rows].findIndex(r=>![...r.querySelectorAll("[data-bk]")].some(el=>String(el.value||"").trim())); if (ri < 0) ri = tb_.rows.length; }   // 첫 빈 줄부터 채운다
+  grid.forEach((rowVals, gi)=>{
     if (!rowVals.some(v=>v)) return;
+    const sm = smart[gi];
+    if (smart.some(Boolean) && !sm) return;                                             // 재고표 붙여넣기 중 알아볼 수 없는 줄(제목 줄 등)은 건너뛴다
     while (ri >= tb_.rows.length) bulkAddRows(1);
     const row = tb_.rows[ri];
-    rowVals.forEach((v,j)=>{ const k = colKeys[ci0 + j]; if (!k) return; const el = row.querySelector(`[data-bk="${k}"]`); if (el) el.value = norm(k, v); });
-    ri++;
+    if (sm) Object.entries(sm).forEach(([k, v])=>{ const el = row.querySelector(`[data-bk="${k}"]`); if (el) el.value = v; });
+    else rowVals.forEach((v,j)=>{ const k = colKeys[ci0 + j]; if (!k) return; const el = row.querySelector(`[data-bk="${k}"]`); if (el) el.value = norm(k, v); });
+    ri++; put++;
   });
-  toast(`${grid.length}행을 붙여넣었습니다 — 확인 후 [저장]`);
+  toast(`${put}행을 붙여넣었습니다 — 확인 후 [저장]${smart.some(Boolean) ? " · 날짜 · 원두 · 순번 · kg 를 칸에 맞춰 넣었습니다" : ""}`);
 });
 
 /* ══════════════════════════════════════════════════════════════
