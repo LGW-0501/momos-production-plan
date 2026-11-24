@@ -3795,6 +3795,7 @@ details.wkTool #wkToolSw .swb{height:38px}
         <button class="btn" onclick="bulkAddRows(1)">+1행</button>
         <button class="btn" onclick="bulkAddRows(5)">+5행</button>
         <button class="btn" onclick="bulkAddRows(10)">+10행</button>
+        <button class="btn primary" id="bkFileBtn" style="display:none" onclick="bulkOrdFile()" title="생산계획 엑셀 파일(.xlsx)을 그대로 올립니다">엑셀 파일</button><input type="file" id="bkFile" accept=".xlsx,.xls,.csv,.txt" style="display:none">
         <button class="btn" onclick="bulkClear()">초기화</button>
         <button class="btn" onclick="closeBulk()">닫기</button></span></div>
     <div class="hint" id="bkHint" style="border-bottom:1px solid var(--line)"></div>
@@ -8459,7 +8460,7 @@ renderFavs();
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
   ["2026-11-24", "날짜 + 배치번호 → 일련번호 자동", "일련번호(현장번호 네 자리)는 로스팅(제조)일의 일 두 자리 + 그날 배치 순번 두 자리입니다 (11월 23일의 4번 → 2304). 이제 날짜와 배치번호만 적으면 일련번호가 자동으로 정해집니다. ① 작업지시 [엑셀 붙여넣기] 창에 [로스팅일] · [배치번호] 칸이 생겼고, 적는 대로 [일련번호] 칸이 채워집니다 (직접 적어도 됨). ② 재고 실사 엑셀(양식의 CFE 완제품 시트)에 [배치번호] 칸이 생겼습니다 — 제조일자와 배치번호를 적어 올리고 [반영]하면 출고장 재고의 묶음에 일련번호가 붙고, 분쇄 일련번호 자동 지정이 그 번호를 씁니다 ([일련번호] 칸을 두고 직접 적어도 됨). 출고장 재고에 일련번호를 붙이려면 Supabase 에서 094_cfe_serial.sql 을 한 번 실행해야 합니다 (실행 전에는 일련번호 없이 들어가고 안내가 뜹니다)."],
-  ["2026-11-24", "작업지시 — [엑셀 붙여넣기] · 중량 변경 쉽게", "① 생산 관리 › 작업지시의 [지시 추가] 옆에 [엑셀 붙여넣기]가 생겼습니다. 엑셀에서 품목 · 수량 · 일련번호 · 설비 · 출고처 순서로 복사해 표에 붙여넣고 [저장]하면 작업지시가 한 번에 만들어집니다 (일련번호 · 설비 · 출고처는 비워도 됨 · 품목은 이름을 줄여 적거나 CFE 코드로 · 일련번호를 적으면 그 원두의 그 배치를 잡음 · 날짜는 작업지시 화면의 날짜). 다른 중량으로 더 만들 때 이것으로 바로 추가하면 됩니다. ② [중량 변경] 창에서 바꿀 품목을 누르면 남은 원두로 만들 수 있는 수량이 자동으로 들어갑니다 — 누르고 [추가]만 하면 됩니다 (수량은 고칠 수 있음)."],
+  ["2026-11-24", "작업지시 — [엑셀 붙여넣기] · 중량 변경 쉽게", "(같은 날 변경) 붙여넣기 표를 생산계획 엑셀 양식 그대로 바꿨습니다 — 날짜 · 품목명 · 배치 · MK · kg · 1kg · 500g · 200g · 100g. 한 줄이 한 배치이고 수량을 적은 중량마다 지시가 만들어집니다. 구분 칸의 MK 는 컬리, 품목명의 '네이버' 는 네이버로 출고처가 표시되고, '사업자' 는 사업자 품목으로, '해외건 …' 은 메모로 들어갑니다. 일련번호는 날짜 + 배치번호로 자동입니다. 엑셀에서 표를 복사해 붙여넣거나 [엑셀 파일]로 올립니다 (제목 줄 · 수량 없는 줄은 건너뜀). ① 생산 관리 › 작업지시의 [지시 추가] 옆에 [엑셀 붙여넣기]가 생겼습니다. 엑셀에서 품목 · 수량 · 일련번호 · 설비 · 출고처 순서로 복사해 표에 붙여넣고 [저장]하면 작업지시가 한 번에 만들어집니다 (일련번호 · 설비 · 출고처는 비워도 됨 · 품목은 이름을 줄여 적거나 CFE 코드로 · 일련번호를 적으면 그 원두의 그 배치를 잡음 · 날짜는 작업지시 화면의 날짜). 다른 중량으로 더 만들 때 이것으로 바로 추가하면 됩니다. ② [중량 변경] 창에서 바꿀 품목을 누르면 남은 원두로 만들 수 있는 수량이 자동으로 들어갑니다 — 누르고 [추가]만 하면 됩니다 (수량은 고칠 수 있음)."],
   ["2026-11-24", "CFE 제조일자별 실재고 붙여넣기 → 출고장 재고에도", "엑셀 붙여넣기 창의 'CFE 제조일자별 실재고'로 제조일자와 수량을 넣어도 재고 실사 · 출고 화면의 출고장 재고에는 나오지 않았습니다 (예전 장부에만 들어감). 이제 출고장 재고의 묶음이 그 제조일자별 수량으로 들어갑니다. 재고 실사 표에서 수량은 같고 제조일자만 다른 줄에도 [반영] 버튼이 나옵니다."],
   ["2026-11-24", "재고 실사 — [엑셀 양식] 한 파일로 CFE · 봉투 · 라벨 전부", "재고 실사 화면에 [엑셀 양식] 버튼이 생겼습니다. 누르면 지금 등록된 품목 · 자재가 전부 적힌 엑셀 파일을 내려받습니다 — 시트: 안내 · CFE 완제품 · 부자재-봉투 · 풀패키지 · 라벨 · 박스 · 트레이 · 스티커 · 기타 (등록된 것이 있는 종류만). 수량만 적어 [엑셀 업로드]로 올리면 모든 시트를 한 번에 읽어 [실제] 칸에 넣습니다 (안 적은 줄은 건너뜀 · 장부는 [차이 전체 반영]을 눌러야 바뀜). CFE 는 [제조일자] 칸이 있고, 부자재는 [묶음] + [낱장] 또는 [수량] 으로 적습니다. 시트 이름으로 CFE 와 부자재를 구분하므로 라벨처럼 품목과 코드가 같은 자재도 헷갈리지 않습니다."],
   ["2026-11-24", "재고 실사 — CFE 완제품을 엑셀로 넣을 때 제조일자까지", "재고 실사의 [엑셀 업로드] · [붙여넣기]에서 CFE 완제품 줄에 제조일자를 같이 넣을 수 있습니다. 표에 [제조일자](제조일 · 생산일 · 날짜 · 일자) 칸을 두면 줄마다 읽고, 같은 품목을 제조일자마다 한 줄씩 적어도 됩니다 (머리줄이 없어도 11/19 · 11월 19일 · 2026-11-19 같은 칸은 제조일자로 읽음). 품목 아래에 '제조 11-19 10 · 11-20 18' 처럼 보이고, [반영]하면 출고장 재고의 묶음이 그 제조일자별 수량으로 맞춰집니다 — 상미기한(D-day)과 분쇄 일련번호 자동 지정의 오래된 순서가 이 제조일자를 씁니다. 전에는 늘어난 수량이 전부 센 날짜 제조로 들어갔습니다. 지금 재고에 더하기만 하면 되는 경우는 모자란 만큼만 추가하고, 줄여야 하거나 표에 없는 제조일자의 재고가 있으면 그 품목 재고를 정리한 뒤 제조일자별로 다시 넣습니다 (이때 그 품목의 기존 묶음 일련번호는 남지 않음). 화면에서 수량을 손으로 고치면 그 품목의 제조일자 지정은 지워집니다. 수량은 같고 제조일자만 다른 품목도 [차이 전체 반영] 대상에 나옵니다."],
@@ -27086,27 +27087,33 @@ const BULK_DEFS = {
       const permKey = Object.keys(ROLES).find(k=>ROLES[k]===v.perm) || "floor";
       const w = { id:uid(), name:v.name.trim(), role:v.role||"사원", perm:permKey };
       const r = await saveRowAsync("workers", w); if (r.ok) DB.workers.push(w); return r; } },
-  orders: { title:()=>`작업지시 붙여넣기 — ${BULK_ORD_DAY()}`, table:"orders", tab:"",
-    hint:"엑셀에서 [품목 · 수량 · 로스팅일 · 배치번호 · 일련번호 · 설비 · 출고처] 순서로 복사해 표의 첫 칸에 붙여넣고 [저장] — 품목 · 수량만 있어도 됩니다 · 로스팅일과 배치번호를 적으면 일련번호가 자동으로 들어갑니다 (11-23 의 4번 → 2304) · 일련번호를 직접 적어도 됩니다 · 품목은 이름(\"에스쇼콜라 500g\" 처럼 줄여도 됨)이나 CFE 코드 · 일련번호는 2304 처럼 네 자리 · 날짜는 작업지시 화면에 골라 둔 날짜입니다 · 같은 품목을 여러 줄 적으면 지시가 따로 만들어집니다",
-    cols:[ { k:"prod", l:"품목 (이름 또는 코드)", w:260, req:true }, { k:"qty", l:"수량", w:80, num:true, req:true }, { k:"roast_date", l:"로스팅일", w:130, date:true }, { k:"batch", l:"배치번호", w:80 },
-           { k:"serial", l:"일련번호 (자동)", w:110, ph:"자동" }, { k:"machine", l:"설비", w:110 }, { k:"channel", l:"출고처", w:100 } ],
+  /* ★ 2026-11-24 생산계획 엑셀 양식 그대로 (Lee "이 양식으로 할건데 · mk랑 네이버 표시 할 수 있게 엑셀 업로드 · 한 배치에 200 500 1kg 입력 할 수있게")
+       그의 표: 날짜(로스팅일) | 품목명(원두) | 배치 | MK 또는 투입량 | kg | 1Kg포장 | 500g포장 | 200g포장 | 100g포장 — 한 줄 = 한 배치
+       · 줄마다 수량이 적힌 중량별로 작업지시를 만든다 (1kg 5 · 500g 14 · 200g 52 → 지시 3건, 모두 그 배치 · 일련번호는 날짜 + 배치번호)
+       · 구분 칸이 MK(컬리) 이면 출고처 = 컬리 · 품목명에 "네이버" 가 있으면 네이버 · "사업자" 면 사업자 품목 · "해외건 …" 은 메모로
+       · 엑셀에서 표를 복사해 붙여넣거나 [엑셀 파일]로 올린다 — 제목 줄 · 안내 줄 · 수량이 없는 줄은 알아서 건너뛴다 */
+  orders: { title:()=>`작업지시 — 생산계획 엑셀 붙여넣기 (${BULK_ORD_DAY()})`, table:"orders", tab:"",
+    hint:"생산계획 엑셀을 그대로 — [날짜 · 품목명 · 배치 · MK · kg · 1kg · 500g · 200g · 100g] 을 복사해 붙여넣거나 [엑셀 파일]로 올리고 [저장] · 한 줄이 한 배치이고, 수량을 적은 중량마다 작업지시가 만들어집니다 · 일련번호는 날짜와 배치번호로 자동 (11월 23일 4번 → 2304) · 구분 칸에 MK 면 컬리, 품목명에 \"네이버\" 가 있으면 네이버로 표시됩니다 · 제목 줄과 수량이 없는 줄은 건너뜁니다 · 작업일은 작업지시 화면에 골라 둔 날짜입니다",
+    cols:[ { k:"roast_date", l:"날짜 (로스팅일)", w:130, date:true }, { k:"prod", l:"품목명 (원두)", w:230, req:true }, { k:"batch", l:"배치", w:60 }, { k:"mark", l:"구분 (MK · 네이버)", w:110 }, { k:"kg", l:"kg", w:60 },
+           { k:"q1000", l:"1kg", w:64, num:true }, { k:"q500", l:"500g", w:64, num:true }, { k:"q200", l:"200g", w:64, num:true }, { k:"q100", l:"100g", w:64, num:true }, { k:"machine", l:"설비", w:100 } ],
     validate(v){
-      const p = bulkOrdProd(v.prod); if (!p) return `품목 "${v.prod}" 을(를) 찾을 수 없음`;
-      v.prod = p.name; if (!(Math.round(Number(v.qty)) > 0)) return "수량 없음";
-      if ((v.roast_date || v.batch) && !v.serial) { const sn = snOfDateBatch(v.roast_date, v.batch); if (!sn) return v.roast_date ? "배치번호 없음 (로스팅일만 적혀 있음)" : "로스팅일 없음 (배치번호만 적혀 있음)"; v.serial = sn; }
-      if (v.serial) { const t = String(v.serial).replace(/[^\d]/g, ""); if (!t) return "일련번호는 숫자로"; if (p.bean && !bulkOrdBatch(p, v.serial) && !(v.roast_date && v.batch && DB.mms.some(x=>x.bean === p.bean && x.roast_date === v.roast_date && Number(x.batch) === Number(String(v.batch).replace(/[^\d]/g, ""))))) return `${p.bean} 원두에 일련번호 ${v.serial} 배치가 없음 (비우고 저장한 뒤 목록에서 [변경]으로 정할 수 있음)`; }
+      const R = bulkPlanRow(v); if (R.err) return R.err;
       if (v.machine && !DB.machines.some(m=>m.name === v.machine)) { const hit = DB.machines.find(m=>m.name.includes(v.machine) || v.machine.includes(m.name)); if (hit) v.machine = hit.name; else return `설비 "${v.machine}" 이(가) 없음`; }
       return ""; },
-    async save(v){ const p = bulkOrdProd(v.prod), d = BULK_ORD_DAY(), qty = Math.round(Number(v.qty));
-      const r = await mesAddOrder({ date:d, product_id:p.id, idem:`op-${d}-${uid()}` }); if (!r || !r.ok) return { ok:false, message:r?.message || "지시를 만들지 못함" };
-      const patch = { qty_plan:qty }; if (v.machine) { patch.machine = v.machine; const M = DB.machines.find(m=>m.name === v.machine); if (M?.id) patch.machine_id = M.id; } if (v.channel) patch.channel = v.channel;
-      const m = (v.roast_date && v.batch && DB.mms.find(x=>x.bean === p.bean && x.roast_date === v.roast_date && Number(x.batch) === Number(String(v.batch).replace(/[^\d]/g, "")))) || (v.serial ? bulkOrdBatch(p, v.serial) : null);
-      if (m) { const need = needKg(p, qty), text = `${batchLabel(m)} ${fmt(Math.round(Math.min(need || Number(m.stock_kg), Number(m.stock_kg))*100)/100)}kg`, bp = batchParts(text)[0];
-        patch.batch_plan = text; patch.serial = bp?.short || batchShort(m); patch.serial_full = bp?.full || batchFull(m); }
-      else if (v.serial) patch.serial = String(v.serial).replace(/[^\d]/g, "");
-      const er = await mesEditOrder({ order_id:r.order_id, patch, idem:`ope-${r.order_id}-${uid()}` });
-      if (sb && r.order_id) { try { await pullOrder(r.order_id); } catch(_){ errQuiet(_); } }
-      return er && er.ok === false ? { ok:false, message:`지시는 만들었지만 수량 · 일련번호를 넣지 못함 (${er.message||""}) — 목록에서 직접 넣으십시오` } : { ok:true }; } },
+    async save(v){ const R = bulkPlanRow(v), d = BULK_ORD_DAY(); if (R.err) return { ok:false, message:R.err };
+      const m = R.mms, done = [], fail = [];
+      for (const it of R.items) {
+        const r = await mesAddOrder({ date:d, product_id:it.p.id, idem:`op-${d}-${uid()}` }); if (!r || !r.ok) { fail.push(`${it.p.name} (${r?.message || "지시를 만들지 못함"})`); continue; }
+        const patch = { qty_plan:it.qty }; if (R.channel) patch.channel = R.channel; if (R.note) patch.note = R.note;
+        if (v.machine) { patch.machine = v.machine; const M = DB.machines.find(x=>x.name === v.machine); if (M?.id) patch.machine_id = M.id; }
+        if (m) { const need = needKg(it.p, it.qty), text = `${batchLabel(m)} ${fmt(Math.round(Math.min(need || Number(m.stock_kg), Number(m.stock_kg))*100)/100)}kg`, bp = batchParts(text)[0];
+          patch.batch_plan = text; patch.serial = bp?.short || batchShort(m); patch.serial_full = bp?.full || batchFull(m); }
+        else if (R.serial) patch.serial = R.serial;
+        const er = await mesEditOrder({ order_id:r.order_id, patch, idem:`ope-${r.order_id}-${uid()}` });
+        if (sb && r.order_id) { try { await pullOrder(r.order_id); } catch(_){ errQuiet(_); } }
+        if (er && er.ok === false) fail.push(`${it.p.name} — 지시는 만들었지만 수량 · 일련번호를 넣지 못함 (${er.message||""})`); else done.push(it);
+      }
+      return fail.length ? { ok:false, message:`${done.length ? `${done.map(x=>`${specLabel(x.g)} ${x.qty}`).join(" · ")} 는 만들었고, ` : ""}실패: ${fail.join(" · ")} — 만든 지시는 목록에서 확인하십시오` } : { ok:true }; } },
   mms: { title:"MMS 배치 일괄 입력 (로스팅 입고)", table:"mms", tab:"mms",
     hint:"이전 원두 일괄 등록 — 엑셀 재고표(날짜 · 원두 · 순번 · kg)를 복사해 표에 그대로 붙여넣으면 칸에 맞춰 들어갑니다 (날짜 \"11월 19일\" · 빈 칸 · 빈 줄 가능) · 원두(\"쇼콜라\" 와 같이 줄여 입력 가능) · 로스팅일 · 당일 순번 · kg · 로스팅일 대신 \"당일 순번\" 항목에 현장번호(2801 = 28일 1번) 또는 전체번호(26102801)를 입력해도 됩니다 · 동일 일자에 동일 번호가 있으면 안내합니다",
     cols:[ { k:"bean", l:"원두", w:220, req:true, list:"beanDL" }, { k:"roast_date", l:"로스팅일", w:130, date:true }, { k:"batch", l:"당일 순번 (또는 2801)", w:120, req:true }, { k:"kg", l:"재고(kg)", w:90, num:true, req:true } ],
@@ -27141,11 +27148,67 @@ function bulkOrdBatch(p, sn){ const t = String(sn||"").replace(/[^\d]/g, ""); if
   return DB.mms.filter(m=>m.bean === p.bean && (batchShort(m) === t || String(batchFull(m)).replace(/[^\d]/g, "") === t || batchNo(m) === t)).sort((a,b)=>Number(b.stock_kg||0) - Number(a.stock_kg||0))[0] || null; }
 const BULK_ORD_DAY = () => ($("woDate")?.value || today());
 function openOrderPaste(){ if (!can("plan")) return deny("plan"); openBulk("orders"); }
+const BULK_PLAN_SPECS = [["q1000",1000],["q500",500],["q200",200],["q100",100]];
+/* 품목명 칸에서 원두를 찾는다 — "원두 에스쇼콜라↵네이버 360kg" · "원두 에스쇼콜라 사업자" · "원두 에티오피아 부르사 워시드 [ETH0220] 해외건 마메야" */
+function bulkPlanBean(raw){
+  const t0 = String(raw||"").replace(/\s+/g, " ").trim(), code = (t0.match(/\[([A-Za-z]{2,5}\d{2,6}[A-Za-z]?)\]/) || [])[1];
+  const clean = t0.replace(/네이버\s*[\d,.]*\s*(kg)?/gi, " ").replace(/사업자/g, " ").replace(/해외건[^\[\]]*/g, " ").replace(/\s+/g, " ").trim();
+  const tries = [clean, clean.replace(/^원두\s+/, ""), clean.replace(/\s*\[[^\]]*\]\s*/g, " ").trim(), clean.replace(/^원두\s+/, "").replace(/\s*\[[^\]]*\]\s*/g, " ").trim()];
+  if (code) { const b = DB.beans.find(b=>String(b.mms_code||"").toUpperCase() === code.toUpperCase()); if (b) return b.name; }
+  for (const t of tries) { if (!t) continue; const b = DB.beans.find(b=>b.name === t) || DB.beans.find(b=>beanNrm(b.name) === beanNrm(t)); if (b) return b.name; }
+  for (const t of tries) { if (!t) continue; const h = matchBean(t); if (h) return h; }
+  for (const t of tries) { if (!t) continue; const h = nearBean(t)?.bean; if (h) return h; }
+  return ""; }
+/* 표의 한 줄 → { bean, channel, note, serial, mms, items:[{ p, g, qty }] } 또는 { err } */
+function bulkPlanRow(v){
+  const name = String(v.prod||""), mark = String(v.mark||"");
+  const bean = bulkPlanBean(name); if (!bean) return { err:`원두 "${name.replace(/\s+/g," ").trim()}" 를 원두 표에서 찾을 수 없음` };
+  const biz = /사업자/.test(name), channel = /네이버/.test(name + " " + mark) ? "네이버" : /(^|[^A-Za-z])MK([^A-Za-z]|$)|컬리|마켓컬리/i.test(mark + " " + name) ? "컬리" : "";
+  const note = [(name.match(/네이버\s*[\d,.]*\s*kg/i) || [])[0], (name.match(/해외건[^\[\]]*/) || [])[0]].filter(Boolean).map(x=>x.replace(/\s+/g," ").trim()).join(" · ");
+  const qs = BULK_PLAN_SPECS.map(([k, g])=>[g, Math.round(Number(String(v[k]||"").replace(/[^\d.]/g, "")) || 0)]).filter(([, q])=>q > 0);
+  if (!qs.length) return { err:"수량 없음 (1kg · 500g · 200g · 100g 중 하나는 적어야 함)" };
+  const items = [], miss = [];
+  qs.forEach(([g, qty])=>{ const c = PRODS().filter(p=>p.bean === bean && Number(p.spec_g) === g && !!/사업자/.test(p.name) === biz && !(typeof isFullBag === "function" && isFullBag(p)));
+    const p = (channel && c.find(x=>prodChan(x) === channel)) || c.find(x=>prodChan(x) === "일반") || c[0];
+    p ? items.push({ p, g, qty }) : miss.push(`${bean}${biz ? " 사업자" : ""} ${specLabel(g)}`); });
+  if (miss.length) return { err:`품목이 없음 — ${miss.join(" · ")} (기준정보 › 품목에 등록 필요)` };
+  const bn = Math.round(Number(String(v.batch||"").replace(/[^\d]/g, "")) || 0);
+  if (v.roast_date && !/^\d{4}-\d{2}-\d{2}$/.test(v.roast_date)) return { err:"날짜를 읽을 수 없음" };
+  const serial = snOfDateBatch(v.roast_date, bn), mms = v.roast_date && bn ? DB.mms.find(x=>x.bean === bean && x.roast_date === v.roast_date && Number(x.batch) === bn) || null : null;
+  return { bean, channel, note, serial, mms, items }; }
+/* 엑셀 표(붙여넣기 · 파일) → 입력 표. 머리줄이 있으면 칸 이름으로, 없으면 그의 양식 순서(날짜 · 품목명 · 배치 · 구분 · kg · 1kg · 500g · 200g · 100g)로 읽는다 */
+function bulkOrdFill(grid){
+  const tb_ = $("bkTbl").querySelector("tbody"); let map = null, put = 0, skip = 0;
+  const cell = c => String(c ?? "").replace(/\s*\n\s*/g, " ").trim();
+  let ri = [...tb_.rows].findIndex(r=>![...r.querySelectorAll("[data-bk]")].some(el=>String(el.value||"").trim())); if (ri < 0) ri = tb_.rows.length;
+  grid.forEach(row=>{
+    const c = row.map(cell); if (!c.some(Boolean)) return;
+    const hi = k => c.findIndex(x=>k.test(x.replace(/\s+/g, "")));
+    if (hi(/^1kg(포장)?$/i) >= 0 || hi(/^500g(포장)?$/i) >= 0) { const nm = hi(/^(품목명|품목|원두|원두명)$/), dt = hi(/^(날짜|일자|로스팅일|제조일자)$/);
+      map = { dt: dt >= 0 ? dt : 0, nm: nm >= 0 ? nm : 1, q1000:hi(/^1kg(포장)?$/i), q500:hi(/^500g(포장)?$/i), q200:hi(/^200g(포장)?$/i), q100:hi(/^100g(포장)?$/i) }; return; }
+    const M = map || { dt:0, nm:1, q1000:5, q500:6, q200:7, q100:8 };
+    const d = cntDateOf(row[M.dt]) || cntDateOf(c[M.dt]); if (!d) { skip++; return; }                 // 날짜가 없는 줄(제목 · 안내)은 건너뛴다
+    const num = i => i >= 0 ? String(c[i] || "").replace(/[^\d.]/g, "") : "";
+    const v = { roast_date:d, prod:c[M.nm] || "", batch:String(c[M.nm + 1] || "").replace(/[^\d]/g, ""), mark:c[M.nm + 2] || "", kg:num(M.nm + 3), q1000:num(M.q1000), q500:num(M.q500), q200:num(M.q200), q100:num(M.q100) };
+    if (!v.prod || !BULK_PLAN_SPECS.some(([k])=>Number(v[k]) > 0)) { skip++; return; }                  // 수량이 없는 줄도 건너뛴다
+    while (ri >= tb_.rows.length) bulkAddRows(1);
+    const tr = tb_.rows[ri]; Object.entries(v).forEach(([k, x])=>{ const el = tr.querySelector(`[data-bk="${k}"]`); if (el) el.value = x; });
+    ri++; put++; });
+  toast(put ? `${put}줄을 넣었습니다${skip ? ` (제목 · 수량 없는 줄 ${skip}줄은 건너뜀)` : ""} — 확인 후 [저장]` : "읽을 수 있는 줄이 없습니다 — 날짜 · 품목명 · 수량이 있는 줄이 필요합니다");
+  return put; }
+async function bulkOrdFile(){
+  const f = await new Promise(res=>{ const el = $("bkFile"); el.value = ""; el.onchange = () => res(el.files[0] || null); el.click(); }); if (!f) return;
+  try { let grids;
+    if (/\.xlsx?$/i.test(f.name)) { await loadXLSX(); const wb = XLSX.read(await f.arrayBuffer()); grids = wb.SheetNames.map(n=>XLSX.utils.sheet_to_json(wb.Sheets[n], { header:1, defval:"" })); }
+    else { const t = await f.text(); grids = [parseTSV(t.includes("\t") ? t : t.split(/\r?\n/).map(l=>l.split(",").join("\t")).join("\n"))]; }
+    const n = grids.reduce((t, g)=>t + (g.length ? bulkOrdFill(g) : 0), 0); if (!n) toast("읽을 수 있는 줄이 없습니다 — 날짜 · 품목명 · 수량이 있는 시트인지 확인하십시오");
+  } catch(e){ console.warn(e); toast("파일을 읽지 못했습니다 — 엑셀에서 표를 복사해 붙여넣어 보십시오"); } }
 function openBulk(t){
   const def = BULK_DEFS[t]; if (!def) return;
   const need = TCAP[t] || "base";
   if (t === "workers" ? !isSystemAdmin() : !can(need)) return toast(t === "workers" ? "시스템 관리자만 작업자를 추가할 수 있습니다" : `권한이 없습니다 — ${need === "stock" ? "재고 담당만" : need === "roast" ? "로스팅 담당만" : need === "plan" ? "계획 담당만" : "기준정보 담당만"}`);
   bulkT = t; $("bkTitle").textContent = typeof def.title === "function" ? def.title() : def.title; $("bkHint").textContent = def.hint;
+  if ($("bkFileBtn")) $("bkFileBtn").style.display = t === "orders" ? "" : "none";
   $("bkTbl").innerHTML = `<thead><tr><th>No</th>${def.cols.map(c=>`<th style="min-width:${c.w}px">${c.l}${c.req?' <span class="bad">*</span>':""}</th>`).join("")}<th>상태</th></tr></thead><tbody></tbody>`;
   bulkAddRows(5);
   $("bulk").style.display = "block";
@@ -27257,6 +27320,7 @@ $("bkTbl").addEventListener("paste", e=>{
   if (!grid.length || (grid.length === 1 && grid[0].length <= 1)) return;     // 한 칸짜리는 그냥 붙여넣기
   e.preventDefault();
   const def = BULK_DEFS[bulkT]; if (!def) return;
+  if (bulkT === "orders") { bulkOrdFill(parseTSV(txt)); return; }                     // ★ 2026-11-24 생산계획 양식 그대로
   const cell = e.target.closest("td"), tr = cell?.closest("tr"); if (!tr) return;
   const colKeys = def.cols.map(c=>c.k);
   const startKey = e.target.dataset?.bk || colKeys[0]; let ci0 = Math.max(0, colKeys.indexOf(startKey));
