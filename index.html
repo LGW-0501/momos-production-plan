@@ -2290,6 +2290,7 @@ details.wkTool #wkToolSw .swb{height:38px}
     <label>작업일</label><input type="date" id="woDate" onchange="renderOrder()">
     <button class="btn primary" onclick="makeOrders()">생산계획에서 작업지시 생성</button>
     <button class="btn mkeep" onclick="addOrder()" title="품목을 찾아서 골라 작업지시를 추가합니다 — 여러 품목을 한 번에">지시 추가</button>
+    <button class="btn mkeep" id="ordPasteBtn" onclick="openOrderPaste()" title="엑셀에서 [품목 · 수량 · 일련번호 · 설비 · 출고처]를 복사해 붙여넣어 작업지시를 한 번에 추가합니다">엑셀 붙여넣기</button>
     <span style="margin-left:auto"></span>
     <button class="btn" onclick="csvOrder()">엑셀 다운로드</button>
     <button class="btn primary" onclick="printWorkOrder()">작업지시서 출력</button>
@@ -8457,6 +8458,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-24", "날짜 + 배치번호 → 일련번호 자동", "일련번호(현장번호 네 자리)는 로스팅(제조)일의 일 두 자리 + 그날 배치 순번 두 자리입니다 (11월 23일의 4번 → 2304). 이제 날짜와 배치번호만 적으면 일련번호가 자동으로 정해집니다. ① 작업지시 [엑셀 붙여넣기] 창에 [로스팅일] · [배치번호] 칸이 생겼고, 적는 대로 [일련번호] 칸이 채워집니다 (직접 적어도 됨). ② 재고 실사 엑셀(양식의 CFE 완제품 시트)에 [배치번호] 칸이 생겼습니다 — 제조일자와 배치번호를 적어 올리고 [반영]하면 출고장 재고의 묶음에 일련번호가 붙고, 분쇄 일련번호 자동 지정이 그 번호를 씁니다 ([일련번호] 칸을 두고 직접 적어도 됨). 출고장 재고에 일련번호를 붙이려면 Supabase 에서 094_cfe_serial.sql 을 한 번 실행해야 합니다 (실행 전에는 일련번호 없이 들어가고 안내가 뜹니다)."],
+  ["2026-11-24", "작업지시 — [엑셀 붙여넣기] · 중량 변경 쉽게", "① 생산 관리 › 작업지시의 [지시 추가] 옆에 [엑셀 붙여넣기]가 생겼습니다. 엑셀에서 품목 · 수량 · 일련번호 · 설비 · 출고처 순서로 복사해 표에 붙여넣고 [저장]하면 작업지시가 한 번에 만들어집니다 (일련번호 · 설비 · 출고처는 비워도 됨 · 품목은 이름을 줄여 적거나 CFE 코드로 · 일련번호를 적으면 그 원두의 그 배치를 잡음 · 날짜는 작업지시 화면의 날짜). 다른 중량으로 더 만들 때 이것으로 바로 추가하면 됩니다. ② [중량 변경] 창에서 바꿀 품목을 누르면 남은 원두로 만들 수 있는 수량이 자동으로 들어갑니다 — 누르고 [추가]만 하면 됩니다 (수량은 고칠 수 있음)."],
+  ["2026-11-24", "CFE 제조일자별 실재고 붙여넣기 → 출고장 재고에도", "엑셀 붙여넣기 창의 'CFE 제조일자별 실재고'로 제조일자와 수량을 넣어도 재고 실사 · 출고 화면의 출고장 재고에는 나오지 않았습니다 (예전 장부에만 들어감). 이제 출고장 재고의 묶음이 그 제조일자별 수량으로 들어갑니다. 재고 실사 표에서 수량은 같고 제조일자만 다른 줄에도 [반영] 버튼이 나옵니다."],
   ["2026-11-24", "재고 실사 — [엑셀 양식] 한 파일로 CFE · 봉투 · 라벨 전부", "재고 실사 화면에 [엑셀 양식] 버튼이 생겼습니다. 누르면 지금 등록된 품목 · 자재가 전부 적힌 엑셀 파일을 내려받습니다 — 시트: 안내 · CFE 완제품 · 부자재-봉투 · 풀패키지 · 라벨 · 박스 · 트레이 · 스티커 · 기타 (등록된 것이 있는 종류만). 수량만 적어 [엑셀 업로드]로 올리면 모든 시트를 한 번에 읽어 [실제] 칸에 넣습니다 (안 적은 줄은 건너뜀 · 장부는 [차이 전체 반영]을 눌러야 바뀜). CFE 는 [제조일자] 칸이 있고, 부자재는 [묶음] + [낱장] 또는 [수량] 으로 적습니다. 시트 이름으로 CFE 와 부자재를 구분하므로 라벨처럼 품목과 코드가 같은 자재도 헷갈리지 않습니다."],
   ["2026-11-24", "재고 실사 — CFE 완제품을 엑셀로 넣을 때 제조일자까지", "재고 실사의 [엑셀 업로드] · [붙여넣기]에서 CFE 완제품 줄에 제조일자를 같이 넣을 수 있습니다. 표에 [제조일자](제조일 · 생산일 · 날짜 · 일자) 칸을 두면 줄마다 읽고, 같은 품목을 제조일자마다 한 줄씩 적어도 됩니다 (머리줄이 없어도 11/19 · 11월 19일 · 2026-11-19 같은 칸은 제조일자로 읽음). 품목 아래에 '제조 11-19 10 · 11-20 18' 처럼 보이고, [반영]하면 출고장 재고의 묶음이 그 제조일자별 수량으로 맞춰집니다 — 상미기한(D-day)과 분쇄 일련번호 자동 지정의 오래된 순서가 이 제조일자를 씁니다. 전에는 늘어난 수량이 전부 센 날짜 제조로 들어갔습니다. 지금 재고에 더하기만 하면 되는 경우는 모자란 만큼만 추가하고, 줄여야 하거나 표에 없는 제조일자의 재고가 있으면 그 품목 재고를 정리한 뒤 제조일자별로 다시 넣습니다 (이때 그 품목의 기존 묶음 일련번호는 남지 않음). 화면에서 수량을 손으로 고치면 그 품목의 제조일자 지정은 지워집니다. 수량은 같고 제조일자만 다른 품목도 [차이 전체 반영] 대상에 나옵니다."],
   ["2026-11-23", "분쇄 — 일련번호 (가져올 완제품)", "(같은 날 추가) 일련번호가 정해지지 않은 줄은 분쇄 완료로 체크할 수 없습니다 — 일부만 지정된 줄도 마찬가지이며, 어느 줄이 비었는지 안내가 뜹니다. 분쇄는 출고장에 있는 홀빈 완제품을 가져와 분쇄 · 재포장합니다. 이제 분쇄 줄마다 어느 일련번호의 완제품을 가져오는지 정할 수 있습니다. ① 분쇄 화면 위의 [일련번호 자동 지정]을 누르면, 일련번호가 비어 있는 분쇄 전 줄에 그 홀빈 완제품(출고장 재고 + 생산 · 검수 완료된 출고 전 생산분)의 제조일이 오래된 일련번호부터 자동으로 들어갑니다 (일련번호가 없는 재고 실사분은 '제조○○-○○' · '번호없음' 으로 들어감 · 상미기한이 지난 묶음 제외 · 같은 날 다른 분쇄 줄이 잡은 수량 제외 · 재고가 모자라면 다음 번호로 넘어감) ② 줄의 [지정] · [변경]을 누르면 창에서 일련번호별 수량을 고치거나 목록에 없는 번호를 직접 적습니다 (한 줄에 여러 번호 가능) ③ 분쇄 카드의 줄마다 '일련번호 1904 ×4 · 2001 ×2' 가 보여 현장은 그 번호의 완제품을 가져옵니다 ④ 추적 — 분쇄 입력 내역 · 엑셀에 일련번호 칸이 생겼고, 이력 추적에서 일련번호로 찾으면 '분쇄 사용' 표(일자 · 차수 · 분쇄도 · 수량 · 완료 · 작업자)가 나옵니다. 출고장 재고는 여기서 따로 빼지 않습니다 (분쇄분은 홀빈 주문 수량에 들어 있어 [오늘 출고 확정] 때 이미 빠집니다). 지정 · 변경은 계획 담당만 · 서버 SQL 은 새로 돌릴 필요가 없습니다."],
@@ -18351,7 +18355,7 @@ const sel = (t,id,k,v,list) => {
     opts.map(o=>`<option ${o===v?"selected":""}>${o}</option>`).join("") + `</select>`;
 };
 
-const TCAP = { roasting:"roast", mms:"stock" };     // 표마다 필요한 권한 (나머지는 기준정보)
+const TCAP = { roasting:"roast", mms:"stock", orders:"plan" };     // 표마다 필요한 권한 (나머지는 기준정보)
 document.addEventListener("change", e=>{
   const el = e.target, { t, id, k } = el.dataset || {};
   if (!t || !id || !k) return;
@@ -21974,6 +21978,14 @@ async function applyPaste(){
     for (const { p, lots } of Object.values(by)) {
       const tot = Object.values(lots).reduce((a,b)=>a+b,0);
       const note = `제조일자별 실사 · ${Object.entries(lots).sort().map(([d,q])=>`${d==="미상"?"미상":d.slice(5)} ${fmt(q)}`).join(" · ")}`;
+      /* ★ 2026-11-24 출고장 재고에도 넣는다 (Lee "날짜를 넣었는데 왜 안나오지?") — 전에는 예전 장부(품목 재고 합계 + 제조일자 메모)에만 들어가,
+           재고 실사 · 출고 화면이 보는 "출고장 재고"에는 수량도 제조일자도 나오지 않았다. 출고장 재고를 쓰는 동안은 그 묶음을 제조일자별 수량으로 맞춘다 */
+      if (YARD_OK === true) {
+        const map = {}; Object.entries(lots).forEach(([d, q])=>{ const k = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : ""; map[k] = (map[k]||0) + Number(q||0); });
+        const res = await yardSetByMfg(p.id, p.name, map, today(), mfg => mfg ? `${note} · 제조 ${mfg}` : `${note} (다시 넣기 전 정리)`);
+        if (!res || !res.ok) { fail.push(`${p.name} — ${res?.message||"실패"}`); continue; }
+        res.same ? nKeep++ : nFix++; all[p.id] = { at: nowISO(), lots }; continue;
+      }
       if (tot !== Number(p.cfe||0)) {
         const res = await mesCountProductStock({ product_id:p.id, counted:tot, date:today(), note, idem:`cl-${p.id}-${uid()}` });
         if (!res || !res.ok) { fail.push(`${p.name} — ${res?.message||"실패"}`); continue; }
@@ -23775,7 +23787,9 @@ async function changeOrderSpec(id){
   if (!(await requireUser({ ask:"중량 변경" }))) return;
   const usedOf = list => list.reduce((t, x)=>t + needKg(x.item.p, Number(x.v.qty)||0), 0);
   const got = await pickDlg({ title:`중량 변경 — ${p.name} ${fmt(qty0)}개 (원두 ${fmt(r2(kg0))}kg)`, ph:"품목명 · 규격으로 찾기", fields:[{ k:"qty", ph:"수량", label:"수량", req:true }],
-    hint:`같은 원두(${p.bean})의 품목만 · 여러 개를 골라 나눠도 됩니다 · 쓰고 남는 원두는 원래 품목 지시로 남습니다`, empty:"같은 원두의 다른 품목이 없습니다", items,
+    hint:`바꿀 품목을 누르면 수량이 자동으로 들어갑니다 (남은 원두 전부) — 그대로 [추가]를 누르면 됩니다 · 수량은 고칠 수 있고, 여러 개를 골라 나눠도 됩니다`, empty:"같은 원두의 다른 품목이 없습니다", items,
+    /* ★ 2026-11-24 쉽게 (Lee "너무 복잡해 쉽게") — 품목을 누르면 남은 원두로 만들 수 있는 수량이 바로 들어간다 */
+    init:it=>{ const used = Object.entries(PICK?.sel || {}).reduce((t, [id, sv])=>t + needKg(PICK.by[id].p, numOf(sv.v?.qty) || 0), 0), n = Math.floor(Math.max(0, kg0 - used) / specUnitKg(it.p) + 1e-6); return { v:{ qty: n > 0 ? String(n) : "" } }; },
     note:(it, sel)=>{ const n = numOf(sel.v.qty); return n > 0 ? `원두 ${fmt(r2(needKg(it.p, n)))}kg 사용` : ""; },
     valid:list=>{ const u = usedOf(list); return u > kg0 * 1.002 + 0.005 ? `원두가 모자랍니다 — 이 지시의 원두 ${fmt(r2(kg0))}kg · 적은 수량은 ${fmt(r2(u))}kg 입니다. 수량을 줄이십시오` : ""; } });
   if (!got || !got.length) return;
@@ -27072,6 +27086,27 @@ const BULK_DEFS = {
       const permKey = Object.keys(ROLES).find(k=>ROLES[k]===v.perm) || "floor";
       const w = { id:uid(), name:v.name.trim(), role:v.role||"사원", perm:permKey };
       const r = await saveRowAsync("workers", w); if (r.ok) DB.workers.push(w); return r; } },
+  orders: { title:()=>`작업지시 붙여넣기 — ${BULK_ORD_DAY()}`, table:"orders", tab:"",
+    hint:"엑셀에서 [품목 · 수량 · 로스팅일 · 배치번호 · 일련번호 · 설비 · 출고처] 순서로 복사해 표의 첫 칸에 붙여넣고 [저장] — 품목 · 수량만 있어도 됩니다 · 로스팅일과 배치번호를 적으면 일련번호가 자동으로 들어갑니다 (11-23 의 4번 → 2304) · 일련번호를 직접 적어도 됩니다 · 품목은 이름(\"에스쇼콜라 500g\" 처럼 줄여도 됨)이나 CFE 코드 · 일련번호는 2304 처럼 네 자리 · 날짜는 작업지시 화면에 골라 둔 날짜입니다 · 같은 품목을 여러 줄 적으면 지시가 따로 만들어집니다",
+    cols:[ { k:"prod", l:"품목 (이름 또는 코드)", w:260, req:true }, { k:"qty", l:"수량", w:80, num:true, req:true }, { k:"roast_date", l:"로스팅일", w:130, date:true }, { k:"batch", l:"배치번호", w:80 },
+           { k:"serial", l:"일련번호 (자동)", w:110, ph:"자동" }, { k:"machine", l:"설비", w:110 }, { k:"channel", l:"출고처", w:100 } ],
+    validate(v){
+      const p = bulkOrdProd(v.prod); if (!p) return `품목 "${v.prod}" 을(를) 찾을 수 없음`;
+      v.prod = p.name; if (!(Math.round(Number(v.qty)) > 0)) return "수량 없음";
+      if ((v.roast_date || v.batch) && !v.serial) { const sn = snOfDateBatch(v.roast_date, v.batch); if (!sn) return v.roast_date ? "배치번호 없음 (로스팅일만 적혀 있음)" : "로스팅일 없음 (배치번호만 적혀 있음)"; v.serial = sn; }
+      if (v.serial) { const t = String(v.serial).replace(/[^\d]/g, ""); if (!t) return "일련번호는 숫자로"; if (p.bean && !bulkOrdBatch(p, v.serial) && !(v.roast_date && v.batch && DB.mms.some(x=>x.bean === p.bean && x.roast_date === v.roast_date && Number(x.batch) === Number(String(v.batch).replace(/[^\d]/g, ""))))) return `${p.bean} 원두에 일련번호 ${v.serial} 배치가 없음 (비우고 저장한 뒤 목록에서 [변경]으로 정할 수 있음)`; }
+      if (v.machine && !DB.machines.some(m=>m.name === v.machine)) { const hit = DB.machines.find(m=>m.name.includes(v.machine) || v.machine.includes(m.name)); if (hit) v.machine = hit.name; else return `설비 "${v.machine}" 이(가) 없음`; }
+      return ""; },
+    async save(v){ const p = bulkOrdProd(v.prod), d = BULK_ORD_DAY(), qty = Math.round(Number(v.qty));
+      const r = await mesAddOrder({ date:d, product_id:p.id, idem:`op-${d}-${uid()}` }); if (!r || !r.ok) return { ok:false, message:r?.message || "지시를 만들지 못함" };
+      const patch = { qty_plan:qty }; if (v.machine) { patch.machine = v.machine; const M = DB.machines.find(m=>m.name === v.machine); if (M?.id) patch.machine_id = M.id; } if (v.channel) patch.channel = v.channel;
+      const m = (v.roast_date && v.batch && DB.mms.find(x=>x.bean === p.bean && x.roast_date === v.roast_date && Number(x.batch) === Number(String(v.batch).replace(/[^\d]/g, "")))) || (v.serial ? bulkOrdBatch(p, v.serial) : null);
+      if (m) { const need = needKg(p, qty), text = `${batchLabel(m)} ${fmt(Math.round(Math.min(need || Number(m.stock_kg), Number(m.stock_kg))*100)/100)}kg`, bp = batchParts(text)[0];
+        patch.batch_plan = text; patch.serial = bp?.short || batchShort(m); patch.serial_full = bp?.full || batchFull(m); }
+      else if (v.serial) patch.serial = String(v.serial).replace(/[^\d]/g, "");
+      const er = await mesEditOrder({ order_id:r.order_id, patch, idem:`ope-${r.order_id}-${uid()}` });
+      if (sb && r.order_id) { try { await pullOrder(r.order_id); } catch(_){ errQuiet(_); } }
+      return er && er.ok === false ? { ok:false, message:`지시는 만들었지만 수량 · 일련번호를 넣지 못함 (${er.message||""}) — 목록에서 직접 넣으십시오` } : { ok:true }; } },
   mms: { title:"MMS 배치 일괄 입력 (로스팅 입고)", table:"mms", tab:"mms",
     hint:"이전 원두 일괄 등록 — 엑셀 재고표(날짜 · 원두 · 순번 · kg)를 복사해 표에 그대로 붙여넣으면 칸에 맞춰 들어갑니다 (날짜 \"11월 19일\" · 빈 칸 · 빈 줄 가능) · 원두(\"쇼콜라\" 와 같이 줄여 입력 가능) · 로스팅일 · 당일 순번 · kg · 로스팅일 대신 \"당일 순번\" 항목에 현장번호(2801 = 28일 1번) 또는 전체번호(26102801)를 입력해도 됩니다 · 동일 일자에 동일 번호가 있으면 안내합니다",
     cols:[ { k:"bean", l:"원두", w:220, req:true, list:"beanDL" }, { k:"roast_date", l:"로스팅일", w:130, date:true }, { k:"batch", l:"당일 순번 (또는 2801)", w:120, req:true }, { k:"kg", l:"재고(kg)", w:90, num:true, req:true } ],
@@ -27094,11 +27129,23 @@ const BULK_DEFS = {
     async save(v){ const r = await mesAddMms({ bean:v.bean.trim(), roast_date:v.roast_date, batch:Number(v.batch), kg:Number(v.kg)||0, idem:`bkm-${uid()}` }); if (r && r.ok && sb && r.mms_id) { try { await pullWhere("mms", "id", r.mms_id); } catch(_){ errQuiet(_); } }      /* ★ 2026-11-23 저장하면 배치 재고 표에 바로 보이게 */
       return r && r.ok ? { ok:true } : { ok:false, message:r?.message||"생성하지 못함" }; } },
 };
+const bulkTitle = def => typeof def.title === "function" ? def.title() : def.title;
+/* ══ ★ 2026-11-24 작업지시를 엑셀에서 붙여넣어 추가 (Lee "중량 변경하고 추가하고 싶은데 너무 복잡해 쉽게 변경해줘 · 붙여 넣을 수 있게")
+   표: 품목(이름 또는 CFE 코드) · 수량 · 일련번호(선택) · 설비(선택) · 출고처(선택) — 엑셀에서 복사해 그대로 붙여넣고 [저장]
+   · 날짜는 작업지시 화면에 골라 둔 날짜 · 일련번호를 적으면 그 원두의 그 배치를 잡는다 (현장번호 네 자리 2304 · 전체번호 모두) · 비우면 일련번호 없이 만들어 목록의 [변경]으로 정한다
+   · 품목 이름은 조금 달라도 찾는다 ("에스쇼콜라 500g" → 원두 에스쇼콜라 500g) ══ */
+function bulkOrdProd(t){ const v = String(t||"").trim(); if (!v) return null; const ck = codeKey(v);
+  return PRODS().find(p=>p.name === v) || (ck && PRODS().find(p=>codeKey(p.code) === ck)) || PRODS().find(p=>normName(p.name) === normName(v)) || PRODS().find(p=>normName(p.name) === normName("원두 " + v))
+    || (()=>{ const m = matchProduct(v) || matchProduct("원두 " + v); return m && !m.off ? m : null; })() || null; }
+function bulkOrdBatch(p, sn){ const t = String(sn||"").replace(/[^\d]/g, ""); if (!t || !p?.bean) return null;
+  return DB.mms.filter(m=>m.bean === p.bean && (batchShort(m) === t || String(batchFull(m)).replace(/[^\d]/g, "") === t || batchNo(m) === t)).sort((a,b)=>Number(b.stock_kg||0) - Number(a.stock_kg||0))[0] || null; }
+const BULK_ORD_DAY = () => ($("woDate")?.value || today());
+function openOrderPaste(){ if (!can("plan")) return deny("plan"); openBulk("orders"); }
 function openBulk(t){
   const def = BULK_DEFS[t]; if (!def) return;
   const need = TCAP[t] || "base";
-  if (t === "workers" ? !isSystemAdmin() : !can(need)) return toast(t === "workers" ? "시스템 관리자만 작업자를 추가할 수 있습니다" : `권한이 없습니다 — ${need === "stock" ? "재고 담당만" : need === "roast" ? "로스팅 담당만" : "기준정보 담당만"}`);
-  bulkT = t; $("bkTitle").textContent = def.title; $("bkHint").textContent = def.hint;
+  if (t === "workers" ? !isSystemAdmin() : !can(need)) return toast(t === "workers" ? "시스템 관리자만 작업자를 추가할 수 있습니다" : `권한이 없습니다 — ${need === "stock" ? "재고 담당만" : need === "roast" ? "로스팅 담당만" : need === "plan" ? "계획 담당만" : "기준정보 담당만"}`);
+  bulkT = t; $("bkTitle").textContent = typeof def.title === "function" ? def.title() : def.title; $("bkHint").textContent = def.hint;
   $("bkTbl").innerHTML = `<thead><tr><th>No</th>${def.cols.map(c=>`<th style="min-width:${c.w}px">${c.l}${c.req?' <span class="bad">*</span>':""}</th>`).join("")}<th>상태</th></tr></thead><tbody></tbody>`;
   bulkAddRows(5);
   $("bulk").style.display = "block";
@@ -27139,8 +27186,8 @@ async function bulkSave(){
   const plans = def.plan ? good.map(c=>{ c.plan = def.plan(c.r.v); c.r.tr.className = c.plan.kind === "new" ? "" : "upd"; c.r.tr.querySelector(".why").innerHTML = `<span style="color:var(--soft)">${xh(c.plan.note)}</span>`; return c.plan.kind; }) : [];
   const nNew = plans.filter(k=>k === "new").length, nUpd = plans.filter(k=>k === "upd").length, nSame = plans.filter(k=>k === "same").length;
   if (!good.length) return ask(`저장 가능한 행이 없습니다.\n\n${bad.slice(0,10).map(c=>`· ${c.r.tr.cells[0].textContent}번 행 — ${c.err}`).join("\n")}`, { title:"저장 불가", yes:"확인" });
-  if (!(await ask((def.plan ? `${def.title.replace(" 일괄 입력","")} — 새로 등록 ${nNew}건 · 이미 있는 것 변경 ${nUpd}건${nSame ? ` · 바뀐 칸 없음 ${nSame}건(건너뜀)` : ""}\n저장하시겠습니까?${nUpd ? "\n\n변경은 표에 값이 있는 칸만 바꾸고(다르면 변경 · 비어 있었으면 채움), 표에서 비워 둔 칸은 그대로 둡니다. 줄마다 오른쪽 [상태] 칸에 바뀌는 칸이 적혀 있습니다." : ""}`
-      : `${def.title.replace(" 일괄 입력","")} ${good.length}건을 저장하시겠습니까?`) +
+  if (!(await ask((def.plan ? `${bulkTitle(def).replace(" 일괄 입력","")} — 새로 등록 ${nNew}건 · 이미 있는 것 변경 ${nUpd}건${nSame ? ` · 바뀐 칸 없음 ${nSame}건(건너뜀)` : ""}\n저장하시겠습니까?${nUpd ? "\n\n변경은 표에 값이 있는 칸만 바꾸고(다르면 변경 · 비어 있었으면 채움), 표에서 비워 둔 칸은 그대로 둡니다. 줄마다 오른쪽 [상태] 칸에 바뀌는 칸이 적혀 있습니다." : ""}`
+      : `${bulkTitle(def).replace(" 일괄 입력","")} ${good.length}건을 저장하시겠습니까?`) +
       (bad.length ? `\n\n오류가 있는 ${bad.length}건은 제외됩니다 (표에 적색 표시):\n${bad.slice(0,8).map(c=>`· ${c.r.tr.cells[0].textContent}번 행 — ${c.err}`).join("\n")}${bad.length>8?`\n… 외 ${bad.length-8}건`:""}` : ""),
       { title:"저장", yes: def.plan ? `${nNew + nUpd}건 저장` : `${good.length}건 저장` }))) return;
   const okRows = [], fails = []; let doneNew = 0, doneUpd = 0, doneSame = 0;
@@ -27149,7 +27196,7 @@ async function bulkSave(){
     if (res && res.ok) { c.r.tr.className = "ok"; c.r.tr.querySelector(".why").innerHTML = `<span class="ok">${res.same ? "바뀐 칸 없음" : res.upd ? "변경됨" : "저장됨"}</span>`; okRows.push(c.r); c.r.isNew = !res.same && !res.upd; res.same ? doneSame++ : res.upd ? doneUpd++ : doneNew++; }
     else { c.r.tr.className = "bad"; c.r.tr.querySelector(".why").textContent = res?.message || "실패"; fails.push({ r:c.r, m:res?.message || "실패" }); }
   }
-  logAudit("일괄 입력", def.title.replace(" 일괄 입력",""), `성공 ${okRows.length} · 실패 ${fails.length + bad.length}`);
+  logAudit("일괄 입력", bulkTitle(def).replace(" 일괄 입력",""), `성공 ${okRows.length} · 실패 ${fails.length + bad.length}`);
   renderAll();
   /* 원두를 넣었으면 완제품도 자동으로 */
   if (bulkT === "beans" && okRows.length) {
@@ -27170,6 +27217,9 @@ async function bulkSave(){
   if (!tb_.rows.length || !bulkRows().some(r=>r.filled)) closeBulk();      /* ★ 2026-11-23 남은 것이 빈 줄뿐이면 창을 닫는다 (실패한 줄이 있으면 그대로 둔다) */
 }
 $("bulk").addEventListener("keydown", e=>{ if (e.key === "Escape") closeBulk(); });
+function bulkOrdSnFill(tr){ if (bulkT !== "orders" || !tr) return; const g = k => tr.querySelector(`[data-bk="${k}"]`), sn = snOfDateBatch(g("roast_date")?.value, g("batch")?.value), el = g("serial");
+  if (el && sn && (!el.value || el.dataset.auto === "1")) { el.value = sn; el.dataset.auto = "1"; } }
+["input","change"].forEach(ev=>$("bkTbl").addEventListener(ev, e=>{ const k = e.target?.dataset?.bk; if (bulkT !== "orders") return; if (k === "serial") { e.target.dataset.auto = ""; return; } if (k === "roast_date" || k === "batch") bulkOrdSnFill(e.target.closest("tr")); }));
 /* ★ 2026-10-31 — 엑셀에서 복사한 줄을 일괄 입력 표에 바로 붙여넣기 (Lee "이거를 인식 못해")
    전에는 붙여넣으면 한 칸에 통째로 들어갔다. 이제 커서가 있는 칸부터 오른쪽·아래로 채우고, 줄이 모자라면 늘린다.
    칸 안에 줄바꿈이 있는 값(품목보고번호 2010014↵7027129)은 엑셀이 "…" 로 감싸 주므로 한 칸으로 읽고,
@@ -27231,6 +27281,7 @@ $("bkTbl").addEventListener("paste", e=>{
     else rowVals.forEach((v,j)=>{ const k = colKeys[ci0 + j]; if (!k) return; const el = row.querySelector(`[data-bk="${k}"]`); if (el) el.value = norm(k, v); });
     ri++; put++;
   });
+  if (bulkT === "orders") [...tb_.rows].forEach(bulkOrdSnFill);
   toast(`${put}행을 붙여넣었습니다 — 확인 후 [저장]${smart.some(Boolean) ? " · 날짜 · 원두 · 순번 · kg 를 칸에 맞춰 넣었습니다" : ""}`);
 });
 
@@ -27298,13 +27349,16 @@ function cntParseGrid(grid){
     if (!hdr && cells.some(c=>/^(코드|cfe코드|자재코드|품목코드)$/i.test(c.replace(/\s+/g,""))) || !hdr && cells.some(c=>/^(품목명|자재명|제품명|이름|품명)$/.test(c.replace(/\s+/g,"")))) {
       hdr = { code:find(cells,/^(코드|cfe코드|자재코드|품목코드)$/i), name:find(cells,/^(품목명|자재명|제품명|이름|품명|품목)$/),
               qty:find(cells,/^(실사|실재고|실제|수량|재고|현재고|센수량|실사수량|합계)$/), bund:find(cells,/^(묶음|묶음수|박스)$/), loose:find(cells,/^(낱장|낱개|잔량)$/),
-              mfg:find(cells,/^(제조일자|제조일|제조|생산일자|생산일|날짜|일자)$/) };          // ★ 2026-11-24 제조일자 칸
+              mfg:find(cells,/^(제조일자|제조일|제조|생산일자|생산일|날짜|일자|로스팅일)$/),          // ★ 2026-11-24 제조일자 칸
+              batch:find(cells,/^(배치번호|배치|순번|배치순번)$/), sn:find(cells,/^(일련번호|일련|시리얼)$/) };
       return;
     }
     const num = v => { const t = String(v||"").replace(/,/g,""); return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : null; };
-    let code = "", name = "", qty = null, bund = null, loose = null, mfg = "";
+    let code = "", name = "", qty = null, bund = null, loose = null, mfg = "", sn = "";
     if (hdr) {
       if (hdr.mfg >= 0) { mfg = cntDateOf(row[hdr.mfg]); cells[hdr.mfg] = ""; }
+      if (mfg && mfg > today()) mfg = "";
+      { const b = hdr.batch >= 0 ? cells[hdr.batch] : "", t = hdr.sn >= 0 ? cells[hdr.sn].replace(/[^\dA-Za-z\-]/g, "") : ""; sn = t || snOfDateBatch(mfg, b); if (hdr.batch >= 0) cells[hdr.batch] = ""; if (hdr.sn >= 0) cells[hdr.sn] = ""; }
       code = hdr.code>=0 ? cells[hdr.code] : ""; name = hdr.name>=0 ? cells[hdr.name] : "";
       qty = hdr.qty>=0 ? num(cells[hdr.qty]) : null; bund = hdr.bund>=0 ? num(cells[hdr.bund]) : null; loose = hdr.loose>=0 ? num(cells[hdr.loose]) : null;
       if (qty == null && hdr.qty < 0) { for (let i=cells.length-1;i>=0;i--){ if (i!==hdr.code && num(cells[i])!=null) { qty = num(cells[i]); break; } } }
@@ -27317,7 +27371,7 @@ function cntParseGrid(grid){
     }
     if (!code && !name) return;
     if (qty == null && bund == null && loose == null) return;
-    out.push({ code, name, qty, bund, loose, mfg: mfg && mfg <= today() ? mfg : "" });
+    out.push({ code, name, qty, bund, loose, mfg: mfg && mfg <= today() ? mfg : "", sn });
   });
   return out;
 }
@@ -27327,6 +27381,9 @@ function cntParseGrid(grid){
      - 지금 묶음에 더하기만 하면 되는 경우: 제조일자별로 모자란 만큼만 묶음을 추가 (기존 묶음 · 일련번호 유지)
      - 줄여야 하거나 표에 없는 제조일자의 묶음이 있는 경우: 그 품목의 재고를 0 으로 뺀 뒤 제조일자별로 다시 넣는다 (그 품목의 기존 묶음 일련번호는 남지 않는다)
    · 화면에서 "실제" 수량을 손으로 고치면 그 품목의 제조일자 지정은 지워진다 (합계와 어긋나지 않게) · 서버 SQL 은 그대로 (cfe_yard_count 의 p_mfg 를 쓴다) */
+/* ★ 2026-11-24 날짜 + 배치번호 → 일련번호 (Lee "날짜 입력하고 배치번호 입력하면 자동으로 일련번호 설정하게 해줘")
+   현장번호 네 자리 = 로스팅(제조)일의 일 두 자리 + 그날 배치 순번 두 자리 — 11-23 의 4번 → 2304 */
+function snOfDateBatch(d, b){ const t = String(d||""), n = Math.round(Number(String(b ?? "").replace(/[^\d]/g, ""))); return /^\d{4}-\d{2}-\d{2}$/.test(t) && n > 0 && n < 100 ? t.slice(8, 10) + String(n).padStart(2, "0") : ""; }
 function cntDateOf(v){
   if (v instanceof Date && !isNaN(v)) return ymdLocal(v);
   if (typeof v === "number" && v > 30000 && v < 70000) { const t = new Date(Math.round((v - 25569) * 86400000)); return isNaN(t) ? "" : t.toISOString().slice(0,10); }   // 엑셀 날짜 숫자
@@ -27335,11 +27392,15 @@ function cntDateOf(v){
   return bulkDate(t); }
 function cntPutMfg(id, map){ const all = cntAll(), k = cntDayOf(); const e = all[k] = all[k] || { mat:{}, cfe:{}, done:{ mat:{}, cfe:{} } };
   e.mfg = e.mfg || {}; if (!map || !Object.keys(map).length) delete e.mfg[id]; else e.mfg[id] = map; cntSaveAll(all); }
-const cntMfgText = map => Object.keys(map||{}).sort((a,b)=>(a||"9").localeCompare(b||"9")).map(d=>`${d ? d.slice(5) : "제조일 없음"} ${fmt(map[d])}`).join(" · ");
+/* 제조일자별 수량의 열쇠 = "제조일자" 또는 "제조일자#일련번호" */
+const cntKeyOf = k => { const i = String(k||"").indexOf("#"); return i < 0 ? { d:String(k||""), sn:"" } : { d:k.slice(0, i), sn:k.slice(i+1) }; };
+const cntMfgText = map => Object.keys(map||{}).sort((a,b)=>(a||"9").localeCompare(b||"9")).map(k=>{ const { d, sn } = cntKeyOf(k); return `${d ? d.slice(5) : "제조일 없음"}${sn ? `(${sn})` : ""} ${fmt(map[k])}`; }).join(" · ");
 /* 출고장의 지금 묶음(제조일자별 남은 수량)과 표의 제조일자별 수량이 다른가 */
-function cntMfgPlan(pid, map){
-  const want = {}; Object.entries(map||{}).forEach(([d, q])=>{ const k = d || cntDayOf(); want[k] = (want[k]||0) + Math.round(Number(q)||0); });
-  const have = {}; YARD_LOTS.filter(l=>l.product_id === pid && Number(l.left_qty) > 0).forEach(l=>{ const k = l.mfg_date || ""; have[k] = (have[k]||0) + Number(l.left_qty); });
+function cntMfgPlan(pid, map, day){
+  /* 일련번호를 하나라도 적었으면 묶음을 (제조일자 + 일련번호)로 견주고, 아니면 전처럼 제조일자만으로 견준다 */
+  const useSn = Object.keys(map||{}).some(k=>cntKeyOf(k).sn);
+  const want = {}; Object.entries(map||{}).forEach(([k0, q])=>{ const { d, sn } = cntKeyOf(k0), k = (d || day || cntDayOf()) + (useSn ? "#" + sn : ""); want[k] = (want[k]||0) + Math.round(Number(q)||0); });
+  const have = {}; YARD_LOTS.filter(l=>l.product_id === pid && Number(l.left_qty) > 0).forEach(l=>{ const k = (l.mfg_date || "") + (useSn ? "#" + String(l.serial||"").trim() : ""); have[k] = (have[k]||0) + Number(l.left_qty); });
   const dates = Object.keys(want).sort(), same = Object.keys({ ...want, ...have }).every(k=>(want[k]||0) === (have[k]||0));
   const addOnly = Object.keys(have).every(k=>(have[k]||0) <= (want[k]||0));
   return { want, have, dates, same, addOnly }; }
@@ -27354,12 +27415,13 @@ function cntTemplateSheets(){
     ["· 수량을 적지 않은 줄은 건너뜁니다 — 센 것만 적으면 됩니다. 재고가 없는 것은 영(0)을 적습니다."],
     ["· 올리면 화면의 [실제] 칸에 들어갑니다. 장부는 [차이 전체 반영]을 눌러야 바뀝니다."],
     ["· CFE 완제품 시트: [제조일자]를 적으면 그 제조일자의 재고로 들어갑니다. 한 품목에 제조일자가 여럿이면 그 줄을 복사해 제조일자마다 한 줄씩 적습니다. 비워 두면 실사 일자로 들어갑니다."],
+    ["· CFE 완제품 시트: [배치번호](그날 몇 번째 배치인지)까지 적으면 일련번호가 자동으로 붙습니다 — 제조일자 11월 23일 · 배치번호 4 → 일련번호 2304. 분쇄 일련번호 자동 지정이 이 번호를 씁니다."],
     ["· 부자재 시트: [묶음]과 [낱장]을 적으면 '묶음 × 묶음당 수량 + 낱장' 으로 계산합니다. 낱개로 센 것은 [수량]에만 적습니다 (묶음 · 낱장은 비움)."],
     ["· 코드와 이름은 고치지 마십시오 — 이 값으로 품목을 찾습니다. 줄을 지우거나 순서를 바꾸는 것은 괜찮습니다."],
     ["· 시트 이름은 바꾸지 마십시오 — CFE 와 부자재를 시트 이름으로 구분합니다."],
     [`· 만든 날: ${today()} — 품목 · 자재를 새로 등록했으면 양식을 다시 내려받으십시오.`] ] });
   const ps = DB.products.filter(p=>!p.off || Number(p.cfe||0) !== 0).sort(prodCmp);
-  out.push({ name:"CFE 완제품", head:["코드","품목명","제조일자","수량","장부(참고)"], rows:ps.map(p=>[p.code||"", p.name, "", "", YARD_OK === true ? yardQty(p.id) : Number(p.cfe||0)]) });
+  out.push({ name:"CFE 완제품", head:["코드","품목명","제조일자","배치번호","수량","장부(참고)"], rows:ps.map(p=>[p.code||"", p.name, "", "", "", YARD_OK === true ? yardQty(p.id) : Number(p.cfe||0)]) });
   MAT_KINDS.forEach(k=>{ const ms = DB.materials.filter(M=>matActive(M) && M.kind === k).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""), "ko")); if (!ms.length) return;
     out.push({ name:`부자재-${k}`, head:["코드","자재명","규격","묶음당 수량(참고)","묶음","낱장","수량","장부(참고)"],
       rows:ms.map(M=>[String(M.code||"").split(" / ")[0] || "", M.name||"", M.spec||"", Math.max(1, Math.round(Number(M.pack_qty)||1)), "", "", "", Number(M.stock||0)]) }); });
@@ -27404,7 +27466,7 @@ async function cntImport(how){
     const q = (r.bund != null || r.loose != null) ? Math.round((r.bund||0)*m.pack + (r.loose||0)) : Math.round(Number(r.qty)||0);
     const k = `${m.type}|${m.id}`;
     if (sum[k]) { sum[k].q += q; sum[k].n++; } else { sum[k] = { ...m, q, n:1, mfg:{}, dated:false }; hit.push(k); }
-    if (m.type === "cfe") { const dk = r.mfg || ""; sum[k].mfg[dk] = (sum[k].mfg[dk]||0) + q; if (r.mfg) sum[k].dated = true; }
+    if (m.type === "cfe") { const dk = (r.mfg || "") + (r.sn ? "#" + r.sn : ""); sum[k].mfg[dk] = (sum[k].mfg[dk]||0) + q; if (r.mfg || r.sn) sum[k].dated = true; }
   });
   CNT_IMPORT_HINT = "";
   const list = hit.map(k=>sum[k]);
@@ -27506,7 +27568,7 @@ function renderCount(){
         <td>${inCell}${r.done && !has ? `<br><span class="tag ok" style="font-size:10.5px">반영 완료 ${fmt(r.done.act)}${r.done.act!==r.done.app?` (장부 ${fmt(r.done.app)} → ${fmt(r.done.act)})`:" · 일치"} · ${dtFull(r.done.at).slice(-5)} ${r.done.by||""}</span>` : ""}</td>
         <td class="${!has?"":d===0?"ok":d<0?"bad":"warn"}">${has ? (d===0?"일치":(d>0?"+":"")+fmt(d)) : ""}</td>
         <td class="c"><button class="btn" style="height:34px;min-width:40px;font-size:15px" title="장부 재고와 일치" onclick="setCntOne('${r.key}','${r.app}')">=</button></td>
-        <td class="c">${has && d ? `<button class="btn primary" style="height:34px" onclick="cntApplyOne('${r.key}')">반영</button>` : ""}</td></tr>`; }),
+        <td class="c">${has && (d || r.mfgDiff) ? `<button class="btn primary" style="height:34px" onclick="cntApplyOne('${r.key}')">반영</button>` : ""}</td></tr>`; }),
     rows.length ? `<td colspan="2" class="c">합 계 · ${rows.length}항목</td><td><b>${fmt(rows.reduce((s,r)=>s+r.app,0))}</b></td>${flow?`<td>+${fmt(rows.reduce((t,r)=>t+F[r.key].inQ,0))}</td><td>${fmt(rows.reduce((t,r)=>t+F[r.key].plan,0))}</td><td class="${shortN?"bad":""}">부족 ${shortN}</td><td></td>`:""}<td>${ent.length?`<b>${fmt(ent.reduce((s,r)=>s+r.act,0))}</b>`:""}</td><td colspan="3"></td>` : null);
 }
 /* 마이너스 CFE 재고 — 어떤 수불로 이렇게 됐는지 */
@@ -27533,20 +27595,32 @@ async function negFix(pid){
   if (sb) await reloadDB({ silent:true });
   renderAll(); toast(`${p.name} → ${fmt(n)}EA 로 조정했습니다`);
 }
+/* 출고장 재고의 묶음을 제조일자별 수량(map = { 제조일자: 수량 })으로 맞춘다 — 재고 실사 반영 · "CFE 제조일자별 실재고" 붙여넣기가 같이 쓴다 */
+let YARD_SN_SRV = null;                                // 서버의 cfe_yard_count 가 일련번호를 받는지 (false = 094 미설치)
+async function yardSetByMfg(pid, name, map, day, noteOf){
+  const P = cntMfgPlan(pid, map, day); if (P.same) return { ok:true, same:true };
+  const call = async (counted, key) => { const { d:mfg, sn } = cntKeyOf(key||""); const args = { p_product_id:pid, p_counted:counted, p_date:day, p_mfg:mfg || null, p_note:noteOf(mfg), p_user_name:CURRENT_USER };
+    const local = () => { const dd = Number(counted) - yardQty(pid);
+      if (dd > 0) YARD_LOTS.push({ id:uid(), product_id:pid, product_name:name, serial:sn || null, mfg_date:mfg || day, in_date:day, qty:dd, left_qty:dd, src:"count", at:nowISO(), by_name:CURRENT_USER });
+      else if (dd < 0) yardTakeLocal(pid, -dd, day, uid(), "count", "재고 실사"); return { ok:true }; };
+    if (sn && YARD_SN_SRV !== false) { const r = await rpc("cfe_yard_count", { ...args, p_serial:sn }, local);
+      /* 서버에 094 가 아직 없으면 (p_serial 을 모름) 일련번호 없이 넣고 한 번 알려 준다 */
+      if ((!r || r.ok === false) && /p_serial|schema cache|function|PGRST20/i.test(String(r?.message || r?.code || ""))) { YARD_SN_SRV = false; toast("서버에 094_cfe_serial.sql 이 아직 없어 일련번호 없이 넣습니다 — SQL 을 실행한 뒤 다시 넣으면 일련번호가 붙습니다"); }
+      else { if (r && r.ok) YARD_SN_SRV = true; return r; } }
+    return rpc("cfe_yard_count", args, local); };
+  let cum = yardQty(pid), res = { ok:true };
+  if (!P.addOnly && cum > 0) { res = await call(0, null); if (!res || !res.ok) return res; cum = 0; P.have = {}; }
+  for (const dt of P.dates) { const add = (P.want[dt]||0) - (P.have[dt]||0); if (!(add > 0)) continue; cum += add; res = await call(cum, dt); if (!res || !res.ok) break; }
+  if (sb) await loadYard();
+  return res;
+}
 const cntDayOf = () => { const v = $("cntDay")?.value; return v && v <= today() ? v : today(); };
 async function cntApplyRow(r, why){
   const d = Math.round((r.act - r.app)*1000)/1000;
   if (cntType === "cfe" && YARD_OK === true && r.mfg) {
     /* ★ 2026-11-24 제조일자별 수량으로 — 더하기만 하면 되면 모자란 만큼만, 아니면 0 으로 뺀 뒤 제조일자 순으로 다시 넣는다 */
     const P = cntMfgPlan(r.key, r.mfg); if (P.same) return { ok:true };
-    const call = (counted, mfg) => rpc("cfe_yard_count", { p_product_id:r.key, p_counted:counted, p_date:cntDayOf(), p_mfg:mfg, p_note:cntNoteOf(why, mfg ? `재고 실사 반영 · 제조 ${mfg}` : "재고 실사 반영 (제조일자별로 다시 넣기 전 정리)"), p_user_name:CURRENT_USER }, () => {
-      const dd = Number(counted) - yardQty(r.key);
-      if (dd > 0) YARD_LOTS.push({ id:uid(), product_id:r.key, product_name:r.name, mfg_date:mfg || cntDayOf(), in_date:cntDayOf(), qty:dd, left_qty:dd, src:"count", at:nowISO(), by_name:CURRENT_USER });
-      else if (dd < 0) yardTakeLocal(r.key, -dd, cntDayOf(), uid(), "count", "재고 실사"); return { ok:true }; });
-    let cum = yardQty(r.key), res = { ok:true };
-    if (!P.addOnly && cum > 0) { res = await call(0, null); if (!res || !res.ok) return res; cum = 0; P.have = {}; }
-    for (const dt of P.dates) { const add = (P.want[dt]||0) - (P.have[dt]||0); if (!(add > 0)) continue; cum += add; res = await call(cum, dt); if (!res || !res.ok) break; }
-    if (sb) await loadYard();
+    const res = await yardSetByMfg(r.key, r.name, r.mfg, cntDayOf(), mfg => cntNoteOf(why, mfg ? `재고 실사 반영 · 제조 ${mfg}` : "재고 실사 반영 (제조일자별로 다시 넣기 전 정리)"));
     if (res && res.ok) logAudit("출고장 재고 실측 — 제조일자별", r.name, `${fmt(r.app)} → ${fmt(r.act)}EA · 제조 ${cntMfgText(r.mfg)}${P.addOnly ? "" : " · 기존 묶음을 정리하고 다시 넣음"}${why ? ` · ${why.reason}${why.note ? ` · ${why.note}` : ""}` : ""}`);
     return res;
   }
