@@ -2506,6 +2506,7 @@ details.wkTool #wkToolSw .swb{height:38px}
     <input type="text" id="cntFind" placeholder="이름 검색" style="width:140px;margin-left:6px" oninput="renderCount()">
     <span style="margin-left:auto"></span>
     <button class="btn" onclick="cntDraftClear()" title="선택한 실사 일자의 입력값만 삭제합니다 — 장부 및 다른 일자는 변동 없음">이 일자 입력 초기화</button>
+    <button class="btn" id="cntTplBtn" onclick="cntTemplate()" title="CFE 완제품 · 봉투 · 라벨 · 박스 등 지금 등록된 품목이 전부 적힌 엑셀 양식을 내려받습니다 — 수량을 적어 [엑셀 업로드]로 한 번에 올립니다">엑셀 양식</button>
     <button class="btn" onclick="cntImport('paste')" title="엑셀에서 복사한 표를 붙여넣기 — 부자재·CFE 혼합 가능">붙여넣기</button>
     <button class="btn" onclick="cntImport('file')" title="엑셀 파일(.xlsx·.csv) — 시트가 여러 개인 경우 전체 시트를 읽음">엑셀 업로드</button>
     <input type="file" id="cntFile" accept=".xlsx,.xls,.csv,.txt" style="display:none">
@@ -8456,6 +8457,8 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-24", "재고 실사 — [엑셀 양식] 한 파일로 CFE · 봉투 · 라벨 전부", "재고 실사 화면에 [엑셀 양식] 버튼이 생겼습니다. 누르면 지금 등록된 품목 · 자재가 전부 적힌 엑셀 파일을 내려받습니다 — 시트: 안내 · CFE 완제품 · 부자재-봉투 · 풀패키지 · 라벨 · 박스 · 트레이 · 스티커 · 기타 (등록된 것이 있는 종류만). 수량만 적어 [엑셀 업로드]로 올리면 모든 시트를 한 번에 읽어 [실제] 칸에 넣습니다 (안 적은 줄은 건너뜀 · 장부는 [차이 전체 반영]을 눌러야 바뀜). CFE 는 [제조일자] 칸이 있고, 부자재는 [묶음] + [낱장] 또는 [수량] 으로 적습니다. 시트 이름으로 CFE 와 부자재를 구분하므로 라벨처럼 품목과 코드가 같은 자재도 헷갈리지 않습니다."],
+  ["2026-11-24", "재고 실사 — CFE 완제품을 엑셀로 넣을 때 제조일자까지", "재고 실사의 [엑셀 업로드] · [붙여넣기]에서 CFE 완제품 줄에 제조일자를 같이 넣을 수 있습니다. 표에 [제조일자](제조일 · 생산일 · 날짜 · 일자) 칸을 두면 줄마다 읽고, 같은 품목을 제조일자마다 한 줄씩 적어도 됩니다 (머리줄이 없어도 11/19 · 11월 19일 · 2026-11-19 같은 칸은 제조일자로 읽음). 품목 아래에 '제조 11-19 10 · 11-20 18' 처럼 보이고, [반영]하면 출고장 재고의 묶음이 그 제조일자별 수량으로 맞춰집니다 — 상미기한(D-day)과 분쇄 일련번호 자동 지정의 오래된 순서가 이 제조일자를 씁니다. 전에는 늘어난 수량이 전부 센 날짜 제조로 들어갔습니다. 지금 재고에 더하기만 하면 되는 경우는 모자란 만큼만 추가하고, 줄여야 하거나 표에 없는 제조일자의 재고가 있으면 그 품목 재고를 정리한 뒤 제조일자별로 다시 넣습니다 (이때 그 품목의 기존 묶음 일련번호는 남지 않음). 화면에서 수량을 손으로 고치면 그 품목의 제조일자 지정은 지워집니다. 수량은 같고 제조일자만 다른 품목도 [차이 전체 반영] 대상에 나옵니다."],
   ["2026-11-23", "분쇄 — 일련번호 (가져올 완제품)", "(같은 날 추가) 일련번호가 정해지지 않은 줄은 분쇄 완료로 체크할 수 없습니다 — 일부만 지정된 줄도 마찬가지이며, 어느 줄이 비었는지 안내가 뜹니다. 분쇄는 출고장에 있는 홀빈 완제품을 가져와 분쇄 · 재포장합니다. 이제 분쇄 줄마다 어느 일련번호의 완제품을 가져오는지 정할 수 있습니다. ① 분쇄 화면 위의 [일련번호 자동 지정]을 누르면, 일련번호가 비어 있는 분쇄 전 줄에 그 홀빈 완제품(출고장 재고 + 생산 · 검수 완료된 출고 전 생산분)의 제조일이 오래된 일련번호부터 자동으로 들어갑니다 (일련번호가 없는 재고 실사분은 '제조○○-○○' · '번호없음' 으로 들어감 · 상미기한이 지난 묶음 제외 · 같은 날 다른 분쇄 줄이 잡은 수량 제외 · 재고가 모자라면 다음 번호로 넘어감) ② 줄의 [지정] · [변경]을 누르면 창에서 일련번호별 수량을 고치거나 목록에 없는 번호를 직접 적습니다 (한 줄에 여러 번호 가능) ③ 분쇄 카드의 줄마다 '일련번호 1904 ×4 · 2001 ×2' 가 보여 현장은 그 번호의 완제품을 가져옵니다 ④ 추적 — 분쇄 입력 내역 · 엑셀에 일련번호 칸이 생겼고, 이력 추적에서 일련번호로 찾으면 '분쇄 사용' 표(일자 · 차수 · 분쇄도 · 수량 · 완료 · 작업자)가 나옵니다. 출고장 재고는 여기서 따로 빼지 않습니다 (분쇄분은 홀빈 주문 수량에 들어 있어 [오늘 출고 확정] 때 이미 빠집니다). 지정 · 변경은 계획 담당만 · 서버 SQL 은 새로 돌릴 필요가 없습니다."],
   ["2026-11-23", "분쇄 — 묶는 순서를 자유롭게 (분쇄도 · 원두 · 중량)", "분쇄 화면 [순서 설정]의 '묶는 순서'가 전에는 분쇄도가 항상 맨 앞이었습니다 (분쇄도 → 원두 → 중량 / 분쇄도 → 중량 → 원두 둘뿐). 이제 여섯 가지 순서를 모두 고를 수 있습니다 — 맨 앞에 둔 것으로 카드를 묶습니다. 예: '원두 → 분쇄도 → 중량' 을 고르면 원두별 카드 안에 분쇄도 · 중량 순으로 줄이 섭니다 (줄마다 분쇄도 표시). 분쇄도별 카드가 아닐 때는 카드의 [분쇄 시작] · [전체 완료] 버튼이 없고 줄마다 체크합니다 (소요시간은 첫 체크부터 잽니다)."],
   ["2026-11-23", "같은 배치 지시 [합치기]", "같은 품목 · 같은 일련번호(배치)인데 카드가 둘로 나뉘어 뜨는 경우가 있었습니다 (예: 에스쇼콜라 1kg · 2001 이 5개와 50개). [작업지시 생성]을 두 번 하면(2차 집계나 여유분 변경 뒤 [추가로 생성]) 두 번째에는 그 배치에 남은 원두만큼 지시를 새로 만들고, 먼저 만든 지시에 더하지 않기 때문입니다. 같은 날 · 같은 품목 · 같은 출고처 · 같은 설비 · 같은 배치의 대기 지시가 둘 이상이면 현장 작업 카드와 작업지시 표에 주황색 [같은 배치 N건 합치기] 버튼이 보입니다. 누르면 순서가 앞선 지시에 수량과 원두 kg 를 더하고 나머지는 삭제합니다. 대기 중이고 실적이 없는 지시만 · 계획 담당과 관리자만 할 수 있습니다."],
@@ -27245,12 +27248,12 @@ function cntAll(){ try { const v = JSON.parse(localStorage.getItem(CNT_BYDATE_KE
   return all; }
 function cntSaveAll(all){ const keys = Object.keys(all).sort(); while (keys.length > 45) delete all[keys.shift()]; try { localStorage.setItem(CNT_BYDATE_KEY, JSON.stringify(all)); } catch(_){ errQuiet(_); } }
 function cntDraft(d){ const k = d || (typeof cntDayOf === "function" ? cntDayOf() : today()); const e = cntAll()[k] || {};
-  return { date:k, mat:e.mat||{}, cfe:e.cfe||{}, done:{ mat:(e.done||{}).mat||{}, cfe:(e.done||{}).cfe||{} } }; }
+  return { date:k, mat:e.mat||{}, cfe:e.cfe||{}, mfg:e.mfg||{}, done:{ mat:(e.done||{}).mat||{}, cfe:(e.done||{}).cfe||{} } }; }
 function cntPut(type, id, v){ const all = cntAll(), k = cntDayOf(); const e = all[k] = all[k] || { mat:{}, cfe:{}, done:{ mat:{}, cfe:{} } };
   e[type] = e[type] || {}; if (v == null || v === "") delete e[type][id]; else e[type][id] = v; cntSaveAll(all); }
 /* 장부에 반영한 값 — 그 날짜에 남겨 둔다 (입력 칸은 비우고 "반영함" 으로 보임) */
 function cntDone(type, id, act, app){ const all = cntAll(), k = cntDayOf(); const e = all[k] = all[k] || { mat:{}, cfe:{}, done:{ mat:{}, cfe:{} } };
-  e.done = e.done || { mat:{}, cfe:{} }; e.done[type] = e.done[type] || {}; e.done[type][id] = { act, app, at:nowISO(), by:CURRENT_USER||"" }; if (e[type]) delete e[type][id]; cntSaveAll(all); }
+  e.done = e.done || { mat:{}, cfe:{} }; e.done[type] = e.done[type] || {}; e.done[type][id] = { act, app, at:nowISO(), by:CURRENT_USER||"" }; if (e[type]) delete e[type][id]; if (type === "cfe" && e.mfg) delete e.mfg[id]; cntSaveAll(all); }
 /* ★ 2026-11-01 — 재고 세기에 엑셀 넣기 (Lee "재고 세기에서 엑셀 넣기도 가능해? 여러 가지")
    붙여넣기 또는 파일(시트 여러 개면 전부) → 줄마다 코드·이름으로 CFE 품목이나 부자재를 찾아 "실제" 칸에 채운다.
    장부에는 아직 안 들어간다 — 화면에서 차이를 보고 [차이 전체 반영] (차이 사유는 그때 물음)
@@ -27263,7 +27266,9 @@ async function loadXLSX(){
 let CNT_IMPORT_HINT = "";                            // 지금 읽는 시트 이름 (라벨 시트면 라벨로)
 function cntMatchRow(code, name){
   const ck = codeKey(code);
-  const matWord = /라벨|봉투|트레이|박스|스티커|롤|밸브|풀패키지/.test(String(name||"") + " " + String(CNT_IMPORT_HINT||""));
+  /* ★ 2026-11-24 양식의 시트 이름으로 확실히 가른다 — "CFE…" 시트는 품목, "부자재…" 시트(기타 포함)는 자재 */
+  const hint = String(CNT_IMPORT_HINT||""), cfeSheet = /^CFE/i.test(hint.trim());
+  const matWord = !cfeSheet && (/라벨|봉투|트레이|박스|스티커|롤|밸브|풀패키지/.test(String(name||"") + " " + hint) || /부자재|자재/.test(hint));
   if (ck) {
     /* 라벨은 품목과 같은 CFE 코드를 쓴다 — 줄(또는 시트 이름)에 "라벨·봉투…" 가 있으면 자재 쪽을 먼저 */
     const M = DB.materials.find(M=>matActive(M) && String(M.code||"").split(" / ").some(c=>codeKey(c)===ck));
@@ -27292,32 +27297,91 @@ function cntParseGrid(grid){
     /* 머리줄 */
     if (!hdr && cells.some(c=>/^(코드|cfe코드|자재코드|품목코드)$/i.test(c.replace(/\s+/g,""))) || !hdr && cells.some(c=>/^(품목명|자재명|제품명|이름|품명)$/.test(c.replace(/\s+/g,"")))) {
       hdr = { code:find(cells,/^(코드|cfe코드|자재코드|품목코드)$/i), name:find(cells,/^(품목명|자재명|제품명|이름|품명|품목)$/),
-              qty:find(cells,/^(실사|실재고|실제|수량|재고|현재고|센수량|실사수량|합계)$/), bund:find(cells,/^(묶음|묶음수|박스)$/), loose:find(cells,/^(낱장|낱개|잔량)$/) };
+              qty:find(cells,/^(실사|실재고|실제|수량|재고|현재고|센수량|실사수량|합계)$/), bund:find(cells,/^(묶음|묶음수|박스)$/), loose:find(cells,/^(낱장|낱개|잔량)$/),
+              mfg:find(cells,/^(제조일자|제조일|제조|생산일자|생산일|날짜|일자)$/) };          // ★ 2026-11-24 제조일자 칸
       return;
     }
     const num = v => { const t = String(v||"").replace(/,/g,""); return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : null; };
-    let code = "", name = "", qty = null, bund = null, loose = null;
+    let code = "", name = "", qty = null, bund = null, loose = null, mfg = "";
     if (hdr) {
+      if (hdr.mfg >= 0) { mfg = cntDateOf(row[hdr.mfg]); cells[hdr.mfg] = ""; }
       code = hdr.code>=0 ? cells[hdr.code] : ""; name = hdr.name>=0 ? cells[hdr.name] : "";
       qty = hdr.qty>=0 ? num(cells[hdr.qty]) : null; bund = hdr.bund>=0 ? num(cells[hdr.bund]) : null; loose = hdr.loose>=0 ? num(cells[hdr.loose]) : null;
       if (qty == null && hdr.qty < 0) { for (let i=cells.length-1;i>=0;i--){ if (i!==hdr.code && num(cells[i])!=null) { qty = num(cells[i]); break; } } }
     } else {
       const rest = [...cells];
+      { const di = rest.findIndex(c=>bulkDate(c)); if (di >= 0) { mfg = bulkDate(rest[di]); rest.splice(di, 1); } }      // 머리줄이 없어도 날짜처럼 생긴 칸(11/19 · 11월 19일 · 2026-11-19)은 제조일자로
       for (let i=rest.length-1;i>=0;i--){ if (num(rest[i])!=null) { qty = num(rest[i]); rest.splice(i,1); break; } }
       const ci = rest.findIndex(c=>c && (isCode(c) || /^CFE/i.test(c))); if (ci>=0) { code = rest[ci]; rest.splice(ci,1); }
       name = rest.filter(c=>c && !/^\d+$/.test(c)).join(" ").trim();
     }
     if (!code && !name) return;
     if (qty == null && bund == null && loose == null) return;
-    out.push({ code, name, qty, bund, loose });
+    out.push({ code, name, qty, bund, loose, mfg: mfg && mfg <= today() ? mfg : "" });
   });
   return out;
+}
+/* ★ 2026-11-24 완제품(CFE) 재고를 엑셀로 넣을 때 제조일자까지 (Lee "완제품 cfe 엑셀로 넣을때 날짜까지 지정 할 수 있게 해줘")
+   · 엑셀 · 붙여넣기 표에 [제조일자](제조일 · 생산일 · 날짜 · 일자) 칸이 있으면 줄마다 읽는다 — 같은 품목이 제조일자별로 여러 줄이어도 된다 (합계는 "실제" 칸 · 제조일자별 수량은 품목 아래에 표시)
+   · [반영]하면 출고장 재고의 묶음이 그 제조일자별 수량으로 맞춰진다 (전에는 늘어난 수량이 전부 "센 날짜" 제조로 들어갔다)
+     - 지금 묶음에 더하기만 하면 되는 경우: 제조일자별로 모자란 만큼만 묶음을 추가 (기존 묶음 · 일련번호 유지)
+     - 줄여야 하거나 표에 없는 제조일자의 묶음이 있는 경우: 그 품목의 재고를 0 으로 뺀 뒤 제조일자별로 다시 넣는다 (그 품목의 기존 묶음 일련번호는 남지 않는다)
+   · 화면에서 "실제" 수량을 손으로 고치면 그 품목의 제조일자 지정은 지워진다 (합계와 어긋나지 않게) · 서버 SQL 은 그대로 (cfe_yard_count 의 p_mfg 를 쓴다) */
+function cntDateOf(v){
+  if (v instanceof Date && !isNaN(v)) return ymdLocal(v);
+  if (typeof v === "number" && v > 30000 && v < 70000) { const t = new Date(Math.round((v - 25569) * 86400000)); return isNaN(t) ? "" : t.toISOString().slice(0,10); }   // 엑셀 날짜 숫자
+  const t = String(v ?? "").trim(); if (/^\d{5}$/.test(t)) return cntDateOf(Number(t));
+  if (/^\d{8}$/.test(t)) return `${t.slice(0,4)}-${t.slice(4,6)}-${t.slice(6,8)}`;
+  return bulkDate(t); }
+function cntPutMfg(id, map){ const all = cntAll(), k = cntDayOf(); const e = all[k] = all[k] || { mat:{}, cfe:{}, done:{ mat:{}, cfe:{} } };
+  e.mfg = e.mfg || {}; if (!map || !Object.keys(map).length) delete e.mfg[id]; else e.mfg[id] = map; cntSaveAll(all); }
+const cntMfgText = map => Object.keys(map||{}).sort((a,b)=>(a||"9").localeCompare(b||"9")).map(d=>`${d ? d.slice(5) : "제조일 없음"} ${fmt(map[d])}`).join(" · ");
+/* 출고장의 지금 묶음(제조일자별 남은 수량)과 표의 제조일자별 수량이 다른가 */
+function cntMfgPlan(pid, map){
+  const want = {}; Object.entries(map||{}).forEach(([d, q])=>{ const k = d || cntDayOf(); want[k] = (want[k]||0) + Math.round(Number(q)||0); });
+  const have = {}; YARD_LOTS.filter(l=>l.product_id === pid && Number(l.left_qty) > 0).forEach(l=>{ const k = l.mfg_date || ""; have[k] = (have[k]||0) + Number(l.left_qty); });
+  const dates = Object.keys(want).sort(), same = Object.keys({ ...want, ...have }).every(k=>(want[k]||0) === (have[k]||0));
+  const addOnly = Object.keys(have).every(k=>(have[k]||0) <= (want[k]||0));
+  return { want, have, dates, same, addOnly }; }
+/* ══ ★ 2026-11-24 재고 실사 엑셀 양식 — 한 파일로 CFE · 봉투 · 라벨 · 박스 … 전부 (Lee "엑셀 양식으로 한번에 업로드 하는거 만들어줘 · cfe, 라벨, 봉투 등 필요한거 다 넣어줘")
+   시트: 안내 · CFE 완제품 · 부자재-봉투 · 부자재-풀패키지 · 부자재-라벨 · 부자재-박스 · 부자재-트레이 · 부자재-스티커 · 부자재-기타 (등록된 것이 있는 종류만)
+   지금 등록된 품목 · 자재가 줄마다 적혀 있다 — 수량만 적어 [엑셀 업로드]로 올린다 (안 적은 줄은 건너뜀 · "안내" 시트는 읽지 않음)
+   CFE 는 [제조일자] 칸 — 제조일자가 여럿이면 그 줄을 복사해 한 줄씩 · 부자재는 [묶음] + [낱장] 또는 [수량] ══ */
+function cntTemplateSheets(){
+  const out = [];
+  out.push({ name:"안내", head:["재고 실사 엑셀 양식 — MOMOS 생산계획"], rows:[
+    ["· 시트마다 수량을 적은 뒤, 재고 실사 화면의 [엑셀 업로드]로 이 파일을 그대로 올립니다 (모든 시트를 한 번에 읽습니다)."],
+    ["· 수량을 적지 않은 줄은 건너뜁니다 — 센 것만 적으면 됩니다. 재고가 없는 것은 영(0)을 적습니다."],
+    ["· 올리면 화면의 [실제] 칸에 들어갑니다. 장부는 [차이 전체 반영]을 눌러야 바뀝니다."],
+    ["· CFE 완제품 시트: [제조일자]를 적으면 그 제조일자의 재고로 들어갑니다. 한 품목에 제조일자가 여럿이면 그 줄을 복사해 제조일자마다 한 줄씩 적습니다. 비워 두면 실사 일자로 들어갑니다."],
+    ["· 부자재 시트: [묶음]과 [낱장]을 적으면 '묶음 × 묶음당 수량 + 낱장' 으로 계산합니다. 낱개로 센 것은 [수량]에만 적습니다 (묶음 · 낱장은 비움)."],
+    ["· 코드와 이름은 고치지 마십시오 — 이 값으로 품목을 찾습니다. 줄을 지우거나 순서를 바꾸는 것은 괜찮습니다."],
+    ["· 시트 이름은 바꾸지 마십시오 — CFE 와 부자재를 시트 이름으로 구분합니다."],
+    [`· 만든 날: ${today()} — 품목 · 자재를 새로 등록했으면 양식을 다시 내려받으십시오.`] ] });
+  const ps = DB.products.filter(p=>!p.off || Number(p.cfe||0) !== 0).sort(prodCmp);
+  out.push({ name:"CFE 완제품", head:["코드","품목명","제조일자","수량","장부(참고)"], rows:ps.map(p=>[p.code||"", p.name, "", "", YARD_OK === true ? yardQty(p.id) : Number(p.cfe||0)]) });
+  MAT_KINDS.forEach(k=>{ const ms = DB.materials.filter(M=>matActive(M) && M.kind === k).sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""), "ko")); if (!ms.length) return;
+    out.push({ name:`부자재-${k}`, head:["코드","자재명","규격","묶음당 수량(참고)","묶음","낱장","수량","장부(참고)"],
+      rows:ms.map(M=>[String(M.code||"").split(" / ")[0] || "", M.name||"", M.spec||"", Math.max(1, Math.round(Number(M.pack_qty)||1)), "", "", "", Number(M.stock||0)]) }); });
+  return out;
+}
+async function cntTemplate(){
+  const sheets = cntTemplateSheets();
+  try { await loadXLSX();
+    const wb = XLSX.utils.book_new();
+    sheets.forEach(S=>{ const ws = XLSX.utils.aoa_to_sheet([S.head, ...S.rows]);
+      ws["!cols"] = S.head.map((h, i)=>({ wch: S.name === "안내" ? 110 : Math.min(46, Math.max(String(h).length*2 + 2, ...S.rows.slice(0,300).map(r=>String(r[i] ?? "").length*1.6 + 2))) }));
+      XLSX.utils.book_append_sheet(wb, ws, S.name.slice(0, 31)); });
+    XLSX.writeFile(wb, `재고실사_양식_${today()}.xlsx`);
+    logAudit("재고 실사 엑셀 양식", "", sheets.slice(1).map(S=>`${S.name} ${S.rows.length}`).join(" · "));
+    toast(`양식을 내려받았습니다 — ${sheets.slice(1).map(S=>`${S.name} ${S.rows.length}줄`).join(" · ")} · 수량을 적어 [엑셀 업로드]`);
+  } catch(e){ console.warn(e); toast("엑셀 양식을 만들지 못했습니다 — 인터넷 연결을 확인하고 다시 눌러 보십시오"); }
 }
 async function cntImport(how){
   if (!(await requireUser())) return;
   let grids = [];
   if (how === "paste") {
-    const t = await ask("엑셀에서 표를 복사하여 붙여넣으십시오 (부자재·CFE 혼합 가능)\n코드 · 이름 · 수량 열이 있으면 그대로 적용하며, 묶음 · 낱장 열이 있으면 장수로 환산합니다.", { prompt:true, multi:true, value:"", title:"재고 실사 — 붙여넣기" });
+    const t = await ask("엑셀에서 표를 복사하여 붙여넣으십시오 (부자재·CFE 혼합 가능)\n코드 · 이름 · 수량 열이 있으면 그대로 적용하며, 묶음 · 낱장 열이 있으면 장수로 환산합니다.\nCFE 완제품은 [제조일자] 열이 있으면 제조일자별 수량으로 넣습니다 (같은 품목을 제조일자마다 한 줄씩).", { prompt:true, multi:true, value:"", title:"재고 실사 — 붙여넣기" });
     if (!t) return;
     grids = [parseTSV(String(t))];
   } else {
@@ -27329,7 +27393,7 @@ async function cntImport(how){
       else { const t = await f.text(); grids = [parseTSV(t.includes("\t") ? t : t.split(/\r?\n/).map(l=>l.split(",").join("\t")).join("\n"))]; }
     } catch(e){ console.warn(e); return toast("파일을 불러오지 못했습니다"); }
   }
-  const rows = grids.flatMap(g=>cntParseGrid(g).map(r=>({ ...r, sheet:g.sheet||"" })));
+  const rows = grids.filter(g=>!/^안내/.test(String(g.sheet||"").trim())).flatMap(g=>cntParseGrid(g).map(r=>({ ...r, sheet:g.sheet||"" })));
   if (!rows.length) return ask("인식 가능한 행이 없습니다 — 코드 또는 이름과 수량이 포함된 행이 필요합니다.", { title:"재고 실사", yes:"확인", only:true });
   const hit = [], miss = [];
   const sum = {};                                    // 같은 품목이 여러 줄(시트)이면 더한다
@@ -27339,17 +27403,19 @@ async function cntImport(how){
     if (!m) { miss.push(`${r.code||""} ${r.name||""}`.trim()); return; }
     const q = (r.bund != null || r.loose != null) ? Math.round((r.bund||0)*m.pack + (r.loose||0)) : Math.round(Number(r.qty)||0);
     const k = `${m.type}|${m.id}`;
-    if (sum[k]) { sum[k].q += q; sum[k].n++; } else { sum[k] = { ...m, q, n:1 }; hit.push(k); }
+    if (sum[k]) { sum[k].q += q; sum[k].n++; } else { sum[k] = { ...m, q, n:1, mfg:{}, dated:false }; hit.push(k); }
+    if (m.type === "cfe") { const dk = r.mfg || ""; sum[k].mfg[dk] = (sum[k].mfg[dk]||0) + q; if (r.mfg) sum[k].dated = true; }
   });
   CNT_IMPORT_HINT = "";
   const list = hit.map(k=>sum[k]);
   const nC = list.filter(x=>x.type==="cfe").length, nM = list.filter(x=>x.type==="mat").length;
   if (!list.length) return ask(`일치하는 품목·자재를 찾지 못했습니다.\n\n${miss.slice(0,10).map(x=>"· "+x).join("\n")}`, { title:"재고 실사", yes:"확인", only:true });
   if (!(await ask(`${rows.length}행을 인식했습니다 — CFE ${nC}개 · 부자재 ${nM}개를 "실제" 항목에 입력합니다 (장부는 아직 변경되지 않음):\n\n` +
-      list.slice(0,12).map(x=>`· ${x.label} → ${fmt(x.q)}${x.n>1?` (${x.n}행 합산)`:""}`).join("\n") + (list.length>12?`\n… 외 ${list.length-12}개`:"") +
+      list.slice(0,12).map(x=>`· ${x.label} → ${fmt(x.q)}${x.n>1?` (${x.n}행 합산)`:""}${x.dated ? ` — 제조 ${cntMfgText(x.mfg)}` : ""}`).join("\n") + (list.length>12?`\n… 외 ${list.length-12}개`:"") +
+      (list.some(x=>x.dated) ? `\n\n제조일자를 적은 CFE ${list.filter(x=>x.dated).length}개는 [반영]하면 출고장 재고가 그 제조일자별 수량으로 맞춰집니다.` : "") +
       (miss.length ? `\n\n미매칭 행 ${miss.length}개 (제외):\n${miss.slice(0,8).map(x=>"· "+x).join("\n")}${miss.length>8?`\n… 외 ${miss.length-8}개`:""}` : ""),
       { title:"재고 실사 — 엑셀 업로드", yes:"입력" }))) return;
-  list.forEach(x=>cntPut(x.type, x.id, Math.max(0, x.q)));
+  list.forEach(x=>{ cntPut(x.type, x.id, Math.max(0, x.q)); if (x.type === "cfe") cntPutMfg(x.id, x.dated ? x.mfg : null); });
   if (nC && !nM) cntType = "cfe"; else if (nM && !nC) cntType = "mat";
   if (cntType === "mat") cntKind = "";
   renderCount();
@@ -27369,13 +27435,15 @@ function cntRows(){
   const D = cntDraft(), q = ($("cntFind")?.value || "").trim();
   if (cntType === "cfe")
     return DB.products.filter(p=>(!p.off || Number(p.cfe||0)!==0) && (!q || p.name.includes(q) || (p.code||"").includes(q)))
-      .map(p=>({ key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 잔존":""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:(YARD_OK === true ? yardQtyAt(p.id, cntDayOf()) : Number(p.cfe||0)), act:D.cfe[p.id] ?? null, off:!!p.off, done:D.done.cfe[p.id] || null }))
+      .map(p=>{ const mf = D.cfe[p.id] != null && D.mfg[p.id] && YARD_OK === true ? D.mfg[p.id] : null;
+        return { key:p.id, name:p.name, sub:[p.code||"", p.off?"사용중지 — 재고만 잔존":"", mf ? `제조 ${cntMfgText(mf)}` : ""].filter(Boolean).join(" · "), pack:1, unit:"EA", app:(YARD_OK === true ? yardQtyAt(p.id, cntDayOf()) : Number(p.cfe||0)), act:D.cfe[p.id] ?? null, off:!!p.off, done:D.done.cfe[p.id] || null,
+                 mfg:mf, mfgDiff: !!mf && !cntMfgPlan(p.id, mf).same }; })
       .sort((a,b)=>(a.off?1:0)-(b.off?1:0));
   return matsOf(cntKind).filter(M=>!q || (M.name||"").includes(q) || (M.code||"").includes(q))
     .map(M=>({ key:M.id, name:M.name, sub:[M.kind, M.spec].filter(Boolean).join(" · "), pack:Math.max(1, Math.round(Number(M.pack_qty)||1)),
                unit:unitOf(M), app:Number(M.stock||0), act:D.mat[M.id] ?? null, safety:Number(M.safety||0), done:D.done.mat[M.id] || null }));
 }
-function setCntOne(key, v){ cntPut(cntType, key, v === "" ? null : Math.max(0, Math.round(numOf(v)))); typedRender("count", renderCount); }
+function setCntOne(key, v){ if (cntType === "cfe") cntPutMfg(key, null); cntPut(cntType, key, v === "" ? null : Math.max(0, Math.round(numOf(v)))); typedRender("count", renderCount); }
 function setCntPack(key, b, p){ const n = Math.max(0, Math.round(numOf(b)))*(p||1) + Math.max(0, Math.round(numOf($("cp-"+key)?.value||0)));
   cntPut(cntType, key, n); typedRender("count", renderCount); }
 function setCntPiece(key, p){ const b = Math.max(0, Math.round(numOf($("cb-"+key)?.value||0))), n = b*p + Math.max(0, Math.round(numOf($("cp-"+key)?.value||0)));
@@ -27384,7 +27452,7 @@ var CNT_FLOW = true;
 function renderCount(){
   if ($("cntDay") && !$("cntDay").value) { $("cntDay").value = today(); $("cntDay").max = today(); }
   if (!$("cntSheet")) return;
-  const rows = cntRows(), ent = rows.filter(r=>r.act != null), diffs = ent.filter(r=>r.act !== r.app);
+  const rows = cntRows(), ent = rows.filter(r=>r.act != null), diffs = ent.filter(r=>r.act !== r.app || r.mfgDiff);
   $("cntTypeBtn").innerHTML = [["mat","부자재 · 라벨"],["cfe","CFE 완제품"]].map(([v,t])=>`<button class="btn ${cntType===v?"primary":""}" onclick="setCntType('${v}')">${t}</button>`).join(" ")
     + ` <button class="btn" onclick="beanCountGo()" title="원두는 봉지(배치)마다 세어 적습니다 — 로스팅 › 수불 표에서 원두를 골라 [배치별 실측]">원두 (MMS) →</button>`;
   const kinds = {}; DB.materials.forEach(M=>{ kinds[M.kind]=(kinds[M.kind]||0)+1; });
@@ -27468,6 +27536,20 @@ async function negFix(pid){
 const cntDayOf = () => { const v = $("cntDay")?.value; return v && v <= today() ? v : today(); };
 async function cntApplyRow(r, why){
   const d = Math.round((r.act - r.app)*1000)/1000;
+  if (cntType === "cfe" && YARD_OK === true && r.mfg) {
+    /* ★ 2026-11-24 제조일자별 수량으로 — 더하기만 하면 되면 모자란 만큼만, 아니면 0 으로 뺀 뒤 제조일자 순으로 다시 넣는다 */
+    const P = cntMfgPlan(r.key, r.mfg); if (P.same) return { ok:true };
+    const call = (counted, mfg) => rpc("cfe_yard_count", { p_product_id:r.key, p_counted:counted, p_date:cntDayOf(), p_mfg:mfg, p_note:cntNoteOf(why, mfg ? `재고 실사 반영 · 제조 ${mfg}` : "재고 실사 반영 (제조일자별로 다시 넣기 전 정리)"), p_user_name:CURRENT_USER }, () => {
+      const dd = Number(counted) - yardQty(r.key);
+      if (dd > 0) YARD_LOTS.push({ id:uid(), product_id:r.key, product_name:r.name, mfg_date:mfg || cntDayOf(), in_date:cntDayOf(), qty:dd, left_qty:dd, src:"count", at:nowISO(), by_name:CURRENT_USER });
+      else if (dd < 0) yardTakeLocal(r.key, -dd, cntDayOf(), uid(), "count", "재고 실사"); return { ok:true }; });
+    let cum = yardQty(r.key), res = { ok:true };
+    if (!P.addOnly && cum > 0) { res = await call(0, null); if (!res || !res.ok) return res; cum = 0; P.have = {}; }
+    for (const dt of P.dates) { const add = (P.want[dt]||0) - (P.have[dt]||0); if (!(add > 0)) continue; cum += add; res = await call(cum, dt); if (!res || !res.ok) break; }
+    if (sb) await loadYard();
+    if (res && res.ok) logAudit("출고장 재고 실측 — 제조일자별", r.name, `${fmt(r.app)} → ${fmt(r.act)}EA · 제조 ${cntMfgText(r.mfg)}${P.addOnly ? "" : " · 기존 묶음을 정리하고 다시 넣음"}${why ? ` · ${why.reason}${why.note ? ` · ${why.note}` : ""}` : ""}`);
+    return res;
+  }
   if (cntType === "cfe" && YARD_OK === true) {
     /* ★ 출고장 재고를 센 값으로 — 많으면 묶음(제조일자 = 센 날짜) 추가 · 적으면 오래된 것부터 뺌 */
     const res = await rpc("cfe_yard_count", { p_product_id:r.key, p_counted:Number(r.act), p_date:cntDayOf(), p_mfg:null, p_note:cntNoteOf(why, "재고 실사 반영"), p_user_name:CURRENT_USER }, () => {
@@ -27499,14 +27581,15 @@ async function cntApplyOne(key){
 }
 async function cntApplyAll(){
   if (!(await requireUser({ ask:"실사 적용" }))) return;
-  const diffs = cntRows().filter(r=>r.act != null && r.act !== r.app);
+  const diffs = cntRows().filter(r=>r.act != null && (r.act !== r.app || r.mfgDiff));
   if (!diffs.length) return toast("차이 나는 항목이 없습니다");
-  if (!(await ask(`${diffs.length}건의 장부를 실사 수량으로 조정합니다:\n` + diffs.slice(0,8).map(r=>`· ${r.name}  ${fmt(r.app)} → ${fmt(r.act)} (${r.act-r.app>0?"+":""}${fmt(r.act-r.app)})`).join("\n") + (diffs.length>8?`\n… 외 ${diffs.length-8}건`:"") + `\n\n조정 이력에 ${CURRENT_USER} 명의로 기록됩니다.`, { title:"차이 전체 반영", yes:`${diffs.length}건 반영` }))) return;
-  const why = await cntReasonDialog(cntType === "cfe" ? "cfe" : "mat", diffs); if (!why) return;
+  if (!(await ask(`${diffs.length}건의 장부를 실사 수량으로 조정합니다:\n` + diffs.slice(0,8).map(r=>`· ${r.name}  ${fmt(r.app)} → ${fmt(r.act)} (${r.act-r.app>0?"+":""}${fmt(r.act-r.app)})${r.mfg ? ` · 제조 ${cntMfgText(r.mfg)}` : ""}`).join("\n") + (diffs.length>8?`\n… 외 ${diffs.length-8}건`:"") + `\n\n조정 이력에 ${CURRENT_USER} 명의로 기록됩니다.`, { title:"차이 전체 반영", yes:`${diffs.length}건 반영` }))) return;
+  const qDiffs = diffs.filter(r=>r.act !== r.app);            // 수량은 같고 제조일자만 다른 것은 사유를 묻지 않는다
+  const why = qDiffs.length ? await cntReasonDialog(cntType === "cfe" ? "cfe" : "mat", qDiffs) : {}; if (!why) return;
   let ok = 0, fail = [];
   for (const r of diffs) { const res = await cntApplyRow(r, why[r.key]); if (res && res.ok) { ok++; cntDone(cntType, r.key, r.act, r.app); } else fail.push(r.name); }
   /* 일치한 것도 입력을 비운다 — 다음 날 헷갈리지 않게 */
-  cntRows().filter(r=>r.act != null && r.act === r.app).forEach(r=>cntDone(cntType, r.key, r.act, r.app));
+  cntRows().filter(r=>r.act != null && r.act === r.app && !r.mfgDiff).forEach(r=>cntDone(cntType, r.key, r.act, r.app));
   renderAll(); toast(fail.length ? `${ok}건 반영 · 실패 ${fail.length}건 (${fail.slice(0,2).join(", ")})` : `${ok}건 반영했습니다`);
 }
 
