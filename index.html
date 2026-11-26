@@ -4523,12 +4523,24 @@ function xlsxPretty(name, head, rows){
   setTimeout(()=>{ try { URL.revokeObjectURL(a.href); } catch(_){ errQuiet(_); } }, 4000);
   return b;
 }
+let TBL_SKIP = 0, TBL_DRAW = 0;
+function tblDirty(el){ const fs = el.querySelectorAll("input,select,textarea");
+  for (const f of fs) { if (f.type === "checkbox" || f.type === "radio") { if (f.checked !== f.defaultChecked) return true; }
+    else if (f.tagName === "SELECT") { for (const o of f.options) if (o.selected !== o.defaultSelected) { if (!(f.selectedIndex === 0 && ![...f.options].some(x=>x.defaultSelected))) return true; break; } }
+    else if (f.value !== f.defaultValue) return true; }
+  return false; }
 function tbl(id, head, rows, foot){
   /* 머리글 글자에 fix / fixl 표시가 있으면 그 칸(th)을 오른쪽/왼쪽에 고정한다 */
   const thCls = h => /class="fixl"/.test(String(h)) ? ' class="fixl"' : /class="fix"/.test(String(h)) ? ' class="fix"' : "";
-  $(id).innerHTML = `<thead><tr>${head.map(h=>`<th${thCls(h)}>${h}</th>`).join("")}</tr></thead>` +
+  const html = `<thead><tr>${head.map(h=>`<th${thCls(h)}>${h}</th>`).join("")}</tr></thead>` +
     `<tbody>${rows.length ? rows.join("") : `<tr><td colspan="${head.length}" class="c" style="height:52px;color:#999">데이터 없음</td></tr>`}</tbody>` +
     (foot ? `<tfoot><tr>${foot}</tr></tfoot>` : "");
+  /* ★ 2026-11-25 내용이 그대로면 표를 다시 만들지 않는다 (Lee "계속 전체적으로 표를 다시 만들면 속도가 느려지잖아 … 다른 방법은 없어?")
+       화면은 몇 초마다 · 저장할 때마다 모든 표를 새로 만들었다 — 대부분은 내용이 한 글자도 안 바뀐 표였다. 만들 내용이 직전과 같으면 그대로 둔다
+       (스크롤 · 선택 · 커서도 그대로 남는다). 표 안에 사람이 고쳐 둔 칸(적다 만 숫자 · 체크)이 있으면 전처럼 새로 만든다 — 다시 그리기로 되돌리는 동작을 지키기 위해 */
+  const el = $(id);
+  if (el.__html === html && el.firstChild && !tblDirty(el)) { TBL_SKIP++; if (SORT_COLS[id]) sortHeads(id); if (typeof tblAfter === "function") tblAfter(id); return; }
+  el.innerHTML = html; el.__html = html; TBL_DRAW++;
   sizeCols(id);
   if (SORT_COLS[id]) sortHeads(id);
   if (typeof tblAfter === "function") tblAfter(id);          // 핵심 칸만 보기 — 표를 어디서 다시 그리든 유지
@@ -8463,6 +8475,11 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-25", "속도 — 내용이 그대로인 표는 다시 만들지 않음", "화면은 몇 초마다 · 저장할 때마다 표를 전부 새로 만들었는데, 대부분은 내용이 바뀌지 않은 표였습니다. 이제 표에 넣을 내용이 직전과 같으면 그 표는 그대로 둡니다 — 다시 만드는 일이 줄어 빨라지고, 스크롤 · 선택 · 커서도 그대로 남습니다. 표 안에 적다 만 숫자나 체크가 있으면 전처럼 새로 만듭니다. 카드로 된 화면(현장 작업 카드 · 분쇄 카드 · 설비별 작업 순서)은 아직 전과 같습니다."],
+  ["2026-11-25", "재고 실사 CFE — 제조일자 칸에 일련번호 · 재고가 없으면 마지막 차감", "재고 실사 › CFE 완제품의 [제조일자별] 칸은 출고장에 남은 재고가 있을 때만 날짜와 수량을 보여 줍니다 — 출고장 재고가 0 이면 비어 보입니다. ① 날짜 · 수량 아래에 일련번호도 같이 보이게 했습니다. ② 재고가 0 이라 비었을 때는 '재고 없음 — 마지막 차감 11/24 출고 확정 −28 (이름)' 처럼 마지막으로 무엇이 재고를 뺐는지 보여 줍니다."],
+  ["2026-11-25", "스크롤을 내려 두면 다시 그려도 그 자리", "작업지시 › 설비별 작업 순서에서 리팩 칸을 내리면 잠시 뒤 맨 위로 돌아갔습니다 — 화면이 새 내용을 받을 때마다 표를 통째로 새로 만들면서 내려 둔 위치가 사라졌기 때문입니다. 이제 사람이 스크롤한 칸의 위치를 기억해 두었다가, 다시 그려지면 그 자리로 되돌립니다. 설비별 작업 순서뿐 아니라 모든 화면의 표 · 칸에 적용됩니다 (위아래 · 옆으로 모두). 직접 맨 위로 올린 것은 그대로 둡니다."],
+  ["2026-11-24", "라벨 작업 수량이 저절로 바뀌던 것", "라벨 작업의 수량이 계속 바뀌고 대기 작업이 생겼다 없어졌다 했습니다. 관리자 계정으로 열어 둔 기기마다 화면을 그릴 때 '자기 화면의 생산계획'으로 라벨 작업을 맞춰 보냈는데, 계획이 기기마다 다를 수 있어(여유분 스위치 · 손으로 고친 계획 수량 · 보고 있는 날짜) 서로 고쳐 쓰기를 되풀이했습니다. 이제 저절로 도는 맞추기는 오늘 계획을 보고 있고, 그 기기에서 방금 사람이 무언가를 눌렀고, 내용이 달라졌을 때만 보냅니다 — 열어만 둔 기기는 보내지 않습니다. [생산계획에서 불러오기] · [작업지시 생성] 은 전과 같습니다."],
+  ["2026-11-24", "하바나 봉투는 100g 만 — 하바나 500g · 1kg 은 공용봉투", "하바나 품목이면 중량과 상관없이 '하바나 봉투 500g' · '하바나 봉투 1kg' 을 만들어 연결하고 있었습니다 (실제로는 없는 봉투). 이제 하바나 봉투는 100g 에만 쓰고, 하바나 500g · 1kg 은 공용봉투 500g · 1kg 에 연결됩니다 — 필요 봉투 · 봉투 LOT · 봉투 재고 차감이 공용봉투로 잡힙니다. 포장재 연동이 돌 때 기존 하바나 500g · 1kg 품목의 BOM 도 공용봉투로 바뀝니다. 전에 자동으로 만들어진 '하바나 봉투 500g' · '하바나 봉투 1kg' 자재는 지우지 않았습니다 — 재고가 0 이면 기준정보 › 부자재에서 사용중지 하십시오."],
   ["2026-11-24", "분쇄 줄 삭제 · 표 머리글 틈", "① 분쇄 작업 카드의 줄마다 [삭제] 버튼이 생겼습니다 (일련번호 [지정] · [변경] 옆) — 잘못 들어간 분쇄 줄을 그 자리에서 지웁니다. 분쇄도 카드 머리의 [분쇄도 삭제]는 그 분쇄도의 줄을 모두 지웁니다 (차수를 골라 보는 중이면 그 차수만). 계획 담당만 · 주문 집계와 재고는 그대로입니다. ② 표를 내릴 때 고정된 머리글 위로 지나가는 줄이 한 줄 비쳐 보여 머리글이 표와 떨어져 보였습니다 — 틈을 없애고 머리글 아래에 옅은 그림자를 넣었습니다."],
   ["2026-11-24", "집계를 지우고 다시 올릴 때 분쇄 수량이 두 배가 되던 것", "집계 줄을 지워도 그 차수의 분쇄 집계 줄은 남아 있어, 엑셀을 다시 올리면 남은 분쇄 수량에 새 수량이 더해졌습니다. ① 이제 그 날 그 차수의 집계가 하나도 없는 상태에서 엑셀을 올리면, 남아 있던 그 차수의 분쇄 줄을 먼저 지우고 새로 넣습니다 (안내가 뜹니다). ② 분쇄 화면에 [분쇄 집계 비우기] 버튼이 생겼습니다 — 그 날짜의 분쇄 집계 줄을 지웁니다 (차수를 골라 보고 있으면 그 차수만 · 주문 집계와 재고는 그대로). ③ 집계 화면에서 [1차 삭제]처럼 차수를 지워도 그 차수의 분쇄 집계 줄은 남아 있었습니다. 그래서 엑셀을 다시 올리면 남아 있던 분쇄 수량에 새 수량이 더해져 분쇄 화면의 수량이 두 배로 보였습니다. 이제 차수를 지우면 그 차수의 분쇄 집계도 함께 지웁니다 (지우기 전에 몇 줄 · 몇 개인지, 분쇄 완료로 체크한 줄이 있는지 보여 줍니다). 집계는 이미 지웠고 분쇄 줄만 남은 경우에도 같은 버튼으로 지울 수 있습니다."],
   ["2026-11-24", "추가 · 붙여넣은 지시의 설비 = 설비 배정표", "[지시 추가]나 [엑셀 붙여넣기]로 만든 작업지시의 설비가 생산계획의 설비 배정표와 달랐습니다 (배정표는 리팩인데 지시는 ICA) — 추가한 지시의 설비를 기본값으로 정했기 때문입니다. 이제 그 품목이 배정표에 있으면 배정된 설비로, 없으면 그날 같은 품목 지시가 있는 설비로 들어갑니다 (붙여넣기 표의 [설비] 칸을 적으면 그 설비). 이미 다르게 들어간 대기 지시는 생산계획 화면 위에 '대기 지시 N건의 설비가 설비 배정표와 다릅니다 [적용]' 이 떠서 한 번에 맞출 수 있습니다 — 전에는 배정을 손으로 고친 품목만 견줬습니다."],
@@ -9758,6 +9775,26 @@ function keepScrollX(fn){
   if (sc && pos.some(v=>v > 0)) { const els = [...sc.querySelectorAll(sel)];
     if (els.length === pos.length) els.forEach((e,i)=>{ if (pos[i] > 0 && e.scrollLeft !== pos[i]) e.scrollLeft = pos[i]; }); }
 }
+/* ★ 2026-11-25 다시 그려도 스크롤 위치를 지킨다 — 모든 화면 (Lee "설비별 작업 순서 리팩 스크롤 내리니깐 다시 올라가는 현상 · 다른 작업에서도 이런 현상이 안 발생되었으면")
+   화면은 새 내용을 받으면(몇 초마다 · 다른 기기의 변경) 표를 통째로 새로 만든다 → 표가 든 칸이 새것으로 바뀌면서 내려 둔 위치가 맨 위로 돌아갔다
+   · 사람이 스크롤한 칸의 위치를 기억해 두고(칸의 자리 = 가까운 id + 몇 번째 칸), 칸이 새로 만들어지거나 내용이 바뀌어 위치가 밀리면 그 자리로 되돌린다
+   · 사람이 직접 맨 위로 올린 것은 그대로 기억한다 · 창(대화상자) 안은 건드리지 않는다 */
+const SCROLL_KEEP = new Map(); let SCROLL_USER = 0, SCROLL_RAF = 0;
+function scrollKeyOf(el){ if (!el || el.nodeType !== 1 || !el.closest || !el.closest(".screen")) return "";
+  if (el.id) return "#" + el.id; const anc = el.closest("[id]"); if (!anc) return "";
+  const sel = el.classList[0] ? "." + CSS.escape(el.classList[0]) : el.tagName.toLowerCase(), i = [...anc.querySelectorAll(sel)].indexOf(el);
+  return i < 0 ? "" : `${anc.id}|${sel}|${i}`; }
+function scrollFind(key){ if (key[0] === "#") return document.getElementById(key.slice(1)); const [id, sel, i] = key.split("|"), anc = document.getElementById(id); return anc ? anc.querySelectorAll(sel)[Number(i)] || null : null; }
+["wheel","touchmove","pointerdown","keydown"].forEach(ev=>document.addEventListener(ev, ()=>{ SCROLL_USER = Date.now(); }, { capture:true, passive:true }));
+document.addEventListener("scroll", e=>{ const el = e.target; if (el === document || !el || el.nodeType !== 1) return; const k = scrollKeyOf(el); if (!k) return;
+  if (el.scrollTop <= 0 && el.scrollLeft <= 0) SCROLL_KEEP.delete(k); else { SCROLL_KEEP.delete(k); SCROLL_KEEP.set(k, { el, top:el.scrollTop, left:el.scrollLeft });
+    if (SCROLL_KEEP.size > 80) SCROLL_KEEP.delete(SCROLL_KEEP.keys().next().value); } }, true);
+function scrollRestore(){ SCROLL_RAF = 0;
+  SCROLL_KEEP.forEach((s, k)=>{ const swapped = !s.el.isConnected, el = swapped ? scrollFind(k) : s.el; if (!el) return;
+    if (!swapped && Date.now() - SCROLL_USER < 250) return;                        // 사람이 지금 그 칸을 움직이는 중이면 끼어들지 않는다
+    if (swapped || el.scrollTop < s.top - 1 || el.scrollLeft < s.left - 1) { if (el.scrollTop !== s.top) el.scrollTop = s.top; if (el.scrollLeft !== s.left) el.scrollLeft = s.left; }
+    s.el = el; }); }
+try { new MutationObserver(()=>{ if (SCROLL_KEEP.size && !SCROLL_RAF) SCROLL_RAF = 1, queueMicrotask(scrollRestore); }).observe(document.body, { childList:true, subtree:true }); } catch(e){ errQuiet(e); }
 function render(s){
   keepScrollX(()=>renderOne(s));
   if (typeof applyRoleLock === "function") applyRoleLock();
@@ -12010,11 +12047,25 @@ async function syncMatTasks(rows, dateStr){
   return mesSyncMt({ date:d, rows:mtRowsFrom(rows, d), idem:null });
 }
 /* 화면을 그릴 때 — 기다리지 않고, 잇따른 그리기를 한 번으로 묶는다 */
-let mtSyncT = null;
+/* ★ 2026-11-24 라벨 작업 수량이 저절로 왔다 갔다 하던 것 (Lee "라벨 작업에서 계속해서 수량이 변경되는 이력 · 대기 걸리고 풀리고")
+   화면을 그릴 때마다 관리자 계정의 기기가 "자기 화면의 생산계획"으로 라벨 작업을 맞춰 보냈다. 그런데 계획은 기기마다 다를 수 있다
+   (여유분 스위치 · 손으로 고친 계획 수량 · 보고 있는 날짜) → 기기 A 가 맞춘 것을 기기 B 가 자기 값으로 다시 고치고, 대기 작업을 지웠다 만들었다를 되풀이했다.
+   또 다른 날짜의 계획을 보고 있어도 그 계획으로 "오늘" 라벨 작업을 맞췄다.
+   → 저절로 도는 맞추기는 ① 오늘 계획을 보고 있을 때만 ② 이 기기에서 방금(40초 안) 사람이 무언가를 눌렀고 ③ 이 기기가 마지막으로 보낸 것과 내용이 달라졌을 때만 보낸다.
+     열어만 둔 기기 · 다른 기기의 변경을 받아 다시 그려진 기기는 보내지 않는다. [생산계획에서 불러오기] · [작업지시 생성] 은 전과 같이 바로 맞춘다 */
+let mtSyncT = null, MT_LAST_ACT = 0, MT_LAST_SIG = {};
+["pointerdown","keydown","change"].forEach(ev=>document.addEventListener(ev, e=>{ if (e.isTrusted !== false) MT_LAST_ACT = Date.now(); }, true));
+const mtSigOf = snap => snap.map(r=>`${r.product_id}|${r.material_id}|${r.order_qty}|${r.need_qty}|${r.plan_ea}`).sort().join(";");
 function syncMatTasksSoon(rows, dateStr){
   const d = dateStr || today();
   if (!mtCanSync()) return;
+  if (sb && tallyDay() !== d) return;                        // 다른 날짜의 계획으로 오늘 라벨 작업을 맞추지 않는다
   const snap = mtRowsFrom(rows, d);
+  if (sb) { const sig = mtSigOf(snap);
+    if (!(d in MT_LAST_SIG)) { MT_LAST_SIG[d] = sig; if (Date.now() - MT_LAST_ACT > 40000) return; }      // 처음 그릴 때 — 열기만 한 기기는 보내지 않는다
+    else if (MT_LAST_SIG[d] === sig) return;                                                            // 이 기기의 계획이 그대로면 보낼 것이 없다
+    else if (Date.now() - MT_LAST_ACT > 40000) return;                                                    // 다른 기기의 변경을 받아 다시 그려진 것 — 이 기기가 고친 것이 아니다 (기준값은 그대로 둔다)
+    MT_LAST_SIG[d] = sig; }
   /* 연결 전(로컬 엔진)에는 바로 맞춥니다 — 화면이 그 자리에서 보여야 하고,
      네트워크가 없으니 몰아서 보낼 이유도 없습니다.
      연결되면 잇따른 그리기를 한 번으로 묶어 보냅니다. */
@@ -18581,7 +18632,10 @@ function setPackQty(labelId, v){
    봉투·롤패키지가 없으면 만들어 둔다 — 그래서 부자재 LOT 관리에 저절로 올라온다 */
 const isHavanaProd = p => /하바나|havana/i.test(String(p?.bean||"") + " " + String(beanInfo(p?.bean)?.machine||"") + " " + String(p?.name||""));
 const PACK_MAT_NAMES = ["이카 롤패키지","이카 아로마밸브"];
-function bagSpecName(p){ return `${isHavanaProd(p) ? "하바나 봉투" : "공용봉투"} ${specLabel(Number(p.spec_g)||0)}`; }
+/* ★ 2026-11-24 하바나 봉투는 100g 만 있다 — 하바나 500g · 1kg 은 공용봉투를 쓴다 (Lee "하바나는 100g 만 봉투가 있고 나머지 하바나는 500g 1kg은 공용봉투로 사용 중이야")
+   전에는 하바나 품목이면 중량과 상관없이 "하바나 봉투 500g" · "하바나 봉투 1kg" 을 만들어 연결했다 (실제로 없는 봉투) */
+const usesHavanaBag = p => isHavanaProd(p) && Number(p?.spec_g) === 100;
+function bagSpecName(p){ return `${usesHavanaBag(p) ? "하바나 봉투" : "공용봉투"} ${specLabel(Number(p.spec_g)||0)}`; }
 function ensureMat(name, kind, spec){
   const hit = DB.materials.find(M=>matActive(M) && M.kind===kind && matNorm(M.name)===matNorm(name));
   if (hit) return hit;
@@ -19148,7 +19202,7 @@ function renderBaseInner(){
       <td><input type="text" inputmode="decimal" class="num" style="width:56px" value="${lossCfg().items[p.id] ?? ""}" placeholder="${lossSrcOf(p).v}" data-f="loss:${p.id}" ${can("base")?"":"disabled"} onchange="setLossPct('${p.id}',this.value);typedRender('base', renderBase, 200)" title="비워 두면 원두별 설정 값, 그것도 없으면 기본값이 적용됩니다">${lossSrcTag(p)}</td>
       <td class="c">${p.ica
         ? `<span class="tag" title="이카 전용 — 이카 롤패키지 + 아로마밸브">이카 롤패키지</span>`
-        : `<select onchange="setPackMode('${p.id}',this.value)" ${can("base")?"":"disabled"} title="풀패키지 = 품목명이 인쇄된 파우치(라벨 없음) · 그 외는 ${isHavanaProd(p)?"하바나 봉투":"공용봉투"} + 라벨" style="min-width:132px;font-weight:700">
+        : `<select onchange="setPackMode('${p.id}',this.value)" ${can("base")?"":"disabled"} title="풀패키지 = 품목명이 인쇄된 파우치(라벨 없음) · 그 외는 ${usesHavanaBag(p)?"하바나 봉투":"공용봉투"} + 라벨" style="min-width:132px;font-weight:700">
             <option value="full" ${isFullPack(p)?"selected":""}>${PACK_FULL}</option>
             <option value="bag" ${!isFullPack(p)?"selected":""}>${bagSpecName(p)}</option></select>`}</td>
       <td class="l">${isFullPack(p)
@@ -27666,9 +27720,13 @@ function renderCount(){
       const old = YARD_OK === true ? yardLotsAt(pid, CD)[0] : null;
       /* 제조일자별로 묶어 오래된 날짜부터 (예: 10/29 9개 · 10/30 100개) */
       const byDate = []; if (YARD_OK === true) yardLotsAt(pid, CD).forEach(l=>{ const k = l.mfg_date || ""; let g = byDate.find(x=>x.d===k);
-        if (!g) { g = { d:k, q:0, buf:0 }; byDate.push(g); } g.q += Number(l.left_qty||0); if (l.is_buf) g.buf += Number(l.left_qty||0); });
+        if (!g) { g = { d:k, q:0, buf:0, sn:[] }; byDate.push(g); } g.q += Number(l.left_qty||0); if (l.is_buf) g.buf += Number(l.left_qty||0);
+        { const t = String(l.serial||"").trim(); if (t && !g.sn.includes(t)) g.sn.push(t); } });                 // ★ 2026-11-25 일련번호도 같이 보인다
       byDate.sort((a,b)=>String(a.d||"9").localeCompare(String(b.d||"9")));
-      F[pid] = { inQ, outQ, tally, plan, left: base - plan, base: r.act != null ? "실사 수량" : "출고장 재고", old, byDate, buf: YARD_OK === true ? yardBufQtyAt(pid, CD) : 0 }; });
+      /* ★ 2026-11-25 재고가 0 이라 제조일자 칸이 비었을 때 — 마지막으로 무엇이 재고를 뺐는지 보여 준다 (Lee "보유하고있는 완제품 날짜 일련번호 … 없어졌어 왜 없어졌는지 모르겠지만") */
+      let lastOut = null; if (YARD_OK === true && !byDate.length) { const os = YARD_OUTS.filter(x=>x.product_id === pid && !x.cancelled_at).sort((a,b)=>String(b.at||b.out_date||"").localeCompare(String(a.at||a.out_date||"")));
+        if (os.length) { const k = os[0].batch_id || os[0].id, same = os.filter(x=>(x.batch_id || x.id) === k); lastOut = { d:os[0].out_date || ymdLocal(os[0].at), q:same.reduce((t,x)=>t+Number(x.qty||0),0), kind:os[0].kind, by:os[0].by_name||"", note:os[0].note||"" }; } }
+      F[pid] = { lastOut, inQ, outQ, tally, plan, left: base - plan, base: r.act != null ? "실사 수량" : "출고장 재고", old, byDate, buf: YARD_OK === true ? yardBufQtyAt(pid, CD) : 0 }; });
   }
   const shortN = flow ? rows.filter(r=>F[r.key] && F[r.key].left < 0).length : 0;
   if (flow) $("cntCards").innerHTML += `<div class="card ${shortN?"red":"green"}"><div class="lb">${CD.slice(5).replace("-","/")} 출고 예정 차감 시 부족</div><div class="vl">${shortN} <small>품목</small></div></div>`;
@@ -27680,7 +27738,7 @@ function renderCount(){
       const flowCells = !flow ? "" : `<td>${f.inQ?`<b style="color:var(--ok)">+${fmt(f.inQ)}</b>`:"—"}</td>
         <td>${f.plan?`<b>${fmt(f.plan)}</b>${f.outQ?`<br><span class="hint" style="padding:0;font-size:10.5px">주문 ${fmt(f.tally)} − 확정 ${fmt(f.outQ)}</span>`:""}`:(f.tally?`<span class="hint" style="padding:0">전량 출고</span>`:"—")}</td>
         <td class="${f.left<0?"bad":""}" title="${f.base} − 당일 출고 예정"><b style="font-size:15px">${f.left<0?`−${fmt(-f.left)}`:fmt(f.left)}</b>${f.left<0?`<br><span class="tag bad" style="font-size:10.5px">${fmt(-f.left)}개 부족</span>`:""}</td>
-        <td class="l" style="font-size:12px;min-width:220px">${f.byDate.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${f.byDate.map(g=>`<span style="display:inline-flex;flex-direction:column;align-items:center;padding:2px 7px;border:1.5px ${g.buf===g.q?"dashed #F5A524;background:var(--d-warn-soft,#FFF8EC)":"solid var(--line)"};border-radius:7px;line-height:1.35"><span>${g.d ? g.d.slice(5).replace("-","/") : "일자 없음"} <b style="font-size:13.5px">${fmt(g.q)}</b>개</span>${yardShelfTag(g.d)}${g.buf && g.buf!==g.q?`<span style="color:var(--d-warn-ink,#B26B00);font-size:10.5px">여유 ${fmt(g.buf)}</span>`:g.buf?`<span style="color:var(--d-warn-ink,#B26B00);font-size:10.5px">여유</span>`:""}</span>`).join("")}</div>` : "—"}</td>`;
+        <td class="l" style="font-size:12px;min-width:220px">${f.byDate.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${f.byDate.map(g=>`<span style="display:inline-flex;flex-direction:column;align-items:center;padding:2px 7px;border:1.5px ${g.buf===g.q?"dashed #F5A524;background:var(--d-warn-soft,#FFF8EC)":"solid var(--line)"};border-radius:7px;line-height:1.35"><span>${g.d ? g.d.slice(5).replace("-","/") : "일자 없음"} <b style="font-size:13.5px">${fmt(g.q)}</b>개</span>${g.sn.length ? `<span class="cntSn" style="font-size:11px;font-weight:700;color:var(--soft)">${xh(g.sn.slice(0,4).join(" · "))}${g.sn.length > 4 ? ` 외 ${g.sn.length - 4}` : ""}</span>` : ""}${yardShelfTag(g.d)}${g.buf && g.buf!==g.q?`<span style="color:var(--d-warn-ink,#B26B00);font-size:10.5px">여유 ${fmt(g.buf)}</span>`:g.buf?`<span style="color:var(--d-warn-ink,#B26B00);font-size:10.5px">여유</span>`:""}</span>`).join("")}</div>` : f.lastOut ? `<span class="hint cntLast" style="padding:0;font-size:11.5px;white-space:normal" title="${xh(f.lastOut.note)}">재고 없음 — 마지막 차감 ${String(f.lastOut.d||"").slice(5).replace("-","/")} ${f.lastOut.kind === "dispatch" ? "출고 확정" : f.lastOut.kind === "count" ? "재고 실사 반영" : xh(f.lastOut.kind||"")} −${fmt(f.lastOut.q)}${f.lastOut.by ? ` (${xh(f.lastOut.by)})` : ""}</span>` : "—"}</td>`;
       const inCell = r.pack > 1
         ? `<span class="cwrap"><input type="text" inputmode="numeric" class="cin" id="cb-${r.key}" data-f="cb:${r.key}" placeholder="0" value="${has?Math.floor(r.act/r.pack):""}" oninput="setCntPack('${r.key}',this.value,${r.pack})"><small>묶음(${r.pack})</small>
              + <input type="text" inputmode="numeric" class="cin" id="cp-${r.key}" data-f="cp:${r.key}" placeholder="0" value="${has?r.act%r.pack:""}" oninput="setCntPiece('${r.key}',${r.pack})"><small>${r.unit}</small>
