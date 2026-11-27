@@ -8495,6 +8495,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-27", "출고장 재고 — 품목을 누르면 묶음 창 (출고됨 · 사용 완료)", "재고 실사 › CFE 완제품 표와 출고 화면의 출고장 재고 표에서 품목 이름(또는 제조일자별 칸)을 누르면 그 품목의 묶음이 제조일자 · 일련번호별로 새 창에 나옵니다. 실제로 나간 묶음의 수량을 적고 [출고됨] 또는 [사용 완료]를 누르면 그 묶음에서 바로 빠집니다 — 선입 순서와 상관없이 지정할 수 있습니다. 출고됨은 오늘 출고 확정(기출고)으로 잡히고, 사용 완료(분쇄 재포장 · 샘플 · 폐기 등)는 출고 수량에 세지 않고 재고에서만 뺍니다. 창 아래 「최근 나간 기록」에서 [되돌리기]로 복원합니다. 서버에 097_cfe_lot_out.sql 실행이 필요합니다."],
   ["2026-11-27", "재고 실사 — 날짜가 가로로 놓인 CFE 재고표를 그대로", "완제품창고 재고표(품목코드 | 품목명 | 실재고 | 11월 24일 | 11월 25일 | 11월 26일 | 기타 | 완제품창고)를 재고 실사의 [붙여넣기] · [엑셀 올리기]에 그대로 넣을 수 있습니다. 머리줄의 날짜 칸마다 그 제조일자의 수량으로 읽고, [기타]는 제조일자 없는 수량, [완제품창고](장부) 칸은 읽지 않습니다. 배치번호 · 일련번호는 없어도 됩니다. 맨 위 제목 줄(회사명 …)은 건너뜁니다. 이 표는 [실재고]가 그 품목의 전부이므로, 표에 없는 제조일자의 기존 재고는 빠집니다 (날짜 칸의 합이 실재고보다 적으면 나머지는 제조일자 없는 수량으로)."],
   ["2026-11-27", "입력 — 일련번호 · 제조일자가 겹쳐도 넣은 값으로", "같은 제조일자 · 일련번호(배치)가 이미 있어도 막거나 더하지 않고, 넣은 값으로 바꿉니다. 새 번호는 추가하고, 이번에 넣지 않은 기존 줄은 그대로 둡니다. ① 재고 실사 › CFE 엑셀 · 붙여넣기 — 전에는 한 표 안에서 겹치면 수량을 더했고, 다시 올리면 그 품목의 기존 줄이 전부 새 표로 바뀌었습니다 (지우려면 수량 0) ② 재고 현황 › 제조일자별 입력 — 넣은 제조일자만 바뀝니다 ③ 로스팅 › 배치 재고 엑셀 붙여넣기 — 전에는 「배치가 이미 있음」 · 「위 행과 중복」으로 막았습니다. 이제 재고 kg 을 적은 값으로 바꿉니다 (같으면 건너뜀) ④ 작업지시 붙여넣기 — 같은 작업일 · 품목 · 일련번호 · 출고처의 대기 지시가 있으면 새로 만들지 않고 수량을 바꿉니다 ⑤ 분쇄 일련번호 창의 [추가] — 이미 있는 번호를 다시 적으면 더하지 않고 그 수량으로 바꿉니다."],
   ["2026-11-27", "상미기한 — 로스팅 당일을 1일째로 · 현장에서도 배치 묶기", "① 상미기한을 로스팅 당일부터 셉니다. 5일이면 22일 로스팅 원두는 26일까지이고 27일에는 「초과」입니다 (전에는 다음날부터 세어 27일에 「금일 사용 필요」로 나왔습니다). 임박 · 금일 사용 필요 · 초과 표시와 자동 배정 · 생산 시작 차단이 모두 하루씩 당겨집니다. 서버의 차감 · 시작 검사는 096_shelf_day_floor_bundle.sql 실행 후 같은 기준이 됩니다. ② 이카 설비의 오늘 지시는 현장 계정도 작업 카드의 [묶기 · 변경]으로 배치를 고르고 묶을 수 있습니다 (096 실행 필요 · 일련번호를 손으로 적는 것은 계획 권한만)."],
@@ -25974,7 +25975,7 @@ function renderYard(){
   if ($("yardInfo")) $("yardInfo").innerHTML = `출고장 ${fmt(rows.reduce((t,r)=>t+r.have,0))}개 · ${d.slice(5).replace("-","/")} 출고 예정 ${fmt(rows.reduce((t,r)=>t+r.plan,0))}개${short?` · <b class="bad">부족 ${short}품목</b>`:""}`;
   tbl("yardTbl", ["품목","출고장 재고","제조일자별 (선입순 출고 · 눌러서 여유분↔필요분)",`${d.slice(5).replace("-","/")} 입고`,"주문","기출고","출고 수량","확정 후 잔량"],
     rows.map(r=>{ const k = `${d}|${r.p.id}`; const q = YARD_EDIT[k] != null ? YARD_EDIT[k] : r.plan; const after = r.ship - q;
-      return `<tr><td class="l"><b>${r.p.name}</b><br><span class="hint" style="padding:0;font-size:11px">${r.p.code||""}</span></td>
+      return `<tr><td class="l"><b class="yardProd" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" onclick="yardProdDlg('${r.p.id}')" title="눌러서 이 품목의 묶음을 보고 출고됨 · 사용 완료로 처리합니다">${r.p.name}</b><br><span class="hint" style="padding:0;font-size:11px">${r.p.code||""}</span></td>
         <td><b style="font-size:15px">${fmt(r.have)}</b>${r.exp ? `<br><span class="tag bad" style="font-size:10.5px" title="상미기한이 지난 묶음은 출고 확정에서 빠집니다 — 실물 확인 후 재고 세기로 정리하십시오">상미 초과 ${fmt(r.exp)}개 — 출고 제외</span>` : ""}${(()=>{ const b = yardBufQty(r.p.id); return b ? `<br><span style="font-size:11px">필요 ${fmt(r.have-b)} · <b style="color:var(--d-warn-ink,#B26B00)">여유 ${fmt(b)}</b></span>` : ""; })()}</td>
         <td class="l" style="font-size:12px">${r.lots.length ? r.lots.slice(0,8).map(l=>`<span onclick="yardLotAct('${l.id}')" title="눌러서 ${l.is_buf?"필요분":"여유분"}으로 이동" style="cursor:pointer;display:inline-block;margin:1px 3px 1px 0;padding:1px 6px;border:1.5px ${l.is_buf?"dashed #F5A524;background:var(--d-warn-soft,#FFF8EC)":"solid var(--line)"};border-radius:6px">${l.is_buf?'<b style="color:var(--d-warn-ink,#B26B00)">여유</b> ':""}${l.mfg_date?l.mfg_date.slice(5).replace("-","/"):"—"}${l.serial?` · ${l.serial}`:""} <b>${fmt(l.left_qty)}</b> ${yardShelfTag(l.mfg_date)}</span>`).join("") + (r.lots.length>8?` 외 ${r.lots.length-8}`:"") : '<span class="hint" style="padding:0">없음</span>'}</td>
         <td>${r.inQ?`<span style="color:var(--ok);font-weight:700">+${fmt(r.inQ)}</span>`:"—"}</td>
@@ -26035,6 +26036,76 @@ async function yardMark(lotId, qty, buf){
     const q = Math.min(qty, Number(l.left_qty)); if (q >= Number(l.left_qty)) { l.is_buf = buf; return { ok:true, moved:q }; }
     l.left_qty = Number(l.left_qty) - q; YARD_LOTS.push({ ...l, id:uid(), qty:q, left_qty:q, is_buf:buf }); return { ok:true, moved:q }; });
   return r;
+}
+/* ★ 2026-11-27 품목을 누르면 묶음 창 (Lee "해당 원두 클릭도 가능했던걸로 기억하는데 … 출고 되었다 사용 완료했다 라는거를 새창이 나와서 수정 가능 할 수 있게")
+     출고장 재고의 묶음(제조일자 · 일련번호)을 하나씩 골라 [출고됨] · [사용 완료] 로 뺀다 — 선입 순서와 상관없이 실제로 나간 묶음을 지정
+     · 출고됨 = 그날 출고 확정과 같은 기록(기출고에 잡힘) · 사용 완료 = 분쇄 재포장 · 샘플 · 폐기 등으로 써서 없는 것 (주문 출고로는 세지 않음)
+     · 아래 「최근 나간 기록」에서 [되돌리기] · 서버 097_cfe_lot_out.sql */
+const YARD_KIND = { dispatch:"출고", use:"사용 완료", count:"재고 실사" };
+async function mesLotOut(a){
+  return rpc("cfe_lot_out", { p_lot_id:a.lot_id, p_qty:a.qty, p_kind:a.kind, p_date:a.date, p_note:a.note || null, p_user_name:CURRENT_USER }, () => {
+    const l = YARD_LOTS.find(x=>x.id === a.lot_id); if (!l) return { ok:false, message:"묶음을 찾을 수 없습니다" };
+    const q = Math.min(Math.round(Number(a.qty)||0), Number(l.left_qty)||0); if (!(q > 0)) return { ok:false, message:"남은 수량이 없습니다" };
+    l.left_qty = Number(l.left_qty) - q; const batch = uid();
+    YARD_OUTS.push({ id:uid(), batch_id:batch, out_date:a.date, product_id:l.product_id, product_name:l.product_name, lot_id:l.id, serial:l.serial, mfg_date:l.mfg_date, qty:q, kind:a.kind, note:a.note || null, by_name:CURRENT_USER, at:nowISO() });
+    return { ok:true, qty:q, batch_id:batch }; });
+}
+async function yardProdDlg(pid){
+  const p = prodById(pid); if (!p) return;
+  if (YARD_OK !== true) { try { await loadYard(); } catch(_){ errQuiet(_); } if (YARD_OK !== true) return toast("출고장 재고를 쓰는 동안에만 열 수 있습니다"); }
+  let ov = document.getElementById("yardDlg"); if (ov) ov.remove();
+  ov = document.createElement("div"); ov.id = "yardDlg";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(15,20,40,.45);z-index:9990;display:flex;align-items:center;justify-content:center;padding:16px";
+  const close = () => ov.remove(); const qv = {};
+  const after = async () => { await loadYard(); try { renderYard(); } catch(_){ errQuiet(_); } try { renderCount(); } catch(_){ errQuiet(_); } draw(); };
+  const act = async (lotId, kind) => {
+    if (!(await requireUser())) return;
+    const l = YARD_LOTS.find(x=>x.id === lotId); if (!l) return;
+    const q = Math.max(0, Math.min(Number(l.left_qty), Math.round(numOf(ov.querySelector(`.ylQ[data-id="${lotId}"]`)?.value) || 0))); if (!q) return toast("수량을 적으십시오");
+    const note = String(ov.querySelector("#ylNote")?.value || "").trim();
+    const r = await mesLotOut({ lot_id:lotId, qty:q, kind, date:today(), note: note || (kind === "use" ? "사용 완료 (묶음 지정)" : "출고 (묶음 지정)") });
+    if (!r || r.ok === false) return ask(/cfe_lot_out|schema cache|PGRST20|function/i.test(String(r?.message || r?.code || "")) ? "서버에 이 기능이 아직 설치되지 않았습니다.\n\nSupabase SQL Editor 에서 097_cfe_lot_out.sql 을 실행한 후 다시 시도하십시오." : `처리하지 못했습니다 — ${r?.message||""}`, { title:"출고장 묶음", yes:"확인", only:true });
+    logAudit(kind === "use" ? "출고장 묶음 — 사용 완료" : "출고장 묶음 — 출고", p.name, `제조 ${l.mfg_date||"—"}${l.serial ? ` · ${l.serial}` : ""} · ${fmt(q)}개${note ? ` · ${note}` : ""}`);
+    delete qv[lotId]; toast(`${p.name} ${l.serial || (l.mfg_date||"").slice(5)} ${fmt(q)}개 — ${kind === "use" ? "사용 완료" : "출고"} 처리했습니다`); await after(); };
+  const undo = async batch => {
+    if (!(await requireUser())) return;
+    if (!(await ask("이 기록을 되돌려 출고장 재고로 복원합니다.", { title:"되돌리기", yes:"되돌리기", no:"닫기" }))) return;
+    const r = await rpc("cfe_dispatch_undo", { p_batch:batch, p_user_name:CURRENT_USER }, () => { YARD_OUTS.filter(x=>x.batch_id === batch && !x.cancelled_at).forEach(x=>{ const l = YARD_LOTS.find(y=>y.id === x.lot_id); if (l) l.left_qty = Number(l.left_qty) + Number(x.qty); x.cancelled_at = nowISO(); }); return { ok:true }; });
+    if (!r || r.ok === false) return toast(r?.message || "되돌리지 못했습니다");
+    toast("되돌렸습니다"); await after(); };
+  function draw(){
+    const lots = yardLotsOf(pid), tot = lots.reduce((t,l)=>t+Number(l.left_qty||0), 0), noteV = ov.querySelector("#ylNote")?.value || "";
+    const outs = YARD_OUTS.filter(x=>x.product_id === pid).sort((a,b)=>String(b.at||"").localeCompare(String(a.at||""))).slice(0, 12);
+    const multi = {}; YARD_OUTS.forEach(x=>{ if (!x.cancelled_at) multi[x.batch_id] = (multi[x.batch_id]||0) + 1; });
+    ov.innerHTML = `<div style="background:var(--card,#fff);color:var(--ink);border-radius:16px;width:min(860px,100%);max-height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25)">
+      <div style="padding:18px 20px 10px;display:flex;gap:10px;align-items:flex-start"><div style="flex:1"><div style="font-size:18px;font-weight:800">${xh(p.name)} <span class="hint" style="padding:0;font-weight:400">${xh(p.code||"")}</span></div>
+        <div class="hint" style="padding:6px 0 0">출고장 재고 <b>${fmt(tot)}개</b> · 묶음 ${lots.length}개 — 실제로 나간 묶음의 수량을 적고 <b>[출고됨]</b> 또는 <b>[사용 완료]</b>를 누르십시오 · 출고됨은 오늘 출고 확정으로, 사용 완료(분쇄 재포장 · 샘플 · 폐기 등)는 출고 수량에 세지 않고 재고에서만 뺍니다</div></div>
+        <button class="btn" id="ylClose">닫기</button></div>
+      <div style="padding:0 20px 8px;display:flex;gap:8px;align-items:center"><span class="hint" style="padding:0;white-space:nowrap">메모 (선택)</span><input type="text" id="ylNote" value="${xh(noteV)}" placeholder="예: 분쇄 재포장 · 샘플 · 태경 출고" style="flex:1;height:34px"></div>
+      <div style="overflow:auto;flex:1 1 auto;padding:0 12px"><table style="width:100%"><thead><tr><th>제조일자</th><th>일련번호</th><th>포장일</th><th>구분</th><th>남은 수량</th><th>처리 수량</th><th></th></tr></thead><tbody>
+        ${lots.map(l=>`<tr data-lot="${l.id}"><td class="c"><b>${l.mfg_date ? l.mfg_date.slice(5).replace("-","/") : "—"}</b><br>${yardShelfTag(l.mfg_date)}</td><td class="c"><b style="font-size:15px">${xh(l.serial || "—")}</b></td>
+          <td class="c">${xh((yardMadeDay(l)||"").slice(5).replace("-","/") || "—")}</td><td class="c">${l.is_buf ? '<span class="tag warn">여유</span>' : '<span class="tag">필요</span>'}</td>
+          <td><b style="font-size:15px">${fmt(l.left_qty)}</b></td>
+          <td class="c"><input type="number" class="num ylQ" data-id="${l.id}" min="0" max="${Number(l.left_qty)}" value="${qv[l.id] != null ? qv[l.id] : Number(l.left_qty)}" style="width:84px;height:36px" inputmode="numeric"></td>
+          <td class="c" style="white-space:nowrap"><button class="btn primary ylShip" data-id="${l.id}" style="height:36px">출고됨</button> <button class="btn ylUse" data-id="${l.id}" style="height:36px">사용 완료</button></td></tr>`).join("")
+          || `<tr><td colspan="7" class="c hint" style="padding:18px">출고장에 남은 묶음이 없습니다</td></tr>`}
+      </tbody></table>
+      <div style="padding:14px 8px 6px;font-weight:800;font-size:13.5px">최근 나간 기록</div>
+      <table style="width:100%"><thead><tr><th>일자</th><th>구분</th><th>제조일자 · 일련번호</th><th>수량</th><th class="l">처리 · 메모</th><th></th></tr></thead><tbody>
+        ${outs.map(x=>`<tr style="${x.cancelled_at ? "opacity:.5" : ""}"><td class="c">${xh(String(x.out_date||"").slice(5).replace("-","/"))}</td><td class="c"><span class="tag ${x.kind === "use" ? "warn" : x.kind === "dispatch" ? "ok" : ""}">${YARD_KIND[x.kind] || xh(x.kind||"")}</span></td>
+          <td class="c">${x.mfg_date ? String(x.mfg_date).slice(5).replace("-","/") : "—"}${x.serial ? ` · <b>${xh(x.serial)}</b>` : ""}</td><td><b>${fmt(x.qty)}</b></td>
+          <td class="l" style="font-size:12px;white-space:normal">${xh(x.by_name||"")} <span class="hint" style="padding:0">${dtFull(x.at)}</span>${x.note ? ` · ${xh(x.note)}` : ""}</td>
+          <td class="c">${x.cancelled_at ? '<span class="tag">되돌림</span>' : `<button class="btn ylUndo" data-b="${x.batch_id}" style="height:30px;font-size:12px" title="${multi[x.batch_id] > 1 ? "같이 확정한 " + multi[x.batch_id] + "줄(다른 품목 포함)이 함께 되돌아갑니다" : "이 기록을 되돌려 재고로 복원합니다"}">되돌리기${multi[x.batch_id] > 1 ? ` (${multi[x.batch_id]}줄)` : ""}</button>`}</td></tr>`).join("")
+          || `<tr><td colspan="6" class="c hint" style="padding:14px">나간 기록이 없습니다</td></tr>`}
+      </tbody></table></div></div>`;
+    ov.querySelector("#ylClose").onclick = close;
+    ov.querySelectorAll(".ylQ").forEach(el=>el.oninput = () => { qv[el.dataset.id] = el.value; });
+    ov.querySelectorAll(".ylShip").forEach(b=>b.onclick = () => act(b.dataset.id, "dispatch"));
+    ov.querySelectorAll(".ylUse").forEach(b=>b.onclick = () => act(b.dataset.id, "use"));
+    ov.querySelectorAll(".ylUndo").forEach(b=>b.onclick = () => undo(b.dataset.b));
+  }
+  ov.onclick = e => { if (e.target === ov) close(); };
+  document.body.appendChild(ov); draw();
 }
 async function yardLotAct(lotId){
   if (!(await requireUser())) return;
@@ -27882,14 +27953,14 @@ function renderCount(){
       const flowCells = !flow ? "" : `<td>${f.inQ?`<b style="color:var(--ok)">+${fmt(f.inQ)}</b>`:"—"}</td>
         <td>${f.plan?`<b>${fmt(f.plan)}</b>${f.outQ?`<br><span class="hint" style="padding:0;font-size:10.5px">주문 ${fmt(f.tally)} − 확정 ${fmt(f.outQ)}</span>`:""}`:(f.tally?`<span class="hint" style="padding:0">전량 출고</span>`:"—")}</td>
         <td class="${f.left<0?"bad":""}" title="${f.base} − 당일 출고 예정"><b style="font-size:15px">${f.left<0?`−${fmt(-f.left)}`:fmt(f.left)}</b>${f.left<0?`<br><span class="tag bad" style="font-size:10.5px">${fmt(-f.left)}개 부족</span>`:""}</td>
-        <td class="l" style="font-size:12px;min-width:220px">${f.byDate.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${f.byDate.map(g=>`<span style="display:inline-flex;flex-direction:column;align-items:center;padding:2px 7px;border:1.5px ${g.buf===g.q?"dashed #F5A524;background:var(--d-warn-soft,#FFF8EC)":"solid var(--line)"};border-radius:7px;line-height:1.35"><span>${g.d ? g.d.slice(5).replace("-","/") : "일자 없음"} <b style="font-size:13.5px">${fmt(g.q)}</b>개</span>${g.sn.length ? `<span class="cntSn" style="font-size:11px;font-weight:700;color:var(--soft)">${xh(g.sn.slice(0,4).join(" · "))}${g.sn.length > 4 ? ` 외 ${g.sn.length - 4}` : ""}</span>` : ""}${yardShelfTag(g.d)}${g.buf && g.buf!==g.q?`<span style="color:var(--d-warn-ink,#B26B00);font-size:10.5px">여유 ${fmt(g.buf)}</span>`:g.buf?`<span style="color:var(--d-warn-ink,#B26B00);font-size:10.5px">여유</span>`:""}</span>`).join("")}</div>` : f.lastOut ? `<span class="hint cntLast" style="padding:0;font-size:11.5px;white-space:normal" title="${xh(f.lastOut.note)}">재고 없음 — 마지막 차감 ${String(f.lastOut.d||"").slice(5).replace("-","/")} ${f.lastOut.kind === "dispatch" ? "출고 확정" : f.lastOut.kind === "count" ? "재고 실사 반영" : xh(f.lastOut.kind||"")} −${fmt(f.lastOut.q)}${f.lastOut.by ? ` (${xh(f.lastOut.by)})` : ""}</span>` : "—"}</td>`;
+        <td class="l" style="font-size:12px;min-width:220px">${f.byDate.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap${YARD_OK === true ? ";cursor:pointer" : ""}" ${YARD_OK === true ? `onclick="yardProdDlg('${r.key}')" title="눌러서 묶음별로 출고됨 · 사용 완료 처리"` : ""}>${f.byDate.map(g=>`<span style="display:inline-flex;flex-direction:column;align-items:center;padding:2px 7px;border:1.5px ${g.buf===g.q?"dashed #F5A524;background:var(--d-warn-soft,#FFF8EC)":"solid var(--line)"};border-radius:7px;line-height:1.35"><span>${g.d ? g.d.slice(5).replace("-","/") : "일자 없음"} <b style="font-size:13.5px">${fmt(g.q)}</b>개</span>${g.sn.length ? `<span class="cntSn" style="font-size:11px;font-weight:700;color:var(--soft)">${xh(g.sn.slice(0,4).join(" · "))}${g.sn.length > 4 ? ` 외 ${g.sn.length - 4}` : ""}</span>` : ""}${yardShelfTag(g.d)}${g.buf && g.buf!==g.q?`<span style="color:var(--d-warn-ink,#B26B00);font-size:10.5px">여유 ${fmt(g.buf)}</span>`:g.buf?`<span style="color:var(--d-warn-ink,#B26B00);font-size:10.5px">여유</span>`:""}</span>`).join("")}</div>` : f.lastOut ? `<span class="hint cntLast" style="padding:0;font-size:11.5px;white-space:normal" title="${xh(f.lastOut.note)}">재고 없음 — 마지막 차감 ${String(f.lastOut.d||"").slice(5).replace("-","/")} ${f.lastOut.kind === "dispatch" ? "출고 확정" : f.lastOut.kind === "count" ? "재고 실사 반영" : xh(f.lastOut.kind||"")} −${fmt(f.lastOut.q)}${f.lastOut.by ? ` (${xh(f.lastOut.by)})` : ""}</span>` : "—"}</td>`;
       const inCell = r.pack > 1
         ? `<span class="cwrap"><input type="text" inputmode="numeric" class="cin" id="cb-${r.key}" data-f="cb:${r.key}" placeholder="0" value="${has?Math.floor(r.act/r.pack):""}" oninput="setCntPack('${r.key}',this.value,${r.pack})"><small>묶음(${r.pack})</small>
              + <input type="text" inputmode="numeric" class="cin" id="cp-${r.key}" data-f="cp:${r.key}" placeholder="0" value="${has?r.act%r.pack:""}" oninput="setCntPiece('${r.key}',${r.pack})"><small>${r.unit}</small>
              ${has?`<b style="margin-left:6px">= ${fmt(r.act)}</b>`:""}</span>`
         : `<span class="cwrap"><input type="text" inputmode="numeric" class="cin" data-f="c:${r.key}" placeholder="—" value="${has?r.act:""}" oninput="setCntOne('${r.key}',this.value)"><small>${r.unit}</small></span>`;
       return `<tr class="${has?(d?"diff":"same"):""}"><td class="rowno">${i+1}</td>
-        <td class="l"><b>${r.name}</b>${r.sub?`<br><span class="hint" style="padding:0;font-size:11px">${r.sub}</span>`:""}</td>
+        <td class="l">${cntType === "cfe" && YARD_OK === true ? `<b class="cntProd" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px" onclick="yardProdDlg('${r.key}')" title="눌러서 이 품목의 묶음(제조일자 · 일련번호)을 보고 출고됨 · 사용 완료로 처리합니다">${r.name}</b>` : `<b>${r.name}</b>`}${r.sub?`<br><span class="hint" style="padding:0;font-size:11px">${r.sub}</span>`:""}</td>
         <td><b>${fmt(r.app)}</b> <span class="hint" style="padding:0">${r.unit}</span>${r.pack>1?`<br><span class="hint" style="padding:0;font-size:11px">${Math.floor(r.app/r.pack)}묶음${r.app%r.pack?` + ${r.app%r.pack}`:""}</span>`:""}${r.safety&&r.app<r.safety?` <span class="tag bad">안전재고 미달</span>`:""}</td>
         ${flowCells}
         <td>${inCell}${r.done && !has ? `<br><span class="tag ok" style="font-size:10.5px">반영 완료 ${fmt(r.done.act)}${r.done.act!==r.done.app?` (장부 ${fmt(r.done.app)} → ${fmt(r.done.act)})`:" · 일치"} · ${dtFull(r.done.at).slice(-5)} ${r.done.by||""}</span>` : ""}</td>
