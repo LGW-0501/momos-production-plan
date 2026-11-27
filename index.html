@@ -790,6 +790,9 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   .wc.wkg .wkgBtns{margin-top:auto; padding:14px 14px 14px;} .wc.wkg .wkgBtns:empty{display:none;}
   .wc.wkg .wkgBtns button small{font-size:12.5px; font-weight:600; opacity:.85; margin-left:6px;}
   .wkgActM{display:none;}
+  .wkgSplitBar{grid-column:1/-1; display:flex; flex-direction:row; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 14px; border:1.5px dashed var(--line-2,#B9C0D4); border-radius:12px; background:var(--d-tint,#F7F8FB); font-size:13.5px;}
+  .wkgRejoin{height:24px; padding:0 9px; margin-right:6px; border-radius:999px; border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12); color:#fff; font:inherit; font-size:11.5px; font-weight:800; cursor:pointer; vertical-align:middle;}
+  .wkgRejoin:hover{background:rgba(255,255,255,.24);}
   /* ★ 2026-11-27 폰 — 표가 카드 밖으로 넘쳐 오른쪽 버튼이 잘리던 것 · 첫 칸만 색이 달라 보이던 것 */
   @media (max-width:760px){ .wkgRow{grid-template-columns:1fr;} }
   @media (max-width:900px){
@@ -8538,6 +8541,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-27", "수동 묶음 — 따로 보기를 다시 묶기", "[따로 보기]로 풀어 놓은 중량 카드마다 머리 아래에 [⛓ 묶어 보기] 버튼이 생겼습니다 — 어느 카드에서 눌러도 그 원두의 중량들이 다시 한 카드로 묶입니다. 위쪽의 「따로 보는 중」 띠도 눈에 띄게 바꾸고 버튼을 [다시 묶어 보기]로 키웠습니다. 따로 보기 상태는 이 기기에 기억되어, 새로고침해도 다시 묶기 전까지 그대로입니다 (지난 날짜 것은 자동으로 지워짐)."],
   ["2026-11-27", "수동 묶음 카드 — 모양 정리", "수동 묶음 카드를 옆의 카드와 같은 틀로 다듬었습니다 — 큰 숫자(생산 수 / 목표 합계)와 진행 막대, 그 아래 중량 줄, 맨 아래 큰 버튼. 경고는 같은 내용끼리 한 줄로 모으고(모든 중량에 해당하면 중량 표시 생략), 줄마다 되풀이되던 긴 품목명은 빼고 중량 · 채널 · 구분(사업자 등)만 보입니다. 같은 중량이 두 줄이면 지시 순서를 같이 적습니다. 줄의 [설비 이동]은 작은 [이동 →]으로, 머리의 버튼도 작게 바꿨습니다. 폰에서는 묶음 카드의 표가 카드 밖으로 넘쳐 오른쪽 버튼이 잘리던 것을 고쳐, 버튼을 중량 아래에 둡니다. 출고장 묶음 창도 폰에서는 표 대신 묶음마다 한 칸씩 세로로 나옵니다. 묶음 카드는 설비 줄 맨 위에 묶음끼리 같은 폭으로 따로 모으고, 나머지 카드는 그 아래에 원래 순서대로 둡니다 — 넓은 카드와 좁은 카드가 한 줄에 섞여 들쭉날쭉하던 것을 없앴습니다. 시작할 수 없는 묶음은 옆 카드처럼 빨간 [생산 불가 — 원두 …] 버튼으로 나옵니다."],
   ["2026-11-27", "현장 작업 · 생산계획 위쪽 알림을 한 줄씩으로", "위쪽 알림(금일 사용 필요 · 채널 지정 원두 미생산 · 배치를 다시 잡아야 하는 지시 · CFE 완제품 금일 출고 필요/상미 초과)이 목록까지 전부 펼쳐져 화면을 많이 차지했습니다. 이제 알림마다 제목 한 줄(건수와 요약 — 예: 컬리 18 · 네이버 2 / 잔량 부족 24 · 입고 전 13 — 과 버튼)만 보이고, [자세히 ▾]를 눌러야 목록이 펼쳐집니다. 펼친 상태는 이 기기에 기억됩니다. 목록이 3개 이하인 알림은 전처럼 바로 보입니다. 출고 화면의 CFE 알림은 전과 같습니다."],
   ["2026-11-27", "현장 작업 — 누를 때 카드가 사라졌다 나타나고 화면이 밀리던 것", "현장 작업 화면은 버튼을 누를 때마다 · 몇 초마다 카드 전체를 지우고 새로 만들었습니다. 그래서 카드가 잠깐 사라졌다 나타나고, 적던 칸의 커서가 풀리고, 화면 위치가 밀렸습니다. 이제 내용이 같으면 그대로 두고, 달라진 카드 · 줄 · 글자만 바꿉니다. 수동 묶음의 [생산 시작]도 중량을 하나씩 차례로 보내며 여러 번 그리던 것을, 첫 중량이 시작되면 나머지를 한꺼번에 보내도록 바꿨습니다."],
@@ -25479,7 +25483,7 @@ function setWkMach(m){ wkMach = m; try { localStorage.setItem("momos.wkMach", m)
    · 생산 시간은 체크 순서대로 이어서 — 한 줄을 완료하면 남은 줄은 그 시각부터 다시 센다 (lap · 서버 098)
    · 한글표시사항(컬러 · 품목보고번호 · 원산지 · 제조일자 · 일련번호)은 카드에 그대로 · 봉투 LOT 은 중량마다 줄에
    · [따로 보기]를 누르면 그 묶음을 원래 카드로 펼친다 (LOT 관리 · 중량 변경 · 중단 등은 원래 카드에서) */
-const WKG_Q = {}, WKG_SPLIT = new Set();
+const WKG_Q = {}, WKG_SPLIT = (()=>{ try { const d = (new Date(Date.now() + 9*3600000)).toISOString().slice(0,10); return new Set((JSON.parse(localStorage.getItem("momos.wkg.split") || "[]")).filter(k=>String(k).slice(0,10) >= d)); } catch(_){ return new Set(); } })();
 const wkgKeyOf = o => { const p = prodById(o?.product_id); return p && p.bean && o.serial && !isMultiBatch(o) ? `${o.work_date}|${o.machine||""}|${p.bean}|${o.serial}` : ""; };
 const wkgOk = o => !!o && machKind(o.machine) === "수동" && stIdx(o) < 2 && !qcState(o).rejected && !!wkgKeyOf(o);
 /* 그 설비 줄의 지시들 → [{ key, items }] (둘 이상일 때만 묶음) */
@@ -25487,7 +25491,8 @@ function wkgGroups(items){ const by = {}; items.forEach(o=>{ if (!wkgOk(o)) retu
   return Object.entries(by).filter(([k, xs])=>xs.length >= 2).map(([key, xs])=>({ key, items:xs.slice().sort((a,b)=>specOf(b) - specOf(a) || String(a.order_no).localeCompare(String(b.order_no))) })); }
 const wkgMembers = key => DB.orders.filter(o=>wkgKeyOf(o) === key && machKind(o.machine) === "수동" && !/^\[반려 삭제/.test(String(o.note||"")));
 const wkgQty = o => { const v = WKG_Q[o.id]; const n = Math.round(numOf(v)); return v != null && v !== "" && n > 0 ? n : Math.round(Number(o.qty_done||o.progress_qty||0)) > 0 ? Math.round(Number(o.qty_done||o.progress_qty)) : Math.round(ordPlan(o)); };
-function wkgToggle(key){ WKG_SPLIT.has(key) ? WKG_SPLIT.delete(key) : WKG_SPLIT.add(key); renderWork(); }
+function wkgToggle(key){ WKG_SPLIT.has(key) ? WKG_SPLIT.delete(key) : WKG_SPLIT.add(key); try { localStorage.setItem("momos.wkg.split", JSON.stringify([...WKG_SPLIT])); } catch(_){ errQuiet(_); }
+  renderWork(); toast(WKG_SPLIT.has(key) ? "따로 보기 — 카드의 [⛓ 묶어 보기]를 누르면 다시 한 카드로 묶입니다" : "다시 한 카드로 묶었습니다"); }
 function wkgCardHTML(G){
   /* ★ 2026-11-27 모양 정리 (Lee "전체적으로 모양이 안 이뻐") — 옆의 카드와 같은 틀: 큰 숫자 + 진행 막대 → 중량 줄 → 아래에 큰 버튼
        · 경고는 같은 내용끼리 한 줄로 모음 · 줄에는 긴 품목명을 되풀이하지 않고 중량 + 구분(채널 · 사업자 등)만 · 줄의 [이동]은 작게 */
@@ -25540,7 +25545,7 @@ function wkgCards(g, card){
   const seen = new Set(), top = [], rest = [];
   g.items.forEach(o=>{ const G = of[o.id]; if (!G) return rest.push(card(o));
     if (WKG_SPLIT.has(G.key)) { const first = !seen.has(G.key); seen.add(G.key);
-      return rest.push((first ? `<div class="wc" style="grid-column:1/-1;padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0"><b>${xh(prodById(o.product_id)?.bean||"")} ${xh(o.serial||"")}</b><span class="hint" style="padding:0">중량 ${G.items.length}개를 따로 보는 중</span><button class="btn primary" style="height:30px;margin-left:auto" onclick="wkgToggle('${G.key.replace(/'/g, "\\'")}')">묶어 보기</button></div>` : "") + card(o)); }
+      return rest.push((first ? `<div class="wkgSplitBar"><b>⛓ ${xh(prodById(o.product_id)?.bean||"")} ${xh(o.serial||"")}</b><span class="hint" style="padding:0">중량 ${G.items.length}개를 따로 보는 중 — 아래 카드들이 한 묶음입니다</span><button class="btn primary" style="height:36px;margin-left:auto;font-weight:800" onclick="wkgToggle('${G.key.replace(/'/g, "\\'")}')">다시 묶어 보기</button></div>` : "") + card(o)); }
     if (seen.has(G.key)) return; seen.add(G.key); top.push(wkgCardHTML(G)); });
   return (top.length ? `<div class="wkgRow">${top.join("")}</div>` : "") + rest.join("");
 }
@@ -25786,7 +25791,7 @@ function renderWork(){
           can("plan") ? `<span class="prib">
             <button onclick="moveOrd('${o.id}',-1)" title="순서 앞으로">▲</button>
             <button onclick="moveOrd('${o.id}',1)" title="순서 뒤로">▼</button></span>` : ""}</div>
-        <div class="sub">${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 재생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${ordBuf(o) > 0 && stIdx(o) < 2 ? (bufOnly(o) ? `<span class="tag buf" style="font-size:11px;margin-right:4px" title="배치 전체가 요일별 여유분입니다 — 여유분 스위치를 끄면 이 카드는 숨겨집니다">여유분 ${fmt(ordBuf(o))}개 (배치 전체)</span>`
+        <div class="sub">${wkgOk(o) && WKG_SPLIT.has(wkgKeyOf(o)) ? `<button class="wkgRejoin" onclick="event.stopPropagation();wkgToggle('${wkgKeyOf(o).replace(/'/g, "\\'")}')" title="따로 보던 이 원두의 중량들을 다시 한 카드로 묶습니다">⛓ 묶어 보기</button>` : ""}${rjd?`<span style="background:var(--bad);color:#fff;font-weight:800;font-size:12px;padding:2px 8px;border-radius:6px;margin-right:4px">반려${qcState(o).count>1?` ${qcState(o).count}회`:""}</span>`:""}${o.split_from?`<span class="tag warn" style="font-size:11px;margin-right:4px">부분 반려 ${fmt(o.qty_done)}개</span>`:""}${!rjd && /^\[반려 삭제/.test(String(o.note||"")) && o.status==="대기" ? `<span class="tag bad" style="font-size:11px;margin-right:4px">반려 → 재생산${o.work_date<today()?` (${o.work_date.slice(5).replace("-","/")} 지시)`:""}</span>`:""}${ordBuf(o) > 0 && stIdx(o) < 2 ? (bufOnly(o) ? `<span class="tag buf" style="font-size:11px;margin-right:4px" title="배치 전체가 요일별 여유분입니다 — 여유분 스위치를 끄면 이 카드는 숨겨집니다">여유분 ${fmt(ordBuf(o))}개 (배치 전체)</span>`
           : swOn("buf") ? `<span class="tag buf" style="font-size:11px;margin-right:4px" title="이 지시에 포함된 요일별 여유분 — 주문분과 한 배치에 섞여 있어, 여유분 스위치를 꺼도 이 배치는 전부 생산합니다">여유분 ${fmt(ordBuf(o))}개 포함</span>`
           : `<span class="tag warn" style="font-size:12px;font-weight:800;margin-right:4px" title="주문분과 여유분이 한 배치에 섞여 있으면 그 배치는 전부 생산합니다">여유분 끔 — 섞인 배치라 전부 생산 (여유 ${fmt(ordBuf(o))}개 포함)</span>`) : ""}${cCarryIds.has(o.id) ? `<span class="tag warn" style="font-size:11px;margin-right:4px" title="코스트코 지시는 생산 완료될 때까지 날짜와 상관없이 현장 작업에 표시됩니다">${o.work_date.slice(5).replace("-","/")} 지시 · 완료 전까지 표시</span>` : ""}${chChip(o.channel||prodById(o.product_id)?.channel||"일반")}${o.serial?` · ${isFloor()?"일련번호":"일련번호"} ${o.serial}`:""}${
           o.batch_of>1?` · 배치 ${o.batch_seq}/${o.batch_of}`:""}${mergeBtn(o, 28)}${
