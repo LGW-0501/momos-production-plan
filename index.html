@@ -4659,14 +4659,15 @@ function sizeCols(id){
     g.className = "grip"; g.title = "끌어서 열 너비 조절 · 두 번 누르면 초기화";
     g.addEventListener("mousedown", e=>{
       e.preventDefault(); e.stopPropagation();
-      const x0 = e.clientX, w0 = th.getBoundingClientRect().width;
+      const Z = (typeof bodyZoom === "function" ? bodyZoom() : 1) || 1;                 // ★ 2026-11-26 화면 배율이 100% 가 아니면 끄는 만큼보다 더 · 덜 움직이던 것
+      const x0 = e.clientX / Z, w0 = th.getBoundingClientRect().width / Z; const cx = ev => ev.clientX / Z;
       document.body.classList.add("colresize");
-      const mv = ev=>{ const nw = Math.max(44, w0 + (ev.clientX - x0));
+      const mv = ev=>{ const nw = Math.max(44, w0 + (cx(ev) - x0));
         th.style.width = nw + "px"; th.style.minWidth = nw + "px"; th.classList.add("wset"); };
       const up = ev=>{ document.removeEventListener("mousemove", mv);
         document.removeEventListener("mouseup", up);
         document.body.classList.remove("colresize");
-        setColWidth(id, i, Math.max(44, w0 + (ev.clientX - x0))); };
+        setColWidth(id, i, Math.max(44, w0 + (cx(ev) - x0))); };
       document.addEventListener("mousemove", mv);
       document.addEventListener("mouseup", up);
     });
@@ -5039,12 +5040,15 @@ function costcoOnlyBean(bean){ if (!bean) return false;
     (DB.products||[]).forEach(p=>{ if (!p || p.off || !p.bean) return; (isCostcoProd(p) ? co : other).add(p.bean); });
     CB_MEMO = { at:Date.now(), s:new Set([...co].filter(b=>!other.has(b))) }; }
   return CB_MEMO.s.has(bean); }
-const daysLeft = (d, bean) => costcoOnlyBean(bean) ? SHELF_FREE : shelfLife() - ageDays(d);
+/* ★ 2026-11-27 상미기한은 로스팅 당일이 1일째 (Lee "로스팅한 당일로부터 5일인건데 로스팅한 다음날부터 5일로 잡힌거 같으니깐")
+     5일이면 22일 로스팅 → 22 · 23 · 24 · 25 · 26일까지 사용, 27일은 초과. 전에는 다음날부터 세어 27일이 「금일 사용 필요」로 나왔다
+     잔여 0 = 오늘이 마지막 날(금일 사용 필요) · 음수 = 초과 */
+const daysLeft = (d, bean) => costcoOnlyBean(bean) ? SHELF_FREE : shelfLife() - 1 - ageDays(d);
 /* ★ 2026-11-19 상태 4가지 — bad 초과(출고 불가) · due 금일 사용 필요(내일부터 출고 불가) · warn 임박 · ok 정상 */
 const shelfState = (d, bean) => { const L=daysLeft(d, bean); return L<0?"bad":L===0?"due":L<=shelfWarn()?"warn":"ok"; };
 const DUE_TEXT = "⚠ 금일 사용 필요 / 내일부터 출고 불가";
 /* 작업일 d 기준 잔여일 — 계획은 내일 날짜로도 세우므로 오늘이 아니라 그 날짜로 본다 */
-const daysLeftOn = (roast, d, bean) => costcoOnlyBean(bean) ? SHELF_FREE : roast ? shelfLife() - Math.floor((new Date(d || today()) - new Date(roast))/86400000) : shelfLife();
+const daysLeftOn = (roast, d, bean) => costcoOnlyBean(bean) ? SHELF_FREE : roast ? shelfLife() - 1 - Math.floor((new Date(d || today()) - new Date(roast))/86400000) : shelfLife();
 const shelfLabel = (d, bean) => { const L=daysLeft(d, bean); return L>=SHELF_FREE?"기한 무관":L<0?`초과 ${-L}일`:L===0?"⚠ 금일 사용 필요":`D-${L}`; };
 
 /* 배치번호 — 현장에서 쓰는 "28일 1번 = 2801" 을 그대로 두고 앞에 연·월만 붙인다
@@ -5133,11 +5137,24 @@ function serialOfText(txt){
 function batchParts(txt){
   return String(txt||"").split(/\s*\+\s*/).map(t=>t.trim()).filter(Boolean)
     .map(t=>{ const kg = Number((t.match(/([\d.]+)\s*kg/i)||[])[1] || 0);
-      return { text:t, kg, short:shortOfCode(t), full:fullOfCode(t) }; })
+      return { text:t, kg, hasKg:/[\d.]\s*kg/i.test(t), short:shortOfCode(t), full:fullOfCode(t) }; })
     .filter(x=>x.short);
 }
-/* 배치가 둘 이상인 지시 — 나눠야 일련번호가 하나씩 붙는다 */
-const isMixedOrder = o => batchParts(o?.batch_plan).length > 1;
+/* ★ 2026-11-27 배치 묶음 (Lee "이카로 생산하는 원두는 배치를 묶어서 포장 … 27일자 2번 3번 4번 → 일련번호 261127-0204")
+     같은 날 배치는 「연월일-첫번호끝번호」 한 덩어리로 · 날짜가 다르면 날짜별로 · 로 잇는다 (한 날에 배치 1개면 연월일-번호)
+     장부(batch_plan · serial_full)에는 묶은 배치가 하나하나 그대로 남는다 */
+function bundleSerialOf(ms){
+  const by = {}; sortBundle(ms).forEach(m=>{ (by[m.roast_date] = by[m.roast_date] || []).push(m); });
+  const bb = m => String(Math.round(Number(m.batch)||0)).padStart(2, "0");
+  return Object.keys(by).sort().map(d=>{ const xs = by[d]; return `${d.replace(/-/g,"").slice(2)}-${xs.length > 1 ? bb(xs[0]) + bb(xs[xs.length-1]) : bb(xs[0])}`; }).join("·");
+}
+const sortBundle = ms => [...new Set(ms||[])].sort((a,b)=>String(a.roast_date).localeCompare(String(b.roast_date)) || (Number(a.batch)||0) - (Number(b.batch)||0));
+/* 배치가 둘 이상인 지시 */
+const isMultiBatch = o => batchParts(o?.batch_plan).length > 1;
+/* 일부러 묶은 지시 — 일련번호가 묶음 모양(261127-0204)이다 */
+const isBundleOrder = o => isMultiBatch(o) && /\d{6}-\d{2}/.test(String(o?.serial||""));
+/* 배치가 섞인 지시 — 나눠야 일련번호가 하나씩 붙는다 (일부러 묶은 것은 제외) */
+const isMixedOrder = o => isMultiBatch(o) && !isBundleOrder(o);
 /* 배치를 못 정했을 때만 쓰는 날짜 기준 임시번호 */
 function makeSerial(d){
   d = d || today();
@@ -5310,8 +5327,8 @@ async function initDB(){
     work:1,qc:1,ship:1,order:1,trace:1}).forEach(k=>{
     const el = $("asof-"+k); if (el) el.textContent = today().replace(/-/g,".") + " 기준";
   });
-  if ($("stShelf")) $("stShelf").textContent = `상미기한 ${shelfLife()}일 · 잔여 ${shelfWarn()}일 이하 임박`;
-  $("shelfRule").textContent = `상미기한 ${shelfLife()}일 · 잔여 ${shelfWarn()}일 이하 임박 · 선입선출로 오래된 배치부터 차감`;
+  if ($("stShelf")) $("stShelf").textContent = `상미기한 ${shelfLife()}일(로스팅 당일 포함) · 잔여 ${shelfWarn()}일 이하 임박`;
+  $("shelfRule").textContent = `상미기한 ${shelfLife()}일(로스팅 당일 포함) · 잔여 ${shelfWarn()}일 이하 임박 · 선입선출로 오래된 배치부터 차감`;
   renderAll();
   /* 같은 라벨·봉투가 여러 줄이면 (관리자 계정일 때) 조용히 하나로 */
   setTimeout(()=>{ try { autoMergeMaterials().catch(e=>console.warn(e)); } catch(e){} }, 1200);
@@ -7841,17 +7858,20 @@ async function mesTell(r, okMsg){
 function consumeBeans(T, logRow, p, kg, date, who, preferMms){
   if (!(kg > 0)) return "";
   let left = Math.round(kg*1000)/1000; const codes = [];
-  let list = freeBatches(p.bean);
+  let list = freeBatches(p.bean); const prefList = [];
   /* 042 와 같은 규칙 — 우선 배치가 없으면 작업지시에 적힌 배치부터 */
   if (!preferMms && logRow && logRow.order_id) { const o = ordById(logRow.order_id); const d = String(o?.batch_plan || o?.serial_full || "").match(/(\d{8})/);
     if (d) { const rd = `20${d[1].slice(0,2)}-${d[1].slice(2,4)}-${d[1].slice(4,6)}`, bn = Number(d[1].slice(6,8)); const m = list.find(x => x.roast_date === rd && Number(x.batch) === bn); if (m) preferMms = m.id; }
     /* ★ 2026-11-19 (서버 086 과 같은 규칙) 지시에 배치가 적혀 있는데 그 배치가 장부에 없으면 — 입고 전 — 완료를 거부한다. 다른 배치로 몰래 넘어가지 않는다 */
     if (!preferMms && /\d{8}|\d{4}-\d{2}-\d{2}-\d{2}/.test(String(o?.batch_plan || "")))
-      throw MES_ERR("batch_not_in", `지시에 적힌 배치(${o.serial || o.batch_plan})가 아직 입고되지 않았습니다 — 로스팅 입고를 등록하거나, 일련번호 [변경]으로 실제 배치를 고른 뒤 다시 완료하십시오`); }
+      throw MES_ERR("batch_not_in", `지시에 적힌 배치(${o.serial || o.batch_plan})가 아직 입고되지 않았습니다 — 로스팅 입고를 등록하거나, 일련번호 [변경]으로 실제 배치를 고른 뒤 다시 완료하십시오`);
+    /* ★ 2026-11-27 (서버 095 와 같은 규칙) 배치 묶음 — 지시에 적힌 배치를 적힌 순서대로 전부 먼저 쓰고, 그래도 모자랄 때만 다른 배치로 */
+    batchParts(o?.batch_plan).forEach(bp=>{ const m = list.find(x => batchFull(x) === bp.full); if (m && !prefList.includes(m.id)) prefList.push(m.id); }); }
   /* ★ 2026-11-19 (서버 086) 지시의 배치가 모자라 다른 배치로 넘어갈 때, 상미기한이 지난 배치는 쓰지 않는다 — 지시에 직접 적힌 배치와 코스트코 전용 원두는 예외 */
-  list = list.filter(m => m.id === preferMms || daysLeft(m.roast_date, m.bean) >= 0);
-  if (preferMms) { const sel = list.find(m => m.id === preferMms);
-    if (sel) list = [sel, ...list.filter(m => m.id !== preferMms)]; }
+  if (preferMms && !prefList.includes(preferMms)) prefList.unshift(preferMms);
+  list = list.filter(m => prefList.includes(m.id) || daysLeft(m.roast_date, m.bean) >= 0);
+  if (prefList.length) { const head = prefList.map(id => list.find(m => m.id === id)).filter(Boolean);
+    list = [...head, ...list.filter(m => !prefList.includes(m.id))]; }
   for (const b of list) {
     if (left <= 0.0001) break;
     const take = Math.min(left, Number(b.stock_kg)||0);
@@ -8475,6 +8495,9 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-27", "상미기한 — 로스팅 당일을 1일째로 · 현장에서도 배치 묶기", "① 상미기한을 로스팅 당일부터 셉니다. 5일이면 22일 로스팅 원두는 26일까지이고 27일에는 「초과」입니다 (전에는 다음날부터 세어 27일에 「금일 사용 필요」로 나왔습니다). 임박 · 금일 사용 필요 · 초과 표시와 자동 배정 · 생산 시작 차단이 모두 하루씩 당겨집니다. 서버의 차감 · 시작 검사는 096_shelf_day_floor_bundle.sql 실행 후 같은 기준이 됩니다. ② 이카 설비의 오늘 지시는 현장 계정도 작업 카드의 [묶기 · 변경]으로 배치를 고르고 묶을 수 있습니다 (096 실행 필요 · 일련번호를 손으로 적는 것은 계획 권한만)."],
+  ["2026-11-27", "배치 묶음 — 이카 지시는 여러 배치를 골라 한 일련번호로", "이카 설비 지시의 일련번호 [변경] 창에 「묶기」 칸이 생겼습니다. 같이 포장할 배치를 둘 이상 표시하고 [묶어서 정하기]를 누르면 한 일련번호로 묶입니다 — 27일 2 · 3 · 4번이면 261127-0204 (연월일-첫번호끝번호). 날짜가 다른 배치를 같이 묶으면 날짜별로 · 로 이어집니다. 묶은 배치는 장부에 하나하나 남아 추적에 그대로 나오고, 완료하면 묶은 배치부터 적힌 순서대로 원두가 빠집니다 (서버는 095_batch_bundle.sql 실행 후 · 실행 전에는 첫 배치 다음부터 오래된 순). 묶은 지시는 「혼재 — 배치별 분할」 대상에서 빠지고 표에 「묶음」으로 표시됩니다."],
+  ["2026-11-26", "그래프 · 칸 너비 — 마우스 위치가 어긋나던 것", "글자 크기 설정(화면 배율)이 100% 가 아닐 때 ① 대시보드 그래프에서 막대 위가 아니라 옆으로 벗어난 곳에 마우스를 올려야 값이 떴습니다 — 그래프가 마우스 위치를 배율만큼 틀리게 읽었습니다. 모든 그래프에서 고쳤습니다. ② 표 머리글을 끌어 칸 너비를 바꿀 때 끄는 만큼보다 더(덜) 움직이던 것 ③ 좁은 화면에서 [도구 ▾] 메뉴가 배율만큼 밀려 열리던 것도 같이 고쳤습니다."],
   ["2026-11-25", "속도 — 내용이 그대로인 표는 다시 만들지 않음", "화면은 몇 초마다 · 저장할 때마다 표를 전부 새로 만들었는데, 대부분은 내용이 바뀌지 않은 표였습니다. 이제 표에 넣을 내용이 직전과 같으면 그 표는 그대로 둡니다 — 다시 만드는 일이 줄어 빨라지고, 스크롤 · 선택 · 커서도 그대로 남습니다. 표 안에 적다 만 숫자나 체크가 있으면 전처럼 새로 만듭니다. 카드로 된 화면(현장 작업 카드 · 분쇄 카드 · 설비별 작업 순서)은 아직 전과 같습니다."],
   ["2026-11-25", "재고 실사 CFE — 제조일자 칸에 일련번호 · 재고가 없으면 마지막 차감", "재고 실사 › CFE 완제품의 [제조일자별] 칸은 출고장에 남은 재고가 있을 때만 날짜와 수량을 보여 줍니다 — 출고장 재고가 0 이면 비어 보입니다. ① 날짜 · 수량 아래에 일련번호도 같이 보이게 했습니다. ② 재고가 0 이라 비었을 때는 '재고 없음 — 마지막 차감 11/24 출고 확정 −28 (이름)' 처럼 마지막으로 무엇이 재고를 뺐는지 보여 줍니다."],
   ["2026-11-25", "스크롤을 내려 두면 다시 그려도 그 자리", "작업지시 › 설비별 작업 순서에서 리팩 칸을 내리면 잠시 뒤 맨 위로 돌아갔습니다 — 화면이 새 내용을 받을 때마다 표를 통째로 새로 만들면서 내려 둔 위치가 사라졌기 때문입니다. 이제 사람이 스크롤한 칸의 위치를 기억해 두었다가, 다시 그려지면 그 자리로 되돌립니다. 설비별 작업 순서뿐 아니라 모든 화면의 표 · 칸에 적용됩니다 (위아래 · 옆으로 모두). 직접 맨 위로 올린 것은 그대로 둡니다."],
@@ -9955,6 +9978,13 @@ async function draw(list){
        화면이 다시 그려질 때마다(실시간 반영·뒤에서 그리는 화면) 그래프를 부수고 새로 만들어 매번 처음부터 자라는 애니메이션이 돌았다.
        → 같은 그래프면 숫자만 바꿔 끼우고, 애니메이션은 끈다 */
   Chart.defaults.animation = false;
+  /* ★ 2026-11-26 그래프 위 마우스 위치가 어긋나던 것 (Lee "그래프 왼쪽에 있는데 오른쪽으로 마우스 커서를 올려야 올라가")
+       글자 크기 설정(화면 배율)이 100% 가 아니면 그래프가 마우스 위치를 배율만큼 틀리게 읽어, 막대에서 벗어난 곳에 올려야 값이 떴다
+       → 마우스가 그래프 그림 안에서 실제로 어디 있는지(화면에 보이는 크기 기준)로 다시 계산해 넘긴다 */
+  if (!Chart.__zoomFix) { Chart.__zoomFix = true; Chart.register({ id:"zoomFix", beforeEvent(chart, args){ const ev = args.event, n = ev && ev.native; if (!n || typeof n.clientX !== "number") return;
+    const r = chart.canvas.getBoundingClientRect(); if (!(r.width > 0 && r.height > 0)) return;
+    ev.x = (n.clientX - r.left) / r.width * chart.width; ev.y = (n.clientY - r.top) / r.height * chart.height;
+    args.inChartArea = chart.isPointInArea(ev); } }); }
   { const cs = getComputedStyle(document.documentElement);        // ★ 다크 모드 — 축 글자·눈금선 색을 테마에서 읽는다
     Chart.defaults.color = cs.getPropertyValue("--soft").trim() || "#6E7585";
     Chart.defaults.borderColor = cs.getPropertyValue("--line").trim() || "#E4E7EE"; }
@@ -10644,7 +10674,7 @@ function batchHolds(exclude){
     const p = prodById(o.product_id); if (!p) return;
     const todo = ordTodoEa(o); if (!(todo > 0)) return; const need = needKg(p, todo);
     parts.forEach(bp=>{ const m = ix[`${p.bean}|${bp.full}`]; if (!m) return;
-      (H[m.id] = H[m.id] || []).push({ o, kg: parts.length === 1 ? need : Math.min(need, bp.kg || need) }); }); });
+      (H[m.id] = H[m.id] || []).push({ o, kg: parts.length === 1 ? need : bp.hasKg ? Math.min(need, bp.kg) : Math.min(need, bp.kg || need) }); }); });
   return H;
 }
 /* 그 원두에서 d 날짜에 쓸 수 있는 배치 (오래된 순) — [{ m, held, free }] */
@@ -11613,10 +11643,11 @@ function toolMenuFit(d){
   const tm = d && d.querySelector(":scope > .tm"); if (!tm || !d.open) return;
   tm.style.left = ""; tm.style.right = ""; tm.style.width = ""; tm.style.maxHeight = ""; tm.style.overflowY = "";
   const vw = document.documentElement.clientWidth, vh = window.innerHeight, pad = 8, dr = d.getBoundingClientRect();
-  if (vw <= 760) { tm.style.right = "auto"; tm.style.left = (pad - dr.left) + "px"; tm.style.width = (vw - pad*2) + "px"; }
+  const TZ = (typeof bodyZoom === "function" ? bodyZoom() : 1) || 1;                    // ★ 2026-11-26 화면 배율 보정 — 화면에서 잰 값을 배율로 나눠 넣는다
+  if (vw <= 760) { tm.style.right = "auto"; tm.style.left = ((pad - dr.left) / TZ) + "px"; tm.style.width = ((vw - pad*2) / TZ) + "px"; }
   else { let r = tm.getBoundingClientRect();
     if (r.left < pad) { tm.style.right = "auto"; tm.style.left = "0px"; r = tm.getBoundingClientRect();
-      if (r.right > vw - pad) tm.style.left = (vw - pad - r.width - dr.left) + "px"; } }
+      if (r.right > vw - pad) tm.style.left = ((vw - pad - r.width - dr.left) / TZ) + "px"; } }
   const navH = (document.body.classList.contains("mobile") || vw <= 760) ? 64 : 0;
   let r2 = tm.getBoundingClientRect(); const over = r2.bottom - (vh - pad - navH);
   if (over > 0) { const y0 = window.scrollY; window.scrollBy(0, Math.min(over, Math.max(0, r2.top - 70))); if (window.scrollY !== y0) r2 = tm.getBoundingClientRect(); }   // 아래로 넘치면 화면을 그만큼 올린다
@@ -23942,22 +23973,54 @@ async function changeOrderSpec(id){
   if (fail.length || oldMsg) return ask(`중량 변경을 끝까지 하지 못했습니다.\n\n${made.length ? `만든 지시: ${made.map(x=>`${x.item.name} ${fmt(x.v.qty)}개`).join(" · ")}\n` : ""}${fail.length ? `실패: ${fail.join(" · ")}\n원래 지시(${p.name} ${fmt(qty0)}개)는 그대로 있습니다 — 만든 지시가 있으면 수량이 겹치니 확인하십시오.` : oldMsg}`, { title:"중량 변경 — 확인 필요", yes:"확인", only:true });
   toast(`중량을 변경했습니다 — ${made.map(x=>`${x.item.name} ${fmt(x.v.qty)}개`).join(" + ")}${remEa > 0 ? ` · ${p.name} ${fmt(remEa)}개 남김` : ""}`);
 }
-const canPickBatch = o => o && ["대기","생산중"].includes(o.status) && !o.log_id && (can("plan") || isManager());
+/* ★ 2026-11-27 현장에서도 묶기 (Lee "당일 생산에서 본인이 판단으로 묶을 수 있게 … 현장작업에서도 가능하게")
+     이카 설비의 오늘 지시는 계획 권한이 없어도 배치를 고르고 묶을 수 있다 (일련번호를 손으로 적는 것은 계획 권한만) */
+const batchPlanner = () => can("plan") || isManager();
+const canFloorBatch = o => !!o && ordIca(o) && o.work_date === today();
+const canPickBatch = o => o && ["대기","생산중"].includes(o.status) && !o.log_id && (batchPlanner() || canFloorBatch(o));
+async function mesSetOrderBatches(a){
+  return rpc("set_order_batches",
+    { p_order_id:a.order_id, p_batch_plan:a.batch_plan, p_serial:a.serial, p_serial_full:a.serial_full, p_idempotency:a.idem },
+    () => {
+      const hit = idemHit(a.idem); if (hit) return hit;
+      const o = ordById(a.order_id); if (!o) return MES_ERR("no_order", "작업지시를 찾을 수 없습니다");
+      if (!["대기","생산중"].includes(o.status) || o.log_id) return MES_ERR("bad_status", `${o.status} 상태에서는 배치를 바꿀 수 없습니다`);
+      if (!batchPlanner() && !canFloorBatch(o)) return MES_ERR("denied", "이카 설비의 오늘 지시만 현장에서 배치를 바꿀 수 있습니다");
+      if (!batchParts(a.batch_plan).length || !String(a.serial||"").trim()) return MES_ERR("bad_batch", "배치를 고르십시오");
+      return localTx(T => { T.upd(o, { batch_plan:a.batch_plan, serial:a.serial, serial_full:a.serial_full }); save("orders", o);
+        const r = { ok:true }; idemPut(T, a.idem, "set_order_batches", o.id, r); return r; });
+    });
+}
 async function pickOrderBatch(id){
   if (!(await requireUser())) return;
   const o = ordById(id); if (!o || !canPickBatch(o)) return;
   const p = prodById(o.product_id); const bean = p?.bean;
   const need = p ? needKg(p, Number(o.qty_plan)||0) : 0;
-  const cur = batchParts(o.batch_plan)[0];
+  const cur = batchParts(o.batch_plan)[0], curAll = batchParts(o.batch_plan).map(x=>x.full), multi = ordIca(o);
   /* ★ 2026-11-19 다른 지시가 잡은 양 · 남는 양을 같이 (beanPool 과 같은 기준 — 이 지시 자신은 빼고 센다) */
   const HX = batchHolds(new Set([o.id])), dWork = o.work_date && o.work_date > today() ? o.work_date : today();
   const list = sortBatches(DB.mms.filter(m=>m.bean===bean && Number(m.stock_kg)>0)).map(m=>{ const hs = HX[m.id] || [], held = r3(hs.reduce((t,x)=>t+x.kg, 0));
-    return { m, used:hs.length, held, free:Math.max(0, r3(Number(m.stock_kg) - held)), expired: daysLeftOn(m.roast_date, dWork, m.bean) < 0, now: !!(cur && cur.full===batchFull(m)) }; });
+    return { m, used:hs.length, held, free:Math.max(0, r3(Number(m.stock_kg) - held)), expired: daysLeftOn(m.roast_date, dWork, m.bean) < 0, now: curAll.includes(batchFull(m)) }; });
   /* ★ 2026-11-01 — 고르는 창을 표 + 검색으로 (Lee "보는 게 너무 불편 — 검색 창") */
-  const pick = await batchPickDialog({ title:`배치 · 일련번호 선택`, sub:`${p?.name||o.product_name||""} ${fmt(o.qty_plan)}개 · 필요 원두 약 ${fmt(Math.round(need*100)/100)}kg · 현재 일련번호 ${o.serial||"—"}`, list, serial:o.serial||"", bean });
+  const pick = await batchPickDialog({ title:`배치 · 일련번호 선택`, sub:`${p?.name||o.product_name||""} ${fmt(o.qty_plan)}개 · 필요 원두 약 ${fmt(Math.round(need*100)/100)}kg · 현재 일련번호 ${o.serial||"—"}`, list, serial:o.serial||"", bean, multi, need, noSerial: !batchPlanner(), pre: multi && curAll.length > 1 ? list.filter(x=>x.now).map(x=>x.m.id) : [] });
   if (!pick) return;
   let patch;
-  if (pick.type === "serial") {
+  if (pick.type === "bundle") {
+    /* ★ 2026-11-27 배치 묶음 — 고른 배치를 오래된 순으로 묶어 한 일련번호로 */
+    const ms = sortBundle((pick.value||[]).map(id=>DB.mms.find(x=>x.id===id)).filter(Boolean)); if (ms.length < 2) return toast("묶을 배치를 둘 이상 고르십시오");
+    const its = ms.map(m=>list.find(x=>x.m.id === m.id) || { m, held:0, free:Number(m.stock_kg), expired:false, used:0 });
+    const warn = [];
+    ms.filter(isHeld).forEach(m=>warn.push(`· ${batchShort(m)} — 보류 중 (${m.hold_why||"사유 미기재"})`));
+    its.filter(x=>x.expired).forEach(x=>warn.push(`· ${batchShort(x.m)} — 상미기한 초과 (${shelfLabel(x.m.roast_date, x.m.bean)})`));
+    its.filter(x=>x.used && !x.now).forEach(x=>warn.push(`· ${batchShort(x.m)} — 다른 지시 ${x.used}건이 ${fmt(Math.round(x.held*100)/100)}kg 을 이미 잡고 있음`));
+    const tot = r3(ms.reduce((t,m)=>t+Number(m.stock_kg||0), 0));
+    if (tot + 0.0001 < need) warn.push(`· 고른 배치 합계 ${fmt(Math.round(tot*100)/100)}kg — 필요량 ${fmt(Math.round(need*100)/100)}kg 보다 적습니다 (부족분은 완료 때 다른 배치에서 차감)`);
+    if (warn.length && !(await ask(`묶으려는 배치에 확인할 것이 있습니다.\n\n${warn.join("\n")}\n\n이대로 묶으시겠습니까?`, { title:"배치 묶음 — 확인", yes:"이대로 묶기", danger:true }))) return;
+    let left = need > 0 ? need : tot;
+    const text = ms.map(m=>{ const k = Math.max(0, Math.min(left, Number(m.stock_kg)||0)); left = r3(left - k); return `${batchLabel(m)} ${fmt(Math.round(k*100)/100)}kg`; }).join(" + ");
+    patch = { batch_plan:text, serial:bundleSerialOf(ms), serial_full:ms.map(batchFull).join(" + ") };
+  } else if (pick.type === "serial") {
+    if (!batchPlanner()) return toast("일련번호를 직접 적는 것은 계획 권한이 있는 계정만 할 수 있습니다");
     const v = String(pick.value||"").trim(); if (!v) return toast("일련번호를 입력하십시오");
     patch = { serial:v };
   } else {
@@ -23971,7 +24034,10 @@ async function pickOrderBatch(id){
     const bp = batchParts(text)[0];
     patch = { batch_plan:text, serial:bp?.short || batchShort(m), serial_full:bp?.full || batchFull(m) };
   }
-  const r = await mesEditOrder({ order_id:o.id, patch, idem:`ob-${o.id}-${uid()}` });
+  const r = batchPlanner() ? await mesEditOrder({ order_id:o.id, patch, idem:`ob-${o.id}-${uid()}` })
+    : await mesSetOrderBatches({ order_id:o.id, batch_plan:patch.batch_plan, serial:patch.serial, serial_full:patch.serial_full, idem:`ob-${o.id}-${uid()}` });
+  if (!batchPlanner() && (!r || r.ok === false) && /set_order_batches|schema cache|PGRST20|function/i.test(String(r?.message || r?.code || "")))
+    return ask("현장에서 배치를 바꾸는 서버 기능이 아직 설치되지 않았습니다.\n\nSupabase SQL Editor 에서 096_shelf_day_floor_bundle.sql 을 실행한 후 다시 시도하십시오.\n(그 전에는 계획 권한이 있는 계정에서 묶을 수 있습니다)", { title:"배치 · 일련번호", yes:"확인", only:true });
   if (!r || r.ok === false) return ask(/serial/.test(r?.message||"") ? "서버에 일련번호 수정 기능이 설치되지 않았습니다.\n\nSupabase SQL Editor 에서 063_edit_order_serial.sql 을 실행한 후 다시 시도하십시오." : `변경하지 못했습니다 — ${r?.message||""}`, { title:"배치 · 일련번호", yes:"확인", only:true });
   logAudit("배치·일련번호 변경", p?.name||"", `${o.serial||"—"} → ${patch.serial}${patch.batch_plan?` · 배치 ${patch.batch_plan}`:""}`);
   if (sb) await pullOrder(o.id);
@@ -23987,15 +24053,24 @@ function batchPickDialog(a){
         <div class="hint" style="padding:6px 0 0">${a.sub}</div>
         <input type="search" id="bpFind" placeholder="🔍 일련번호 · 일자 · 배치번호 검색 (예: 2917 · 10-30 · 11/01)" style="width:100%;height:42px;margin-top:10px;font-size:15px">
         <div id="bpChips" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>
-      <div style="overflow:auto;flex:1 1 auto;padding:0 12px"><table style="width:100%"><thead><tr><th>일련번호</th><th>로스팅일</th><th>배치</th><th>총 kg</th><th>잔여 kg</th><th title="잔여에서 다른 대기 · 생산 중 지시가 이미 잡은 양을 뺀 것">남는 kg</th><th>상미</th><th class="l">비고</th></tr></thead><tbody id="bpBody"></tbody></table></div>
+      <div style="overflow:auto;flex:1 1 auto;padding:0 12px"><table style="width:100%"><thead><tr>${a.multi ? '<th title="묶을 배치에 표시">묶기</th>' : ""}<th>일련번호</th><th>로스팅일</th><th>배치</th><th>총 kg</th><th>잔여 kg</th><th title="잔여에서 다른 대기 · 생산 중 지시가 이미 잡은 양을 뺀 것">남는 kg</th><th>상미</th><th class="l">비고</th></tr></thead><tbody id="bpBody"></tbody></table></div>
+      ${a.multi ? `<div id="bpBundle" style="padding:10px 20px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--d-blue-soft,#EAF0FF)">
+        <span id="bpBundleTxt" style="font-size:13.5px;flex:1 1 260px"></span><button class="btn primary" id="bpBundleOk" style="height:38px;font-weight:800">묶어서 정하기</button></div>` : ""}
       <div style="padding:12px 20px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span class="hint" style="padding:0">목록에 없는 번호</span>
-        <input type="text" id="bpSerial" placeholder="일련번호 직접 입력" value="${a.serial||""}" style="width:140px;height:36px">
-        <button class="btn" id="bpSerialOk">번호만 변경</button>
+        <span class="hint" style="padding:0;${a.noSerial ? "display:none" : ""}">목록에 없는 번호</span>
+        <input type="text" id="bpSerial" placeholder="일련번호 직접 입력" value="${a.serial||""}" style="width:140px;height:36px;${a.noSerial ? "display:none" : ""}">
+        <button class="btn" id="bpSerialOk" style="${a.noSerial ? "display:none" : ""}">번호만 변경</button>
         <span style="flex:1"></span><button class="btn" id="bpCancel">닫기</button></div></div>`;
     document.body.appendChild(wrap);
     let day = "";
     const done = v => { wrap.remove(); res(v); };
+    const sel = new Set(a.pre || []);
+    const bundleDraw = () => { if (!a.multi) return;
+      const ms = sortBundle([...sel].map(id=>a.list.find(x=>x.m.id === id)?.m).filter(Boolean)), tot = ms.reduce((t,m)=>t+Number(m.stock_kg||0), 0), ok = ms.length >= 2;
+      $("bpBundleTxt").innerHTML = ok
+        ? `<b>배치 ${ms.length}개 묶음</b> ${ms.map(batchShort).join(" · ")} → 일련번호 <b id="bpBundleSn" style="font-size:16px">${bundleSerialOf(ms)}</b><br><span class="hint" style="padding:0">합계 ${fmt(Math.round(tot*100)/100)}kg${a.need > 0 ? ` · 필요 약 ${fmt(Math.round(a.need*100)/100)}kg${tot + 0.0001 < a.need ? ' · <b class="bad">모자람</b>' : ""}` : ""}</span>`
+        : `<b>배치 묶기 (이카)</b> — 같이 포장할 배치의 <b>묶기</b> 칸을 둘 이상 표시하면 한 일련번호로 묶입니다 <span class="hint" style="padding:0">(예: 27일 2 · 3 · 4번 → 261127-0204)</span>${ms.length === 1 ? ` · 지금 ${batchShort(ms[0])} 1개` : ""}`;
+      $("bpBundleOk").disabled = !ok; $("bpBundleOk").style.opacity = ok ? "" : ".45"; };
     const draw = () => {
       const q = String($("bpFind").value||"").trim().replace(/[./]/g,"-");
       const rows = a.list.filter(x=>{ const m = x.m;
@@ -24006,13 +24081,16 @@ function batchPickDialog(a){
       });
       $("bpBody").innerHTML = rows.length ? rows.map(x=>{ const m = x.m, st = shelfState(m.roast_date, m.bean);
         return `<tr data-id="${m.id}" style="cursor:pointer;${x.now?"background:var(--d-blue-soft,#EAF0FF);":""}">
+          ${a.multi ? `<td class="c bpCk" style="padding:0"><label style="display:flex;align-items:center;justify-content:center;min-width:44px;min-height:40px;cursor:pointer"><input type="checkbox" data-ck="${m.id}" ${sel.has(m.id) ? "checked" : ""} style="width:20px;height:20px;cursor:pointer"></label></td>` : ""}
           <td class="c"><b style="font-size:16px">${batchShort(m)}</b></td><td class="c">${m.roast_date}</td><td class="c">${Number(m.batch)}번</td>
           <td>${m.in_kg!=null?fmt(m.in_kg):"—"}</td><td><b>${fmt(m.stock_kg)}</b></td>
           <td>${x.free != null ? `<b class="${x.free <= 0.0005 ? "bad" : ""}">${fmt(Math.round(x.free*100)/100)}</b>` : "—"}</td>
           <td class="c ${st}">${shelfLabel(m.roast_date, m.bean)}</td>
           <td class="l">${x.now?'<span class="tag ok">현재</span> ':""}${isHeld(m)?`<span class="tag bad">보류</span> `:""}${x.used?`<span class="tag warn">다른 지시 ${x.used}건${x.held ? ` · ${fmt(Math.round(x.held*100)/100)}kg` : ""}</span>`:""}${x.expired?` <span class="tag bad">기한 초과</span>`:""}</td></tr>`; }).join("")
-        : `<tr><td colspan="8" class="c hint" style="padding:20px">${a.list.length?"해당 배치가 없습니다":`${a.bean||"이 원두"} 의 잔여 배치가 없습니다`}</td></tr>`;
-      $("bpBody").querySelectorAll("tr[data-id]").forEach(tr=>tr.onclick = () => done({ type:"batch", value:tr.dataset.id }));
+        : `<tr><td colspan="${a.multi ? 9 : 8}" class="c hint" style="padding:20px">${a.list.length?"해당 배치가 없습니다":`${a.bean||"이 원두"} 의 잔여 배치가 없습니다`}</td></tr>`;
+      $("bpBody").querySelectorAll("tr[data-id]").forEach(tr=>tr.onclick = e => { if (e.target.closest(".bpCk")) return; done({ type:"batch", value:tr.dataset.id }); });
+      $("bpBody").querySelectorAll("input[data-ck]").forEach(c=>c.onchange = () => { c.checked ? sel.add(c.dataset.ck) : sel.delete(c.dataset.ck); bundleDraw(); });
+      bundleDraw();
     };
     const days = [...new Set(a.list.map(x=>x.m.roast_date))];
     $("bpChips").innerHTML = days.length > 1 ? [`<button class="btn primary" data-d="">전체 ${a.list.length}</button>`, ...days.map(d=>`<button class="btn" data-d="${d}">${d.slice(5).replace("-","/")} · ${a.list.filter(x=>x.m.roast_date===d).length}</button>`)].join("") : "";
@@ -24020,6 +24098,7 @@ function batchPickDialog(a){
     $("bpFind").oninput = draw;
     $("bpFind").onkeydown = e => { if (e.key === "Enter") { const first = $("bpBody").querySelector("tr[data-id]"); if (first) done({ type:"batch", value:first.dataset.id }); } if (e.key === "Escape") done(null); };
     $("bpSerialOk").onclick = () => done({ type:"serial", value:$("bpSerial").value });
+    if (a.multi) $("bpBundleOk").onclick = () => { if (sel.size >= 2) done({ type:"bundle", value:[...sel] }); };
     $("bpCancel").onclick = () => done(null);
     wrap.onclick = e => { if (e.target === wrap) done(null); };
     draw(); setTimeout(()=>$("bpFind").focus(), 30);
@@ -24651,7 +24730,8 @@ function renderOrder(){
         <td class="l" style="white-space:nowrap"><b>${o.serial||"—"}</b>${
           canPickBatch(o) ? ` <button class="btn woBatchBtn" style="height:26px;padding:0 8px;font-size:12px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="이 지시에 쓸 원두 배치(=일련번호)를 직접 고르거나, 일련번호만 직접 적어 바꿉니다 — 자동 배정된 배치를 손으로 바꿀 때">변경</button>` : ""}${
           o.batch_of>1?`<br><span class="tag" style="font-size:10px">배치 ${o.batch_seq}/${o.batch_of}</span>`:""}${(()=>{ const b = mergeBtn(o); return b ? `<br>${b}` : ""; })()}${
-          isMixedOrder(o)?`<br><span class="tag bad" style="font-size:10px">배치 ${batchParts(o.batch_plan).length}개 혼재</span>`:""}</td>
+          isMixedOrder(o)?`<br><span class="tag bad" style="font-size:10px">배치 ${batchParts(o.batch_plan).length}개 혼재</span>`:""}${
+          isBundleOrder(o)?`<br><span class="tag ok woBundle" style="font-size:10px" title="${xh(batchParts(o.batch_plan).map(x=>`${x.short}${x.hasKg ? ` ${fmt(x.kg)}kg` : ""}`).join(" + "))}">묶음 · ${batchParts(o.batch_plan).map(x=>x.short).join(" · ")}</span>`:""}</td>
         <td class="l" style="white-space:nowrap">${specChip(specOf(o))}${p?.name||"—"}${canChangeSpec(o) && p?.bean ? ` <button class="btn woSpecBtn" style="height:26px;padding:0 8px;font-size:12px;margin-left:6px" onclick="event.stopPropagation();changeOrderSpec('${o.id}')" title="같은 원두의 다른 중량(200g · 500g …) 품목으로 바꿉니다 — 여러 품목으로 나눌 수도 있습니다">중량 변경</button>` : ""}${/\[원두 이동\]/.test(String(o.note||"")) ? `<br><span class="hint" style="padding:0;font-size:11px;color:var(--warn);white-space:normal">${xh(o.note).replace(/ \[원두 이동\]/g, "<br>[원두 이동]")}</span>` : ""}</td>
         <td class="c">${lock ? o.channel : `<select onchange="setOrd('${o.id}','channel',this.value)">${
           SHIP_CH.map(c=>`<option ${c===o.channel?"selected":""}>${c}</option>`).join("")}</select>`}</td>
@@ -24680,7 +24760,7 @@ function ordReady(o){
   const p = prodById(o?.product_id); const R = { tier:0, beanNone:false, beanShort:false, labelShort:0, bagShort:0, bagNeed:0, bagStock:null, bagMat:null, beanKg:0, msgs:[], labelNone:false, bagNone:false, noStart:false, blocks:[] };
   if (!p || stIdx(o) >= 2) return R;
   const todo = Math.max(0, Math.round(Number(o.qty_plan||0) - Number(o.qty_done||0)));
-  const per = needKg(p, 1), m = isMixedOrder(o) ? null : ordBatchMms(o);
+  const per = needKg(p, 1), m = isMultiBatch(o) ? null : ordBatchMms(o);
   const kg = m ? (isHeld(m) ? 0 : Number(m.stock_kg||0)) : (batchParts(o.batch_plan).length ? orderMms(o, p).reduce((t,x)=>t+Number(x.stock_kg||0),0) : beanFreeKg(p.bean, o.work_date && o.work_date > today() ? o.work_date : today()));   // 배치 미지정 — 상미기한 안 · 다른 지시 몫을 뺀 남는 양 (beanPool)
   /* ★ 2026-11-19 카드에 적힌 배치가 아직 입고 전이면 「원두 없음」 (Lee "오늘 원두를 안 받았고 원두가 없는데 어떻게 생산이 잡힐 수가 있는거지?")
        전에는 적힌 배치(예: 1901)가 장부에 없으면 같은 원두의 다른 남은 배치 1개를 대신 세어 「원두 부족」으로만 표시하고 시작을 열어 두었다.
@@ -25169,7 +25249,7 @@ async function placeOrd(id, machine, targetId, before){
 function extraEa(o, ov){
   const p = prodById(o?.product_id), m = o && ordBatchMms(o);
   if (!p || !m || !["대기","생산중"].includes(o.status)) return { n:0, others:0, why:"none" };
-  if (isMixedOrder(o)) return { n:0, others:0, m, why:"mixed" };
+  if (isMultiBatch(o)) return { n:0, others:0, m, why:"mixed" };
   if (isHeld(m)) return { n:0, others:0, m, why:"held" };
   const per = needKg(p, 1); if (!(per > 0)) return { n:0, others:0, m, why:"per" };
   /* ★ 2026-11-18 원두는 생산 완료 때 한 번에 빠진다 — 생산 중에 수량을 입력해도 배치 잔량은 그대로이므로 "남은 수"가 아니라 목표 전체로 계산한다
@@ -25199,7 +25279,7 @@ async function applyExtraQty(o, n){
 }
 /* ★ 2026-11-18 이월받을 배치를 쓰는 다음 지시 + 이월하면 늘릴 수 있는 수 (Lee "이월하면 수량을 추가 할 수 있게") */
 function carryNextOrd(o, tgt, kg){
-  const xs = DB.orders.filter(x=>x.id !== o.id && ["대기","생산중"].includes(x.status) && !isMixedOrder(x) && ordBatchMms(x) === tgt)
+  const xs = DB.orders.filter(x=>x.id !== o.id && ["대기","생산중"].includes(x.status) && !isMultiBatch(x) && ordBatchMms(x) === tgt)
     .sort((a,b)=>String(a.work_date).localeCompare(String(b.work_date)) || (Number(a.priority)||0)-(Number(b.priority)||0) || String(a.order_no).localeCompare(String(b.order_no)))
     .map(x=>({ x, ex: extraEa(x, { plus:kg, skip:o.id }) }));
   return xs.find(y=>y.ex.n > 0) || xs[0] || null;
@@ -25550,8 +25630,8 @@ function renderWork(){
               const why = ex.why === "mixed" ? "배치를 여러 개 쓰는 지시는 자동으로 계산하지 않습니다" : ex.why === "held" ? "배치가 보류 중입니다"
                 : ex.per ? `사용 가능 ${fmt(ex.left)}kg${ex.others?` (같은 배치 다른 지시 ${fmt(ex.others)}개분 ${fmt(ex.othersKg)}kg 제외)`:""} ÷ 1개 ${fmt(ex.per)}kg = 최대 ${fmt(ex.max)}개 · 남은 목표 ${fmt(ex.todo)}개${ex.lack > 0 ? ` · ＋1개까지 ${fmt(ex.lack)}kg 부족` : ""}` : "";
               return why ? `<div class="xqty"><span>잔여 원두</span><b class="xwhy none">추가 없음</b> <span class="hint" style="padding:0;min-width:0;flex-shrink:1">이월 ${fmt(ck)}kg 포함 · ${why}</span></div>` : ""; })()}` : ""}`; })()}
-        ${isFloor() && !o.serial ? "" : `<div><span>${isFloor()?"일련번호":"일련번호"}</span><b>${o.serial || "완료 시 부여"}</b>${
-          canPickBatch(o) ? ` <button class="btn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="사용할 배치(=일련번호)를 직접 선택하거나 일련번호를 직접 입력합니다">변경</button>` : ""}${
+        ${isFloor() && !o.serial && !canPickBatch(o) ? "" : `<div style="flex-wrap:wrap;row-gap:6px"><span>${isFloor()?"일련번호":"일련번호"}</span><b style="white-space:nowrap">${o.serial || "완료 시 부여"}</b>${
+          canPickBatch(o) ? ` <button class="btn wkBatchBtn" style="height:30px;margin-left:6px;white-space:nowrap" onclick="event.stopPropagation();pickOrderBatch('${o.id}')" title="${ordIca(o) ? "사용할 배치를 고르거나, 같이 포장할 배치를 둘 이상 골라 한 일련번호로 묶습니다" : "사용할 배치(=일련번호)를 직접 선택하거나 일련번호를 직접 입력합니다"}">${ordIca(o) ? "묶기 · 변경" : "변경"}</button>` : ""}${
           canChangeSpec(o) && prodById(o.product_id)?.bean ? ` <button class="btn wkSpecBtn" style="height:30px;margin-left:6px" onclick="event.stopPropagation();changeOrderSpec('${o.id}')" title="같은 원두의 다른 중량(200g · 500g …) 품목으로 바꿉니다 — 여러 품목으로 나눌 수도 있습니다">중량 변경</button>` : ""}</div>`}
         ${(()=>{ const rows = ordLotRows(o), al = autoLotOf(o), lot = rows.length ? lotRowsText(rows) : (o.lot || al);
           const canLot = o.status !== "폐기" && o.status !== "출고완료" && (stIdx(o) < 2 ? (can("work") || can("plan")) : can("plan"));
@@ -28491,7 +28571,7 @@ function openWelcome(){ const b=$("welcome"); if(b) b.style.display="flex"; }
    ══════════════════════════════════════════════════════════════ */
 Object.assign(window, {
   makeOrders, addOrder, setOrd, delOrder, csvOrder, splitOrder, splitAllOrders,
-  batchParts, isMixedOrder,
+  batchParts, isMixedOrder, isBundleOrder, isMultiBatch, bundleSerialOf,
   startWork, countWork, finishWork, stopWork, ngWork,
   toggleQC, qcAll, qcDone, qcReject, shipDone, shipBack,
   renderWork, setWkMach, setWkLabelEdit, moveOrd, renumberOrders, toggleGuide, askNum,
