@@ -759,6 +759,13 @@ window.addEventListener("unhandledrejection", function(ev){ errNote("오류", ev
   .wc,.qcc{background:var(--card); border:1px solid var(--line); border-radius:12px; overflow:hidden;
     display:flex; flex-direction:column;}
   .wc.run{border-color:var(--blue-600); box-shadow:0 0 0 2px rgba(42,92,255,.14);}
+  /* ★ 2026-11-27 수동 묶음 카드 */
+  .wkgT td, .wkgT th{padding:8px 6px; border-bottom:1px solid var(--line); text-align:center; vertical-align:middle;}
+  .wkgT th{font-size:11.5px; color:var(--soft); font-weight:700;} .wkgT td.l, .wkgT th.l{text-align:left;}
+  .wkgT tr.wkgDone td{background:var(--d-ok-soft,#F1FAF4); color:var(--soft);}
+  .wkgCk{width:38px; height:38px; border-radius:10px; border:2.5px solid var(--line-2,#B9C0D4); background:var(--card,#fff); display:inline-flex; align-items:center; justify-content:center; font-weight:900; font-size:20px; color:#fff; cursor:pointer; padding:0;}
+  .wkgCk.on{background:var(--ok); border-color:var(--ok); cursor:default;} .wkgCk:disabled{opacity:.45; cursor:not-allowed;}
+  @media (max-width:760px){ .wc.wkg{grid-column:1/-1 !important;} }
   .wc .hd,.qcc .hd{background:var(--navy-900); color:#fff; padding:15px 18px;}
   .wc .hd .nm,.qcc .hd .nm{font-size:19px; font-weight:800; letter-spacing:-.5px; line-height:1.3;
     display:flex; align-items:center; gap:9px;}
@@ -8014,6 +8021,7 @@ function orderWorkMinutes(orderId){
   let open = null, total = 0;
   ev.forEach(e => {
     if (e.event === "start") { if (!open) open = e.at; }
+    else if (e.event === "lap") { if (open) open = e.at; }        // ★ 2026-11-27 수동 묶음 — 앞 중량을 끝낸 시각부터 다시 센다 (그 전 시간은 앞 중량의 것)
     else if (e.event === "stop" || e.event === "finish") {
       if (open) { total += (new Date(e.at) - new Date(open)) / 60000; open = null; }
     }
@@ -8495,6 +8503,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-27", "수동 포장 — 한 원두(배치)의 중량을 한 카드에서 같이 시작 · 체크로 완료", "수동 설비에서 같은 원두 · 같은 일련번호(배치)의 대기/생산 중 지시가 둘 이상이면 현장 작업에 카드 하나로 묶여 나옵니다 (1kg · 500g · 200g · 100g 이 한 줄씩). [생산 시작]을 한 번 누르면 같이 시작하고, 한 중량을 다 싸면 그 줄을 체크합니다 — 적힌 수량(기본은 목표 수량, 다르면 숫자만 고침)으로 바로 완료되어 검수 대기로 넘어갑니다. 부적합이 있는 중량은 그 줄의 [부적합 · 상세]로 원래 완료 창을 엽니다. [남은 N개 전부 완료]도 있습니다. 한글표시사항(컬러 · 품목보고번호 · 원산지 · 제조일자 · 일련번호)은 카드에 그대로 보이고 봉투 LOT 은 중량 줄마다 보입니다. 뒤에서는 지금처럼 중량별 작업지시 · 생산실적이 따로 남습니다. 생산 시간은 체크한 순서대로 이어서 셉니다 (서버 098_work_lap.sql 실행 후 · 실행 전에는 중량마다 시작 시각부터 세어 겹칩니다). LOT 관리 · 중량 변경 · 작업 중단 등은 카드의 [따로 보기]로 원래 카드를 펼쳐서 합니다. 리팩 · 이카는 전과 같습니다."],
   ["2026-11-27", "출고장 재고 — 품목을 누르면 묶음 창 (출고됨 · 사용 완료)", "재고 실사 › CFE 완제품 표와 출고 화면의 출고장 재고 표에서 품목 이름(또는 제조일자별 칸)을 누르면 그 품목의 묶음이 제조일자 · 일련번호별로 새 창에 나옵니다. 실제로 나간 묶음의 수량을 적고 [출고됨] 또는 [사용 완료]를 누르면 그 묶음에서 바로 빠집니다 — 선입 순서와 상관없이 지정할 수 있습니다. 출고됨은 오늘 출고 확정(기출고)으로 잡히고, 사용 완료(분쇄 재포장 · 샘플 · 폐기 등)는 출고 수량에 세지 않고 재고에서만 뺍니다. 창 아래 「최근 나간 기록」에서 [되돌리기]로 복원합니다. 서버에 097_cfe_lot_out.sql 실행이 필요합니다."],
   ["2026-11-27", "재고 실사 — 날짜가 가로로 놓인 CFE 재고표를 그대로", "완제품창고 재고표(품목코드 | 품목명 | 실재고 | 11월 24일 | 11월 25일 | 11월 26일 | 기타 | 완제품창고)를 재고 실사의 [붙여넣기] · [엑셀 올리기]에 그대로 넣을 수 있습니다. 머리줄의 날짜 칸마다 그 제조일자의 수량으로 읽고, [기타]는 제조일자 없는 수량, [완제품창고](장부) 칸은 읽지 않습니다. 배치번호 · 일련번호는 없어도 됩니다. 맨 위 제목 줄(회사명 …)은 건너뜁니다. 이 표는 [실재고]가 그 품목의 전부이므로, 표에 없는 제조일자의 기존 재고는 빠집니다 (날짜 칸의 합이 실재고보다 적으면 나머지는 제조일자 없는 수량으로)."],
   ["2026-11-27", "입력 — 일련번호 · 제조일자가 겹쳐도 넣은 값으로", "같은 제조일자 · 일련번호(배치)가 이미 있어도 막거나 더하지 않고, 넣은 값으로 바꿉니다. 새 번호는 추가하고, 이번에 넣지 않은 기존 줄은 그대로 둡니다. ① 재고 실사 › CFE 엑셀 · 붙여넣기 — 전에는 한 표 안에서 겹치면 수량을 더했고, 다시 올리면 그 품목의 기존 줄이 전부 새 표로 바뀌었습니다 (지우려면 수량 0) ② 재고 현황 › 제조일자별 입력 — 넣은 제조일자만 바뀝니다 ③ 로스팅 › 배치 재고 엑셀 붙여넣기 — 전에는 「배치가 이미 있음」 · 「위 행과 중복」으로 막았습니다. 이제 재고 kg 을 적은 값으로 바꿉니다 (같으면 건너뜀) ④ 작업지시 붙여넣기 — 같은 작업일 · 품목 · 일련번호 · 출고처의 대기 지시가 있으면 새로 만들지 않고 수량을 바꿉니다 ⑤ 분쇄 일련번호 창의 [추가] — 이미 있는 번호를 다시 적으면 더하지 않고 그 수량으로 바꿉니다."],
@@ -22827,22 +22836,22 @@ function maxRunOf(machineName){
 function runningOn(machineName, d){
   return DB.orders.filter(o=>o.work_date===(d||today()) && (o.machine||"")===(machineName||"") && o.status==="생산중");
 }
-function machineBusy(o){
+function machineBusy(o, skip){
   if (!o.machine) return null;
-  /* 반려돼 조치 중인 건은 기계를 쓰고 있지 않다 — 다음 지시를 막지 않는다 */
-  const run = runningOn(o.machine, o.work_date).filter(x=>x.id!==o.id && qcFlow(x) !== "조치 필요");
+  /* 반려돼 조치 중인 건은 기계를 쓰고 있지 않다 — 다음 지시를 막지 않는다 · skip = 같이 시작하는 묶음(수동 포장)은 세지 않는다 */
+  const run = runningOn(o.machine, o.work_date).filter(x=>x.id!==o.id && qcFlow(x) !== "조치 필요" && !(skip && skip.has(x.id)));
   return run.length >= maxRunOf(o.machine) ? run : null;
 }
-async function startWork(id){
+async function startWork(id, opt){
   if (INFLIGHT.has(id)) return;
-  if (!(await requireUser({ ask:"생산 시작" }))) return;
+  if (!(opt && opt.noAsk) && !(await requireUser({ ask:"생산 시작" }))) return;
   const o = ordById(id); if(!o || o.status !== "대기") return;
   if (await labelBlocked(o)) return;                               // ★ 2026-11-15 컬러·품목보고번호·원산지 없으면 시작 못 함
   { const rd = ordReady(o);                                        // ★ 2026-11-16 원두가 없으면 시작 못 함 (라벨·봉투 모자람은 경고만)
     if (rd.beanNone) return ask(`${prodById(o.product_id)?.name||""}\n\n${rd.msgs[0]}\n\n원두 재고가 없어 생산을 시작할 수 없습니다.\n· 카드의 일련번호 [변경]으로 원두가 있는 배치를 선택하거나\n· 로스팅 입고 처리 후 다시 시도하십시오`, { title:"원두 없음 — 시작할 수 없습니다", yes:"확인", only:true }); }
   { const rd = ordReady(o);                                        // ★ 2026-11-19 라벨 · 봉투가 입고되지 않았으면 시작 못 함
     if (rd.labelNone || rd.bagNone) return ask(`${prodById(o.product_id)?.name||""}\n\n${rd.msgs.filter(t=>/미입고/.test(t)).join("\n")}\n\n${rd.blocks.filter(b=>b!=="원두").join(" · ")} 입고가 등록되지 않아 생산을 시작할 수 없습니다.\n· 라벨 — 라벨작업 › 입고 등록 (또는 오늘 이 품목의 라벨 작업 완료)\n· 봉투 — 기준정보 › 부자재 [입고]\n입고를 등록한 뒤 다시 시도하십시오.`, { title:`${rd.blocks.filter(b=>b!=="원두").join(" · ")} 미입고 — 시작 불가`, yes:"확인", only:true }); }
-  const busy = machineBusy(o);
+  const busy = machineBusy(o, opt && opt.skip);
   if (busy) return toast(`${o.machine} 에서 ${busy.map(x=>x.product_name||prodById(x.product_id)?.name).join(", ")} 생산중입니다 — 완료하거나 [작업 중단] 후 시작하십시오`);
   /* ★ 원두가 입고돼 있어야 시작할 수 있다 (Lee 2026-10-30) */
   { const p = prodById(o.product_id); if (p && !beanReceived(p)) return ask(`${p.bean||"원두"} 가 아직 입고되지 않았습니다.\n\n로스팅 › 배치 재고에 입고가 등록되어야 생산을 시작할 수 있습니다 — 관리자에게 문의하십시오.`, { title:"원두 입고 전", yes:"확인", only:true }); }
@@ -22850,13 +22859,13 @@ async function startWork(id){
   const before = { status:o.status, started_by:o.started_by, started_at:o.started_at };
   INFLIGHT.add(id);
   if (sb) { o.status = "생산중"; o.started_by = CURRENT_USER; o.started_at = nowISO(); renderWork(); renderDash(); }
-  toast(`${prodById(o.product_id)?.name} 생산 시작`);
+  if (!(opt && opt.quiet)) toast(`${prodById(o.product_id)?.name} 생산 시작`);
   const r = await mesStartWork({ order_id:id, worker:CURRENT_USER, worker_id:currentWorkerId(), idem:`sw-${id}-${uid()}` });
   INFLIGHT.delete(id);
   if (!r || !r.ok) { Object.assign(o, before); renderAll(); return toast(r?.message || "시작하지 못했습니다 — 이전 상태로 복원했습니다"); }
   /* 시작한 사람은 저절로 "같이 하는 사람"에 들어간다 — [참여]를 또 누를 필요 없음 */
   if (CURRENT_USER && !openWorkers(o).includes(CURRENT_USER)) { try { await joinWork(id, true); } catch(_){ errQuiet(_); } }
-  renderWork(); renderDash();
+  renderWork(); renderDash(); return true;
 }
 /* ── 현장: 지금까지 만든 수량 ── */
 async function countWork(id){
@@ -23682,8 +23691,8 @@ async function ecDoneApply(pick){
   else toast(`${ok}건 생산 완료 — 검수 대기로 이관되었습니다`);
   return ok;
 }
-async function finishWork(id){
-  if (!(await requireUser())) return;
+async function finishWork(id, preset){
+  if (!(preset && preset.noAsk) && !(await requireUser())) return;
   const o = ordById(id); if(!o) return;
   /* ── 중복 완료 차단 (긴급 가드) ── 처리는 mesFinishWork() 가 같은 검사를 다시 한다 (서버에서도). */
   if (o.log_id && DB.logs.some(l=>l.id===o.log_id))
@@ -23702,11 +23711,12 @@ async function finishWork(id){
   const carriedText = "";
   const serial0 = o.serial || makeSerial(o.work_date);
   const lot0 = ordLotRows(o).length ? lotRowsText(ordLotRows(o)) : (o.lot || autoLotOf(o) || "");
-  const F = await finishDialog(o, p, { plan, need: ordNeedSplit(o).need, good0: Number(o.qty_done||o.progress_qty||0) > 0 ? Math.round(Number(o.qty_done||o.progress_qty)) : plan, worker0: CURRENT_USER, serial:serial0, lot:lot0, beanText, carriedText, label: labelOf(p, ordLabel(o)), bags, bagKg,
+  const F = (preset && preset.good > 0) ? { good:Math.round(preset.good), ng:0, ngType:null, leftover:0, inputKg:null, who:CURRENT_USER, carry:null, bagLoss:0 }      // ★ 2026-11-27 수동 묶음 체크 — 목표(적은) 수량으로 바로 완료
+    : await finishDialog(o, p, { plan, need: ordNeedSplit(o).need, good0: Number(o.qty_done||o.progress_qty||0) > 0 ? Math.round(Number(o.qty_done||o.progress_qty)) : plan, worker0: CURRENT_USER, serial:serial0, lot:lot0, beanText, carriedText, label: labelOf(p, ordLabel(o)), bags, bagKg,
     ...(()=>{ const M = ordIca(o) ? null : ordLotMat(o); const ok = M && (M.kind === "봉투" || isFullBag(M)); const pc = bagLossPctOf(p);
       return { bagMat: ok ? M : null, bagPct: pc, bagExp: Math.ceil(plan * pc / 100) }; })() });
   if (!F) return;
-  const { good, ng, ngType } = F;
+  const { good, ng, ngType } = F; const quietFin = !!(preset && preset.quiet);
 
   /* 일련번호 · 봉투 LOT — 비어 있을 때만 자동으로 붙인다 (고치는 것은 관리자 — 작업지시/생산실적) */
   if (!o.serial) {
@@ -23764,6 +23774,7 @@ async function finishWork(id){
     }).catch(()=>{});
   }
   quickRender();
+  if (quietFin) return true;
   toast(r.replayed
     ? `이미 처리된 건입니다 (일련번호 ${r.serial}) — 중복 처리하지 않았습니다`
     : `생산 완료 — 검수 대기로 이관됩니다 (일련번호 ${r.serial})${LZ.leftover>0 ? ` · 봉지에 ${fmt(LZ.leftover)}kg 잔여` : ""}${LZ.flag!=="ok" && LZ.flag!=="open" ? ` · 로스 ${LZ.loss_pct}% — 관리자 확인 필요` : ` · 로스 ${LZ.loss_pct}%`}${F._carryMsg ? ` · ${F._carryMsg}` : ""}`);
@@ -25392,6 +25403,91 @@ function setWkCh(c){ wkCh = (wkCh === c ? "" : c); renderWork(); }
 const WK_CHS = ["코스트코","컬리","네이버","기타"];
 function setWkMach(m){ wkMach = m; try { localStorage.setItem("momos.wkMach", m); } catch(_){ errQuiet(_); } renderWork(); updateFavBtn(); }
 /* 기계 이름 → 종류: "수동 2구"·"수동 1구" → 수동 · "리팩(Reepack)" → 리팩 · "이카(ICA)" → 이카 */
+/* ══ ★ 2026-11-27 수동 포장 — 한 원두(배치)의 중량들을 한 카드에 (Lee "수동으로 포장시 1kg, 500g, 200g, 100g 동시 시작 하고 완료 할 수 있게 … 분쇄 처럼 생산시작하고 체크하는 방식")
+   · 수동 설비에서 같은 원두 · 같은 일련번호(배치)의 대기/생산 중 지시가 둘 이상이면 카드 하나로 묶는다 — 뒤에서는 지금처럼 중량별 작업지시가 따로 남는다
+   · [생산 시작] 한 번으로 같이 시작 · 중량을 다 싸면 그 줄을 체크 = 적힌 수량(기본 목표 수량)으로 바로 완료 · 부적합이 있으면 [부적합 · 상세]로 원래 완료 창
+   · 생산 시간은 체크 순서대로 이어서 — 한 줄을 완료하면 남은 줄은 그 시각부터 다시 센다 (lap · 서버 098)
+   · 한글표시사항(컬러 · 품목보고번호 · 원산지 · 제조일자 · 일련번호)은 카드에 그대로 · 봉투 LOT 은 중량마다 줄에
+   · [따로 보기]를 누르면 그 묶음을 원래 카드로 펼친다 (LOT 관리 · 중량 변경 · 중단 등은 원래 카드에서) */
+const WKG_Q = {}, WKG_SPLIT = new Set();
+const wkgKeyOf = o => { const p = prodById(o?.product_id); return p && p.bean && o.serial && !isMultiBatch(o) ? `${o.work_date}|${o.machine||""}|${p.bean}|${o.serial}` : ""; };
+const wkgOk = o => !!o && machKind(o.machine) === "수동" && stIdx(o) < 2 && !qcState(o).rejected && !!wkgKeyOf(o);
+/* 그 설비 줄의 지시들 → [{ key, items }] (둘 이상일 때만 묶음) */
+function wkgGroups(items){ const by = {}; items.forEach(o=>{ if (!wkgOk(o)) return; const k = wkgKeyOf(o); (by[k] = by[k] || []).push(o); });
+  return Object.entries(by).filter(([k, xs])=>xs.length >= 2).map(([key, xs])=>({ key, items:xs.slice().sort((a,b)=>specOf(b) - specOf(a) || String(a.order_no).localeCompare(String(b.order_no))) })); }
+const wkgMembers = key => DB.orders.filter(o=>wkgKeyOf(o) === key && machKind(o.machine) === "수동" && !/^\[반려 삭제/.test(String(o.note||"")));
+const wkgQty = o => { const v = WKG_Q[o.id]; const n = Math.round(numOf(v)); return v != null && v !== "" && n > 0 ? n : Math.round(Number(o.qty_done||o.progress_qty||0)) > 0 ? Math.round(Number(o.qty_done||o.progress_qty)) : Math.round(ordPlan(o)); };
+function wkgToggle(key){ WKG_SPLIT.has(key) ? WKG_SPLIT.delete(key) : WKG_SPLIT.add(key); renderWork(); }
+function wkgCardHTML(G){
+  const key = G.key, open = G.items, o1 = open[0], p1 = prodById(o1.product_id), k = key.replace(/'/g, "\\'");
+  const done = wkgMembers(key).filter(o=>stIdx(o) >= 2).sort((a,b)=>String(a.done_at||"").localeCompare(String(b.done_at||"")));
+  const run = open.filter(o=>o.status === "생산중"), wait = open.filter(o=>o.status === "대기");
+  const t0 = [...run, ...done].map(o=>o.first_started_at || o.started_at).filter(Boolean).sort()[0];
+  const warn = open.flatMap(o=>{ const rd = ordReady(o); return rd.msgs.map(t=>`<span class="${rd.noStart ? "b" : "w"}">⚠ ${specLabel(specOf(o))} — ${t}</span>`); });
+  const lotOf = o => { try { return ordLotRows(o).length ? lotRowsText(ordLotRows(o)) : (o.lot || autoLotOf(o) || ""); } catch(_){ return o.lot || ""; } };
+  const row = (o, fin) => { const p = prodById(o.product_id), lot = lotOf(o);
+    return `<tr class="${fin ? "wkgDone" : ""}" data-wkg="${o.id}">
+      <td class="c">${fin ? `<span class="wkgCk on">✓</span>` : `<button class="wkgCk" ${o.status === "생산중" ? "" : "disabled"} onclick="event.stopPropagation();wkgCheck('${o.id}')" title="${o.status === "생산중" ? "이 중량을 적힌 수량으로 완료합니다" : "먼저 [생산 시작]을 누르십시오"}"></button>`}</td>
+      <td class="l">${specChip(specOf(o))}<span style="font-size:12px;color:var(--soft)"> ${xh(p?.name||"")}</span>${ordCh(o) && ordCh(o) !== "일반" ? ` <span class="tag" style="font-size:10.5px">${xh(ordCh(o))}</span>` : ""}${lot ? `<br><span class="hint" style="padding:0;font-size:11px">봉투 LOT ${xh(lot)}</span>` : ""}</td>
+      <td>${fmt(ordPlan(o))}</td>
+      <td class="c">${fin ? `<b>${fmt(o.qty_done)}</b>${Number(o.qty_ng) > 0 ? `<br><span class="bad" style="font-size:11px">부적합 ${fmt(o.qty_ng)}</span>` : ""}` : `<input type="text" inputmode="numeric" class="num wkgQ" data-f="wkg:${o.id}" value="${WKG_Q[o.id] != null ? xh(WKG_Q[o.id]) : wkgQty(o)}" onclick="event.stopPropagation()" oninput="WKG_Q['${o.id}']=this.value" style="width:76px;height:38px;text-align:center;font-weight:800;font-size:15px">`}</td>
+      <td class="c" style="font-size:12px;white-space:nowrap">${fin ? `${dtFull(o.done_at).slice(-5)}${o.done_by ? `<br>${xh(o.done_by)}` : ""}` : o.status === "생산중" ? `<button class="btn" style="height:32px;font-size:12px" onclick="event.stopPropagation();finishWork('${o.id}')" title="부적합 · 실측 투입량 · 봉투 로스 · 잔량 이월을 적는 원래 완료 창을 엽니다">부적합 · 상세</button>` : `<span class="hint" style="padding:0">대기</span>`}</td></tr>`; };
+  return `<div class="wc wkg ${run.length ? "run" : ""}" data-wkgk="${xh(key)}" style="grid-column:span 2;min-width:0">
+    <div class="hd"><div class="nm"><span class="pri">${Math.min(...open.map(o=>Number(o.priority)||0)) || "-"}</span>${xh(p1?.bean || "")} <span class="tag" style="font-size:11px;margin-left:6px">중량 ${open.length + done.length}개 묶음</span></div>
+      <div class="sub">${xh(o1.machine||"")} · 일련번호 <b>${xh(o1.serial||"—")}</b>${run.length && t0 ? ` · <span title="작업 시작 일시">시작 ${dtFull(t0)}${run[0].started_by ? ` ${xh(run[0].started_by)}` : ""}</span>` : ""}
+        <button class="btn" style="height:26px;padding:0 8px;font-size:11.5px;margin-left:8px" onclick="event.stopPropagation();wkgToggle('${k}')" title="중량별 원래 카드로 펼칩니다 — LOT 관리 · 중량 변경 · 작업 중단 등은 원래 카드에서">따로 보기</button></div></div>
+    ${warn.length ? `<div class="rdy ${open.some(o=>ordReady(o).noStart) ? "none" : ""}">${warn.join("")}</div>` : ""}
+    ${kInfoHTML(p1?.bean, o1)}
+    <div style="padding:0 14px 12px"><div style="display:flex;align-items:center;gap:10px;padding:4px 2px 8px;font-size:13px"><b class="${run.length ? "ok" : ""}">${run.length ? "● 생산 중" : "대기"}</b><span style="margin-left:auto;font-weight:800">${done.length} / ${open.length + done.length} 완료</span></div>
+    <table class="wkgT" style="width:100%"><thead><tr><th style="width:54px">완료</th><th class="l">중량</th><th>목표</th><th>생산 수량</th><th></th></tr></thead>
+      <tbody>${[...done.map(o=>row(o, true)), ...open.map(o=>row(o, false))].join("")}</tbody></table>
+    <div style="display:flex;gap:8px;padding:12px 0 2px;flex-wrap:wrap">
+      ${wait.length ? `<button class="btn primary wkgStart" style="height:46px;font-weight:800;flex:1 1 180px" onclick="event.stopPropagation();wkgStart('${k}')">${run.length ? `나머지 ${wait.length}개 시작` : `생산 시작 — 중량 ${wait.length}개 같이`}</button>` : ""}
+      ${run.length ? `<button class="btn wkgAll" style="height:46px;font-weight:800;flex:1 1 180px;background:var(--ok);border-color:var(--ok);color:#fff" onclick="event.stopPropagation();wkgCheckAll('${k}')">남은 ${run.length}개 전부 완료</button>` : ""}</div></div>
+  </div>`;
+}
+/* 설비 줄의 카드 — 수동 설비는 묶음 카드로 바꿔 끼운다 */
+function wkgCards(g, card){
+  if (machKind(g.name) !== "수동") return g.items.map(card).join("");
+  const Gs = wkgGroups(g.items), of = {}; Gs.forEach(G=>G.items.forEach(o=>{ of[o.id] = G; }));
+  const seen = new Set();
+  return g.items.map(o=>{ const G = of[o.id]; if (!G) return card(o);
+    if (WKG_SPLIT.has(G.key)) { const first = !seen.has(G.key); seen.add(G.key);
+      return (first ? `<div class="wc" style="grid-column:1/-1;padding:8px 12px;display:flex;align-items:center;gap:10px;min-height:0"><b>${xh(prodById(o.product_id)?.bean||"")} ${xh(o.serial||"")}</b><span class="hint" style="padding:0">중량 ${G.items.length}개를 따로 보는 중</span><button class="btn primary" style="height:30px;margin-left:auto" onclick="wkgToggle('${G.key.replace(/'/g, "\\'")}')">묶어 보기</button></div>` : "") + card(o); }
+    if (seen.has(G.key)) return ""; seen.add(G.key); return wkgCardHTML(G); }).join("");
+}
+async function wkgStart(key){
+  if (!(await requireUser({ ask:"생산 시작" }))) return;
+  const ms = wkgMembers(key).filter(o=>o.status === "대기" && wkgOk(o)).sort((a,b)=>specOf(b) - specOf(a)); if (!ms.length) return;
+  const skip = new Set(wkgMembers(key).map(o=>o.id)); let n = 0;
+  for (const o of ms) { const r = await startWork(o.id, { noAsk:true, quiet:true, skip }); if (r === true) n++; else if (ordById(o.id)?.status !== "생산중") break; else n++; }
+  renderWork(); if (n) toast(`${prodById(ms[0].product_id)?.bean||""} ${ms[0].serial||""} — 중량 ${n}개 생산 시작${n < ms.length ? ` (${ms.length - n}개는 시작하지 못함)` : ""}`);
+}
+/* 남은 줄의 시간을 지금부터 다시 센다 — 서버 098 이 없으면 조용히 넘어간다 (시간이 겹쳐 남을 뿐 재고와는 무관) */
+async function wkgLap(key){
+  const ids = wkgMembers(key).filter(o=>o.status === "생산중").map(o=>o.id); if (!ids.length) return;
+  try { const r = await rpc("work_lap", { p_order_ids:ids }, () => localTx(T=>{ ids.forEach(id=>{ const o = ordById(id); if (o) pushEvent(T, o, "생산중", "생산중", "lap", "수동 묶음 — 앞 중량 완료"); }); return { ok:true, rows:ids.length }; }));
+    if (r && r.ok && sb) { try { await Promise.all(ids.map(id=>pullWhere("order_events", "order_id", id))); } catch(_){ errQuiet(_); } } } catch(_){ errQuiet(_); }
+}
+async function wkgCheck(id, inAll){
+  const o = ordById(id); if (!o) return false;
+  if (o.status !== "생산중") { toast("먼저 [생산 시작]을 누르십시오"); return false; }
+  if (!inAll && !(await requireUser())) return false;
+  const q = wkgQty(o); if (!(q > 0)) { toast("생산 수량을 적으십시오"); return false; }
+  const key = wkgKeyOf(o);
+  await finishWork(id, { good:q, noAsk:true, quiet:true });
+  const o2 = ordById(id), ok = !!o2 && (stIdx(o2) >= 2 || !!o2.log_id); if (!ok) return false;
+  delete WKG_Q[id]; await wkgLap(key); renderWork();
+  if (!inAll) toast(`${prodById(o.product_id)?.name||""} ${fmt(q)}개 완료 — 검수 대기로 이관됩니다 (일련번호 ${o2.serial||""})`);
+  return true;
+}
+async function wkgCheckAll(key){
+  if (!(await requireUser())) return;
+  const ms = wkgMembers(key).filter(o=>o.status === "생산중").sort((a,b)=>specOf(b) - specOf(a)); if (!ms.length) return;
+  if (!(await ask(`남은 중량 ${ms.length}개를 적힌 수량으로 전부 완료합니다.\n\n${ms.map(o=>`· ${prodById(o.product_id)?.name||""} ${fmt(wkgQty(o))}개`).join("\n")}\n\n부적합이 있는 중량은 [취소] 후 그 줄의 [부적합 · 상세]로 완료하십시오.`, { title:"남은 중량 전부 완료", yes:"전부 완료" }))) return;
+  let n = 0; for (const o of ms) { if (await wkgCheck(o.id, true)) n++; else break; }
+  renderWork(); toast(n === ms.length ? `중량 ${n}개 완료 — 검수 대기로 이관됩니다` : `${n}개 완료 · ${ms.length - n}개는 완료하지 못했습니다 — 줄을 확인하십시오`);
+}
 function machKind(name){
   const n = String(name||"");
   if (!n) return "";
@@ -25751,7 +25847,7 @@ function renderWork(){
           bund?` · 라벨 <b>${bund}</b>묶음`:""}${
           lack.length?` · <span class="bad">라벨 부족 ${lack.length}건</span>`:""}</span>
       </div>
-      <div class="wcards">${g.items.map(card).join("")}</div>
+      <div class="wcards">${wkgCards(g, card)}</div>
     </div>`;
   }).join("")
     : (wkMach === "반려" ? "" : `<div class="wempty">${fq
@@ -28706,7 +28802,7 @@ function openWelcome(){ const b=$("welcome"); if(b) b.style.display="flex"; }
    ══════════════════════════════════════════════════════════════ */
 Object.assign(window, {
   makeOrders, addOrder, setOrd, delOrder, csvOrder, splitOrder, splitAllOrders,
-  batchParts, isMixedOrder, isBundleOrder, isMultiBatch, bundleSerialOf,
+  wkgGroups, wkgKeyOf, wkgMembers, batchParts, isMixedOrder, isBundleOrder, isMultiBatch, bundleSerialOf,
   startWork, countWork, finishWork, stopWork, ngWork,
   toggleQC, qcAll, qcDone, qcReject, shipDone, shipBack,
   renderWork, setWkMach, setWkLabelEdit, moveOrd, renumberOrders, toggleGuide, askNum,
