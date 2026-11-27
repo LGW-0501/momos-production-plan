@@ -8541,6 +8541,7 @@ renderFavs();
 
 /* ══ 업데이트 내역 — 어디에 뭘 바꿨는지 (최근 것이 위) ══ */
 const CHANGELOG = [
+  ["2026-11-27", "모든 화면 — 다시 그릴 때 깜빡이지 않게", "화면은 몇 초마다 · 저장할 때마다 표와 카드를 통째로 지우고 새로 만들었습니다. 이제 모든 화면에서, 지금 내용과 견줘 달라진 줄 · 카드 · 글자만 바꿉니다 (현장 작업에 먼저 넣었던 방식). 그대로인 부분은 손대지 않아 깜빡이지 않고, 표 안의 스크롤 위치와 커서가 있는 입력칸도 그대로 남습니다. 결과는 전과 같습니다 — 적다 만 칸은 전처럼 원래 값으로 돌아갑니다(커서가 있는 칸 제외)."],
   ["2026-11-27", "수동 묶음 — 따로 보기를 다시 묶기", "[따로 보기]로 풀어 놓은 중량 카드마다 머리 아래에 [⛓ 묶어 보기] 버튼이 생겼습니다 — 어느 카드에서 눌러도 그 원두의 중량들이 다시 한 카드로 묶입니다. 위쪽의 「따로 보는 중」 띠도 눈에 띄게 바꾸고 버튼을 [다시 묶어 보기]로 키웠습니다. 따로 보기 상태는 이 기기에 기억되어, 새로고침해도 다시 묶기 전까지 그대로입니다 (지난 날짜 것은 자동으로 지워짐)."],
   ["2026-11-27", "수동 묶음 카드 — 모양 정리", "수동 묶음 카드를 옆의 카드와 같은 틀로 다듬었습니다 — 큰 숫자(생산 수 / 목표 합계)와 진행 막대, 그 아래 중량 줄, 맨 아래 큰 버튼. 경고는 같은 내용끼리 한 줄로 모으고(모든 중량에 해당하면 중량 표시 생략), 줄마다 되풀이되던 긴 품목명은 빼고 중량 · 채널 · 구분(사업자 등)만 보입니다. 같은 중량이 두 줄이면 지시 순서를 같이 적습니다. 줄의 [설비 이동]은 작은 [이동 →]으로, 머리의 버튼도 작게 바꿨습니다. 폰에서는 묶음 카드의 표가 카드 밖으로 넘쳐 오른쪽 버튼이 잘리던 것을 고쳐, 버튼을 중량 아래에 둡니다. 출고장 묶음 창도 폰에서는 표 대신 묶음마다 한 칸씩 세로로 나옵니다. 묶음 카드는 설비 줄 맨 위에 묶음끼리 같은 폭으로 따로 모으고, 나머지 카드는 그 아래에 원래 순서대로 둡니다 — 넓은 카드와 좁은 카드가 한 줄에 섞여 들쭉날쭉하던 것을 없앴습니다. 시작할 수 없는 묶음은 옆 카드처럼 빨간 [생산 불가 — 원두 …] 버튼으로 나옵니다."],
   ["2026-11-27", "현장 작업 · 생산계획 위쪽 알림을 한 줄씩으로", "위쪽 알림(금일 사용 필요 · 채널 지정 원두 미생산 · 배치를 다시 잡아야 하는 지시 · CFE 완제품 금일 출고 필요/상미 초과)이 목록까지 전부 펼쳐져 화면을 많이 차지했습니다. 이제 알림마다 제목 한 줄(건수와 요약 — 예: 컬리 18 · 네이버 2 / 잔량 부족 24 · 입고 전 13 — 과 버튼)만 보이고, [자세히 ▾]를 눌러야 목록이 펼쳐집니다. 펼친 상태는 이 기기에 기억됩니다. 목록이 3개 이하인 알림은 전처럼 바로 보입니다. 출고 화면의 CFE 알림은 전과 같습니다."],
@@ -9893,7 +9894,8 @@ function patchKids(oldP, newP, depth){
     if (x.nodeType !== y.nodeType) { oldP.replaceChild(y, x); continue; }
     if (x.nodeType !== 1) { if (x.nodeValue !== y.nodeValue) x.nodeValue = y.nodeValue; continue; }
     if (x.isEqualNode(y)) continue;
-    if (depth >= 16 || x.tagName !== y.tagName || /^(CANVAS|SVG)$/i.test(x.tagName)) { oldP.replaceChild(y, x); continue; }
+    /* 표 머리줄은 통째로 바꾼다 — 정렬 · 칸 너비 손잡이가 머리 칸에 직접 붙어 있어, 남겨 두면 누름이 두 번 걸린다 */
+    if (depth >= 16 || x.tagName !== y.tagName || /^(CANVAS|SVG|THEAD)$/i.test(x.tagName)) { oldP.replaceChild(y, x); continue; }
     const field = /^(INPUT|SELECT|TEXTAREA)$/.test(x.tagName), focused = field && document.activeElement === x;
     if (field && !focused && x.tagName !== "INPUT") { oldP.replaceChild(y, x); continue; }            // 고르는 칸 · 긴 글 칸은 통째로 (커서가 있으면 그대로 둔다)
     if (field && focused && x.tagName !== "INPUT") continue;
@@ -9904,6 +9906,36 @@ function patchKids(oldP, newP, depth){
       continue; }
     patchKids(x, y, depth + 1); }
 }
+/* ★ 2026-11-27 모든 화면에서 깜빡임 없애기 (Lee "화면 깜빡임을 지우자 !")
+   화면 안의 칸에 내용을 넣을 때(el.innerHTML = …) 통째로 지우고 새로 만들지 않고, 지금 내용과 견줘 달라진 조각만 바꾼다 — 현장 작업에 넣은 방식을 전 화면에 적용
+   · 결과는 전과 같다: 사람이 적다 만 칸은 (커서가 있는 칸만 빼고) 전처럼 원래 값으로 돌아간다
+   · 대상: 화면(section) 안의 id 가 있는 칸 · 이미 내용이 있을 때만 · 끌어서 순서를 바꾸는 목록(손잡이가 줄에 직접 붙은 것)은 전처럼 통째로
+   · 끄기: 주소창 콘솔에서 localStorage.setItem("momos.patch.off","1") 후 새로고침 (문제가 생겼을 때의 비상용) */
+function patchReset(el){
+  const act = document.activeElement;
+  el.querySelectorAll("input,select,textarea").forEach(f=>{ if (f === act) return;
+    if (f.type === "checkbox" || f.type === "radio") { if (f.checked !== f.defaultChecked) f.checked = f.defaultChecked; }
+    else if (f.tagName === "SELECT") { const d = [...f.options].findIndex(o=>o.defaultSelected); const want = d >= 0 ? d : (f.options.length ? 0 : -1); if (!f.multiple && f.selectedIndex !== want) f.selectedIndex = want; }
+    else if (f.type !== "file" && f.value !== f.defaultValue) f.value = f.defaultValue; });
+}
+(function(){
+  const D = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML"); if (!D || !D.set || !D.get) return;
+  let OFF = false; try { OFF = localStorage.getItem("momos.patch.off") === "1"; } catch(_){}
+  let busy = false;
+  try { Object.defineProperty(Element.prototype, "innerHTML", { configurable:true, enumerable:D.enumerable, get(){ return D.get.call(this); },
+    set(v){
+      if (OFF || busy || typeof v !== "string" || !v || !this.firstChild || !this.isConnected || this.tagName === "TEMPLATE"
+          || !this.closest('section[id^="s-"]') || this.querySelector(".cor, .mr")) return D.set.call(this, v);
+      busy = true;
+      try { const t = document.createElement("template"); D.set.call(t, v); patchKids(this, t.content, 0); patchReset(this); PATCH_DRAW++; }
+      catch(e){ try { errQuiet(e); } catch(_){} D.set.call(this, v); }
+      finally { busy = false; }
+    } }); } catch(e){ try { errQuiet(e); } catch(_){} }
+  /* 글자만 넣는 칸(textContent)도 같은 글자면 건드리지 않는다 */
+  const T = Object.getOwnPropertyDescriptor(Node.prototype, "textContent");
+  if (T && T.set && T.get) { try { Object.defineProperty(Node.prototype, "textContent", { configurable:true, enumerable:T.enumerable, get(){ return T.get.call(this); },
+    set(v){ if (!OFF && this.nodeType === 1 && this.childNodes.length === 1 && this.firstChild.nodeType === 3 && this.firstChild.nodeValue === String(v == null ? "" : v)) return; T.set.call(this, v); } }); } catch(e){ try { errQuiet(e); } catch(_){} } }
+})();
 function render(s){
   keepScrollX(()=>renderOne(s));
   if (typeof applyRoleLock === "function") applyRoleLock();
